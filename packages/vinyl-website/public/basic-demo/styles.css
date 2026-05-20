@@ -1,0 +1,17 @@
+/*
+ * Copyright (c) 2024. Amazon.com, Inc. or its affiliates. All rights reserved.
+ */
+
+html,
+body {
+    height: 100%;
+    font-family: sans-serif;
+    margin: 0;
+    background-color: #dcdee5;
+}
+
+body,
+html {
+    margin: 0;
+    padding: 5px;
+}

@@ -1,0 +1,52 @@
+{
+    "$schema": "./node_modules/nx/schemas/nx-schema.json",
+    "namedInputs": {
+        "lintConfig": [
+            "default",
+            "{workspaceRoot}/buildSrc/lint/**/*",
+            "{workspaceRoot}/eslint.config.js",
+            "{workspaceRoot}/.prettierignore",
+            "{workspaceRoot}/.prettierrc.json"
+        ]
+    },
+    "targetDefaults": {
+        "build": {
+            "dependsOn": ["^build"],
+            "outputs": ["{projectRoot}/dist"],
+            "cache": true
+        },
+        "build:release": {
+            "dependsOn": ["^build:release"],
+            "outputs": ["{projectRoot}/dist"],
+            "cache": true
+        },
+        "test:browserstack": {
+            "dependsOn": ["^test:browserstack"],
+            "cache": true
+        },
+        "lint": {
+            "dependsOn": ["^build:release"],
+            "cache": true,
+            "inputs": ["default", "lintConfig"]
+        },
+        "lint:write": {
+            "dependsOn": ["^build:release"],
+            "cache": true,
+            "inputs": ["default", "lintConfig"]
+        },
+        "validate": {
+            "dependsOn": ["^build:release"],
+            "cache": true
+        },
+        "test": {
+            "dependsOn": ["^build:release"],
+            "cache": true
+        },
+        "test:coverage": {
+            "dependsOn": ["^build:release"],
+            "cache": true,
+            "outputs": ["{projectRoot}/coverage"]
+        }
+    },
+    "defaultBase": "master"
+}

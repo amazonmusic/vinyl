@@ -1,0 +1,5 @@
+{
+    "helpers": ["test/unit/setup.ts"],
+    "spec_dir": "./",
+    "spec_files": ["test/unit/**/*.test.ts"]
+}

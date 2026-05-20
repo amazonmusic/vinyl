@@ -1,0 +1,16 @@
+{
+    "extends": "../../../../tsconfig.test.json",
+    "include": ["./**/*"],
+    "compilerOptions": {
+        "outDir": "../../dist/vinylTestUtil/types/current",
+        "paths": {
+            "@amazon/vinyl": ["../../src/index"],
+            "@/*": ["./*"]
+        }
+    },
+    "references": [
+        {
+            "path": "../../src"
+        }
+    ]
+}

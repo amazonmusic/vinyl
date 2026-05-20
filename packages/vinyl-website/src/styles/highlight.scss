@@ -1,0 +1,76 @@
+:root,
+[data-theme='light'] {
+    --hljs-keyword: #8250df;
+    --hljs-string: #0a3069;
+    --hljs-attr: #0550ae;
+    --hljs-comment: #6e7781;
+    --hljs-number: #0550ae;
+    --hljs-type: #953800;
+    --hljs-function: #6639ba;
+    --hljs-params: #24292f;
+    --hljs-meta: #0550ae;
+    --hljs-property: #953800;
+    --hljs-literal: #0550ae;
+}
+
+[data-theme='dark'] {
+    --hljs-keyword: #c678dd;
+    --hljs-string: #98c379;
+    --hljs-attr: #98c379;
+    --hljs-comment: #6e7681;
+    --hljs-number: #d19a66;
+    --hljs-type: #e5c07b;
+    --hljs-function: #61afef;
+    --hljs-params: #abb2bf;
+    --hljs-meta: #56b6c2;
+    --hljs-property: #e06c75;
+    --hljs-literal: #d19a66;
+}
+
+.hljs {
+    color: var(--color-text-primary);
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in {
+    color: var(--hljs-keyword);
+}
+
+.hljs-string,
+.hljs-attr {
+    color: var(--hljs-string);
+}
+
+.hljs-comment {
+    color: var(--hljs-comment);
+    font-style: italic;
+}
+
+.hljs-number,
+.hljs-literal {
+    color: var(--hljs-literal);
+}
+
+.hljs-type,
+.hljs-title,
+.hljs-class {
+    color: var(--hljs-type);
+}
+
+.hljs-function,
+.hljs-title.function_ {
+    color: var(--hljs-function);
+}
+
+.hljs-params {
+    color: var(--hljs-params);
+}
+
+.hljs-meta {
+    color: var(--hljs-meta);
+}
+
+.hljs-property {
+    color: var(--hljs-property);
+}

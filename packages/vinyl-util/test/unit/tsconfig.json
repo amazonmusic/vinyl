@@ -1,0 +1,24 @@
+{
+    "extends": "../../../../tsconfig.test.json",
+    "include": ["./**/*"],
+    "compilerOptions": {
+        "outDir": "../../dist/unit/types/current",
+        "noEmit": true,
+        "paths": {
+            "@amazon/vinyl-util": ["../../src/index"],
+            "@amazon/vinyl-util/browserTestUtil": ["../browserTestUtil/index"],
+            "@amazon/vinyl-util/testUtil": ["../testUtil/index"]
+        }
+    },
+    "references": [
+        {
+            "path": "../../src"
+        },
+        {
+            "path": "../browserTestUtil"
+        },
+        {
+            "path": "../testUtil"
+        }
+    ]
+}

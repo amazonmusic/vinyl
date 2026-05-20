@@ -1,0 +1,19 @@
+{
+    "packages": ["./", "packages/*"],
+    "version": "0.0.0",
+    "command": {
+        "publish": {
+            "forcePublish": true
+        },
+        "version": {
+            "conventionalCommits": true,
+            "message": "chore(release): %v",
+            "push": false,
+            "changelogPreset": {
+                "name": "conventionalcommits",
+                "compareUrlFormat": "",
+                "commitUrlFormat": "{{host}}/{{owner}}/{{repository}}/commits/{{hash}}"
+            }
+        }
+    }
+}

@@ -1,0 +1,16 @@
+{
+    "extends": "../../../../tsconfig.test.json",
+    "include": ["./**/*"],
+    "compilerOptions": {
+        "outDir": "../../dist/unit/types/current",
+        "noEmit": true,
+        "paths": {
+            "@amazon/vinyl-xml": ["../../src/index"]
+        }
+    },
+    "references": [
+        {
+            "path": "../../src"
+        }
+    ]
+}

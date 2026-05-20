@@ -1,0 +1,9 @@
+{
+    "bucketName": "staticwebsitestack-dev-staticwebsitebucketdevbfe7f-eviocjz54o47",
+    "keyPrefix": "devBuild/$USER$",
+    "source": "packages/vinyl-website/dist",
+    "awsAccountId": 339713167445,
+    "cfDistributionId": "E1CIHI44E4BONI",
+    "url": "https://dev.vinyl.music.amazon.dev/$KEY_PREFIX$index.html",
+    "s3Region": "us-east-1"
+}

@@ -1,0 +1,2461 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+/* eslint-disable @typescript-eslint/prefer-as-const */
+/* eslint-disable @typescript-eslint/no-deprecated */
+
+import { createSpy2 } from '@/mock/createSpyFactory'
+
+export class MockAbortController implements AbortController {
+    signal: AbortSignal = undefined as any
+
+    abort = createSpy2<AbortController['abort']>('abort')
+}
+
+export class MockAbortSignal implements AbortSignal {
+    aborted: boolean = false
+    onabort: ((this: AbortSignal, ev: Event) => any) | null = null
+    reason: any = undefined
+
+    throwIfAborted = createSpy2<AbortSignal['throwIfAborted']>('throwIfAborted')
+    addEventListener =
+        createSpy2<AbortSignal['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<AbortSignal['removeEventListener']>(
+        'removeEventListener'
+    )
+    dispatchEvent = createSpy2<AbortSignal['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockAudioContext implements AudioContext {
+    baseLatency: number = 0
+    outputLatency: number = 0
+    audioWorklet: AudioWorklet = undefined as any
+    currentTime: number = 0
+    destination: AudioDestinationNode = undefined as any
+    listener: AudioListener = undefined as any
+    onstatechange: ((this: BaseAudioContext, ev: Event) => any) | null = null
+    sampleRate: number = 0
+    state: AudioContextState = 'closed'
+
+    close = createSpy2<AudioContext['close']>('close')
+    createMediaElementSource = createSpy2<
+        AudioContext['createMediaElementSource']
+    >('createMediaElementSource')
+    createMediaStreamDestination = createSpy2<
+        AudioContext['createMediaStreamDestination']
+    >('createMediaStreamDestination')
+    createMediaStreamSource = createSpy2<
+        AudioContext['createMediaStreamSource']
+    >('createMediaStreamSource')
+    getOutputTimestamp =
+        createSpy2<AudioContext['getOutputTimestamp']>('getOutputTimestamp')
+    resume = createSpy2<AudioContext['resume']>('resume')
+    suspend = createSpy2<AudioContext['suspend']>('suspend')
+    addEventListener =
+        createSpy2<AudioContext['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<AudioContext['removeEventListener']>(
+        'removeEventListener'
+    )
+    createAnalyser =
+        createSpy2<AudioContext['createAnalyser']>('createAnalyser')
+    createBiquadFilter =
+        createSpy2<AudioContext['createBiquadFilter']>('createBiquadFilter')
+    createBuffer = createSpy2<AudioContext['createBuffer']>('createBuffer')
+    createBufferSource =
+        createSpy2<AudioContext['createBufferSource']>('createBufferSource')
+    createChannelMerger = createSpy2<AudioContext['createChannelMerger']>(
+        'createChannelMerger'
+    )
+    createChannelSplitter = createSpy2<AudioContext['createChannelSplitter']>(
+        'createChannelSplitter'
+    )
+    createConstantSource = createSpy2<AudioContext['createConstantSource']>(
+        'createConstantSource'
+    )
+    createConvolver =
+        createSpy2<AudioContext['createConvolver']>('createConvolver')
+    createDelay = createSpy2<AudioContext['createDelay']>('createDelay')
+    createDynamicsCompressor = createSpy2<
+        AudioContext['createDynamicsCompressor']
+    >('createDynamicsCompressor')
+    createGain = createSpy2<AudioContext['createGain']>('createGain')
+    createIIRFilter =
+        createSpy2<AudioContext['createIIRFilter']>('createIIRFilter')
+    createOscillator =
+        createSpy2<AudioContext['createOscillator']>('createOscillator')
+    createPanner = createSpy2<AudioContext['createPanner']>('createPanner')
+    createPeriodicWave =
+        createSpy2<AudioContext['createPeriodicWave']>('createPeriodicWave')
+    createScriptProcessor = createSpy2<AudioContext['createScriptProcessor']>(
+        'createScriptProcessor'
+    )
+    createStereoPanner =
+        createSpy2<AudioContext['createStereoPanner']>('createStereoPanner')
+    createWaveShaper =
+        createSpy2<AudioContext['createWaveShaper']>('createWaveShaper')
+    decodeAudioData =
+        createSpy2<AudioContext['decodeAudioData']>('decodeAudioData')
+    dispatchEvent = createSpy2<AudioContext['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockCache implements Cache {
+    add = createSpy2<Cache['add']>('add')
+    addAll = createSpy2<Cache['addAll']>('addAll')
+    delete = createSpy2<Cache['delete']>('delete')
+    keys = createSpy2<Cache['keys']>('keys')
+    match = createSpy2<Cache['match']>('match')
+    matchAll = createSpy2<Cache['matchAll']>('matchAll')
+    put = createSpy2<Cache['put']>('put')
+}
+
+export class MockCacheStorage implements CacheStorage {
+    delete = createSpy2<CacheStorage['delete']>('delete')
+    has = createSpy2<CacheStorage['has']>('has')
+    keys = createSpy2<CacheStorage['keys']>('keys')
+    match = createSpy2<CacheStorage['match']>('match')
+    open = createSpy2<CacheStorage['open']>('open')
+}
+
+export class MockCustomEvent<T = any> implements CustomEvent<T> {
+    detail: T = undefined as any
+    bubbles: boolean = false
+    cancelBubble: boolean = false
+    cancelable: boolean = false
+    composed: boolean = false
+    currentTarget: EventTarget | null = null
+    defaultPrevented: boolean = false
+    eventPhase: number = 0
+    isTrusted: boolean = false
+    returnValue: boolean = false
+    srcElement: EventTarget | null = null
+    target: EventTarget | null = null
+    timeStamp: DOMHighResTimeStamp = 0
+    type: string = ''
+    NONE: 0 = 0
+    CAPTURING_PHASE: 1 = 1
+    AT_TARGET: 2 = 2
+    BUBBLING_PHASE: 3 = 3
+
+    initCustomEvent =
+        createSpy2<CustomEvent<T>['initCustomEvent']>('initCustomEvent')
+    composedPath = createSpy2<CustomEvent<T>['composedPath']>('composedPath')
+    initEvent = createSpy2<CustomEvent<T>['initEvent']>('initEvent')
+    preventDefault =
+        createSpy2<CustomEvent<T>['preventDefault']>('preventDefault')
+    stopImmediatePropagation = createSpy2<
+        CustomEvent<T>['stopImmediatePropagation']
+    >('stopImmediatePropagation')
+    stopPropagation =
+        createSpy2<CustomEvent<T>['stopPropagation']>('stopPropagation')
+}
+
+export class MockDocument implements Document {
+    URL: string = ''
+    alinkColor: string = ''
+    all: HTMLAllCollection = undefined as any
+    anchors: HTMLCollectionOf<HTMLAnchorElement> = undefined as any
+    applets: HTMLCollection = undefined as any
+    bgColor: string = ''
+    body: HTMLElement = undefined as any
+    characterSet: string = ''
+    charset: string = ''
+    compatMode: string = ''
+    contentType: string = ''
+    cookie: string = ''
+    currentScript: HTMLOrSVGScriptElement | null = undefined as any
+    defaultView: (WindowProxy & typeof globalThis) | null = undefined as any
+    designMode: string = ''
+    dir: string = ''
+    doctype: DocumentType | null = null
+    documentElement: HTMLElement = undefined as any
+    documentURI: string = ''
+    domain: string = ''
+    embeds: HTMLCollectionOf<HTMLEmbedElement> = undefined as any
+    fgColor: string = ''
+    forms: HTMLCollectionOf<HTMLFormElement> = undefined as any
+    fragmentDirective: FragmentDirective = undefined as any
+    fullscreen: boolean = false
+    fullscreenEnabled: boolean = false
+    head: HTMLHeadElement = undefined as any
+    hidden: boolean = false
+    images: HTMLCollectionOf<HTMLImageElement> = undefined as any
+    implementation: DOMImplementation = undefined as any
+    inputEncoding: string = ''
+    lastModified: string = ''
+    linkColor: string = ''
+    links: HTMLCollectionOf<HTMLAnchorElement | HTMLAreaElement> =
+        undefined as any
+    onfullscreenchange: ((this: Document, ev: Event) => any) | null = null
+    onfullscreenerror: ((this: Document, ev: Event) => any) | null = null
+    onpointerlockchange: ((this: Document, ev: Event) => any) | null = null
+    onpointerlockerror: ((this: Document, ev: Event) => any) | null = null
+    onreadystatechange: ((this: Document, ev: Event) => any) | null = null
+    onvisibilitychange: ((this: Document, ev: Event) => any) | null = null
+    ownerDocument: null = null
+    pictureInPictureEnabled: boolean = false
+    plugins: HTMLCollectionOf<HTMLEmbedElement> = undefined as any
+    readyState: DocumentReadyState = 'complete'
+    referrer: string = ''
+    rootElement: SVGSVGElement | null = null
+    scripts: HTMLCollectionOf<HTMLScriptElement> = undefined as any
+    scrollingElement: Element | null = null
+    timeline: DocumentTimeline = undefined as any
+    title: string = ''
+    visibilityState: DocumentVisibilityState = 'hidden'
+    vlinkColor: string = ''
+    location: any = undefined
+    baseURI: string = ''
+    childNodes: NodeListOf<ChildNode> = undefined as any
+    firstChild: ChildNode | null = null
+    isConnected: boolean = false
+    lastChild: ChildNode | null = null
+    nextSibling: ChildNode | null = null
+    nodeName: string = ''
+    nodeType: number = 0
+    nodeValue: string | null = ''
+    parentElement: HTMLElement | null = null
+    parentNode: ParentNode | null = null
+    previousSibling: ChildNode | null = null
+    textContent: string | null = ''
+    ELEMENT_NODE: 1 = 1
+    ATTRIBUTE_NODE: 2 = 2
+    TEXT_NODE: 3 = 3
+    CDATA_SECTION_NODE: 4 = 4
+    ENTITY_REFERENCE_NODE: 5 = 5
+    ENTITY_NODE: 6 = 6
+    PROCESSING_INSTRUCTION_NODE: 7 = 7
+    COMMENT_NODE: 8 = 8
+    DOCUMENT_NODE: 9 = 9
+    DOCUMENT_TYPE_NODE: 10 = 10
+    DOCUMENT_FRAGMENT_NODE: 11 = 11
+    NOTATION_NODE: 12 = 12
+    DOCUMENT_POSITION_DISCONNECTED: 0x01 = 1
+    DOCUMENT_POSITION_PRECEDING: 0x02 = 2
+    DOCUMENT_POSITION_FOLLOWING: 0x04 = 4
+    DOCUMENT_POSITION_CONTAINS: 0x08 = 8
+    DOCUMENT_POSITION_CONTAINED_BY: 0x10 = 16
+    DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC: 0x20 = 32
+    activeElement: Element | null = null
+    adoptedStyleSheets: CSSStyleSheet[] = []
+    fullscreenElement: Element | null = null
+    pictureInPictureElement: Element | null = null
+    pointerLockElement: Element | null = null
+    styleSheets: StyleSheetList = undefined as any
+    fonts: FontFaceSet = undefined as any
+    onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onanimationcancel:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationend:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationiteration:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationstart:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onauxclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
+        null
+    onbeforetoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplaythrough: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null = null
+    onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextmenu: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    oncuechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncut: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    ondblclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    ondrag: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragend: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragenter: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragleave: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragover: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragstart: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondrop: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondurationchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onemptied: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onended: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onerror: OnErrorEventHandler = undefined as any
+    onfocus: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
+        null
+    ongotpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeypress: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeyup: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onload: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadeddata: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadedmetadata: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onlostpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseleave: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmousemove: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseout: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseover: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseup: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onpaste: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    onpause: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onpointercancel:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerdown:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerenter:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerleave:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointermove:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerout:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerover:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
+        null
+    onprogress: ((this: GlobalEventHandlers, ev: ProgressEvent) => any) | null =
+        null
+    onratechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onreset: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onresize: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onscroll: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onscrollend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsecuritypolicyviolation:
+        | ((this: GlobalEventHandlers, ev: SecurityPolicyViolationEvent) => any)
+        | null = null
+    onseeked: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onseeking: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselect: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselectionchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onselectstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onslotchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onstalled: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsubmit: ((this: GlobalEventHandlers, ev: SubmitEvent) => any) | null =
+        null
+    onsuspend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontimeupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontransitioncancel:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionend:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionrun:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionstart:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onwebkitanimationend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationiteration:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationstart:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkittransitionend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
+    childElementCount: number = 0
+    children: HTMLCollection = undefined as any
+    firstElementChild: Element | null = null
+    lastElementChild: Element | null = null
+
+    adoptNode = createSpy2<Document['adoptNode']>('adoptNode')
+    captureEvents = createSpy2<Document['captureEvents']>('captureEvents')
+    caretPositionFromPoint = createSpy2<Document['caretPositionFromPoint']>(
+        'caretPositionFromPoint'
+    )
+    caretRangeFromPoint = createSpy2<Document['caretRangeFromPoint']>(
+        'caretRangeFromPoint'
+    )
+    clear = createSpy2<Document['clear']>('clear')
+    close = createSpy2<Document['close']>('close')
+    createAttribute = createSpy2<Document['createAttribute']>('createAttribute')
+    createAttributeNS =
+        createSpy2<Document['createAttributeNS']>('createAttributeNS')
+    createCDATASection =
+        createSpy2<Document['createCDATASection']>('createCDATASection')
+    createComment = createSpy2<Document['createComment']>('createComment')
+    createDocumentFragment = createSpy2<Document['createDocumentFragment']>(
+        'createDocumentFragment'
+    )
+    createElement = createSpy2<Document['createElement']>('createElement')
+    createElementNS = createSpy2<Document['createElementNS']>('createElementNS')
+    createEvent = createSpy2<Document['createEvent']>('createEvent')
+    createNodeIterator =
+        createSpy2<Document['createNodeIterator']>('createNodeIterator')
+    createProcessingInstruction = createSpy2<
+        Document['createProcessingInstruction']
+    >('createProcessingInstruction')
+    createRange = createSpy2<Document['createRange']>('createRange')
+    createTextNode = createSpy2<Document['createTextNode']>('createTextNode')
+    createTreeWalker =
+        createSpy2<Document['createTreeWalker']>('createTreeWalker')
+    execCommand = createSpy2<Document['execCommand']>('execCommand')
+    exitFullscreen = createSpy2<Document['exitFullscreen']>('exitFullscreen')
+    exitPictureInPicture = createSpy2<Document['exitPictureInPicture']>(
+        'exitPictureInPicture'
+    )
+    exitPointerLock = createSpy2<Document['exitPointerLock']>('exitPointerLock')
+    getElementById = createSpy2<Document['getElementById']>('getElementById')
+    getElementsByClassName = createSpy2<Document['getElementsByClassName']>(
+        'getElementsByClassName'
+    )
+    getElementsByName =
+        createSpy2<Document['getElementsByName']>('getElementsByName')
+    getElementsByTagName = createSpy2<Document['getElementsByTagName']>(
+        'getElementsByTagName'
+    )
+    getElementsByTagNameNS = createSpy2<Document['getElementsByTagNameNS']>(
+        'getElementsByTagNameNS'
+    )
+    getSelection = createSpy2<Document['getSelection']>('getSelection')
+    hasFocus = createSpy2<Document['hasFocus']>('hasFocus')
+    hasStorageAccess =
+        createSpy2<Document['hasStorageAccess']>('hasStorageAccess')
+    importNode = createSpy2<Document['importNode']>('importNode')
+    open = createSpy2<Document['open']>('open')
+    queryCommandEnabled = createSpy2<Document['queryCommandEnabled']>(
+        'queryCommandEnabled'
+    )
+    queryCommandIndeterm = createSpy2<Document['queryCommandIndeterm']>(
+        'queryCommandIndeterm'
+    )
+    queryCommandState =
+        createSpy2<Document['queryCommandState']>('queryCommandState')
+    queryCommandSupported = createSpy2<Document['queryCommandSupported']>(
+        'queryCommandSupported'
+    )
+    queryCommandValue =
+        createSpy2<Document['queryCommandValue']>('queryCommandValue')
+    releaseEvents = createSpy2<Document['releaseEvents']>('releaseEvents')
+    requestStorageAccess = createSpy2<Document['requestStorageAccess']>(
+        'requestStorageAccess'
+    )
+    startViewTransition = createSpy2<Document['startViewTransition']>(
+        'startViewTransition'
+    )
+    write = createSpy2<Document['write']>('write')
+    writeln = createSpy2<Document['writeln']>('writeln')
+    addEventListener =
+        createSpy2<Document['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<Document['removeEventListener']>(
+        'removeEventListener'
+    )
+    appendChild = createSpy2<Document['appendChild']>('appendChild')
+    cloneNode = createSpy2<Document['cloneNode']>('cloneNode')
+    compareDocumentPosition = createSpy2<Document['compareDocumentPosition']>(
+        'compareDocumentPosition'
+    )
+    contains = createSpy2<Document['contains']>('contains')
+    getRootNode = createSpy2<Document['getRootNode']>('getRootNode')
+    hasChildNodes = createSpy2<Document['hasChildNodes']>('hasChildNodes')
+    insertBefore = createSpy2<Document['insertBefore']>('insertBefore')
+    isDefaultNamespace =
+        createSpy2<Document['isDefaultNamespace']>('isDefaultNamespace')
+    isEqualNode = createSpy2<Document['isEqualNode']>('isEqualNode')
+    isSameNode = createSpy2<Document['isSameNode']>('isSameNode')
+    lookupNamespaceURI =
+        createSpy2<Document['lookupNamespaceURI']>('lookupNamespaceURI')
+    lookupPrefix = createSpy2<Document['lookupPrefix']>('lookupPrefix')
+    normalize = createSpy2<Document['normalize']>('normalize')
+    removeChild = createSpy2<Document['removeChild']>('removeChild')
+    replaceChild = createSpy2<Document['replaceChild']>('replaceChild')
+    elementFromPoint =
+        createSpy2<Document['elementFromPoint']>('elementFromPoint')
+    elementsFromPoint =
+        createSpy2<Document['elementsFromPoint']>('elementsFromPoint')
+    getAnimations = createSpy2<Document['getAnimations']>('getAnimations')
+    append = createSpy2<Document['append']>('append')
+    prepend = createSpy2<Document['prepend']>('prepend')
+    querySelector = createSpy2<Document['querySelector']>('querySelector')
+    querySelectorAll =
+        createSpy2<Document['querySelectorAll']>('querySelectorAll')
+    replaceChildren = createSpy2<Document['replaceChildren']>('replaceChildren')
+    createExpression =
+        createSpy2<Document['createExpression']>('createExpression')
+    createNSResolver =
+        createSpy2<Document['createNSResolver']>('createNSResolver')
+    evaluate = createSpy2<Document['evaluate']>('evaluate')
+    dispatchEvent = createSpy2<Document['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockErrorEvent implements ErrorEvent {
+    colno: number = 0
+    error: any = undefined
+    filename: string = ''
+    lineno: number = 0
+    message: string = ''
+    bubbles: boolean = false
+    cancelBubble: boolean = false
+    cancelable: boolean = false
+    composed: boolean = false
+    currentTarget: EventTarget | null = null
+    defaultPrevented: boolean = false
+    eventPhase: number = 0
+    isTrusted: boolean = false
+    returnValue: boolean = false
+    srcElement: EventTarget | null = null
+    target: EventTarget | null = null
+    timeStamp: DOMHighResTimeStamp = 0
+    type: string = ''
+    NONE: 0 = 0
+    CAPTURING_PHASE: 1 = 1
+    AT_TARGET: 2 = 2
+    BUBBLING_PHASE: 3 = 3
+
+    composedPath = createSpy2<ErrorEvent['composedPath']>('composedPath')
+    initEvent = createSpy2<ErrorEvent['initEvent']>('initEvent')
+    preventDefault = createSpy2<ErrorEvent['preventDefault']>('preventDefault')
+    stopImmediatePropagation = createSpy2<
+        ErrorEvent['stopImmediatePropagation']
+    >('stopImmediatePropagation')
+    stopPropagation =
+        createSpy2<ErrorEvent['stopPropagation']>('stopPropagation')
+}
+
+export class MockEvent implements Event {
+    bubbles: boolean = false
+    cancelBubble: boolean = false
+    cancelable: boolean = false
+    composed: boolean = false
+    currentTarget: EventTarget | null = null
+    defaultPrevented: boolean = false
+    eventPhase: number = 0
+    isTrusted: boolean = false
+    returnValue: boolean = false
+    srcElement: EventTarget | null = null
+    target: EventTarget | null = null
+    timeStamp: DOMHighResTimeStamp = 0
+    type: string = ''
+    NONE: 0 = 0
+    CAPTURING_PHASE: 1 = 1
+    AT_TARGET: 2 = 2
+    BUBBLING_PHASE: 3 = 3
+
+    composedPath = createSpy2<Event['composedPath']>('composedPath')
+    initEvent = createSpy2<Event['initEvent']>('initEvent')
+    preventDefault = createSpy2<Event['preventDefault']>('preventDefault')
+    stopImmediatePropagation = createSpy2<Event['stopImmediatePropagation']>(
+        'stopImmediatePropagation'
+    )
+    stopPropagation = createSpy2<Event['stopPropagation']>('stopPropagation')
+}
+
+export class MockEventTarget implements EventTarget {
+    addEventListener =
+        createSpy2<EventTarget['addEventListener']>('addEventListener')
+    dispatchEvent = createSpy2<EventTarget['dispatchEvent']>('dispatchEvent')
+    removeEventListener = createSpy2<EventTarget['removeEventListener']>(
+        'removeEventListener'
+    )
+}
+
+export class MockHTMLAudioElement implements HTMLAudioElement {
+    autoplay: boolean = false
+    buffered: TimeRanges = undefined as any
+    controls: boolean = false
+    crossOrigin: string | null = ''
+    currentSrc: string = ''
+    currentTime: number = 0
+    defaultMuted: boolean = false
+    defaultPlaybackRate: number = 0
+    disableRemotePlayback: boolean = false
+    duration: number = 0
+    ended: boolean = false
+    error: MediaError | null = null
+    loop: boolean = false
+    mediaKeys: MediaKeys | null = null
+    muted: boolean = false
+    networkState: number = 0
+    onencrypted:
+        | ((this: HTMLMediaElement, ev: MediaEncryptedEvent) => any)
+        | null = null
+    onwaitingforkey: ((this: HTMLMediaElement, ev: Event) => any) | null = null
+    paused: boolean = false
+    playbackRate: number = 0
+    played: TimeRanges = undefined as any
+    preload: 'none' | 'metadata' | 'auto' | '' = 'none'
+    preservesPitch: boolean = false
+    readyState: number = 0
+    remote: RemotePlayback = undefined as any
+    seekable: TimeRanges = undefined as any
+    seeking: boolean = false
+    sinkId: string = ''
+    src: string = ''
+    srcObject: MediaProvider | null = undefined as any
+    textTracks: TextTrackList = undefined as any
+    volume: number = 0
+    NETWORK_EMPTY: 0 = 0
+    NETWORK_IDLE: 1 = 1
+    NETWORK_LOADING: 2 = 2
+    NETWORK_NO_SOURCE: 3 = 3
+    HAVE_NOTHING: 0 = 0
+    HAVE_METADATA: 1 = 1
+    HAVE_CURRENT_DATA: 2 = 2
+    HAVE_FUTURE_DATA: 3 = 3
+    HAVE_ENOUGH_DATA: 4 = 4
+    accessKey: string = ''
+    accessKeyLabel: string = ''
+    autocapitalize: string = ''
+    dir: string = ''
+    draggable: boolean = false
+    hidden: boolean = false
+    inert: boolean = false
+    innerText: string = ''
+    lang: string = ''
+    offsetHeight: number = 0
+    offsetLeft: number = 0
+    offsetParent: Element | null = null
+    offsetTop: number = 0
+    offsetWidth: number = 0
+    outerText: string = ''
+    popover: string | null = ''
+    spellcheck: boolean = false
+    title: string = ''
+    translate: boolean = false
+    writingSuggestions: string = ''
+    attributes: NamedNodeMap = undefined as any
+    className: string = ''
+    clientHeight: number = 0
+    clientLeft: number = 0
+    clientTop: number = 0
+    clientWidth: number = 0
+    currentCSSZoom: number = 0
+    id: string = ''
+    innerHTML: string = ''
+    localName: string = ''
+    namespaceURI: string | null = ''
+    onfullscreenchange: ((this: Element, ev: Event) => any) | null = null
+    onfullscreenerror: ((this: Element, ev: Event) => any) | null = null
+    outerHTML: string = ''
+    ownerDocument: Document = undefined as any
+    prefix: string | null = ''
+    scrollHeight: number = 0
+    scrollLeft: number = 0
+    scrollTop: number = 0
+    scrollWidth: number = 0
+    shadowRoot: ShadowRoot | null = null
+    slot: string = ''
+    tagName: string = ''
+    classList: any = undefined
+    part: any = undefined
+    attributeStyleMap: StylePropertyMap = undefined as any
+    style: any = undefined
+    contentEditable: string = ''
+    enterKeyHint: string = ''
+    inputMode: string = ''
+    isContentEditable: boolean = false
+    onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onanimationcancel:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationend:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationiteration:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationstart:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onauxclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
+        null
+    onbeforetoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplaythrough: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null = null
+    onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextmenu: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    oncuechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncut: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    ondblclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    ondrag: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragend: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragenter: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragleave: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragover: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragstart: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondrop: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondurationchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onemptied: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onended: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onerror: OnErrorEventHandler = undefined as any
+    onfocus: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
+        null
+    ongotpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeypress: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeyup: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onload: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadeddata: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadedmetadata: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onlostpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseleave: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmousemove: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseout: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseover: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseup: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onpaste: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    onpause: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onpointercancel:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerdown:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerenter:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerleave:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointermove:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerout:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerover:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
+        null
+    onprogress: ((this: GlobalEventHandlers, ev: ProgressEvent) => any) | null =
+        null
+    onratechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onreset: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onresize: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onscroll: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onscrollend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsecuritypolicyviolation:
+        | ((this: GlobalEventHandlers, ev: SecurityPolicyViolationEvent) => any)
+        | null = null
+    onseeked: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onseeking: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselect: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselectionchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onselectstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onslotchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onstalled: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsubmit: ((this: GlobalEventHandlers, ev: SubmitEvent) => any) | null =
+        null
+    onsuspend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontimeupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontransitioncancel:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionend:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionrun:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionstart:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onwebkitanimationend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationiteration:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationstart:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkittransitionend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
+    autofocus: boolean = false
+    dataset: DOMStringMap = undefined as any
+    tabIndex: number = 0
+    baseURI: string = ''
+    childNodes: NodeListOf<ChildNode> = undefined as any
+    firstChild: ChildNode | null = null
+    isConnected: boolean = false
+    lastChild: ChildNode | null = null
+    nextSibling: ChildNode | null = null
+    nodeName: string = ''
+    nodeType: number = 0
+    nodeValue: string | null = ''
+    parentElement: HTMLElement | null = null
+    parentNode: ParentNode | null = null
+    previousSibling: ChildNode | null = null
+    textContent: string | null = ''
+    ELEMENT_NODE: 1 = 1
+    ATTRIBUTE_NODE: 2 = 2
+    TEXT_NODE: 3 = 3
+    CDATA_SECTION_NODE: 4 = 4
+    ENTITY_REFERENCE_NODE: 5 = 5
+    ENTITY_NODE: 6 = 6
+    PROCESSING_INSTRUCTION_NODE: 7 = 7
+    COMMENT_NODE: 8 = 8
+    DOCUMENT_NODE: 9 = 9
+    DOCUMENT_TYPE_NODE: 10 = 10
+    DOCUMENT_FRAGMENT_NODE: 11 = 11
+    NOTATION_NODE: 12 = 12
+    DOCUMENT_POSITION_DISCONNECTED: 0x01 = 1
+    DOCUMENT_POSITION_PRECEDING: 0x02 = 2
+    DOCUMENT_POSITION_FOLLOWING: 0x04 = 4
+    DOCUMENT_POSITION_CONTAINS: 0x08 = 8
+    DOCUMENT_POSITION_CONTAINED_BY: 0x10 = 16
+    DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC: 0x20 = 32
+    ariaAtomic: string | null = ''
+    ariaAutoComplete: string | null = ''
+    ariaBrailleLabel: string | null = ''
+    ariaBrailleRoleDescription: string | null = ''
+    ariaBusy: string | null = ''
+    ariaChecked: string | null = ''
+    ariaColCount: string | null = ''
+    ariaColIndex: string | null = ''
+    ariaColIndexText: string | null = ''
+    ariaColSpan: string | null = ''
+    ariaCurrent: string | null = ''
+    ariaDescription: string | null = ''
+    ariaDisabled: string | null = ''
+    ariaExpanded: string | null = ''
+    ariaHasPopup: string | null = ''
+    ariaHidden: string | null = ''
+    ariaInvalid: string | null = ''
+    ariaKeyShortcuts: string | null = ''
+    ariaLabel: string | null = ''
+    ariaLevel: string | null = ''
+    ariaLive: string | null = ''
+    ariaModal: string | null = ''
+    ariaMultiLine: string | null = ''
+    ariaMultiSelectable: string | null = ''
+    ariaOrientation: string | null = ''
+    ariaPlaceholder: string | null = ''
+    ariaPosInSet: string | null = ''
+    ariaPressed: string | null = ''
+    ariaReadOnly: string | null = ''
+    ariaRelevant: string | null = ''
+    ariaRequired: string | null = ''
+    ariaRoleDescription: string | null = ''
+    ariaRowCount: string | null = ''
+    ariaRowIndex: string | null = ''
+    ariaRowIndexText: string | null = ''
+    ariaRowSpan: string | null = ''
+    ariaSelected: string | null = ''
+    ariaSetSize: string | null = ''
+    ariaSort: string | null = ''
+    ariaValueMax: string | null = ''
+    ariaValueMin: string | null = ''
+    ariaValueNow: string | null = ''
+    ariaValueText: string | null = ''
+    role: string | null = ''
+    nextElementSibling: Element | null = null
+    previousElementSibling: Element | null = null
+    childElementCount: number = 0
+    children: HTMLCollection = undefined as any
+    firstElementChild: Element | null = null
+    lastElementChild: Element | null = null
+    assignedSlot: HTMLSlotElement | null = null
+
+    addEventListener =
+        createSpy2<HTMLAudioElement['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<HTMLAudioElement['removeEventListener']>(
+        'removeEventListener'
+    )
+    addTextTrack = createSpy2<HTMLAudioElement['addTextTrack']>('addTextTrack')
+    canPlayType = createSpy2<HTMLAudioElement['canPlayType']>('canPlayType')
+    fastSeek = createSpy2<HTMLAudioElement['fastSeek']>('fastSeek')
+    load = createSpy2<HTMLAudioElement['load']>('load')
+    pause = createSpy2<HTMLAudioElement['pause']>('pause')
+    play = createSpy2<HTMLAudioElement['play']>('play')
+    setMediaKeys = createSpy2<HTMLAudioElement['setMediaKeys']>('setMediaKeys')
+    setSinkId = createSpy2<HTMLAudioElement['setSinkId']>('setSinkId')
+    attachInternals =
+        createSpy2<HTMLAudioElement['attachInternals']>('attachInternals')
+    click = createSpy2<HTMLAudioElement['click']>('click')
+    hidePopover = createSpy2<HTMLAudioElement['hidePopover']>('hidePopover')
+    showPopover = createSpy2<HTMLAudioElement['showPopover']>('showPopover')
+    togglePopover =
+        createSpy2<HTMLAudioElement['togglePopover']>('togglePopover')
+    attachShadow = createSpy2<HTMLAudioElement['attachShadow']>('attachShadow')
+    checkVisibility =
+        createSpy2<HTMLAudioElement['checkVisibility']>('checkVisibility')
+    closest = createSpy2<HTMLAudioElement['closest']>('closest')
+    computedStyleMap =
+        createSpy2<HTMLAudioElement['computedStyleMap']>('computedStyleMap')
+    getAttribute = createSpy2<HTMLAudioElement['getAttribute']>('getAttribute')
+    getAttributeNS =
+        createSpy2<HTMLAudioElement['getAttributeNS']>('getAttributeNS')
+    getAttributeNames =
+        createSpy2<HTMLAudioElement['getAttributeNames']>('getAttributeNames')
+    getAttributeNode =
+        createSpy2<HTMLAudioElement['getAttributeNode']>('getAttributeNode')
+    getAttributeNodeNS =
+        createSpy2<HTMLAudioElement['getAttributeNodeNS']>('getAttributeNodeNS')
+    getBoundingClientRect = createSpy2<
+        HTMLAudioElement['getBoundingClientRect']
+    >('getBoundingClientRect')
+    getClientRects =
+        createSpy2<HTMLAudioElement['getClientRects']>('getClientRects')
+    getElementsByClassName = createSpy2<
+        HTMLAudioElement['getElementsByClassName']
+    >('getElementsByClassName')
+    getElementsByTagName = createSpy2<HTMLAudioElement['getElementsByTagName']>(
+        'getElementsByTagName'
+    )
+    getElementsByTagNameNS = createSpy2<
+        HTMLAudioElement['getElementsByTagNameNS']
+    >('getElementsByTagNameNS')
+    getHTML = createSpy2<HTMLAudioElement['getHTML']>('getHTML')
+    hasAttribute = createSpy2<HTMLAudioElement['hasAttribute']>('hasAttribute')
+    hasAttributeNS =
+        createSpy2<HTMLAudioElement['hasAttributeNS']>('hasAttributeNS')
+    hasAttributes =
+        createSpy2<HTMLAudioElement['hasAttributes']>('hasAttributes')
+    hasPointerCapture =
+        createSpy2<HTMLAudioElement['hasPointerCapture']>('hasPointerCapture')
+    insertAdjacentElement = createSpy2<
+        HTMLAudioElement['insertAdjacentElement']
+    >('insertAdjacentElement')
+    insertAdjacentHTML =
+        createSpy2<HTMLAudioElement['insertAdjacentHTML']>('insertAdjacentHTML')
+    insertAdjacentText =
+        createSpy2<HTMLAudioElement['insertAdjacentText']>('insertAdjacentText')
+    matches = createSpy2<HTMLAudioElement['matches']>('matches')
+    releasePointerCapture = createSpy2<
+        HTMLAudioElement['releasePointerCapture']
+    >('releasePointerCapture')
+    removeAttribute =
+        createSpy2<HTMLAudioElement['removeAttribute']>('removeAttribute')
+    removeAttributeNS =
+        createSpy2<HTMLAudioElement['removeAttributeNS']>('removeAttributeNS')
+    removeAttributeNode = createSpy2<HTMLAudioElement['removeAttributeNode']>(
+        'removeAttributeNode'
+    )
+    requestFullscreen =
+        createSpy2<HTMLAudioElement['requestFullscreen']>('requestFullscreen')
+    requestPointerLock =
+        createSpy2<HTMLAudioElement['requestPointerLock']>('requestPointerLock')
+    scroll = createSpy2<HTMLAudioElement['scroll']>('scroll')
+    scrollBy = createSpy2<HTMLAudioElement['scrollBy']>('scrollBy')
+    scrollIntoView =
+        createSpy2<HTMLAudioElement['scrollIntoView']>('scrollIntoView')
+    scrollTo = createSpy2<HTMLAudioElement['scrollTo']>('scrollTo')
+    setAttribute = createSpy2<HTMLAudioElement['setAttribute']>('setAttribute')
+    setAttributeNS =
+        createSpy2<HTMLAudioElement['setAttributeNS']>('setAttributeNS')
+    setAttributeNode =
+        createSpy2<HTMLAudioElement['setAttributeNode']>('setAttributeNode')
+    setAttributeNodeNS =
+        createSpy2<HTMLAudioElement['setAttributeNodeNS']>('setAttributeNodeNS')
+    setHTMLUnsafe =
+        createSpy2<HTMLAudioElement['setHTMLUnsafe']>('setHTMLUnsafe')
+    setPointerCapture =
+        createSpy2<HTMLAudioElement['setPointerCapture']>('setPointerCapture')
+    toggleAttribute =
+        createSpy2<HTMLAudioElement['toggleAttribute']>('toggleAttribute')
+    webkitMatchesSelector = createSpy2<
+        HTMLAudioElement['webkitMatchesSelector']
+    >('webkitMatchesSelector')
+    blur = createSpy2<HTMLAudioElement['blur']>('blur')
+    focus = createSpy2<HTMLAudioElement['focus']>('focus')
+    appendChild = createSpy2<HTMLAudioElement['appendChild']>('appendChild')
+    cloneNode = createSpy2<HTMLAudioElement['cloneNode']>('cloneNode')
+    compareDocumentPosition = createSpy2<
+        HTMLAudioElement['compareDocumentPosition']
+    >('compareDocumentPosition')
+    contains = createSpy2<HTMLAudioElement['contains']>('contains')
+    getRootNode = createSpy2<HTMLAudioElement['getRootNode']>('getRootNode')
+    hasChildNodes =
+        createSpy2<HTMLAudioElement['hasChildNodes']>('hasChildNodes')
+    insertBefore = createSpy2<HTMLAudioElement['insertBefore']>('insertBefore')
+    isDefaultNamespace =
+        createSpy2<HTMLAudioElement['isDefaultNamespace']>('isDefaultNamespace')
+    isEqualNode = createSpy2<HTMLAudioElement['isEqualNode']>('isEqualNode')
+    isSameNode = createSpy2<HTMLAudioElement['isSameNode']>('isSameNode')
+    lookupNamespaceURI =
+        createSpy2<HTMLAudioElement['lookupNamespaceURI']>('lookupNamespaceURI')
+    lookupPrefix = createSpy2<HTMLAudioElement['lookupPrefix']>('lookupPrefix')
+    normalize = createSpy2<HTMLAudioElement['normalize']>('normalize')
+    removeChild = createSpy2<HTMLAudioElement['removeChild']>('removeChild')
+    replaceChild = createSpy2<HTMLAudioElement['replaceChild']>('replaceChild')
+    animate = createSpy2<HTMLAudioElement['animate']>('animate')
+    getAnimations =
+        createSpy2<HTMLAudioElement['getAnimations']>('getAnimations')
+    after = createSpy2<HTMLAudioElement['after']>('after')
+    before = createSpy2<HTMLAudioElement['before']>('before')
+    remove = createSpy2<HTMLAudioElement['remove']>('remove')
+    replaceWith = createSpy2<HTMLAudioElement['replaceWith']>('replaceWith')
+    append = createSpy2<HTMLAudioElement['append']>('append')
+    prepend = createSpy2<HTMLAudioElement['prepend']>('prepend')
+    querySelector =
+        createSpy2<HTMLAudioElement['querySelector']>('querySelector')
+    querySelectorAll =
+        createSpy2<HTMLAudioElement['querySelectorAll']>('querySelectorAll')
+    replaceChildren =
+        createSpy2<HTMLAudioElement['replaceChildren']>('replaceChildren')
+    dispatchEvent =
+        createSpy2<HTMLAudioElement['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockHTMLDivElement implements HTMLDivElement {
+    align: string = ''
+    accessKey: string = ''
+    accessKeyLabel: string = ''
+    autocapitalize: string = ''
+    dir: string = ''
+    draggable: boolean = false
+    hidden: boolean = false
+    inert: boolean = false
+    innerText: string = ''
+    lang: string = ''
+    offsetHeight: number = 0
+    offsetLeft: number = 0
+    offsetParent: Element | null = null
+    offsetTop: number = 0
+    offsetWidth: number = 0
+    outerText: string = ''
+    popover: string | null = ''
+    spellcheck: boolean = false
+    title: string = ''
+    translate: boolean = false
+    writingSuggestions: string = ''
+    attributes: NamedNodeMap = undefined as any
+    className: string = ''
+    clientHeight: number = 0
+    clientLeft: number = 0
+    clientTop: number = 0
+    clientWidth: number = 0
+    currentCSSZoom: number = 0
+    id: string = ''
+    innerHTML: string = ''
+    localName: string = ''
+    namespaceURI: string | null = ''
+    onfullscreenchange: ((this: Element, ev: Event) => any) | null = null
+    onfullscreenerror: ((this: Element, ev: Event) => any) | null = null
+    outerHTML: string = ''
+    ownerDocument: Document = undefined as any
+    prefix: string | null = ''
+    scrollHeight: number = 0
+    scrollLeft: number = 0
+    scrollTop: number = 0
+    scrollWidth: number = 0
+    shadowRoot: ShadowRoot | null = null
+    slot: string = ''
+    tagName: string = ''
+    classList: any = undefined
+    part: any = undefined
+    attributeStyleMap: StylePropertyMap = undefined as any
+    style: any = undefined
+    contentEditable: string = ''
+    enterKeyHint: string = ''
+    inputMode: string = ''
+    isContentEditable: boolean = false
+    onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onanimationcancel:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationend:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationiteration:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationstart:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onauxclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
+        null
+    onbeforetoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplaythrough: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null = null
+    onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextmenu: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    oncuechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncut: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    ondblclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    ondrag: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragend: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragenter: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragleave: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragover: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragstart: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondrop: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondurationchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onemptied: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onended: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onerror: OnErrorEventHandler = undefined as any
+    onfocus: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
+        null
+    ongotpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeypress: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeyup: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onload: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadeddata: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadedmetadata: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onlostpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseleave: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmousemove: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseout: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseover: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseup: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onpaste: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    onpause: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onpointercancel:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerdown:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerenter:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerleave:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointermove:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerout:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerover:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
+        null
+    onprogress: ((this: GlobalEventHandlers, ev: ProgressEvent) => any) | null =
+        null
+    onratechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onreset: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onresize: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onscroll: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onscrollend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsecuritypolicyviolation:
+        | ((this: GlobalEventHandlers, ev: SecurityPolicyViolationEvent) => any)
+        | null = null
+    onseeked: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onseeking: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselect: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselectionchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onselectstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onslotchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onstalled: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsubmit: ((this: GlobalEventHandlers, ev: SubmitEvent) => any) | null =
+        null
+    onsuspend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontimeupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontransitioncancel:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionend:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionrun:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionstart:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onwebkitanimationend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationiteration:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationstart:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkittransitionend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
+    autofocus: boolean = false
+    dataset: DOMStringMap = undefined as any
+    tabIndex: number = 0
+    baseURI: string = ''
+    childNodes: NodeListOf<ChildNode> = undefined as any
+    firstChild: ChildNode | null = null
+    isConnected: boolean = false
+    lastChild: ChildNode | null = null
+    nextSibling: ChildNode | null = null
+    nodeName: string = ''
+    nodeType: number = 0
+    nodeValue: string | null = ''
+    parentElement: HTMLElement | null = null
+    parentNode: ParentNode | null = null
+    previousSibling: ChildNode | null = null
+    textContent: string | null = ''
+    ELEMENT_NODE: 1 = 1
+    ATTRIBUTE_NODE: 2 = 2
+    TEXT_NODE: 3 = 3
+    CDATA_SECTION_NODE: 4 = 4
+    ENTITY_REFERENCE_NODE: 5 = 5
+    ENTITY_NODE: 6 = 6
+    PROCESSING_INSTRUCTION_NODE: 7 = 7
+    COMMENT_NODE: 8 = 8
+    DOCUMENT_NODE: 9 = 9
+    DOCUMENT_TYPE_NODE: 10 = 10
+    DOCUMENT_FRAGMENT_NODE: 11 = 11
+    NOTATION_NODE: 12 = 12
+    DOCUMENT_POSITION_DISCONNECTED: 0x01 = 1
+    DOCUMENT_POSITION_PRECEDING: 0x02 = 2
+    DOCUMENT_POSITION_FOLLOWING: 0x04 = 4
+    DOCUMENT_POSITION_CONTAINS: 0x08 = 8
+    DOCUMENT_POSITION_CONTAINED_BY: 0x10 = 16
+    DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC: 0x20 = 32
+    ariaAtomic: string | null = ''
+    ariaAutoComplete: string | null = ''
+    ariaBrailleLabel: string | null = ''
+    ariaBrailleRoleDescription: string | null = ''
+    ariaBusy: string | null = ''
+    ariaChecked: string | null = ''
+    ariaColCount: string | null = ''
+    ariaColIndex: string | null = ''
+    ariaColIndexText: string | null = ''
+    ariaColSpan: string | null = ''
+    ariaCurrent: string | null = ''
+    ariaDescription: string | null = ''
+    ariaDisabled: string | null = ''
+    ariaExpanded: string | null = ''
+    ariaHasPopup: string | null = ''
+    ariaHidden: string | null = ''
+    ariaInvalid: string | null = ''
+    ariaKeyShortcuts: string | null = ''
+    ariaLabel: string | null = ''
+    ariaLevel: string | null = ''
+    ariaLive: string | null = ''
+    ariaModal: string | null = ''
+    ariaMultiLine: string | null = ''
+    ariaMultiSelectable: string | null = ''
+    ariaOrientation: string | null = ''
+    ariaPlaceholder: string | null = ''
+    ariaPosInSet: string | null = ''
+    ariaPressed: string | null = ''
+    ariaReadOnly: string | null = ''
+    ariaRelevant: string | null = ''
+    ariaRequired: string | null = ''
+    ariaRoleDescription: string | null = ''
+    ariaRowCount: string | null = ''
+    ariaRowIndex: string | null = ''
+    ariaRowIndexText: string | null = ''
+    ariaRowSpan: string | null = ''
+    ariaSelected: string | null = ''
+    ariaSetSize: string | null = ''
+    ariaSort: string | null = ''
+    ariaValueMax: string | null = ''
+    ariaValueMin: string | null = ''
+    ariaValueNow: string | null = ''
+    ariaValueText: string | null = ''
+    role: string | null = ''
+    nextElementSibling: Element | null = null
+    previousElementSibling: Element | null = null
+    childElementCount: number = 0
+    children: HTMLCollection = undefined as any
+    firstElementChild: Element | null = null
+    lastElementChild: Element | null = null
+    assignedSlot: HTMLSlotElement | null = null
+
+    addEventListener =
+        createSpy2<HTMLDivElement['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<HTMLDivElement['removeEventListener']>(
+        'removeEventListener'
+    )
+    attachInternals =
+        createSpy2<HTMLDivElement['attachInternals']>('attachInternals')
+    click = createSpy2<HTMLDivElement['click']>('click')
+    hidePopover = createSpy2<HTMLDivElement['hidePopover']>('hidePopover')
+    showPopover = createSpy2<HTMLDivElement['showPopover']>('showPopover')
+    togglePopover = createSpy2<HTMLDivElement['togglePopover']>('togglePopover')
+    attachShadow = createSpy2<HTMLDivElement['attachShadow']>('attachShadow')
+    checkVisibility =
+        createSpy2<HTMLDivElement['checkVisibility']>('checkVisibility')
+    closest = createSpy2<HTMLDivElement['closest']>('closest')
+    computedStyleMap =
+        createSpy2<HTMLDivElement['computedStyleMap']>('computedStyleMap')
+    getAttribute = createSpy2<HTMLDivElement['getAttribute']>('getAttribute')
+    getAttributeNS =
+        createSpy2<HTMLDivElement['getAttributeNS']>('getAttributeNS')
+    getAttributeNames =
+        createSpy2<HTMLDivElement['getAttributeNames']>('getAttributeNames')
+    getAttributeNode =
+        createSpy2<HTMLDivElement['getAttributeNode']>('getAttributeNode')
+    getAttributeNodeNS =
+        createSpy2<HTMLDivElement['getAttributeNodeNS']>('getAttributeNodeNS')
+    getBoundingClientRect = createSpy2<HTMLDivElement['getBoundingClientRect']>(
+        'getBoundingClientRect'
+    )
+    getClientRects =
+        createSpy2<HTMLDivElement['getClientRects']>('getClientRects')
+    getElementsByClassName = createSpy2<
+        HTMLDivElement['getElementsByClassName']
+    >('getElementsByClassName')
+    getElementsByTagName = createSpy2<HTMLDivElement['getElementsByTagName']>(
+        'getElementsByTagName'
+    )
+    getElementsByTagNameNS = createSpy2<
+        HTMLDivElement['getElementsByTagNameNS']
+    >('getElementsByTagNameNS')
+    getHTML = createSpy2<HTMLDivElement['getHTML']>('getHTML')
+    hasAttribute = createSpy2<HTMLDivElement['hasAttribute']>('hasAttribute')
+    hasAttributeNS =
+        createSpy2<HTMLDivElement['hasAttributeNS']>('hasAttributeNS')
+    hasAttributes = createSpy2<HTMLDivElement['hasAttributes']>('hasAttributes')
+    hasPointerCapture =
+        createSpy2<HTMLDivElement['hasPointerCapture']>('hasPointerCapture')
+    insertAdjacentElement = createSpy2<HTMLDivElement['insertAdjacentElement']>(
+        'insertAdjacentElement'
+    )
+    insertAdjacentHTML =
+        createSpy2<HTMLDivElement['insertAdjacentHTML']>('insertAdjacentHTML')
+    insertAdjacentText =
+        createSpy2<HTMLDivElement['insertAdjacentText']>('insertAdjacentText')
+    matches = createSpy2<HTMLDivElement['matches']>('matches')
+    releasePointerCapture = createSpy2<HTMLDivElement['releasePointerCapture']>(
+        'releasePointerCapture'
+    )
+    removeAttribute =
+        createSpy2<HTMLDivElement['removeAttribute']>('removeAttribute')
+    removeAttributeNS =
+        createSpy2<HTMLDivElement['removeAttributeNS']>('removeAttributeNS')
+    removeAttributeNode = createSpy2<HTMLDivElement['removeAttributeNode']>(
+        'removeAttributeNode'
+    )
+    requestFullscreen =
+        createSpy2<HTMLDivElement['requestFullscreen']>('requestFullscreen')
+    requestPointerLock =
+        createSpy2<HTMLDivElement['requestPointerLock']>('requestPointerLock')
+    scroll = createSpy2<HTMLDivElement['scroll']>('scroll')
+    scrollBy = createSpy2<HTMLDivElement['scrollBy']>('scrollBy')
+    scrollIntoView =
+        createSpy2<HTMLDivElement['scrollIntoView']>('scrollIntoView')
+    scrollTo = createSpy2<HTMLDivElement['scrollTo']>('scrollTo')
+    setAttribute = createSpy2<HTMLDivElement['setAttribute']>('setAttribute')
+    setAttributeNS =
+        createSpy2<HTMLDivElement['setAttributeNS']>('setAttributeNS')
+    setAttributeNode =
+        createSpy2<HTMLDivElement['setAttributeNode']>('setAttributeNode')
+    setAttributeNodeNS =
+        createSpy2<HTMLDivElement['setAttributeNodeNS']>('setAttributeNodeNS')
+    setHTMLUnsafe = createSpy2<HTMLDivElement['setHTMLUnsafe']>('setHTMLUnsafe')
+    setPointerCapture =
+        createSpy2<HTMLDivElement['setPointerCapture']>('setPointerCapture')
+    toggleAttribute =
+        createSpy2<HTMLDivElement['toggleAttribute']>('toggleAttribute')
+    webkitMatchesSelector = createSpy2<HTMLDivElement['webkitMatchesSelector']>(
+        'webkitMatchesSelector'
+    )
+    blur = createSpy2<HTMLDivElement['blur']>('blur')
+    focus = createSpy2<HTMLDivElement['focus']>('focus')
+    appendChild = createSpy2<HTMLDivElement['appendChild']>('appendChild')
+    cloneNode = createSpy2<HTMLDivElement['cloneNode']>('cloneNode')
+    compareDocumentPosition = createSpy2<
+        HTMLDivElement['compareDocumentPosition']
+    >('compareDocumentPosition')
+    contains = createSpy2<HTMLDivElement['contains']>('contains')
+    getRootNode = createSpy2<HTMLDivElement['getRootNode']>('getRootNode')
+    hasChildNodes = createSpy2<HTMLDivElement['hasChildNodes']>('hasChildNodes')
+    insertBefore = createSpy2<HTMLDivElement['insertBefore']>('insertBefore')
+    isDefaultNamespace =
+        createSpy2<HTMLDivElement['isDefaultNamespace']>('isDefaultNamespace')
+    isEqualNode = createSpy2<HTMLDivElement['isEqualNode']>('isEqualNode')
+    isSameNode = createSpy2<HTMLDivElement['isSameNode']>('isSameNode')
+    lookupNamespaceURI =
+        createSpy2<HTMLDivElement['lookupNamespaceURI']>('lookupNamespaceURI')
+    lookupPrefix = createSpy2<HTMLDivElement['lookupPrefix']>('lookupPrefix')
+    normalize = createSpy2<HTMLDivElement['normalize']>('normalize')
+    removeChild = createSpy2<HTMLDivElement['removeChild']>('removeChild')
+    replaceChild = createSpy2<HTMLDivElement['replaceChild']>('replaceChild')
+    animate = createSpy2<HTMLDivElement['animate']>('animate')
+    getAnimations = createSpy2<HTMLDivElement['getAnimations']>('getAnimations')
+    after = createSpy2<HTMLDivElement['after']>('after')
+    before = createSpy2<HTMLDivElement['before']>('before')
+    remove = createSpy2<HTMLDivElement['remove']>('remove')
+    replaceWith = createSpy2<HTMLDivElement['replaceWith']>('replaceWith')
+    append = createSpy2<HTMLDivElement['append']>('append')
+    prepend = createSpy2<HTMLDivElement['prepend']>('prepend')
+    querySelector = createSpy2<HTMLDivElement['querySelector']>('querySelector')
+    querySelectorAll =
+        createSpy2<HTMLDivElement['querySelectorAll']>('querySelectorAll')
+    replaceChildren =
+        createSpy2<HTMLDivElement['replaceChildren']>('replaceChildren')
+    dispatchEvent = createSpy2<HTMLDivElement['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockHTMLMediaElement implements HTMLMediaElement {
+    autoplay: boolean = false
+    buffered: TimeRanges = undefined as any
+    controls: boolean = false
+    crossOrigin: string | null = ''
+    currentSrc: string = ''
+    currentTime: number = 0
+    defaultMuted: boolean = false
+    defaultPlaybackRate: number = 0
+    disableRemotePlayback: boolean = false
+    duration: number = 0
+    ended: boolean = false
+    error: MediaError | null = null
+    loop: boolean = false
+    mediaKeys: MediaKeys | null = null
+    muted: boolean = false
+    networkState: number = 0
+    onencrypted:
+        | ((this: HTMLMediaElement, ev: MediaEncryptedEvent) => any)
+        | null = null
+    onwaitingforkey: ((this: HTMLMediaElement, ev: Event) => any) | null = null
+    paused: boolean = false
+    playbackRate: number = 0
+    played: TimeRanges = undefined as any
+    preload: 'none' | 'metadata' | 'auto' | '' = 'none'
+    preservesPitch: boolean = false
+    readyState: number = 0
+    remote: RemotePlayback = undefined as any
+    seekable: TimeRanges = undefined as any
+    seeking: boolean = false
+    sinkId: string = ''
+    src: string = ''
+    srcObject: MediaProvider | null = undefined as any
+    textTracks: TextTrackList = undefined as any
+    volume: number = 0
+    NETWORK_EMPTY: 0 = 0
+    NETWORK_IDLE: 1 = 1
+    NETWORK_LOADING: 2 = 2
+    NETWORK_NO_SOURCE: 3 = 3
+    HAVE_NOTHING: 0 = 0
+    HAVE_METADATA: 1 = 1
+    HAVE_CURRENT_DATA: 2 = 2
+    HAVE_FUTURE_DATA: 3 = 3
+    HAVE_ENOUGH_DATA: 4 = 4
+    accessKey: string = ''
+    accessKeyLabel: string = ''
+    autocapitalize: string = ''
+    dir: string = ''
+    draggable: boolean = false
+    hidden: boolean = false
+    inert: boolean = false
+    innerText: string = ''
+    lang: string = ''
+    offsetHeight: number = 0
+    offsetLeft: number = 0
+    offsetParent: Element | null = null
+    offsetTop: number = 0
+    offsetWidth: number = 0
+    outerText: string = ''
+    popover: string | null = ''
+    spellcheck: boolean = false
+    title: string = ''
+    translate: boolean = false
+    writingSuggestions: string = ''
+    attributes: NamedNodeMap = undefined as any
+    className: string = ''
+    clientHeight: number = 0
+    clientLeft: number = 0
+    clientTop: number = 0
+    clientWidth: number = 0
+    currentCSSZoom: number = 0
+    id: string = ''
+    innerHTML: string = ''
+    localName: string = ''
+    namespaceURI: string | null = ''
+    onfullscreenchange: ((this: Element, ev: Event) => any) | null = null
+    onfullscreenerror: ((this: Element, ev: Event) => any) | null = null
+    outerHTML: string = ''
+    ownerDocument: Document = undefined as any
+    prefix: string | null = ''
+    scrollHeight: number = 0
+    scrollLeft: number = 0
+    scrollTop: number = 0
+    scrollWidth: number = 0
+    shadowRoot: ShadowRoot | null = null
+    slot: string = ''
+    tagName: string = ''
+    classList: any = undefined
+    part: any = undefined
+    attributeStyleMap: StylePropertyMap = undefined as any
+    style: any = undefined
+    contentEditable: string = ''
+    enterKeyHint: string = ''
+    inputMode: string = ''
+    isContentEditable: boolean = false
+    onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onanimationcancel:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationend:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationiteration:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onanimationstart:
+        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
+        | null = null
+    onauxclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
+        null
+    onbeforetoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncanplaythrough: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null = null
+    onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncontextmenu: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    oncuechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oncut: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    ondblclick: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    ondrag: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragend: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondragenter: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragleave: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragover: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondragstart: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null =
+        null
+    ondrop: ((this: GlobalEventHandlers, ev: DragEvent) => any) | null = null
+    ondurationchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onemptied: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onended: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onerror: OnErrorEventHandler = undefined as any
+    onfocus: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
+    onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
+        null
+    ongotpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeypress: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onkeyup: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
+        null
+    onload: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadeddata: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onloadedmetadata: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onlostpointercapture:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseleave: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmousemove: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseout: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseover: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onmouseup: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
+        null
+    onpaste: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
+        null
+    onpause: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onpointercancel:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerdown:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerenter:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerleave:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointermove:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerout:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerover:
+        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
+        | null = null
+    onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
+        null
+    onprogress: ((this: GlobalEventHandlers, ev: ProgressEvent) => any) | null =
+        null
+    onratechange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onreset: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onresize: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
+    onscroll: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onscrollend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsecuritypolicyviolation:
+        | ((this: GlobalEventHandlers, ev: SecurityPolicyViolationEvent) => any)
+        | null = null
+    onseeked: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onseeking: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselect: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onselectionchange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onselectstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onslotchange: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onstalled: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onsubmit: ((this: GlobalEventHandlers, ev: SubmitEvent) => any) | null =
+        null
+    onsuspend: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontimeupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontoggle: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    ontransitioncancel:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionend:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionrun:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    ontransitionstart:
+        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
+        | null = null
+    onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
+        null
+    onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
+    onwebkitanimationend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationiteration:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkitanimationstart:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwebkittransitionend:
+        | ((this: GlobalEventHandlers, ev: Event) => any)
+        | null = null
+    onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
+    autofocus: boolean = false
+    dataset: DOMStringMap = undefined as any
+    tabIndex: number = 0
+    baseURI: string = ''
+    childNodes: NodeListOf<ChildNode> = undefined as any
+    firstChild: ChildNode | null = null
+    isConnected: boolean = false
+    lastChild: ChildNode | null = null
+    nextSibling: ChildNode | null = null
+    nodeName: string = ''
+    nodeType: number = 0
+    nodeValue: string | null = ''
+    parentElement: HTMLElement | null = null
+    parentNode: ParentNode | null = null
+    previousSibling: ChildNode | null = null
+    textContent: string | null = ''
+    ELEMENT_NODE: 1 = 1
+    ATTRIBUTE_NODE: 2 = 2
+    TEXT_NODE: 3 = 3
+    CDATA_SECTION_NODE: 4 = 4
+    ENTITY_REFERENCE_NODE: 5 = 5
+    ENTITY_NODE: 6 = 6
+    PROCESSING_INSTRUCTION_NODE: 7 = 7
+    COMMENT_NODE: 8 = 8
+    DOCUMENT_NODE: 9 = 9
+    DOCUMENT_TYPE_NODE: 10 = 10
+    DOCUMENT_FRAGMENT_NODE: 11 = 11
+    NOTATION_NODE: 12 = 12
+    DOCUMENT_POSITION_DISCONNECTED: 0x01 = 1
+    DOCUMENT_POSITION_PRECEDING: 0x02 = 2
+    DOCUMENT_POSITION_FOLLOWING: 0x04 = 4
+    DOCUMENT_POSITION_CONTAINS: 0x08 = 8
+    DOCUMENT_POSITION_CONTAINED_BY: 0x10 = 16
+    DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC: 0x20 = 32
+    ariaAtomic: string | null = ''
+    ariaAutoComplete: string | null = ''
+    ariaBrailleLabel: string | null = ''
+    ariaBrailleRoleDescription: string | null = ''
+    ariaBusy: string | null = ''
+    ariaChecked: string | null = ''
+    ariaColCount: string | null = ''
+    ariaColIndex: string | null = ''
+    ariaColIndexText: string | null = ''
+    ariaColSpan: string | null = ''
+    ariaCurrent: string | null = ''
+    ariaDescription: string | null = ''
+    ariaDisabled: string | null = ''
+    ariaExpanded: string | null = ''
+    ariaHasPopup: string | null = ''
+    ariaHidden: string | null = ''
+    ariaInvalid: string | null = ''
+    ariaKeyShortcuts: string | null = ''
+    ariaLabel: string | null = ''
+    ariaLevel: string | null = ''
+    ariaLive: string | null = ''
+    ariaModal: string | null = ''
+    ariaMultiLine: string | null = ''
+    ariaMultiSelectable: string | null = ''
+    ariaOrientation: string | null = ''
+    ariaPlaceholder: string | null = ''
+    ariaPosInSet: string | null = ''
+    ariaPressed: string | null = ''
+    ariaReadOnly: string | null = ''
+    ariaRelevant: string | null = ''
+    ariaRequired: string | null = ''
+    ariaRoleDescription: string | null = ''
+    ariaRowCount: string | null = ''
+    ariaRowIndex: string | null = ''
+    ariaRowIndexText: string | null = ''
+    ariaRowSpan: string | null = ''
+    ariaSelected: string | null = ''
+    ariaSetSize: string | null = ''
+    ariaSort: string | null = ''
+    ariaValueMax: string | null = ''
+    ariaValueMin: string | null = ''
+    ariaValueNow: string | null = ''
+    ariaValueText: string | null = ''
+    role: string | null = ''
+    nextElementSibling: Element | null = null
+    previousElementSibling: Element | null = null
+    childElementCount: number = 0
+    children: HTMLCollection = undefined as any
+    firstElementChild: Element | null = null
+    lastElementChild: Element | null = null
+    assignedSlot: HTMLSlotElement | null = null
+
+    addTextTrack = createSpy2<HTMLMediaElement['addTextTrack']>('addTextTrack')
+    canPlayType = createSpy2<HTMLMediaElement['canPlayType']>('canPlayType')
+    fastSeek = createSpy2<HTMLMediaElement['fastSeek']>('fastSeek')
+    load = createSpy2<HTMLMediaElement['load']>('load')
+    pause = createSpy2<HTMLMediaElement['pause']>('pause')
+    play = createSpy2<HTMLMediaElement['play']>('play')
+    setMediaKeys = createSpy2<HTMLMediaElement['setMediaKeys']>('setMediaKeys')
+    setSinkId = createSpy2<HTMLMediaElement['setSinkId']>('setSinkId')
+    addEventListener =
+        createSpy2<HTMLMediaElement['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<HTMLMediaElement['removeEventListener']>(
+        'removeEventListener'
+    )
+    attachInternals =
+        createSpy2<HTMLMediaElement['attachInternals']>('attachInternals')
+    click = createSpy2<HTMLMediaElement['click']>('click')
+    hidePopover = createSpy2<HTMLMediaElement['hidePopover']>('hidePopover')
+    showPopover = createSpy2<HTMLMediaElement['showPopover']>('showPopover')
+    togglePopover =
+        createSpy2<HTMLMediaElement['togglePopover']>('togglePopover')
+    attachShadow = createSpy2<HTMLMediaElement['attachShadow']>('attachShadow')
+    checkVisibility =
+        createSpy2<HTMLMediaElement['checkVisibility']>('checkVisibility')
+    closest = createSpy2<HTMLMediaElement['closest']>('closest')
+    computedStyleMap =
+        createSpy2<HTMLMediaElement['computedStyleMap']>('computedStyleMap')
+    getAttribute = createSpy2<HTMLMediaElement['getAttribute']>('getAttribute')
+    getAttributeNS =
+        createSpy2<HTMLMediaElement['getAttributeNS']>('getAttributeNS')
+    getAttributeNames =
+        createSpy2<HTMLMediaElement['getAttributeNames']>('getAttributeNames')
+    getAttributeNode =
+        createSpy2<HTMLMediaElement['getAttributeNode']>('getAttributeNode')
+    getAttributeNodeNS =
+        createSpy2<HTMLMediaElement['getAttributeNodeNS']>('getAttributeNodeNS')
+    getBoundingClientRect = createSpy2<
+        HTMLMediaElement['getBoundingClientRect']
+    >('getBoundingClientRect')
+    getClientRects =
+        createSpy2<HTMLMediaElement['getClientRects']>('getClientRects')
+    getElementsByClassName = createSpy2<
+        HTMLMediaElement['getElementsByClassName']
+    >('getElementsByClassName')
+    getElementsByTagName = createSpy2<HTMLMediaElement['getElementsByTagName']>(
+        'getElementsByTagName'
+    )
+    getElementsByTagNameNS = createSpy2<
+        HTMLMediaElement['getElementsByTagNameNS']
+    >('getElementsByTagNameNS')
+    getHTML = createSpy2<HTMLMediaElement['getHTML']>('getHTML')
+    hasAttribute = createSpy2<HTMLMediaElement['hasAttribute']>('hasAttribute')
+    hasAttributeNS =
+        createSpy2<HTMLMediaElement['hasAttributeNS']>('hasAttributeNS')
+    hasAttributes =
+        createSpy2<HTMLMediaElement['hasAttributes']>('hasAttributes')
+    hasPointerCapture =
+        createSpy2<HTMLMediaElement['hasPointerCapture']>('hasPointerCapture')
+    insertAdjacentElement = createSpy2<
+        HTMLMediaElement['insertAdjacentElement']
+    >('insertAdjacentElement')
+    insertAdjacentHTML =
+        createSpy2<HTMLMediaElement['insertAdjacentHTML']>('insertAdjacentHTML')
+    insertAdjacentText =
+        createSpy2<HTMLMediaElement['insertAdjacentText']>('insertAdjacentText')
+    matches = createSpy2<HTMLMediaElement['matches']>('matches')
+    releasePointerCapture = createSpy2<
+        HTMLMediaElement['releasePointerCapture']
+    >('releasePointerCapture')
+    removeAttribute =
+        createSpy2<HTMLMediaElement['removeAttribute']>('removeAttribute')
+    removeAttributeNS =
+        createSpy2<HTMLMediaElement['removeAttributeNS']>('removeAttributeNS')
+    removeAttributeNode = createSpy2<HTMLMediaElement['removeAttributeNode']>(
+        'removeAttributeNode'
+    )
+    requestFullscreen =
+        createSpy2<HTMLMediaElement['requestFullscreen']>('requestFullscreen')
+    requestPointerLock =
+        createSpy2<HTMLMediaElement['requestPointerLock']>('requestPointerLock')
+    scroll = createSpy2<HTMLMediaElement['scroll']>('scroll')
+    scrollBy = createSpy2<HTMLMediaElement['scrollBy']>('scrollBy')
+    scrollIntoView =
+        createSpy2<HTMLMediaElement['scrollIntoView']>('scrollIntoView')
+    scrollTo = createSpy2<HTMLMediaElement['scrollTo']>('scrollTo')
+    setAttribute = createSpy2<HTMLMediaElement['setAttribute']>('setAttribute')
+    setAttributeNS =
+        createSpy2<HTMLMediaElement['setAttributeNS']>('setAttributeNS')
+    setAttributeNode =
+        createSpy2<HTMLMediaElement['setAttributeNode']>('setAttributeNode')
+    setAttributeNodeNS =
+        createSpy2<HTMLMediaElement['setAttributeNodeNS']>('setAttributeNodeNS')
+    setHTMLUnsafe =
+        createSpy2<HTMLMediaElement['setHTMLUnsafe']>('setHTMLUnsafe')
+    setPointerCapture =
+        createSpy2<HTMLMediaElement['setPointerCapture']>('setPointerCapture')
+    toggleAttribute =
+        createSpy2<HTMLMediaElement['toggleAttribute']>('toggleAttribute')
+    webkitMatchesSelector = createSpy2<
+        HTMLMediaElement['webkitMatchesSelector']
+    >('webkitMatchesSelector')
+    blur = createSpy2<HTMLMediaElement['blur']>('blur')
+    focus = createSpy2<HTMLMediaElement['focus']>('focus')
+    appendChild = createSpy2<HTMLMediaElement['appendChild']>('appendChild')
+    cloneNode = createSpy2<HTMLMediaElement['cloneNode']>('cloneNode')
+    compareDocumentPosition = createSpy2<
+        HTMLMediaElement['compareDocumentPosition']
+    >('compareDocumentPosition')
+    contains = createSpy2<HTMLMediaElement['contains']>('contains')
+    getRootNode = createSpy2<HTMLMediaElement['getRootNode']>('getRootNode')
+    hasChildNodes =
+        createSpy2<HTMLMediaElement['hasChildNodes']>('hasChildNodes')
+    insertBefore = createSpy2<HTMLMediaElement['insertBefore']>('insertBefore')
+    isDefaultNamespace =
+        createSpy2<HTMLMediaElement['isDefaultNamespace']>('isDefaultNamespace')
+    isEqualNode = createSpy2<HTMLMediaElement['isEqualNode']>('isEqualNode')
+    isSameNode = createSpy2<HTMLMediaElement['isSameNode']>('isSameNode')
+    lookupNamespaceURI =
+        createSpy2<HTMLMediaElement['lookupNamespaceURI']>('lookupNamespaceURI')
+    lookupPrefix = createSpy2<HTMLMediaElement['lookupPrefix']>('lookupPrefix')
+    normalize = createSpy2<HTMLMediaElement['normalize']>('normalize')
+    removeChild = createSpy2<HTMLMediaElement['removeChild']>('removeChild')
+    replaceChild = createSpy2<HTMLMediaElement['replaceChild']>('replaceChild')
+    animate = createSpy2<HTMLMediaElement['animate']>('animate')
+    getAnimations =
+        createSpy2<HTMLMediaElement['getAnimations']>('getAnimations')
+    after = createSpy2<HTMLMediaElement['after']>('after')
+    before = createSpy2<HTMLMediaElement['before']>('before')
+    remove = createSpy2<HTMLMediaElement['remove']>('remove')
+    replaceWith = createSpy2<HTMLMediaElement['replaceWith']>('replaceWith')
+    append = createSpy2<HTMLMediaElement['append']>('append')
+    prepend = createSpy2<HTMLMediaElement['prepend']>('prepend')
+    querySelector =
+        createSpy2<HTMLMediaElement['querySelector']>('querySelector')
+    querySelectorAll =
+        createSpy2<HTMLMediaElement['querySelectorAll']>('querySelectorAll')
+    replaceChildren =
+        createSpy2<HTMLMediaElement['replaceChildren']>('replaceChildren')
+    dispatchEvent =
+        createSpy2<HTMLMediaElement['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockMediaError implements MediaError {
+    code: number = 0
+    message: string = ''
+    MEDIA_ERR_ABORTED: 1 = 1
+    MEDIA_ERR_NETWORK: 2 = 2
+    MEDIA_ERR_DECODE: 3 = 3
+    MEDIA_ERR_SRC_NOT_SUPPORTED: 4 = 4
+}
+
+export class MockMediaKeyMessageEvent implements MediaKeyMessageEvent {
+    message: ArrayBuffer = new ArrayBuffer(0)
+    messageType: MediaKeyMessageType = 'individualization-request'
+    bubbles: boolean = false
+    cancelBubble: boolean = false
+    cancelable: boolean = false
+    composed: boolean = false
+    currentTarget: EventTarget | null = null
+    defaultPrevented: boolean = false
+    eventPhase: number = 0
+    isTrusted: boolean = false
+    returnValue: boolean = false
+    srcElement: EventTarget | null = null
+    target: EventTarget | null = null
+    timeStamp: DOMHighResTimeStamp = 0
+    type: string = ''
+    NONE: 0 = 0
+    CAPTURING_PHASE: 1 = 1
+    AT_TARGET: 2 = 2
+    BUBBLING_PHASE: 3 = 3
+
+    composedPath =
+        createSpy2<MediaKeyMessageEvent['composedPath']>('composedPath')
+    initEvent = createSpy2<MediaKeyMessageEvent['initEvent']>('initEvent')
+    preventDefault =
+        createSpy2<MediaKeyMessageEvent['preventDefault']>('preventDefault')
+    stopImmediatePropagation = createSpy2<
+        MediaKeyMessageEvent['stopImmediatePropagation']
+    >('stopImmediatePropagation')
+    stopPropagation =
+        createSpy2<MediaKeyMessageEvent['stopPropagation']>('stopPropagation')
+}
+
+export class MockMediaKeySession implements MediaKeySession {
+    closed: Promise<MediaKeySessionClosedReason> = undefined as any
+    expiration: number = 0
+    keyStatuses: MediaKeyStatusMap = undefined as any
+    onkeystatuseschange: ((this: MediaKeySession, ev: Event) => any) | null =
+        null
+    onmessage:
+        | ((this: MediaKeySession, ev: MediaKeyMessageEvent) => any)
+        | null = null
+    sessionId: string = ''
+
+    close = createSpy2<MediaKeySession['close']>('close')
+    generateRequest =
+        createSpy2<MediaKeySession['generateRequest']>('generateRequest')
+    load = createSpy2<MediaKeySession['load']>('load')
+    remove = createSpy2<MediaKeySession['remove']>('remove')
+    update = createSpy2<MediaKeySession['update']>('update')
+    addEventListener =
+        createSpy2<MediaKeySession['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<MediaKeySession['removeEventListener']>(
+        'removeEventListener'
+    )
+    dispatchEvent =
+        createSpy2<MediaKeySession['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockMediaKeySystemAccess implements MediaKeySystemAccess {
+    keySystem: string = ''
+
+    createMediaKeys =
+        createSpy2<MediaKeySystemAccess['createMediaKeys']>('createMediaKeys')
+    getConfiguration =
+        createSpy2<MediaKeySystemAccess['getConfiguration']>('getConfiguration')
+}
+
+export class MockMediaKeys implements MediaKeys {
+    createSession = createSpy2<MediaKeys['createSession']>('createSession')
+    getStatusForPolicy =
+        createSpy2<MediaKeys['getStatusForPolicy']>('getStatusForPolicy')
+    setServerCertificate = createSpy2<MediaKeys['setServerCertificate']>(
+        'setServerCertificate'
+    )
+}
+
+export class MockMediaSource implements MediaSource {
+    activeSourceBuffers: SourceBufferList = undefined as any
+    duration: number = 0
+    onsourceclose: ((this: MediaSource, ev: Event) => any) | null = null
+    onsourceended: ((this: MediaSource, ev: Event) => any) | null = null
+    onsourceopen: ((this: MediaSource, ev: Event) => any) | null = null
+    readyState: ReadyState = 'closed'
+    sourceBuffers: SourceBufferList = undefined as any
+
+    addSourceBuffer =
+        createSpy2<MediaSource['addSourceBuffer']>('addSourceBuffer')
+    clearLiveSeekableRange = createSpy2<MediaSource['clearLiveSeekableRange']>(
+        'clearLiveSeekableRange'
+    )
+    endOfStream = createSpy2<MediaSource['endOfStream']>('endOfStream')
+    removeSourceBuffer =
+        createSpy2<MediaSource['removeSourceBuffer']>('removeSourceBuffer')
+    setLiveSeekableRange = createSpy2<MediaSource['setLiveSeekableRange']>(
+        'setLiveSeekableRange'
+    )
+    addEventListener =
+        createSpy2<MediaSource['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<MediaSource['removeEventListener']>(
+        'removeEventListener'
+    )
+    dispatchEvent = createSpy2<MediaSource['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockMediaStream implements MediaStream {
+    active: boolean = false
+    id: string = ''
+    onaddtrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null =
+        null
+    onremovetrack:
+        | ((this: MediaStream, ev: MediaStreamTrackEvent) => any)
+        | null = null
+
+    addTrack = createSpy2<MediaStream['addTrack']>('addTrack')
+    clone = createSpy2<MediaStream['clone']>('clone')
+    getAudioTracks = createSpy2<MediaStream['getAudioTracks']>('getAudioTracks')
+    getTrackById = createSpy2<MediaStream['getTrackById']>('getTrackById')
+    getTracks = createSpy2<MediaStream['getTracks']>('getTracks')
+    getVideoTracks = createSpy2<MediaStream['getVideoTracks']>('getVideoTracks')
+    removeTrack = createSpy2<MediaStream['removeTrack']>('removeTrack')
+    addEventListener =
+        createSpy2<MediaStream['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<MediaStream['removeEventListener']>(
+        'removeEventListener'
+    )
+    dispatchEvent = createSpy2<MediaStream['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockNavigator implements Navigator {
+    clipboard: Clipboard = undefined as any
+    credentials: CredentialsContainer = undefined as any
+    doNotTrack: string | null = ''
+    geolocation: Geolocation = undefined as any
+    maxTouchPoints: number = 0
+    mediaCapabilities: MediaCapabilities = undefined as any
+    mediaDevices: MediaDevices = undefined as any
+    mediaSession: MediaSession = undefined as any
+    permissions: Permissions = undefined as any
+    serviceWorker: ServiceWorkerContainer = undefined as any
+    userActivation: UserActivation = undefined as any
+    wakeLock: WakeLock = undefined as any
+    webdriver: boolean = false
+    hardwareConcurrency: number = 0
+    cookieEnabled: boolean = false
+    appCodeName: string = ''
+    appName: string = ''
+    appVersion: string = ''
+    platform: string = ''
+    product: string = ''
+    productSub: string = ''
+    userAgent: string = ''
+    vendor: string = ''
+    vendorSub: string = ''
+    language: string = ''
+    languages: ReadonlyArray<string> = []
+    locks: LockManager = undefined as any
+    onLine: boolean = false
+    mimeTypes: MimeTypeArray = undefined as any
+    pdfViewerEnabled: boolean = false
+    plugins: PluginArray = undefined as any
+    storage: StorageManager = undefined as any
+
+    canShare = createSpy2<Navigator['canShare']>('canShare')
+    getGamepads = createSpy2<Navigator['getGamepads']>('getGamepads')
+    requestMIDIAccess =
+        createSpy2<Navigator['requestMIDIAccess']>('requestMIDIAccess')
+    requestMediaKeySystemAccess = createSpy2<
+        Navigator['requestMediaKeySystemAccess']
+    >('requestMediaKeySystemAccess')
+    sendBeacon = createSpy2<Navigator['sendBeacon']>('sendBeacon')
+    share = createSpy2<Navigator['share']>('share')
+    vibrate = createSpy2<Navigator['vibrate']>('vibrate')
+    clearAppBadge = createSpy2<Navigator['clearAppBadge']>('clearAppBadge')
+    setAppBadge = createSpy2<Navigator['setAppBadge']>('setAppBadge')
+    registerProtocolHandler = createSpy2<Navigator['registerProtocolHandler']>(
+        'registerProtocolHandler'
+    )
+    javaEnabled = createSpy2<Navigator['javaEnabled']>('javaEnabled')
+}
+
+export class MockNode implements Node {
+    baseURI: string = ''
+    childNodes: NodeListOf<ChildNode> = undefined as any
+    firstChild: ChildNode | null = null
+    isConnected: boolean = false
+    lastChild: ChildNode | null = null
+    nextSibling: ChildNode | null = null
+    nodeName: string = ''
+    nodeType: number = 0
+    nodeValue: string | null = ''
+    ownerDocument: Document | null = null
+    parentElement: HTMLElement | null = null
+    parentNode: ParentNode | null = null
+    previousSibling: ChildNode | null = null
+    textContent: string | null = ''
+    ELEMENT_NODE: 1 = 1
+    ATTRIBUTE_NODE: 2 = 2
+    TEXT_NODE: 3 = 3
+    CDATA_SECTION_NODE: 4 = 4
+    ENTITY_REFERENCE_NODE: 5 = 5
+    ENTITY_NODE: 6 = 6
+    PROCESSING_INSTRUCTION_NODE: 7 = 7
+    COMMENT_NODE: 8 = 8
+    DOCUMENT_NODE: 9 = 9
+    DOCUMENT_TYPE_NODE: 10 = 10
+    DOCUMENT_FRAGMENT_NODE: 11 = 11
+    NOTATION_NODE: 12 = 12
+    DOCUMENT_POSITION_DISCONNECTED: 0x01 = 1
+    DOCUMENT_POSITION_PRECEDING: 0x02 = 2
+    DOCUMENT_POSITION_FOLLOWING: 0x04 = 4
+    DOCUMENT_POSITION_CONTAINS: 0x08 = 8
+    DOCUMENT_POSITION_CONTAINED_BY: 0x10 = 16
+    DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC: 0x20 = 32
+
+    appendChild = createSpy2<Node['appendChild']>('appendChild')
+    cloneNode = createSpy2<Node['cloneNode']>('cloneNode')
+    compareDocumentPosition = createSpy2<Node['compareDocumentPosition']>(
+        'compareDocumentPosition'
+    )
+    contains = createSpy2<Node['contains']>('contains')
+    getRootNode = createSpy2<Node['getRootNode']>('getRootNode')
+    hasChildNodes = createSpy2<Node['hasChildNodes']>('hasChildNodes')
+    insertBefore = createSpy2<Node['insertBefore']>('insertBefore')
+    isDefaultNamespace =
+        createSpy2<Node['isDefaultNamespace']>('isDefaultNamespace')
+    isEqualNode = createSpy2<Node['isEqualNode']>('isEqualNode')
+    isSameNode = createSpy2<Node['isSameNode']>('isSameNode')
+    lookupNamespaceURI =
+        createSpy2<Node['lookupNamespaceURI']>('lookupNamespaceURI')
+    lookupPrefix = createSpy2<Node['lookupPrefix']>('lookupPrefix')
+    normalize = createSpy2<Node['normalize']>('normalize')
+    removeChild = createSpy2<Node['removeChild']>('removeChild')
+    replaceChild = createSpy2<Node['replaceChild']>('replaceChild')
+    addEventListener = createSpy2<Node['addEventListener']>('addEventListener')
+    dispatchEvent = createSpy2<Node['dispatchEvent']>('dispatchEvent')
+    removeEventListener = createSpy2<Node['removeEventListener']>(
+        'removeEventListener'
+    )
+}
+
+export class MockProgressEvent<T extends EventTarget = EventTarget>
+    implements ProgressEvent<T>
+{
+    lengthComputable: boolean = false
+    loaded: number = 0
+    target: T | null = undefined as any
+    total: number = 0
+    bubbles: boolean = false
+    cancelBubble: boolean = false
+    cancelable: boolean = false
+    composed: boolean = false
+    currentTarget: EventTarget | null = null
+    defaultPrevented: boolean = false
+    eventPhase: number = 0
+    isTrusted: boolean = false
+    returnValue: boolean = false
+    srcElement: EventTarget | null = null
+    timeStamp: DOMHighResTimeStamp = 0
+    type: string = ''
+    NONE: 0 = 0
+    CAPTURING_PHASE: 1 = 1
+    AT_TARGET: 2 = 2
+    BUBBLING_PHASE: 3 = 3
+
+    composedPath = createSpy2<ProgressEvent<T>['composedPath']>('composedPath')
+    initEvent = createSpy2<ProgressEvent<T>['initEvent']>('initEvent')
+    preventDefault =
+        createSpy2<ProgressEvent<T>['preventDefault']>('preventDefault')
+    stopImmediatePropagation = createSpy2<
+        ProgressEvent<T>['stopImmediatePropagation']
+    >('stopImmediatePropagation')
+    stopPropagation =
+        createSpy2<ProgressEvent<T>['stopPropagation']>('stopPropagation')
+}
+
+export class MockPromiseRejectionEvent implements PromiseRejectionEvent {
+    promise: Promise<any> = undefined as any
+    reason: any = undefined
+    bubbles: boolean = false
+    cancelBubble: boolean = false
+    cancelable: boolean = false
+    composed: boolean = false
+    currentTarget: EventTarget | null = null
+    defaultPrevented: boolean = false
+    eventPhase: number = 0
+    isTrusted: boolean = false
+    returnValue: boolean = false
+    srcElement: EventTarget | null = null
+    target: EventTarget | null = null
+    timeStamp: DOMHighResTimeStamp = 0
+    type: string = ''
+    NONE: 0 = 0
+    CAPTURING_PHASE: 1 = 1
+    AT_TARGET: 2 = 2
+    BUBBLING_PHASE: 3 = 3
+
+    composedPath =
+        createSpy2<PromiseRejectionEvent['composedPath']>('composedPath')
+    initEvent = createSpy2<PromiseRejectionEvent['initEvent']>('initEvent')
+    preventDefault =
+        createSpy2<PromiseRejectionEvent['preventDefault']>('preventDefault')
+    stopImmediatePropagation = createSpy2<
+        PromiseRejectionEvent['stopImmediatePropagation']
+    >('stopImmediatePropagation')
+    stopPropagation =
+        createSpy2<PromiseRejectionEvent['stopPropagation']>('stopPropagation')
+}
+
+export class MockSourceBuffer implements SourceBuffer {
+    appendWindowEnd: number = 0
+    appendWindowStart: number = 0
+    buffered: TimeRanges = undefined as any
+    mode: AppendMode = 'segments'
+    onabort: ((this: SourceBuffer, ev: Event) => any) | null = null
+    onerror: ((this: SourceBuffer, ev: Event) => any) | null = null
+    onupdate: ((this: SourceBuffer, ev: Event) => any) | null = null
+    onupdateend: ((this: SourceBuffer, ev: Event) => any) | null = null
+    onupdatestart: ((this: SourceBuffer, ev: Event) => any) | null = null
+    timestampOffset: number = 0
+    updating: boolean = false
+
+    abort = createSpy2<SourceBuffer['abort']>('abort')
+    appendBuffer = createSpy2<SourceBuffer['appendBuffer']>('appendBuffer')
+    changeType = createSpy2<SourceBuffer['changeType']>('changeType')
+    remove = createSpy2<SourceBuffer['remove']>('remove')
+    addEventListener =
+        createSpy2<SourceBuffer['addEventListener']>('addEventListener')
+    removeEventListener = createSpy2<SourceBuffer['removeEventListener']>(
+        'removeEventListener'
+    )
+    dispatchEvent = createSpy2<SourceBuffer['dispatchEvent']>('dispatchEvent')
+}
+
+export class MockStorage implements Storage {
+    [key: string]: any
+
+    length: number = 0
+
+    clear = createSpy2<Storage['clear']>('clear')
+    getItem = createSpy2<Storage['getItem']>('getItem')
+    key = createSpy2<Storage['key']>('key')
+    removeItem = createSpy2<Storage['removeItem']>('removeItem')
+    setItem = createSpy2<Storage['setItem']>('setItem')
+}
+
+export class MockText implements Text {
+    wholeText: string = ''
+    data: string = ''
+    length: number = 0
+    ownerDocument: Document = undefined as any
+    assignedSlot: HTMLSlotElement | null = null
+    baseURI: string = ''
+    childNodes: NodeListOf<ChildNode> = undefined as any
+    firstChild: ChildNode | null = null
+    isConnected: boolean = false
+    lastChild: ChildNode | null = null
+    nextSibling: ChildNode | null = null
+    nodeName: string = ''
+    nodeType: number = 0
+    nodeValue: string | null = ''
+    parentElement: HTMLElement | null = null
+    parentNode: ParentNode | null = null
+    previousSibling: ChildNode | null = null
+    textContent: string | null = ''
+    ELEMENT_NODE: 1 = 1
+    ATTRIBUTE_NODE: 2 = 2
+    TEXT_NODE: 3 = 3
+    CDATA_SECTION_NODE: 4 = 4
+    ENTITY_REFERENCE_NODE: 5 = 5
+    ENTITY_NODE: 6 = 6
+    PROCESSING_INSTRUCTION_NODE: 7 = 7
+    COMMENT_NODE: 8 = 8
+    DOCUMENT_NODE: 9 = 9
+    DOCUMENT_TYPE_NODE: 10 = 10
+    DOCUMENT_FRAGMENT_NODE: 11 = 11
+    NOTATION_NODE: 12 = 12
+    DOCUMENT_POSITION_DISCONNECTED: 0x01 = 1
+    DOCUMENT_POSITION_PRECEDING: 0x02 = 2
+    DOCUMENT_POSITION_FOLLOWING: 0x04 = 4
+    DOCUMENT_POSITION_CONTAINS: 0x08 = 8
+    DOCUMENT_POSITION_CONTAINED_BY: 0x10 = 16
+    DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC: 0x20 = 32
+    nextElementSibling: Element | null = null
+    previousElementSibling: Element | null = null
+
+    splitText = createSpy2<Text['splitText']>('splitText')
+    appendData = createSpy2<Text['appendData']>('appendData')
+    deleteData = createSpy2<Text['deleteData']>('deleteData')
+    insertData = createSpy2<Text['insertData']>('insertData')
+    replaceData = createSpy2<Text['replaceData']>('replaceData')
+    substringData = createSpy2<Text['substringData']>('substringData')
+    appendChild = createSpy2<Text['appendChild']>('appendChild')
+    cloneNode = createSpy2<Text['cloneNode']>('cloneNode')
+    compareDocumentPosition = createSpy2<Text['compareDocumentPosition']>(
+        'compareDocumentPosition'
+    )
+    contains = createSpy2<Text['contains']>('contains')
+    getRootNode = createSpy2<Text['getRootNode']>('getRootNode')
+    hasChildNodes = createSpy2<Text['hasChildNodes']>('hasChildNodes')
+    insertBefore = createSpy2<Text['insertBefore']>('insertBefore')
+    isDefaultNamespace =
+        createSpy2<Text['isDefaultNamespace']>('isDefaultNamespace')
+    isEqualNode = createSpy2<Text['isEqualNode']>('isEqualNode')
+    isSameNode = createSpy2<Text['isSameNode']>('isSameNode')
+    lookupNamespaceURI =
+        createSpy2<Text['lookupNamespaceURI']>('lookupNamespaceURI')
+    lookupPrefix = createSpy2<Text['lookupPrefix']>('lookupPrefix')
+    normalize = createSpy2<Text['normalize']>('normalize')
+    removeChild = createSpy2<Text['removeChild']>('removeChild')
+    replaceChild = createSpy2<Text['replaceChild']>('replaceChild')
+    after = createSpy2<Text['after']>('after')
+    before = createSpy2<Text['before']>('before')
+    remove = createSpy2<Text['remove']>('remove')
+    replaceWith = createSpy2<Text['replaceWith']>('replaceWith')
+    addEventListener = createSpy2<Text['addEventListener']>('addEventListener')
+    dispatchEvent = createSpy2<Text['dispatchEvent']>('dispatchEvent')
+    removeEventListener = createSpy2<Text['removeEventListener']>(
+        'removeEventListener'
+    )
+}

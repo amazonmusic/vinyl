@@ -1,0 +1,67 @@
+<!--
+  ~ Copyright (c) 2024. Amazon.com, Inc. or its affiliates. All rights reserved.
+  -->
+
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Vinyl Performance Benchmarks</title>
+
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="shortcut icon" type="image/png" href="favicon.png" />
+        <link rel="stylesheet" href="jasmine.css" />
+        <link rel="stylesheet" href="benchmark.css" />
+
+        <script>
+            /**
+             * Loads a script.
+             *
+             * @param options {{
+             *     src: string,
+             *     module?: boolean
+             * }}
+             */
+            function loadScript(options) {
+                const script = document.createElement('script')
+                if (options.module) script.type = 'module'
+                script.src = options.src
+                script.async = false
+                document.head.appendChild(script)
+            }
+
+            const isModernBrowser = typeof BigInt !== 'undefined'
+
+            // Detects if this is a modern es2020 browser.
+            // Otherwise, loads the es5 version.
+            if (isModernBrowser) {
+                loadScript({
+                    src: 'jasmineHtml.js',
+                    module: true,
+                })
+                loadScript({
+                    src: 'benchmark.js',
+                    module: true,
+                })
+            } else {
+                loadScript({
+                    src: 'jasmineHtml.es5.js',
+                })
+                loadScript({
+                    src: 'benchmark.es5.js',
+                })
+            }
+        </script>
+
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Roboto:wght@300&display=swap"
+            rel="stylesheet"
+        />
+    </head>
+
+    <body>
+        <div id="jasmineContainer"></div>
+    </body>
+</html>

@@ -1,0 +1,32 @@
+{
+    "$schema": "https://typedoc.org/schema.json",
+    "entryPoints": [
+        "../vinyl",
+        "../vinyl-cache-manager",
+        "../vinyl-di",
+        "../vinyl-hls-parser",
+        "../vinyl-mpd-parser",
+        "../vinyl-observable",
+        "../vinyl-transmux",
+        "../vinyl-tsx",
+        "../vinyl-util",
+        "../vinyl-validation",
+        "../vinyl-xml"
+    ],
+    "out": "public/tsdocs",
+    "exclude": ["**/node_modules/**"],
+    "name": "Amazon Vinyl",
+    "entryPointStrategy": "packages",
+    "readme": "none",
+    "packageOptions": {
+        "entryPoints": ["./src/index.ts"],
+        "exclude": ["./src/index.ts"],
+        "tsconfig": "./src/tsconfig.json",
+        "excludeExternals": true,
+        "excludePrivate": true,
+        "compilerOptions": {
+            "skipLibCheck": true
+        },
+        "readme": "none"
+    }
+}

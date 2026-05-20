@@ -1,0 +1,33 @@
+{
+    "name": "@amazon/vinyl-jasmine-wrapper",
+    "version": "0.0.0",
+    "description": "A wrapper for jasmine core to allow an html runner to boot on legacy browsers",
+    "repository": "https://code.amazon.com/packages/Vinyl",
+    "license": "UNLICENSED",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "type": "module",
+    "files": [
+        "dist/*"
+    ],
+    "scripts": {
+        "clean": "rimraf --glob dist .eslintcache \"**/*.tsbuildinfo\"",
+        "build": "tsc",
+        "build:release": "npm run build",
+        "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
+        "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
+        "eslint:check": "eslint . --cache --max-warnings=0",
+        "eslint:write": "eslint . --cache --fix",
+        "lint": "npm run eslint:check && npm run prettier:check",
+        "lint:write": "npm run eslint:write && npm run prettier:write",
+        "test": "echo done",
+        "test:coverage": "echo done"
+    },
+    "main": "./dist/index.cjs",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js"
+        }
+    },
+    "typesVersions": {}
+}

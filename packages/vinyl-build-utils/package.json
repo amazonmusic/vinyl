@@ -1,0 +1,52 @@
+{
+    "name": "@amazon/vinyl-build-utils",
+    "version": "0.0.0",
+    "description": "Build utilities and configuration for TypeScript libraries.",
+    "repository": {
+        "type": "git",
+        "url": "https://code.amazon.com/packages/Vinyl"
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "type": "module",
+    "sideEffects": [
+        "test/**/*"
+    ],
+    "files": [
+        "dist",
+        "jscodeshift",
+        ".prettierrc.json"
+    ],
+    "scripts": {
+        "build": "tsc -p ./src/tsconfig.json",
+        "build:release": "tsc -p ./src/tsconfig.json",
+        "build:watch": "tsc -p ./src/tsconfig.json -w",
+        "clean": "rimraf --glob dist .eslintcache \"**/*.tsbuildinfo\"",
+        "eslint:check": "eslint . --cache --max-warnings=0",
+        "eslint:write": "eslint . --cache --fix",
+        "indexFiles:check": "tsx ./buildScripts/writeIndexFiles.ts --check",
+        "indexFiles:write": "tsx ./buildScripts/writeIndexFiles.ts",
+        "lint": "npm run eslint:check && npm run prettier:check && npm run indexFiles:check",
+        "lint:write": "npm run indexFiles:write && npm run eslint:write && npm run prettier:write",
+        "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
+        "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
+        "release": "npm run lint && npm run build:release",
+        "test": "tsx ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
+        "test:coverage": "echo \"No tests\"",
+        "validate": "npm run lint"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+        "@nbilyk/downlevel-dts": "^0.15.2",
+        "@types/babel__core": "^7.20.5",
+        "@types/express": "^5.0.1",
+        "@types/jscodeshift": "^0.12.0",
+        "jscodeshift": "^17.1.2",
+        "magic-string": "^0.30.17"
+    },
+    "dependencies": {
+        "express": "^5.1.0",
+        "http-proxy-middleware": "^3.0.5"
+    }
+}

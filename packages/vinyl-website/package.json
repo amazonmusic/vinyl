@@ -1,0 +1,43 @@
+{
+    "name": "@amazon/vinyl-website",
+    "version": "0.0.0",
+    "description": "Documentation, demos and tutorials for the Amazon Vinyl player",
+    "repository": "https://code.amazon.com/packages/Vinyl",
+    "license": "UNLICENSED",
+    "type": "module",
+    "scripts": {
+        "start": "vite",
+        "build": "vite build",
+        "build:release": "npm run typedoc && vite build",
+        "postbuild:release": "mkdir -p ../../build/public/website && cp -r dist/* ../../build/public/website/",
+        "preview": "vite preview",
+        "typedoc": "typedoc",
+        "clean": "rimraf --glob dist public/tsdocs .eslintcache \"**/*.tsbuildinfo\"",
+        "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
+        "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
+        "eslint:check": "eslint . --cache --max-warnings=0",
+        "eslint:write": "eslint . --cache --fix",
+        "lint": "npm run eslint:check && npm run prettier:check",
+        "lint:write": "npm run eslint:write && npm run prettier:write",
+        "validate": "npm run lint",
+        "test": ""
+    },
+    "devDependencies": {
+        "glob": "^13.0.0",
+        "highlight.js": "^11.10.0",
+        "marked": "^14.0.0",
+        "marked-highlight": "^2.2.4",
+        "sass": "^1.77.0",
+        "typedoc": "^0.28.4",
+        "vite": "^8.0.13"
+    },
+    "dependencies": {
+        "@amazon/vinyl": "^0.0.0",
+        "@amazon/vinyl-observable": "^0.0.0",
+        "@amazon/vinyl-tsx": "^0.0.0",
+        "@amazon/vinyl-util": "^0.0.0"
+    },
+    "browserslist": [
+        "defaults, chrome 52, firefox 54, edge 15, safari 8"
+    ]
+}

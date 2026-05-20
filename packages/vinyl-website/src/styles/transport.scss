@@ -1,0 +1,309 @@
+.transport {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--color-surface);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+}
+
+.transportVideo {
+    background: black;
+    display: flex;
+    justify-content: center;
+
+    video {
+        max-height: 240px;
+        width: 100%;
+        object-fit: contain;
+        cursor: pointer;
+    }
+}
+
+.transportControlsRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-lg);
+    height: 56px;
+}
+
+.transportControls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.transportBtn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-primary);
+    transition: background var(--transition-fast);
+
+    &:hover {
+        background: var(--color-bg-tertiary);
+    }
+
+    &:focus-visible {
+        border-radius: var(--radius-full);
+    }
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+.playBtn {
+    width: 36px;
+    height: 36px;
+    background: var(--color-accent);
+    color: white;
+    border-radius: var(--radius-full);
+    position: relative;
+
+    &:hover {
+        background: var(--color-accent-hover);
+    }
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    &.loading::after {
+        content: '';
+        position: absolute;
+        top: -3px;
+        left: -3px;
+        right: -3px;
+        bottom: -3px;
+        border-radius: 50%;
+        border: 2px solid var(--color-border);
+        border-top-color: var(--color-text-primary);
+        animation: spin 1s linear infinite;
+        pointer-events: none;
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.transportProgress {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.progressTime {
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-text-tertiary);
+    min-width: 40px;
+    text-align: center;
+}
+
+.progressBar {
+    flex: 1;
+    position: relative;
+}
+
+.progressBarHit {
+    cursor: pointer;
+    width: 100%;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    touch-action: none;
+}
+
+.progressBarFills {
+    position: relative;
+    height: 4px;
+    width: 100%;
+    border-radius: var(--radius-full);
+    transition: height 0.15s ease;
+}
+
+.progressBarTrack {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--color-scrubbar-bg);
+    border-radius: var(--radius-full);
+}
+
+.progressBarPrefetched {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--color-scrubbar-prefetched);
+    border-radius: var(--radius-full);
+    width: 0%;
+}
+
+.progressFill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background: var(--color-scrubbar-fill);
+    border-radius: var(--radius-full);
+    width: 0%;
+}
+
+.progressHandle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--color-scrubbar-handle);
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    transition:
+        opacity var(--transition-fast),
+        transform var(--transition-fast);
+}
+
+.progressBarHit:hover .progressBarFills {
+    height: 6px;
+}
+
+.progressBarHit:hover .progressHandle {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.transportTrackInfo {
+    min-width: 140px;
+    max-width: 200px;
+
+    .trackTitle {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--color-text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .trackType {
+        font-size: 11px;
+        color: var(--color-text-tertiary);
+    }
+}
+
+.transportActions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+}
+
+.volumeControl {
+    display: flex;
+    align-items: center;
+    position: relative;
+
+    .volumeSlider {
+        width: 0;
+        height: 20px;
+        border-radius: var(--radius-full);
+        background: transparent;
+        appearance: none;
+        cursor: pointer;
+        opacity: 0;
+        overflow: visible;
+        transition:
+            width var(--transition-normal),
+            opacity var(--transition-normal);
+
+        &::-webkit-slider-runnable-track {
+            height: 4px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(
+                to right,
+                var(--color-text-primary) var(--volume, 100%),
+                var(--color-scrubbar-bg) var(--volume, 100%)
+            );
+        }
+
+        &::-webkit-slider-thumb {
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--color-text-primary);
+            margin-top: -4px;
+        }
+
+        &::-moz-range-track {
+            height: 4px;
+            border-radius: var(--radius-full);
+            background: linear-gradient(
+                to right,
+                var(--color-text-primary) var(--volume, 100%),
+                var(--color-scrubbar-bg) var(--volume, 100%)
+            );
+        }
+
+        &::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            border: none;
+            border-radius: 50%;
+            background: var(--color-text-primary);
+        }
+    }
+
+    &:hover .volumeSlider,
+    .volumeSlider:focus {
+        width: 80px;
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .transportControlsRow {
+        flex-wrap: wrap;
+        height: auto;
+        padding: var(--space-sm) var(--space-md);
+        gap: var(--space-sm);
+    }
+
+    .transportProgress {
+        order: -1;
+        flex-basis: 100%;
+    }
+
+    .transportTrackInfo {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .volumeControl {
+        display: none;
+    }
+
+    .transportActions {
+        margin-left: auto;
+    }
+}

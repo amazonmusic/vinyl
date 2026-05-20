@@ -1,0 +1,71 @@
+/*
+ * Copyright (c) 2024. Amazon.com, Inc. or its affiliates. All rights reserved.
+ */
+
+html,
+body {
+    font-family: 'Roboto', sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5 {
+    margin-top: 0;
+}
+
+#benchmarkResults {
+    padding: 5px 5px 150px;
+    display: flex;
+    flex-direction: column;
+    align-content: center;
+    width: 540px;
+    margin: 0 auto;
+}
+
+.benchmarkComparison {
+    margin: 20px;
+    padding: 5px;
+    border: thin solid #b4b9c7;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.benchmarkComparison > table {
+    width: 100%;
+}
+
+thead,
+tfoot {
+    background-color: #6f7893;
+    color: #fff;
+}
+
+tbody {
+    background-color: #e8eaef;
+}
+
+caption {
+    padding: 10px;
+    caption-side: bottom;
+}
+
+table {
+    border-collapse: collapse;
+    border: thin solid rgb(220, 220, 227);
+    letter-spacing: 1px;
+    font-family: sans-serif;
+    font-size: 0.8rem;
+}
+
+td,
+th {
+    border: thin solid rgb(195, 195, 199);
+    padding: 5px 10px;
+}
+
+td {
+    text-align: center;
+}

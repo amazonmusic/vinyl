@@ -1,0 +1,34 @@
+{
+    "name": "@amazon/vinyl-mock-generator",
+    "version": "0.0.0",
+    "description": "Generates mock classes from interfaces",
+    "repository": "https://code.amazon.com/packages/Vinyl",
+    "license": "UNLICENSED",
+    "main": "./dist/index.cjs",
+    "types": "dist/index.d.ts",
+    "type": "module",
+    "files": [
+        "dist/*"
+    ],
+    "scripts": {
+        "build": "tsc -p ./src/tsconfig.json",
+        "build:release": "tsc -p ./src/tsconfig.json",
+        "build:watch": "tsc -p ./src/tsconfig.json -w",
+        "clean": "rimraf --glob dist .eslintcache \"**/*.tsbuildinfo\"",
+        "eslint:check": "eslint . --cache --max-warnings=0",
+        "eslint:write": "eslint . --cache --fix",
+        "lint": "npm run eslint:check && npm run prettier:check",
+        "lint:write": "npm run eslint:write && npm run prettier:write",
+        "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
+        "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
+        "release": "npm run lint && npm run build:release",
+        "validate": "npm run lint"
+    },
+    "module": "./dist/index.js",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js"
+        }
+    },
+    "typesVersions": {}
+}

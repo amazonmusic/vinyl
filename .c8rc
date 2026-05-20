@@ -1,0 +1,12 @@
+{
+    "extends": "./.c8rc.base.json",
+    "include": [
+        "packages/**/src/**"
+    ],
+    "exclude": [
+        "packages/vinyl-build-utils/**",
+        "packages/vinyl-jasmine-wrapper/**",
+        "packages/vinyl-mock-generator/**",
+        "packages/vinyl-website/**"
+    ]
+}

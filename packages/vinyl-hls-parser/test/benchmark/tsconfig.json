@@ -1,0 +1,16 @@
+{
+    "extends": "../../../../tsconfig.test.json",
+    "include": ["./**/*"],
+    "compilerOptions": {
+        "noEmit": true,
+        "paths": {
+            "@amazon/vinyl-hls-parser": ["../../src/index"],
+            "@/*": ["./*"]
+        }
+    },
+    "references": [
+        {
+            "path": "../../src"
+        }
+    ]
+}

@@ -1,0 +1,11 @@
+/** Auto-generated from build scripts */
+import './setup'
+import './media/ratio.test'
+import './media/frameRate.test'
+import './media/byteRange.test'
+import './manifest/stringifyDash_isoffLive.test'
+import './manifest/parseDash_segmentTemplate.test'
+import './manifest/parseDash_personalizedResponse.test'
+import './manifest/dashParser.test'
+import './manifest/dashManifestXmlRules.test'
+import './duration/duration.test'

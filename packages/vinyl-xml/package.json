@@ -1,0 +1,79 @@
+{
+    "name": "@amazon/vinyl-xml",
+    "version": "0.0.0",
+    "description": "A SAX XML parser",
+    "repository": "https://code.amazon.com/packages/Vinyl",
+    "license": "UNLICENSED",
+    "module": "./dist/index.js",
+    "main": "./dist/index.cjs",
+    "types": "./dist/types/ts3.7/index.d.ts",
+    "type": "module",
+    "sideEffects": [
+        "test/**/*"
+    ],
+    "files": [
+        "dist/*",
+        "docs/*"
+    ],
+    "typesVersions": {
+        ">=5.4": {
+            "*": [
+                "./dist/types/current/index.d.ts"
+            ]
+        },
+        ">=4.7": {
+            "*": [
+                "./dist/types/ts4.7/index.d.ts"
+            ]
+        },
+        ">=4.1": {
+            "*": [
+                "./dist/types/ts4.1/index.d.ts"
+            ]
+        },
+        ">=3.7": {
+            "*": [
+                "./dist/types/ts3.7/index.d.ts"
+            ]
+        }
+    },
+    "exports": {
+        ".": {
+            "types@>=5.4": "./dist/types/current/index.d.ts",
+            "types@>=4.7": "./dist/types/ts4.7/index.d.ts",
+            "require": "./dist/index.cjs",
+            "import": "./dist/index.js"
+        }
+    },
+    "scripts": {
+        "analyzeExports": "tsx buildSrc/analyzeExports.ts",
+        "analyzeExports:write": "tsx buildSrc/analyzeExports.ts --write",
+        "clean": "rimraf --glob dist .eslintcache \"**/*.tsbuildinfo\"",
+        "indexFiles:check": "tsx buildSrc/writeIndexFiles.ts --check",
+        "indexFiles:write": "tsx buildSrc/writeIndexFiles.ts",
+        "build": "tsx buildSrc/build.ts",
+        "build:release": "tsx buildSrc/build.ts --release",
+        "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
+        "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
+        "eslint:check": "eslint . --cache --max-warnings=0",
+        "eslint:write": "eslint . --cache --fix",
+        "lint": "npm run indexFiles:check && npm run eslint:check && npm run prettier:check",
+        "lint:write": "npm run indexFiles:write && npm run eslint:write && npm run prettier:write",
+        "validate": "tsc --project test/unit && npm run lint && npm run test",
+        "test": "tsx --tsconfig ../../tsconfig.flat.json ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
+        "test:coverage": "c8 npm run test",
+        "watch": "tsx buildSrc/build.ts --watch",
+        "watch:release": "tsx buildSrc/build.ts --watch --release"
+    },
+    "devDependencies": {
+        "@amazon/vinyl-build-utils": "^0.0.0",
+        "@amazon/vinyl-jasmine-wrapper": "^0.0.0"
+    },
+    "dependencies": {
+        "@amazon/vinyl-util": "^0.0.0",
+        "@amazon/vinyl-validation": "^0.0.0"
+    },
+    "browserslist": [
+        "defaults, chrome 52, firefox 54, edge 15, safari 8"
+    ]
+}

@@ -1,0 +1,14 @@
+**/coverage/**
+**/dist/**
+**/lib/**
+**/node_modules/**
+*.tsbuildinfo
+.env
+/.nyc_output/
+/tsconfig.tsbuildinfo
+package-lock.json
+tsconfig.base.json
+**/musicAuth.json
+**/index.ts
+**/treeShaking/**
+**/tsdocs/**

@@ -1,0 +1,36 @@
+<!--
+  ~ Copyright (c) 2024. Amazon.com, Inc. or its affiliates. All rights reserved.
+  -->
+
+<!doctype html>
+<html>
+    <head>
+        <title>Vinyl Basic Demo</title>
+        <meta name="robots" content="noindex, nofollow" />
+        <link rel="icon" href="./favicon.ico" type="image/x-icon" />
+        <meta charset="utf-8" />
+
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+
+    <body>
+        <video controls width="640"></video>
+        <script src="app.es5.js"></script>
+
+        <pre>
+import { createVinylPlayer } from '@amazon/vinyl'
+
+// Create a video or audio element or select it from the DOM:
+const media = document.querySelector('video')
+
+// Create a new Vinyl player, passing the media element:
+const player = createVinylPlayer({ media })
+
+// Load a track:
+player.load({
+    type: 'dash',
+    uri: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd`,
+})
+        </pre>
+    </body>
+</html>

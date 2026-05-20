@@ -1,0 +1,4588 @@
+{
+    "timestamp": "2026-05-07T21:18:41.748Z",
+    "seed": 1,
+    "engines": ["vinyl", "shaka"],
+    "bundleLoadTimes": [
+        {
+            "engine": "vinyl",
+            "bundleSizeKB": 65,
+            "estimatedLoadTimes": {
+                "low": 1072.864,
+                "3g": 536.432,
+                "4g": 53.6432,
+                "wifi": 10.728639999999999
+            }
+        },
+        {
+            "engine": "shaka",
+            "bundleSizeKB": 177,
+            "estimatedLoadTimes": {
+                "low": 2898.896,
+                "3g": 1449.448,
+                "4g": 144.94480000000001,
+                "wifi": 28.988960000000002
+            }
+        }
+    ],
+    "results": [
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "stable-high",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 1,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.5574757498011786,
+                    "finalScore": 0.9114951499602357,
+                    "avgBitrate": 2147218,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.03940000009536
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.28820000004768,
+            "timeline": [
+                {
+                    "time": 1.7602000000476836,
+                    "event": "playing",
+                    "bandwidth": null
+                },
+                {
+                    "time": 1.8055,
+                    "event": "qualityChange",
+                    "bandwidth": 2147218
+                },
+                {
+                    "time": 61.844900000095365,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.84510000002384,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 1250000,
+                    "latency": 20,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-high",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.9584689369657994,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6878288681663176,
+                    "finalScore": 0.9209533484195833,
+                    "avgBitrate": 3273528.0244492446,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.09129999995231
+                }
+            },
+            "timedOut": false,
+            "endTime": 61.296899999976155,
+            "timeline": [
+                {
+                    "time": 1.0886000000238418,
+                    "event": "playing",
+                    "bandwidth": 271123
+                },
+                {
+                    "time": 1.3216999999284744,
+                    "event": "qualityChange",
+                    "bandwidth": 3285220
+                },
+                {
+                    "time": 61.17989999997616,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.180199999928476,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 1250000,
+                    "latency": 20,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-high",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.9571491823464334,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.5509641873278237,
+                    "finalScore": 0.8930525104041381,
+                    "avgBitrate": 3128855.894503876,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.09130000007152
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.27510000002384,
+            "timeline": [
+                {
+                    "time": 1.8018999999761582,
+                    "event": "playing",
+                    "bandwidth": 269710
+                },
+                {
+                    "time": 2.021399999976158,
+                    "event": "qualityChange",
+                    "bandwidth": 3139338
+                },
+                {
+                    "time": 61.893200000047685,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.8935,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 1250000,
+                    "latency": 20,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "stable-low",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.4634318331429298,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.18307474026271225,
+                    "finalScore": 0.6219876813097143,
+                    "avgBitrate": 461156,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 59.85739999997617
+                }
+            },
+            "timedOut": false,
+            "endTime": 71.61969999992847,
+            "timeline": [
+                {
+                    "time": 11.427099999904632,
+                    "event": "playing",
+                    "bandwidth": null
+                },
+                {
+                    "time": 11.652699999928474,
+                    "event": "qualityChange",
+                    "bandwidth": 461156
+                },
+                {
+                    "time": 71.51009999990464,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 71.5105,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 62500,
+                    "latency": 80,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-low",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.2572783414328263,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.46720239206844116,
+                    "finalScore": 0.5963518149868188,
+                    "avgBitrate": 235406.63026879609,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.085799999952314
+                }
+            },
+            "timedOut": false,
+            "endTime": 65.58479999995231,
+            "timeline": [
+                {
+                    "time": 4.759600000023842,
+                    "event": "playing",
+                    "bandwidth": 134175
+                },
+                {
+                    "time": 4.7793999999761585,
+                    "event": "qualityChange",
+                    "bandwidth": 235440
+                },
+                {
+                    "time": 64.84539999997615,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 64.8455,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 62500,
+                    "latency": 80,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-low",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.26152233309753337,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.3263441298849637,
+                    "finalScore": 0.569877759216006,
+                    "avgBitrate": 233201.32229840872,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.09339999997616
+                }
+            },
+            "timedOut": false,
+            "endTime": 67.60069999992848,
+            "timeline": [
+                {
+                    "time": 6.61,
+                    "event": "playing",
+                    "bandwidth": 132807
+                },
+                {
+                    "time": 6.794199999928474,
+                    "event": "qualityChange",
+                    "bandwidth": 233510
+                },
+                {
+                    "time": 66.70339999997616,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 66.70360000002384,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 62500,
+                    "latency": 80,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "wifi-to-4g",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 1,
+                    "rebuffer": 0.5,
+                    "stall": 0.3968450816012701,
+                    "startup": 0.40019209220234886,
+                    "finalScore": 0.6697229266005968,
+                    "avgBitrate": 2147218,
+                    "rebufferCount": 1,
+                    "totalStallSeconds": 6.079499999999996,
+                    "playbackSeconds": 59.904800000071525
+                }
+            },
+            "timedOut": false,
+            "endTime": 69.4705,
+            "timeline": [
+                {
+                    "time": 3.321600000023842,
+                    "event": "playing",
+                    "bandwidth": null
+                },
+                {
+                    "time": 3.4742999999523163,
+                    "event": "qualityChange",
+                    "bandwidth": 2147218
+                },
+                {
+                    "time": 33.34079999995232,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 39.42029999995231,
+                    "event": "playing",
+                    "bandwidth": 2147218
+                },
+                {
+                    "time": 69.45860000002384,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 69.45879999995232,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 627393.7560326885,
+                    "latency": 23.186175998998806,
+                    "offline": false
+                },
+                {
+                    "time": 17.024,
+                    "downloadThroughput": 73616.53304687934,
+                    "latency": 142.16552544385195,
+                    "offline": false
+                },
+                {
+                    "time": 39.08,
+                    "downloadThroughput": 1255650.2484949306,
+                    "latency": 20.6449238024652,
+                    "offline": false
+                },
+                {
+                    "time": 55.115,
+                    "downloadThroughput": 51168.1118136039,
+                    "latency": 173.31824761349708,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "wifi-to-4g",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.5405577087851301,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.619367625649634,
+                    "finalScore": 0.7400966086439787,
+                    "avgBitrate": 1253121.389201716,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.08259999990463
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.41879999995231,
+            "timeline": [
+                {
+                    "time": 1.5281000000238418,
+                    "event": "playing",
+                    "bandwidth": 271123
+                },
+                {
+                    "time": 1.7036999999284743,
+                    "event": "qualityChange",
+                    "bandwidth": 1647188
+                },
+                {
+                    "time": 19.776699999928475,
+                    "event": "qualityChange",
+                    "bandwidth": 3285220
+                },
+                {
+                    "time": 27.8185,
+                    "event": "qualityChange",
+                    "bandwidth": 51199
+                },
+                {
+                    "time": 27.818600000023842,
+                    "event": "qualityChange",
+                    "bandwidth": 465020
+                },
+                {
+                    "time": 47.65889999997616,
+                    "event": "qualityChange",
+                    "bandwidth": 3285220
+                },
+                {
+                    "time": 49.66469999992847,
+                    "event": "qualityChange",
+                    "bandwidth": 271123
+                },
+                {
+                    "time": 61.61069999992847,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.611,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 627393.7560326885,
+                    "latency": 23.186175998998806,
+                    "offline": false
+                },
+                {
+                    "time": 17.018,
+                    "downloadThroughput": 73616.53304687934,
+                    "latency": 142.16552544385195,
+                    "offline": false
+                },
+                {
+                    "time": 39.083,
+                    "downloadThroughput": 1255650.2484949306,
+                    "latency": 20.6449238024652,
+                    "offline": false
+                },
+                {
+                    "time": 55.106,
+                    "downloadThroughput": 51168.1118136039,
+                    "latency": 173.31824761349708,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "wifi-to-4g",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.4890740533227124,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.49962528103922055,
+                    "finalScore": 0.695554677536929,
+                    "avgBitrate": 1158635.911426925,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.08979999995232
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.40690000009537,
+            "timeline": [
+                {
+                    "time": 2.296900000095367,
+                    "event": "playing",
+                    "bandwidth": 269710
+                },
+                {
+                    "time": 2.4003000000715256,
+                    "event": "qualityChange",
+                    "bandwidth": 1613494
+                },
+                {
+                    "time": 18.466100000023843,
+                    "event": "qualityChange",
+                    "bandwidth": 3139338
+                },
+                {
+                    "time": 26.504100000023843,
+                    "event": "qualityChange",
+                    "bandwidth": 455594
+                },
+                {
+                    "time": 30.524200000047685,
+                    "event": "qualityChange",
+                    "bandwidth": 50430
+                },
+                {
+                    "time": 46.5975,
+                    "event": "qualityChange",
+                    "bandwidth": 3139338
+                },
+                {
+                    "time": 50.618100000023844,
+                    "event": "qualityChange",
+                    "bandwidth": 269710
+                },
+                {
+                    "time": 62.38670000004768,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 62.386800000071524,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 627393.7560326885,
+                    "latency": 23.186175998998806,
+                    "offline": false
+                },
+                {
+                    "time": 17.024,
+                    "downloadThroughput": 73616.53304687934,
+                    "latency": 142.16552544385195,
+                    "offline": false
+                },
+                {
+                    "time": 39.063,
+                    "downloadThroughput": 1255650.2484949306,
+                    "latency": 20.6449238024652,
+                    "offline": false
+                },
+                {
+                    "time": 55.097,
+                    "downloadThroughput": 51168.1118136039,
+                    "latency": 173.31824761349708,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "noisy-mobile",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.5113450361766808,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6642752756584587,
+                    "finalScore": 0.7373930696023641,
+                    "avgBitrate": 667312.8961713046,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.05779999995232
+                }
+            },
+            "timedOut": false,
+            "endTime": 63.40979999995232,
+            "timeline": [
+                {
+                    "time": 3.2172000000476837,
+                    "event": "playing",
+                    "bandwidth": null
+                },
+                {
+                    "time": 3.2492000000476837,
+                    "event": "qualityChange",
+                    "bandwidth": 461156
+                },
+                {
+                    "time": 13.560100000023843,
+                    "event": "qualityChange",
+                    "bandwidth": 2147218
+                },
+                {
+                    "time": 23.362,
+                    "event": "qualityChange",
+                    "bandwidth": 345437
+                },
+                {
+                    "time": 23.864299999952316,
+                    "event": "qualityChange",
+                    "bandwidth": 461156
+                },
+                {
+                    "time": 33.41360000002384,
+                    "event": "qualityChange",
+                    "bandwidth": 219702
+                },
+                {
+                    "time": 33.66489999997616,
+                    "event": "qualityChange",
+                    "bandwidth": 461156
+                },
+                {
+                    "time": 43.46479999995232,
+                    "event": "qualityChange",
+                    "bandwidth": 258231
+                },
+                {
+                    "time": 63.307,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 63.307200000047686,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 70968.8108929655,
+                    "latency": 50.41035817703232,
+                    "offline": false
+                },
+                {
+                    "time": 1,
+                    "downloadThroughput": 101110.85853985009,
+                    "latency": 195.25668473215774,
+                    "offline": false
+                },
+                {
+                    "time": 2.006,
+                    "downloadThroughput": 69965.7206667104,
+                    "latency": 158.11147117055953,
+                    "offline": false
+                },
+                {
+                    "time": 3.016,
+                    "downloadThroughput": 102512.98796665146,
+                    "latency": 118.29066907521337,
+                    "offline": false
+                },
+                {
+                    "time": 4.018,
+                    "downloadThroughput": 43558.29431410227,
+                    "latency": 110.56171476375312,
+                    "offline": false
+                },
+                {
+                    "time": 5.02,
+                    "downloadThroughput": 44241.34201698582,
+                    "latency": 123.37158431764692,
+                    "offline": false
+                },
+                {
+                    "time": 6.023,
+                    "downloadThroughput": 56248.86554756383,
+                    "latency": 165.06620389409363,
+                    "offline": false
+                },
+                {
+                    "time": 7.026,
+                    "downloadThroughput": 45880.497475170174,
+                    "latency": 56.40945649938658,
+                    "offline": false
+                },
+                {
+                    "time": 8.03,
+                    "downloadThroughput": 68412.05488278292,
+                    "latency": 169.80263234581798,
+                    "offline": false
+                },
+                {
+                    "time": 9.032,
+                    "downloadThroughput": 46555.09004011166,
+                    "latency": 148.7194466870278,
+                    "offline": false
+                },
+                {
+                    "time": 10.036,
+                    "downloadThroughput": 80932.0082036181,
+                    "latency": 78.9221046725288,
+                    "offline": false
+                },
+                {
+                    "time": 11.04,
+                    "downloadThroughput": 59698.24201949418,
+                    "latency": 165.56207368848845,
+                    "offline": false
+                },
+                {
+                    "time": 12.043,
+                    "downloadThroughput": 48158.60718212339,
+                    "latency": 163.55019410839304,
+                    "offline": false
+                },
+                {
+                    "time": 13.048,
+                    "downloadThroughput": 52378.60342511754,
+                    "latency": 111.97954626986757,
+                    "offline": false
+                },
+                {
+                    "time": 14.052,
+                    "downloadThroughput": 44135.075479291256,
+                    "latency": 158.91572434920818,
+                    "offline": false
+                },
+                {
+                    "time": 15.054,
+                    "downloadThroughput": 43050.654273860775,
+                    "latency": 489.6986435051076,
+                    "offline": false
+                },
+                {
+                    "time": 16.057,
+                    "downloadThroughput": 70625.17008450246,
+                    "latency": 179.86580989090726,
+                    "offline": false
+                },
+                {
+                    "time": 17.06,
+                    "downloadThroughput": 101956.27497483692,
+                    "latency": 157.7457684907131,
+                    "offline": false
+                },
+                {
+                    "time": 18.063,
+                    "downloadThroughput": 51292.23650761706,
+                    "latency": 151.58224167535082,
+                    "offline": false
+                },
+                {
+                    "time": 19.067,
+                    "downloadThroughput": 95439.99600517967,
+                    "latency": 153.91156617552042,
+                    "offline": false
+                },
+                {
+                    "time": 20.07,
+                    "downloadThroughput": 87320.77623795465,
+                    "latency": 190.07574314018711,
+                    "offline": false
+                },
+                {
+                    "time": 21.073,
+                    "downloadThroughput": 0,
+                    "latency": 0,
+                    "offline": true
+                },
+                {
+                    "time": 24.081,
+                    "downloadThroughput": 39433.4548080901,
+                    "latency": 180.30292181065306,
+                    "offline": false
+                },
+                {
+                    "time": 25.085,
+                    "downloadThroughput": 91504.9516983841,
+                    "latency": 126.50879464345053,
+                    "offline": false
+                },
+                {
+                    "time": 26.089,
+                    "downloadThroughput": 76673.94296882732,
+                    "latency": 74.93857651716098,
+                    "offline": false
+                },
+                {
+                    "time": 27.091,
+                    "downloadThroughput": 97909.91017343599,
+                    "latency": 69.78808739222586,
+                    "offline": false
+                },
+                {
+                    "time": 28.094,
+                    "downloadThroughput": 44619.874312085296,
+                    "latency": 108.25332780368626,
+                    "offline": false
+                },
+                {
+                    "time": 29.097,
+                    "downloadThroughput": 56622.65318972752,
+                    "latency": 98.6487384303473,
+                    "offline": false
+                },
+                {
+                    "time": 30.1,
+                    "downloadThroughput": 63069.10697994602,
+                    "latency": 129.73160253604874,
+                    "offline": false
+                },
+                {
+                    "time": 31.103,
+                    "downloadThroughput": 85043.02613271546,
+                    "latency": 178.13580449437723,
+                    "offline": false
+                },
+                {
+                    "time": 32.106,
+                    "downloadThroughput": 44675.9590017671,
+                    "latency": 95.48847588011995,
+                    "offline": false
+                },
+                {
+                    "time": 33.111,
+                    "downloadThroughput": 50658.445970169894,
+                    "latency": 71.55937044881284,
+                    "offline": false
+                },
+                {
+                    "time": 34.115,
+                    "downloadThroughput": 65642.76877151619,
+                    "latency": 98.69256359525025,
+                    "offline": false
+                },
+                {
+                    "time": 35.118,
+                    "downloadThroughput": 43663.40201040896,
+                    "latency": 60.114266886375844,
+                    "offline": false
+                },
+                {
+                    "time": 36.121,
+                    "downloadThroughput": 74498.17007631785,
+                    "latency": 147.71651673363522,
+                    "offline": false
+                },
+                {
+                    "time": 37.125,
+                    "downloadThroughput": 63012.74991667984,
+                    "latency": 128.4855105681345,
+                    "offline": false
+                },
+                {
+                    "time": 38.128,
+                    "downloadThroughput": 83710.55269055588,
+                    "latency": 87.85124704008922,
+                    "offline": false
+                },
+                {
+                    "time": 39.13,
+                    "downloadThroughput": 98413.19140220413,
+                    "latency": 580.5014863028191,
+                    "offline": false
+                },
+                {
+                    "time": 40.133,
+                    "downloadThroughput": 45519.35476334523,
+                    "latency": 54.252589552197605,
+                    "offline": false
+                },
+                {
+                    "time": 41.136,
+                    "downloadThroughput": 52714.173011850784,
+                    "latency": 158.10124486451969,
+                    "offline": false
+                },
+                {
+                    "time": 42.139,
+                    "downloadThroughput": 41638.24571486429,
+                    "latency": 87.59127875091508,
+                    "offline": false
+                },
+                {
+                    "time": 43.143,
+                    "downloadThroughput": 83963.34771634417,
+                    "latency": 168.7732603168115,
+                    "offline": false
+                },
+                {
+                    "time": 44.146,
+                    "downloadThroughput": 41738.73377446091,
+                    "latency": 72.3706167540513,
+                    "offline": false
+                },
+                {
+                    "time": 45.148,
+                    "downloadThroughput": 65217.05253574378,
+                    "latency": 93.09433820890263,
+                    "offline": false
+                },
+                {
+                    "time": 46.151,
+                    "downloadThroughput": 51798.75177718078,
+                    "latency": 186.36585904750973,
+                    "offline": false
+                },
+                {
+                    "time": 47.154,
+                    "downloadThroughput": 71388.63706796747,
+                    "latency": 150.3594912821427,
+                    "offline": false
+                },
+                {
+                    "time": 48.157,
+                    "downloadThroughput": 55635.21218111002,
+                    "latency": 96.1278370115906,
+                    "offline": false
+                },
+                {
+                    "time": 49.161,
+                    "downloadThroughput": 49407.71571960616,
+                    "latency": 189.64583930792287,
+                    "offline": false
+                },
+                {
+                    "time": 50.162,
+                    "downloadThroughput": 44479.36553775855,
+                    "latency": 99.44922960130498,
+                    "offline": false
+                },
+                {
+                    "time": 51.167,
+                    "downloadThroughput": 39321.091836549815,
+                    "latency": 167.54532543709502,
+                    "offline": false
+                },
+                {
+                    "time": 52.17,
+                    "downloadThroughput": 48370.78636724288,
+                    "latency": 72.26229242514819,
+                    "offline": false
+                },
+                {
+                    "time": 53.172,
+                    "downloadThroughput": 51579.04263151039,
+                    "latency": 183.86610482120886,
+                    "offline": false
+                },
+                {
+                    "time": 54.174,
+                    "downloadThroughput": 58148.47548686655,
+                    "latency": 152.956247178372,
+                    "offline": false
+                },
+                {
+                    "time": 55.178,
+                    "downloadThroughput": 48444.809235551606,
+                    "latency": 130.4059587768279,
+                    "offline": false
+                },
+                {
+                    "time": 56.181,
+                    "downloadThroughput": 83889.56394351549,
+                    "latency": 57.58654507808387,
+                    "offline": false
+                },
+                {
+                    "time": 57.184,
+                    "downloadThroughput": 71299.44932004239,
+                    "latency": 546.8942108913325,
+                    "offline": false
+                },
+                {
+                    "time": 58.188,
+                    "downloadThroughput": 52533.21954144555,
+                    "latency": 114.37537271995097,
+                    "offline": false
+                },
+                {
+                    "time": 59.191,
+                    "downloadThroughput": 72528.58232778189,
+                    "latency": 103.81374584976584,
+                    "offline": false
+                },
+                {
+                    "time": 60.194,
+                    "downloadThroughput": 69161.55806150146,
+                    "latency": 52.04014286864549,
+                    "offline": false
+                },
+                {
+                    "time": 61.196,
+                    "downloadThroughput": 65055.89088415582,
+                    "latency": 135.2053253678605,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "noisy-mobile",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.24001367447737584,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6642090930172242,
+                    "finalScore": 0.6288472883943952,
+                    "avgBitrate": 230804.93584927064,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.088600000023845
+                }
+            },
+            "timedOut": false,
+            "endTime": 63.53539999997616,
+            "timeline": [
+                {
+                    "time": 3.1722000000476838,
+                    "event": "playing",
+                    "bandwidth": 465020
+                },
+                {
+                    "time": 9.4425,
+                    "event": "qualityChange",
+                    "bandwidth": 235440
+                },
+                {
+                    "time": 19.491700000047683,
+                    "event": "qualityChange",
+                    "bandwidth": 134175
+                },
+                {
+                    "time": 23.5125,
+                    "event": "qualityChange",
+                    "bandwidth": 51199
+                },
+                {
+                    "time": 27.284600000023843,
+                    "event": "qualityChange",
+                    "bandwidth": 465020
+                },
+                {
+                    "time": 29.293800000071524,
+                    "event": "qualityChange",
+                    "bandwidth": 134175
+                },
+                {
+                    "time": 31.301800000071527,
+                    "event": "qualityChange",
+                    "bandwidth": 51199
+                },
+                {
+                    "time": 37.32980000007153,
+                    "event": "qualityChange",
+                    "bandwidth": 235440
+                },
+                {
+                    "time": 41.352,
+                    "event": "qualityChange",
+                    "bandwidth": 134175
+                },
+                {
+                    "time": 45.375200000047684,
+                    "event": "qualityChange",
+                    "bandwidth": 51199
+                },
+                {
+                    "time": 49.39220000004769,
+                    "event": "qualityChange",
+                    "bandwidth": 134175
+                },
+                {
+                    "time": 49.39230000007153,
+                    "event": "qualityChange",
+                    "bandwidth": 465020
+                },
+                {
+                    "time": 51.402,
+                    "event": "qualityChange",
+                    "bandwidth": 51199
+                },
+                {
+                    "time": 51.40210000002384,
+                    "event": "qualityChange",
+                    "bandwidth": 235440
+                },
+                {
+                    "time": 55.423200000047686,
+                    "event": "qualityChange",
+                    "bandwidth": 465020
+                },
+                {
+                    "time": 59.44320000004768,
+                    "event": "qualityChange",
+                    "bandwidth": 235440
+                },
+                {
+                    "time": 63.26080000007153,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 63.261,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 70968.8108929655,
+                    "latency": 50.41035817703232,
+                    "offline": false
+                },
+                {
+                    "time": 1.001,
+                    "downloadThroughput": 101110.85853985009,
+                    "latency": 195.25668473215774,
+                    "offline": false
+                },
+                {
+                    "time": 2.006,
+                    "downloadThroughput": 69965.7206667104,
+                    "latency": 158.11147117055953,
+                    "offline": false
+                },
+                {
+                    "time": 3.009,
+                    "downloadThroughput": 102512.98796665146,
+                    "latency": 118.29066907521337,
+                    "offline": false
+                },
+                {
+                    "time": 4.012,
+                    "downloadThroughput": 43558.29431410227,
+                    "latency": 110.56171476375312,
+                    "offline": false
+                },
+                {
+                    "time": 5.015,
+                    "downloadThroughput": 44241.34201698582,
+                    "latency": 123.37158431764692,
+                    "offline": false
+                },
+                {
+                    "time": 6.018,
+                    "downloadThroughput": 56248.86554756383,
+                    "latency": 165.06620389409363,
+                    "offline": false
+                },
+                {
+                    "time": 7.022,
+                    "downloadThroughput": 45880.497475170174,
+                    "latency": 56.40945649938658,
+                    "offline": false
+                },
+                {
+                    "time": 8.025,
+                    "downloadThroughput": 68412.05488278292,
+                    "latency": 169.80263234581798,
+                    "offline": false
+                },
+                {
+                    "time": 9.029,
+                    "downloadThroughput": 46555.09004011166,
+                    "latency": 148.7194466870278,
+                    "offline": false
+                },
+                {
+                    "time": 10.033,
+                    "downloadThroughput": 80932.0082036181,
+                    "latency": 78.9221046725288,
+                    "offline": false
+                },
+                {
+                    "time": 11.035,
+                    "downloadThroughput": 59698.24201949418,
+                    "latency": 165.56207368848845,
+                    "offline": false
+                },
+                {
+                    "time": 12.04,
+                    "downloadThroughput": 48158.60718212339,
+                    "latency": 163.55019410839304,
+                    "offline": false
+                },
+                {
+                    "time": 13.043,
+                    "downloadThroughput": 52378.60342511754,
+                    "latency": 111.97954626986757,
+                    "offline": false
+                },
+                {
+                    "time": 14.046,
+                    "downloadThroughput": 44135.075479291256,
+                    "latency": 158.91572434920818,
+                    "offline": false
+                },
+                {
+                    "time": 15.049,
+                    "downloadThroughput": 43050.654273860775,
+                    "latency": 489.6986435051076,
+                    "offline": false
+                },
+                {
+                    "time": 16.053,
+                    "downloadThroughput": 70625.17008450246,
+                    "latency": 179.86580989090726,
+                    "offline": false
+                },
+                {
+                    "time": 17.056,
+                    "downloadThroughput": 101956.27497483692,
+                    "latency": 157.7457684907131,
+                    "offline": false
+                },
+                {
+                    "time": 18.059,
+                    "downloadThroughput": 51292.23650761706,
+                    "latency": 151.58224167535082,
+                    "offline": false
+                },
+                {
+                    "time": 19.061,
+                    "downloadThroughput": 95439.99600517967,
+                    "latency": 153.91156617552042,
+                    "offline": false
+                },
+                {
+                    "time": 20.064,
+                    "downloadThroughput": 87320.77623795465,
+                    "latency": 190.07574314018711,
+                    "offline": false
+                },
+                {
+                    "time": 21.068,
+                    "downloadThroughput": 0,
+                    "latency": 0,
+                    "offline": true
+                },
+                {
+                    "time": 24.074,
+                    "downloadThroughput": 39433.4548080901,
+                    "latency": 180.30292181065306,
+                    "offline": false
+                },
+                {
+                    "time": 25.077,
+                    "downloadThroughput": 91504.9516983841,
+                    "latency": 126.50879464345053,
+                    "offline": false
+                },
+                {
+                    "time": 26.081,
+                    "downloadThroughput": 76673.94296882732,
+                    "latency": 74.93857651716098,
+                    "offline": false
+                },
+                {
+                    "time": 27.085,
+                    "downloadThroughput": 97909.91017343599,
+                    "latency": 69.78808739222586,
+                    "offline": false
+                },
+                {
+                    "time": 28.089,
+                    "downloadThroughput": 44619.874312085296,
+                    "latency": 108.25332780368626,
+                    "offline": false
+                },
+                {
+                    "time": 29.094,
+                    "downloadThroughput": 56622.65318972752,
+                    "latency": 98.6487384303473,
+                    "offline": false
+                },
+                {
+                    "time": 30.098,
+                    "downloadThroughput": 63069.10697994602,
+                    "latency": 129.73160253604874,
+                    "offline": false
+                },
+                {
+                    "time": 31.101,
+                    "downloadThroughput": 85043.02613271546,
+                    "latency": 178.13580449437723,
+                    "offline": false
+                },
+                {
+                    "time": 32.107,
+                    "downloadThroughput": 44675.9590017671,
+                    "latency": 95.48847588011995,
+                    "offline": false
+                },
+                {
+                    "time": 33.112,
+                    "downloadThroughput": 50658.445970169894,
+                    "latency": 71.55937044881284,
+                    "offline": false
+                },
+                {
+                    "time": 34.116,
+                    "downloadThroughput": 65642.76877151619,
+                    "latency": 98.69256359525025,
+                    "offline": false
+                },
+                {
+                    "time": 35.12,
+                    "downloadThroughput": 43663.40201040896,
+                    "latency": 60.114266886375844,
+                    "offline": false
+                },
+                {
+                    "time": 36.124,
+                    "downloadThroughput": 74498.17007631785,
+                    "latency": 147.71651673363522,
+                    "offline": false
+                },
+                {
+                    "time": 37.128,
+                    "downloadThroughput": 63012.74991667984,
+                    "latency": 128.4855105681345,
+                    "offline": false
+                },
+                {
+                    "time": 38.13,
+                    "downloadThroughput": 83710.55269055588,
+                    "latency": 87.85124704008922,
+                    "offline": false
+                },
+                {
+                    "time": 39.135,
+                    "downloadThroughput": 98413.19140220413,
+                    "latency": 580.5014863028191,
+                    "offline": false
+                },
+                {
+                    "time": 40.137,
+                    "downloadThroughput": 45519.35476334523,
+                    "latency": 54.252589552197605,
+                    "offline": false
+                },
+                {
+                    "time": 41.144,
+                    "downloadThroughput": 52714.173011850784,
+                    "latency": 158.10124486451969,
+                    "offline": false
+                },
+                {
+                    "time": 42.147,
+                    "downloadThroughput": 41638.24571486429,
+                    "latency": 87.59127875091508,
+                    "offline": false
+                },
+                {
+                    "time": 43.15,
+                    "downloadThroughput": 83963.34771634417,
+                    "latency": 168.7732603168115,
+                    "offline": false
+                },
+                {
+                    "time": 44.154,
+                    "downloadThroughput": 41738.73377446091,
+                    "latency": 72.3706167540513,
+                    "offline": false
+                },
+                {
+                    "time": 45.159,
+                    "downloadThroughput": 65217.05253574378,
+                    "latency": 93.09433820890263,
+                    "offline": false
+                },
+                {
+                    "time": 46.163,
+                    "downloadThroughput": 51798.75177718078,
+                    "latency": 186.36585904750973,
+                    "offline": false
+                },
+                {
+                    "time": 47.168,
+                    "downloadThroughput": 71388.63706796747,
+                    "latency": 150.3594912821427,
+                    "offline": false
+                },
+                {
+                    "time": 48.171,
+                    "downloadThroughput": 55635.21218111002,
+                    "latency": 96.1278370115906,
+                    "offline": false
+                },
+                {
+                    "time": 49.176,
+                    "downloadThroughput": 49407.71571960616,
+                    "latency": 189.64583930792287,
+                    "offline": false
+                },
+                {
+                    "time": 50.179,
+                    "downloadThroughput": 44479.36553775855,
+                    "latency": 99.44922960130498,
+                    "offline": false
+                },
+                {
+                    "time": 51.184,
+                    "downloadThroughput": 39321.091836549815,
+                    "latency": 167.54532543709502,
+                    "offline": false
+                },
+                {
+                    "time": 52.186,
+                    "downloadThroughput": 48370.78636724288,
+                    "latency": 72.26229242514819,
+                    "offline": false
+                },
+                {
+                    "time": 53.19,
+                    "downloadThroughput": 51579.04263151039,
+                    "latency": 183.86610482120886,
+                    "offline": false
+                },
+                {
+                    "time": 54.194,
+                    "downloadThroughput": 58148.47548686655,
+                    "latency": 152.956247178372,
+                    "offline": false
+                },
+                {
+                    "time": 55.197,
+                    "downloadThroughput": 48444.809235551606,
+                    "latency": 130.4059587768279,
+                    "offline": false
+                },
+                {
+                    "time": 56.201,
+                    "downloadThroughput": 83889.56394351549,
+                    "latency": 57.58654507808387,
+                    "offline": false
+                },
+                {
+                    "time": 57.203,
+                    "downloadThroughput": 71299.44932004239,
+                    "latency": 546.8942108913325,
+                    "offline": false
+                },
+                {
+                    "time": 58.205,
+                    "downloadThroughput": 52533.21954144555,
+                    "latency": 114.37537271995097,
+                    "offline": false
+                },
+                {
+                    "time": 59.367,
+                    "downloadThroughput": 72528.58232778189,
+                    "latency": 103.81374584976584,
+                    "offline": false
+                },
+                {
+                    "time": 60.37,
+                    "downloadThroughput": 69161.55806150146,
+                    "latency": 52.04014286864549,
+                    "offline": false
+                },
+                {
+                    "time": 61.371,
+                    "downloadThroughput": 65055.89088415582,
+                    "latency": 135.2053253678605,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "noisy-mobile",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.18302590206226435,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6648273111164782,
+                    "finalScore": 0.6061758230482014,
+                    "avgBitrate": 140099.6323698222,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 59.88160000002384
+                }
+            },
+            "timedOut": false,
+            "endTime": 63.359799999952315,
+            "timeline": [
+                {
+                    "time": 3.168899999976158,
+                    "event": "playing",
+                    "bandwidth": null
+                },
+                {
+                    "time": 3.3766999999284746,
+                    "event": "qualityChange",
+                    "bandwidth": 50430
+                },
+                {
+                    "time": 3.376799999952316,
+                    "event": "qualityChange",
+                    "bandwidth": 455594
+                },
+                {
+                    "time": 7.392799999952317,
+                    "event": "qualityChange",
+                    "bandwidth": 132807
+                },
+                {
+                    "time": 7.392799999952317,
+                    "event": "qualityChange",
+                    "bandwidth": 233510
+                },
+                {
+                    "time": 11.4135,
+                    "event": "qualityChange",
+                    "bandwidth": 50430
+                },
+                {
+                    "time": 27.4905,
+                    "event": "qualityChange",
+                    "bandwidth": 132807
+                },
+                {
+                    "time": 31.256299999952315,
+                    "event": "qualityChange",
+                    "bandwidth": 455594
+                },
+                {
+                    "time": 35.2765,
+                    "event": "qualityChange",
+                    "bandwidth": 50430
+                },
+                {
+                    "time": 39.299,
+                    "event": "qualityChange",
+                    "bandwidth": 132807
+                },
+                {
+                    "time": 39.29910000002384,
+                    "event": "qualityChange",
+                    "bandwidth": 233510
+                },
+                {
+                    "time": 43.319799999952316,
+                    "event": "qualityChange",
+                    "bandwidth": 50430
+                },
+                {
+                    "time": 51.36369999992847,
+                    "event": "qualityChange",
+                    "bandwidth": 132807
+                },
+                {
+                    "time": 55.3835,
+                    "event": "qualityChange",
+                    "bandwidth": 50430
+                },
+                {
+                    "time": 63.258299999952314,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 63.258699999928474,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 70968.8108929655,
+                    "latency": 50.41035817703232,
+                    "offline": false
+                },
+                {
+                    "time": 1,
+                    "downloadThroughput": 101110.85853985009,
+                    "latency": 195.25668473215774,
+                    "offline": false
+                },
+                {
+                    "time": 2.002,
+                    "downloadThroughput": 69965.7206667104,
+                    "latency": 158.11147117055953,
+                    "offline": false
+                },
+                {
+                    "time": 3.005,
+                    "downloadThroughput": 102512.98796665146,
+                    "latency": 118.29066907521337,
+                    "offline": false
+                },
+                {
+                    "time": 4.007,
+                    "downloadThroughput": 43558.29431410227,
+                    "latency": 110.56171476375312,
+                    "offline": false
+                },
+                {
+                    "time": 5.008,
+                    "downloadThroughput": 44241.34201698582,
+                    "latency": 123.37158431764692,
+                    "offline": false
+                },
+                {
+                    "time": 6.012,
+                    "downloadThroughput": 56248.86554756383,
+                    "latency": 165.06620389409363,
+                    "offline": false
+                },
+                {
+                    "time": 7.014,
+                    "downloadThroughput": 45880.497475170174,
+                    "latency": 56.40945649938658,
+                    "offline": false
+                },
+                {
+                    "time": 8.016,
+                    "downloadThroughput": 68412.05488278292,
+                    "latency": 169.80263234581798,
+                    "offline": false
+                },
+                {
+                    "time": 9.02,
+                    "downloadThroughput": 46555.09004011166,
+                    "latency": 148.7194466870278,
+                    "offline": false
+                },
+                {
+                    "time": 10.022,
+                    "downloadThroughput": 80932.0082036181,
+                    "latency": 78.9221046725288,
+                    "offline": false
+                },
+                {
+                    "time": 11.024,
+                    "downloadThroughput": 59698.24201949418,
+                    "latency": 165.56207368848845,
+                    "offline": false
+                },
+                {
+                    "time": 12.027,
+                    "downloadThroughput": 48158.60718212339,
+                    "latency": 163.55019410839304,
+                    "offline": false
+                },
+                {
+                    "time": 13.032,
+                    "downloadThroughput": 52378.60342511754,
+                    "latency": 111.97954626986757,
+                    "offline": false
+                },
+                {
+                    "time": 14.035,
+                    "downloadThroughput": 44135.075479291256,
+                    "latency": 158.91572434920818,
+                    "offline": false
+                },
+                {
+                    "time": 15.038,
+                    "downloadThroughput": 43050.654273860775,
+                    "latency": 489.6986435051076,
+                    "offline": false
+                },
+                {
+                    "time": 16.04,
+                    "downloadThroughput": 70625.17008450246,
+                    "latency": 179.86580989090726,
+                    "offline": false
+                },
+                {
+                    "time": 17.044,
+                    "downloadThroughput": 101956.27497483692,
+                    "latency": 157.7457684907131,
+                    "offline": false
+                },
+                {
+                    "time": 18.047,
+                    "downloadThroughput": 51292.23650761706,
+                    "latency": 151.58224167535082,
+                    "offline": false
+                },
+                {
+                    "time": 19.05,
+                    "downloadThroughput": 95439.99600517967,
+                    "latency": 153.91156617552042,
+                    "offline": false
+                },
+                {
+                    "time": 20.054,
+                    "downloadThroughput": 87320.77623795465,
+                    "latency": 190.07574314018711,
+                    "offline": false
+                },
+                {
+                    "time": 21.056,
+                    "downloadThroughput": 0,
+                    "latency": 0,
+                    "offline": true
+                },
+                {
+                    "time": 24.063,
+                    "downloadThroughput": 39433.4548080901,
+                    "latency": 180.30292181065306,
+                    "offline": false
+                },
+                {
+                    "time": 25.067,
+                    "downloadThroughput": 91504.9516983841,
+                    "latency": 126.50879464345053,
+                    "offline": false
+                },
+                {
+                    "time": 26.068,
+                    "downloadThroughput": 76673.94296882732,
+                    "latency": 74.93857651716098,
+                    "offline": false
+                },
+                {
+                    "time": 27.07,
+                    "downloadThroughput": 97909.91017343599,
+                    "latency": 69.78808739222586,
+                    "offline": false
+                },
+                {
+                    "time": 28.074,
+                    "downloadThroughput": 44619.874312085296,
+                    "latency": 108.25332780368626,
+                    "offline": false
+                },
+                {
+                    "time": 29.078,
+                    "downloadThroughput": 56622.65318972752,
+                    "latency": 98.6487384303473,
+                    "offline": false
+                },
+                {
+                    "time": 30.081,
+                    "downloadThroughput": 63069.10697994602,
+                    "latency": 129.73160253604874,
+                    "offline": false
+                },
+                {
+                    "time": 31.084,
+                    "downloadThroughput": 85043.02613271546,
+                    "latency": 178.13580449437723,
+                    "offline": false
+                },
+                {
+                    "time": 32.095,
+                    "downloadThroughput": 44675.9590017671,
+                    "latency": 95.48847588011995,
+                    "offline": false
+                },
+                {
+                    "time": 33.099,
+                    "downloadThroughput": 50658.445970169894,
+                    "latency": 71.55937044881284,
+                    "offline": false
+                },
+                {
+                    "time": 34.101,
+                    "downloadThroughput": 65642.76877151619,
+                    "latency": 98.69256359525025,
+                    "offline": false
+                },
+                {
+                    "time": 35.105,
+                    "downloadThroughput": 43663.40201040896,
+                    "latency": 60.114266886375844,
+                    "offline": false
+                },
+                {
+                    "time": 36.11,
+                    "downloadThroughput": 74498.17007631785,
+                    "latency": 147.71651673363522,
+                    "offline": false
+                },
+                {
+                    "time": 37.115,
+                    "downloadThroughput": 63012.74991667984,
+                    "latency": 128.4855105681345,
+                    "offline": false
+                },
+                {
+                    "time": 38.119,
+                    "downloadThroughput": 83710.55269055588,
+                    "latency": 87.85124704008922,
+                    "offline": false
+                },
+                {
+                    "time": 39.121,
+                    "downloadThroughput": 98413.19140220413,
+                    "latency": 580.5014863028191,
+                    "offline": false
+                },
+                {
+                    "time": 40.125,
+                    "downloadThroughput": 45519.35476334523,
+                    "latency": 54.252589552197605,
+                    "offline": false
+                },
+                {
+                    "time": 41.13,
+                    "downloadThroughput": 52714.173011850784,
+                    "latency": 158.10124486451969,
+                    "offline": false
+                },
+                {
+                    "time": 42.134,
+                    "downloadThroughput": 41638.24571486429,
+                    "latency": 87.59127875091508,
+                    "offline": false
+                },
+                {
+                    "time": 43.137,
+                    "downloadThroughput": 83963.34771634417,
+                    "latency": 168.7732603168115,
+                    "offline": false
+                },
+                {
+                    "time": 44.139,
+                    "downloadThroughput": 41738.73377446091,
+                    "latency": 72.3706167540513,
+                    "offline": false
+                },
+                {
+                    "time": 45.145,
+                    "downloadThroughput": 65217.05253574378,
+                    "latency": 93.09433820890263,
+                    "offline": false
+                },
+                {
+                    "time": 46.147,
+                    "downloadThroughput": 51798.75177718078,
+                    "latency": 186.36585904750973,
+                    "offline": false
+                },
+                {
+                    "time": 47.149,
+                    "downloadThroughput": 71388.63706796747,
+                    "latency": 150.3594912821427,
+                    "offline": false
+                },
+                {
+                    "time": 48.153,
+                    "downloadThroughput": 55635.21218111002,
+                    "latency": 96.1278370115906,
+                    "offline": false
+                },
+                {
+                    "time": 49.154,
+                    "downloadThroughput": 49407.71571960616,
+                    "latency": 189.64583930792287,
+                    "offline": false
+                },
+                {
+                    "time": 50.158,
+                    "downloadThroughput": 44479.36553775855,
+                    "latency": 99.44922960130498,
+                    "offline": false
+                },
+                {
+                    "time": 51.163,
+                    "downloadThroughput": 39321.091836549815,
+                    "latency": 167.54532543709502,
+                    "offline": false
+                },
+                {
+                    "time": 52.166,
+                    "downloadThroughput": 48370.78636724288,
+                    "latency": 72.26229242514819,
+                    "offline": false
+                },
+                {
+                    "time": 53.17,
+                    "downloadThroughput": 51579.04263151039,
+                    "latency": 183.86610482120886,
+                    "offline": false
+                },
+                {
+                    "time": 54.173,
+                    "downloadThroughput": 58148.47548686655,
+                    "latency": 152.956247178372,
+                    "offline": false
+                },
+                {
+                    "time": 55.175,
+                    "downloadThroughput": 48444.809235551606,
+                    "latency": 130.4059587768279,
+                    "offline": false
+                },
+                {
+                    "time": 56.178,
+                    "downloadThroughput": 83889.56394351549,
+                    "latency": 57.58654507808387,
+                    "offline": false
+                },
+                {
+                    "time": 57.181,
+                    "downloadThroughput": 71299.44932004239,
+                    "latency": 546.8942108913325,
+                    "offline": false
+                },
+                {
+                    "time": 58.185,
+                    "downloadThroughput": 52533.21954144555,
+                    "latency": 114.37537271995097,
+                    "offline": false
+                },
+                {
+                    "time": 59.188,
+                    "downloadThroughput": 72528.58232778189,
+                    "latency": 103.81374584976584,
+                    "offline": false
+                },
+                {
+                    "time": 60.191,
+                    "downloadThroughput": 69161.55806150146,
+                    "latency": 52.04014286864549,
+                    "offline": false
+                },
+                {
+                    "time": 61.193,
+                    "downloadThroughput": 65055.89088415582,
+                    "latency": 135.2053253678605,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "outage",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.4538890291332396,
+                    "rebuffer": 0.25,
+                    "stall": 0.0301386150251761,
+                    "startup": 0.3073565797348546,
+                    "finalScore": 0.32104078910278433,
+                    "avgBitrate": 443441.4466120497,
+                    "rebufferCount": 3,
+                    "totalStallSeconds": 128.72009999990462,
+                    "playbackSeconds": 47.01060000002384
+                }
+            },
+            "timedOut": true,
+            "endTime": 182.72619999992847,
+            "timeline": [
+                {
+                    "time": 6.7955,
+                    "event": "playing",
+                    "bandwidth": null
+                },
+                {
+                    "time": 6.9955,
+                    "event": "qualityChange",
+                    "bandwidth": 461156
+                },
+                {
+                    "time": 26.836299999952317,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 31.353199999928474,
+                    "event": "playing",
+                    "bandwidth": 461156
+                },
+                {
+                    "time": 51.3265,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 86.438,
+                    "event": "playing",
+                    "bandwidth": 345437
+                },
+                {
+                    "time": 93.6345,
+                    "event": "waiting",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 9.012,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 29.053,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 37.074,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 77.18,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 86.198,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 112.264,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 120.285,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 155.37,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 163.388,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "outage",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.2504488442649924,
+                    "rebuffer": 0.25,
+                    "stall": 0.056322717909018695,
+                    "startup": 0.38339883063356656,
+                    "finalScore": 0.25749157562361213,
+                    "avgBitrate": 239184.07314266535,
+                    "rebufferCount": 3,
+                    "totalStallSeconds": 67.01930000007152,
+                    "playbackSeconds": 60.2175
+                }
+            },
+            "timedOut": false,
+            "endTime": 132.57319999992848,
+            "timeline": [
+                {
+                    "time": 4.544699999928475,
+                    "event": "playing",
+                    "bandwidth": 465020
+                },
+                {
+                    "time": 16.541599999904633,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 30.39389999997616,
+                    "event": "playing",
+                    "bandwidth": 465020
+                },
+                {
+                    "time": 32.698099999904635,
+                    "event": "qualityChange",
+                    "bandwidth": 51199
+                },
+                {
+                    "time": 32.698099999904635,
+                    "event": "qualityChange",
+                    "bandwidth": 235440
+                },
+                {
+                    "time": 48.418599999904636,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 79.1215,
+                    "event": "playing",
+                    "bandwidth": 134175
+                },
+                {
+                    "time": 91.566,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 114.03009999990464,
+                    "event": "playing",
+                    "bandwidth": 134175
+                },
+                {
+                    "time": 131.7815,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 131.78169999992846,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 9.017,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 29.056,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 37.072,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 77.151,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 87.167,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 112.211,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 121.227,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "outage",
+            "engine": "shaka",
+            "score": {
+                "breakdown": {
+                    "quality": 0.3298791668470886,
+                    "rebuffer": 0.2,
+                    "stall": 0.036256021898637227,
+                    "startup": 0.2899811512251704,
+                    "finalScore": 0.25357349917373323,
+                    "avgBitrate": 512704.3690323251,
+                    "rebufferCount": 4,
+                    "totalStallSeconds": 106.3265,
+                    "playbackSeconds": 60.25709999990463
+                }
+            },
+            "timedOut": false,
+            "endTime": 173.60410000002383,
+            "timeline": [
+                {
+                    "time": 6.176400000095367,
+                    "event": "playing",
+                    "bandwidth": 269710
+                },
+                {
+                    "time": 6.213,
+                    "event": "qualityChange",
+                    "bandwidth": 455594
+                },
+                {
+                    "time": 17.126,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 38.395800000071524,
+                    "event": "playing",
+                    "bandwidth": 3139338
+                },
+                {
+                    "time": 42.40960000002384,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 78.46610000002384,
+                    "event": "playing",
+                    "bandwidth": 3139338
+                },
+                {
+                    "time": 79.826,
+                    "event": "qualityChange",
+                    "bandwidth": 233510
+                },
+                {
+                    "time": 89.70370000004769,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 111.98110000002384,
+                    "event": "playing",
+                    "bandwidth": 233510
+                },
+                {
+                    "time": 133.95680000007152,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 160.67960000002384,
+                    "event": "playing",
+                    "bandwidth": 132807
+                },
+                {
+                    "time": 172.76,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 172.7602000000477,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 9.011,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 29.049,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 37.061,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 77.139,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 87.158,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 112.211,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 121.225,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 155.286,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 163.301,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "stable-high",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 1,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.51013901288101,
+                    "finalScore": 0.902027802576202,
+                    "avgBitrate": 2147218,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.106200000047686
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.13159999990463,
+            "timeline": [
+                {
+                    "time": 1.9386999999284744,
+                    "event": "playing",
+                    "bandwidth": 2147218
+                },
+                {
+                    "time": 62.04489999997616,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 62.045099999904636,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 1250000,
+                    "latency": 20,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-high",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 1,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6624051932671765,
+                    "finalScore": 0.9324810386534352,
+                    "avgBitrate": 3556343,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.10220000004769
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.11819999992847,
+            "timeline": [
+                {
+                    "time": 1.0321999999284743,
+                    "event": "playing",
+                    "bandwidth": 3556343
+                },
+                {
+                    "time": 61.13439999997616,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.13469999992847,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 1250000,
+                    "latency": 20,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-high",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 1,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.5407743889284267,
+                    "finalScore": 0.9081548777856853,
+                    "avgBitrate": 3409048,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.13810000002384
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.113,
+            "timeline": [
+                {
+                    "time": 1.712600000023842,
+                    "event": "playing",
+                    "bandwidth": 3409048
+                },
+                {
+                    "time": 61.85070000004768,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.85080000007152,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 1250000,
+                    "latency": 20,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "stable-low",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.3329279371689295,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.3853861569274726,
+                    "finalScore": 0.6102484062530663,
+                    "avgBitrate": 239984.3007119507,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.10370000004768
+                }
+            },
+            "timedOut": false,
+            "endTime": 64.12670000004768,
+            "timeline": [
+                {
+                    "time": 3.1988999999761583,
+                    "event": "playing",
+                    "bandwidth": 152219
+                },
+                {
+                    "time": 13.543899999976158,
+                    "event": "qualityChange",
+                    "bandwidth": 258231
+                },
+                {
+                    "time": 63.302600000023844,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 63.303,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 62500,
+                    "latency": 80,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-low",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.28390027916260596,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.5297872903995573,
+                    "finalScore": 0.6195175697449538,
+                    "avgBitrate": 286639,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.14129999995232
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.11189999997616,
+            "timeline": [
+                {
+                    "time": 1.7898000000715255,
+                    "event": "playing",
+                    "bandwidth": 286639
+                },
+                {
+                    "time": 61.93110000002384,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.93130000007152,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 62500,
+                    "latency": 80,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "stable-low",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.2886002685577076,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.35122842140680116,
+                    "finalScore": 0.5856857917044432,
+                    "avgBitrate": 283940,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.1405
+                }
+            },
+            "timedOut": false,
+            "endTime": 64.11210000002384,
+            "timeline": [
+                {
+                    "time": 3.7062000000476836,
+                    "event": "playing",
+                    "bandwidth": 283940
+                },
+                {
+                    "time": 63.84670000004768,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 63.846800000071525,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 62500,
+                    "latency": 80,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "wifi-to-4g",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.9487059073891978,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.493108804446109,
+                    "finalScore": 0.878104123844901,
+                    "avgBitrate": 1959728.1356682605,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.10369999992847
+                }
+            },
+            "timedOut": false,
+            "endTime": 63.11410000002384,
+            "timeline": [
+                {
+                    "time": 2.0652000000476836,
+                    "event": "playing",
+                    "bandwidth": 1059041
+                },
+                {
+                    "time": 12.420899999976157,
+                    "event": "qualityChange",
+                    "bandwidth": 2147218
+                },
+                {
+                    "time": 62.168899999976155,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 62.16910000002384,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 627393.7560326885,
+                    "latency": 23.186175998998806,
+                    "offline": false
+                },
+                {
+                    "time": 17.015,
+                    "downloadThroughput": 73616.53304687934,
+                    "latency": 142.16552544385195,
+                    "offline": false
+                },
+                {
+                    "time": 39.048,
+                    "downloadThroughput": 1255650.2484949306,
+                    "latency": 20.6449238024652,
+                    "offline": false
+                },
+                {
+                    "time": 56.086,
+                    "downloadThroughput": 51168.1118136039,
+                    "latency": 173.31824761349708,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "wifi-to-4g",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.6083203424598516,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6961606738893097,
+                    "finalScore": 0.7825602717618025,
+                    "avgBitrate": 1449623.262854459,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.14139999997616
+                }
+            },
+            "timedOut": false,
+            "endTime": 61.116600000023844,
+            "timeline": [
+                {
+                    "time": 0.8871000000238418,
+                    "event": "playing",
+                    "bandwidth": 1781363
+                },
+                {
+                    "time": 11.235,
+                    "event": "qualityChange",
+                    "bandwidth": 1918311
+                },
+                {
+                    "time": 15.219100000023841,
+                    "event": "qualityChange",
+                    "bandwidth": 1781363
+                },
+                {
+                    "time": 17.07960000002384,
+                    "event": "qualityChange",
+                    "bandwidth": 1918311
+                },
+                {
+                    "time": 23.189300000071526,
+                    "event": "qualityChange",
+                    "bandwidth": 3556343
+                },
+                {
+                    "time": 29.033200000047685,
+                    "event": "qualityChange",
+                    "bandwidth": 506563
+                },
+                {
+                    "time": 33.01610000002384,
+                    "event": "qualityChange",
+                    "bandwidth": 1918311
+                },
+                {
+                    "time": 35.14230000007153,
+                    "event": "qualityChange",
+                    "bandwidth": 506563
+                },
+                {
+                    "time": 45.23610000002384,
+                    "event": "qualityChange",
+                    "bandwidth": 736143
+                },
+                {
+                    "time": 47.095,
+                    "event": "qualityChange",
+                    "bandwidth": 506563
+                },
+                {
+                    "time": 49.22,
+                    "event": "qualityChange",
+                    "bandwidth": 736143
+                },
+                {
+                    "time": 55.063900000095366,
+                    "event": "qualityChange",
+                    "bandwidth": 1229347
+                },
+                {
+                    "time": 61.0285,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.028700000047685,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 627393.7560326885,
+                    "latency": 23.186175998998806,
+                    "offline": false
+                },
+                {
+                    "time": 17.024,
+                    "downloadThroughput": 73616.53304687934,
+                    "latency": 142.16552544385195,
+                    "offline": false
+                },
+                {
+                    "time": 39.059,
+                    "downloadThroughput": 1255650.2484949306,
+                    "latency": 20.6449238024652,
+                    "offline": false
+                },
+                {
+                    "time": 56.089,
+                    "downloadThroughput": 51168.1118136039,
+                    "latency": 173.31824761349708,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "wifi-to-4g",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.6817880061548467,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.532028091093332,
+                    "finalScore": 0.7791208206806051,
+                    "avgBitrate": 1740060.6430327396,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.13839999997616
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.120199999928474,
+            "timeline": [
+                {
+                    "time": 1.7721999999284743,
+                    "event": "playing",
+                    "bandwidth": 1746301
+                },
+                {
+                    "time": 9.995,
+                    "event": "qualityChange",
+                    "bandwidth": 1883204
+                },
+                {
+                    "time": 17.963799999952315,
+                    "event": "qualityChange",
+                    "bandwidth": 3409048
+                },
+                {
+                    "time": 29.91759999990463,
+                    "event": "qualityChange",
+                    "bandwidth": 725304
+                },
+                {
+                    "time": 37.886299999952314,
+                    "event": "qualityChange",
+                    "bandwidth": 1883204
+                },
+                {
+                    "time": 42.13609999990463,
+                    "event": "qualityChange",
+                    "bandwidth": 503220
+                },
+                {
+                    "time": 54.08939999997616,
+                    "event": "qualityChange",
+                    "bandwidth": 1883204
+                },
+                {
+                    "time": 61.91059999990463,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.91089999997616,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 627393.7560326885,
+                    "latency": 23.186175998998806,
+                    "offline": false
+                },
+                {
+                    "time": 17.017,
+                    "downloadThroughput": 73616.53304687934,
+                    "latency": 142.16552544385195,
+                    "offline": false
+                },
+                {
+                    "time": 39.057,
+                    "downloadThroughput": 1255650.2484949306,
+                    "latency": 20.6449238024652,
+                    "offline": false
+                },
+                {
+                    "time": 56.091,
+                    "downloadThroughput": 51168.1118136039,
+                    "latency": 173.31824761349708,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "outage",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.42442034000384554,
+                    "rebuffer": 0.3333333333333333,
+                    "stall": 0.10378827192527244,
+                    "startup": 0.43950248318672736,
+                    "finalScore": 0.36804745983141096,
+                    "avgBitrate": 399261.562743144,
+                    "rebufferCount": 2,
+                    "totalStallSeconds": 34.54,
+                    "playbackSeconds": 70.12180000007153
+                }
+            },
+            "timedOut": false,
+            "endTime": 108.22319999992847,
+            "timeline": [
+                {
+                    "time": 2.5596999999284744,
+                    "event": "playing",
+                    "bandwidth": 258231
+                },
+                {
+                    "time": 12.914600000023842,
+                    "event": "qualityChange",
+                    "bandwidth": 493139
+                },
+                {
+                    "time": 22.620399999976158,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 37.08229999995232,
+                    "event": "playing",
+                    "bandwidth": 493139
+                },
+                {
+                    "time": 37.228,
+                    "event": "qualityChange",
+                    "bandwidth": 548882
+                },
+                {
+                    "time": 57.078,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 77.15610000002384,
+                    "event": "playing",
+                    "bandwidth": 548882
+                },
+                {
+                    "time": 83.36869999992848,
+                    "event": "qualityChange",
+                    "bandwidth": 258231
+                },
+                {
+                    "time": 107.2215,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 107.22169999992848,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 9.018,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 29.055,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 37.065,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 77.131,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 87.162,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "outage",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.3194097055161062,
+                    "rebuffer": 0.3333333333333333,
+                    "stall": 0.10290950909616672,
+                    "startup": 0.7107573118917576,
+                    "finalScore": 0.3802062954944107,
+                    "avgBitrate": 370603.98119230923,
+                    "rebufferCount": 2,
+                    "totalStallSeconds": 34.869099999904634,
+                    "playbackSeconds": 60.13540000009537
+                }
+            },
+            "timedOut": false,
+            "endTime": 96.17720000004769,
+            "timeline": [
+                {
+                    "time": 0.8273999999761581,
+                    "event": "playing",
+                    "bandwidth": 286639
+                },
+                {
+                    "time": 7.192,
+                    "event": "qualityChange",
+                    "bandwidth": 516219
+                },
+                {
+                    "time": 20.882800000071526,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 29.069600000023843,
+                    "event": "playing",
+                    "bandwidth": 516219
+                },
+                {
+                    "time": 29.764,
+                    "event": "qualityChange",
+                    "bandwidth": 286639
+                },
+                {
+                    "time": 37.347200000047685,
+                    "event": "qualityChange",
+                    "bandwidth": 516219
+                },
+                {
+                    "time": 39.20730000007153,
+                    "event": "qualityChange",
+                    "bandwidth": 286639
+                },
+                {
+                    "time": 51.048100000023844,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 77.73039999997616,
+                    "event": "playing",
+                    "bandwidth": 286639
+                },
+                {
+                    "time": 83.97389999997615,
+                    "event": "qualityChange",
+                    "bandwidth": 516219
+                },
+                {
+                    "time": 87.95689999997616,
+                    "event": "qualityChange",
+                    "bandwidth": 286639
+                },
+                {
+                    "time": 94.06670000004769,
+                    "event": "qualityChange",
+                    "bandwidth": 516219
+                },
+                {
+                    "time": 95.83189999997616,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 95.83210000002384,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 9.013,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 29.05,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 37.06,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 77.132,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 87.147,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "outage",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.32113145516628766,
+                    "rebuffer": 0.5,
+                    "stall": 0.18888416678471928,
+                    "startup": 0.5528985707644829,
+                    "finalScore": 0.40792071289788356,
+                    "avgBitrate": 358672.84109681466,
+                    "rebufferCount": 1,
+                    "totalStallSeconds": 17.177,
+                    "playbackSeconds": 60.170500000000004
+                }
+            },
+            "timedOut": false,
+            "endTime": 79.17260000002385,
+            "timeline": [
+                {
+                    "time": 1.6295,
+                    "event": "playing",
+                    "bandwidth": 283940
+                },
+                {
+                    "time": 9.843799999952317,
+                    "event": "qualityChange",
+                    "bandwidth": 506024
+                },
+                {
+                    "time": 30.091600000023842,
+                    "event": "qualityChange",
+                    "bandwidth": 283940
+                },
+                {
+                    "time": 61.68489999997616,
+                    "event": "waiting",
+                    "bandwidth": null
+                },
+                {
+                    "time": 78.86189999997616,
+                    "event": "playing",
+                    "bandwidth": 283940
+                },
+                {
+                    "time": 78.977,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 78.97720000004769,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 9.015,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 29.054,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                },
+                {
+                    "time": 37.068,
+                    "downloadThroughput": 125000,
+                    "latency": 9007199254740991,
+                    "offline": false
+                },
+                {
+                    "time": 77.151,
+                    "downloadThroughput": 125000,
+                    "latency": 30,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "audio-10s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd"
+            },
+            "scenario": "noisy-mobile",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.46436485074445816,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6646947389464082,
+                    "finalScore": 0.7186848880870649,
+                    "avgBitrate": 480552.83934132283,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.1045
+                }
+            },
+            "timedOut": false,
+            "endTime": 61.170399999976155,
+            "timeline": [
+                {
+                    "time": 1.0216999999284744,
+                    "event": "playing",
+                    "bandwidth": 152219
+                },
+                {
+                    "time": 11.375299999952317,
+                    "event": "qualityChange",
+                    "bandwidth": 548882
+                },
+                {
+                    "time": 61.126199999928474,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.126299999952316,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 70968.8108929655,
+                    "latency": 50.41035817703232,
+                    "offline": false
+                },
+                {
+                    "time": 1,
+                    "downloadThroughput": 101110.85853985009,
+                    "latency": 195.25668473215774,
+                    "offline": false
+                },
+                {
+                    "time": 2.004,
+                    "downloadThroughput": 69965.7206667104,
+                    "latency": 158.11147117055953,
+                    "offline": false
+                },
+                {
+                    "time": 3.006,
+                    "downloadThroughput": 102512.98796665146,
+                    "latency": 118.29066907521337,
+                    "offline": false
+                },
+                {
+                    "time": 4.01,
+                    "downloadThroughput": 43558.29431410227,
+                    "latency": 110.56171476375312,
+                    "offline": false
+                },
+                {
+                    "time": 5.014,
+                    "downloadThroughput": 44241.34201698582,
+                    "latency": 123.37158431764692,
+                    "offline": false
+                },
+                {
+                    "time": 6.017,
+                    "downloadThroughput": 56248.86554756383,
+                    "latency": 165.06620389409363,
+                    "offline": false
+                },
+                {
+                    "time": 7.021,
+                    "downloadThroughput": 45880.497475170174,
+                    "latency": 56.40945649938658,
+                    "offline": false
+                },
+                {
+                    "time": 8.024,
+                    "downloadThroughput": 68412.05488278292,
+                    "latency": 169.80263234581798,
+                    "offline": false
+                },
+                {
+                    "time": 9.027,
+                    "downloadThroughput": 46555.09004011166,
+                    "latency": 148.7194466870278,
+                    "offline": false
+                },
+                {
+                    "time": 10.03,
+                    "downloadThroughput": 80932.0082036181,
+                    "latency": 78.9221046725288,
+                    "offline": false
+                },
+                {
+                    "time": 11.032,
+                    "downloadThroughput": 59698.24201949418,
+                    "latency": 165.56207368848845,
+                    "offline": false
+                },
+                {
+                    "time": 12.035,
+                    "downloadThroughput": 48158.60718212339,
+                    "latency": 163.55019410839304,
+                    "offline": false
+                },
+                {
+                    "time": 13.038,
+                    "downloadThroughput": 52378.60342511754,
+                    "latency": 111.97954626986757,
+                    "offline": false
+                },
+                {
+                    "time": 14.041,
+                    "downloadThroughput": 44135.075479291256,
+                    "latency": 158.91572434920818,
+                    "offline": false
+                },
+                {
+                    "time": 15.044,
+                    "downloadThroughput": 43050.654273860775,
+                    "latency": 489.6986435051076,
+                    "offline": false
+                },
+                {
+                    "time": 16.047,
+                    "downloadThroughput": 70625.17008450246,
+                    "latency": 179.86580989090726,
+                    "offline": false
+                },
+                {
+                    "time": 17.049,
+                    "downloadThroughput": 101956.27497483692,
+                    "latency": 157.7457684907131,
+                    "offline": false
+                },
+                {
+                    "time": 18.053,
+                    "downloadThroughput": 51292.23650761706,
+                    "latency": 151.58224167535082,
+                    "offline": false
+                },
+                {
+                    "time": 19.054,
+                    "downloadThroughput": 95439.99600517967,
+                    "latency": 153.91156617552042,
+                    "offline": false
+                },
+                {
+                    "time": 20.057,
+                    "downloadThroughput": 87320.77623795465,
+                    "latency": 190.07574314018711,
+                    "offline": false
+                },
+                {
+                    "time": 21.059,
+                    "downloadThroughput": 0,
+                    "latency": 0,
+                    "offline": true
+                },
+                {
+                    "time": 24.065,
+                    "downloadThroughput": 39433.4548080901,
+                    "latency": 180.30292181065306,
+                    "offline": false
+                },
+                {
+                    "time": 25.066,
+                    "downloadThroughput": 91504.9516983841,
+                    "latency": 126.50879464345053,
+                    "offline": false
+                },
+                {
+                    "time": 26.067,
+                    "downloadThroughput": 76673.94296882732,
+                    "latency": 74.93857651716098,
+                    "offline": false
+                },
+                {
+                    "time": 27.07,
+                    "downloadThroughput": 97909.91017343599,
+                    "latency": 69.78808739222586,
+                    "offline": false
+                },
+                {
+                    "time": 28.072,
+                    "downloadThroughput": 44619.874312085296,
+                    "latency": 108.25332780368626,
+                    "offline": false
+                },
+                {
+                    "time": 29.073,
+                    "downloadThroughput": 56622.65318972752,
+                    "latency": 98.6487384303473,
+                    "offline": false
+                },
+                {
+                    "time": 30.075,
+                    "downloadThroughput": 63069.10697994602,
+                    "latency": 129.73160253604874,
+                    "offline": false
+                },
+                {
+                    "time": 31.077,
+                    "downloadThroughput": 85043.02613271546,
+                    "latency": 178.13580449437723,
+                    "offline": false
+                },
+                {
+                    "time": 32.08,
+                    "downloadThroughput": 44675.9590017671,
+                    "latency": 95.48847588011995,
+                    "offline": false
+                },
+                {
+                    "time": 33.083,
+                    "downloadThroughput": 50658.445970169894,
+                    "latency": 71.55937044881284,
+                    "offline": false
+                },
+                {
+                    "time": 34.085,
+                    "downloadThroughput": 65642.76877151619,
+                    "latency": 98.69256359525025,
+                    "offline": false
+                },
+                {
+                    "time": 35.087,
+                    "downloadThroughput": 43663.40201040896,
+                    "latency": 60.114266886375844,
+                    "offline": false
+                },
+                {
+                    "time": 36.089,
+                    "downloadThroughput": 74498.17007631785,
+                    "latency": 147.71651673363522,
+                    "offline": false
+                },
+                {
+                    "time": 37.09,
+                    "downloadThroughput": 63012.74991667984,
+                    "latency": 128.4855105681345,
+                    "offline": false
+                },
+                {
+                    "time": 38.093,
+                    "downloadThroughput": 83710.55269055588,
+                    "latency": 87.85124704008922,
+                    "offline": false
+                },
+                {
+                    "time": 39.094,
+                    "downloadThroughput": 98413.19140220413,
+                    "latency": 580.5014863028191,
+                    "offline": false
+                },
+                {
+                    "time": 40.096,
+                    "downloadThroughput": 45519.35476334523,
+                    "latency": 54.252589552197605,
+                    "offline": false
+                },
+                {
+                    "time": 41.099,
+                    "downloadThroughput": 52714.173011850784,
+                    "latency": 158.10124486451969,
+                    "offline": false
+                },
+                {
+                    "time": 42.101,
+                    "downloadThroughput": 41638.24571486429,
+                    "latency": 87.59127875091508,
+                    "offline": false
+                },
+                {
+                    "time": 43.104,
+                    "downloadThroughput": 83963.34771634417,
+                    "latency": 168.7732603168115,
+                    "offline": false
+                },
+                {
+                    "time": 44.107,
+                    "downloadThroughput": 41738.73377446091,
+                    "latency": 72.3706167540513,
+                    "offline": false
+                },
+                {
+                    "time": 45.109,
+                    "downloadThroughput": 65217.05253574378,
+                    "latency": 93.09433820890263,
+                    "offline": false
+                },
+                {
+                    "time": 46.112,
+                    "downloadThroughput": 51798.75177718078,
+                    "latency": 186.36585904750973,
+                    "offline": false
+                },
+                {
+                    "time": 47.115,
+                    "downloadThroughput": 71388.63706796747,
+                    "latency": 150.3594912821427,
+                    "offline": false
+                },
+                {
+                    "time": 48.117,
+                    "downloadThroughput": 55635.21218111002,
+                    "latency": 96.1278370115906,
+                    "offline": false
+                },
+                {
+                    "time": 49.12,
+                    "downloadThroughput": 49407.71571960616,
+                    "latency": 189.64583930792287,
+                    "offline": false
+                },
+                {
+                    "time": 50.122,
+                    "downloadThroughput": 44479.36553775855,
+                    "latency": 99.44922960130498,
+                    "offline": false
+                },
+                {
+                    "time": 51.125,
+                    "downloadThroughput": 39321.091836549815,
+                    "latency": 167.54532543709502,
+                    "offline": false
+                },
+                {
+                    "time": 52.128,
+                    "downloadThroughput": 48370.78636724288,
+                    "latency": 72.26229242514819,
+                    "offline": false
+                },
+                {
+                    "time": 53.131,
+                    "downloadThroughput": 51579.04263151039,
+                    "latency": 183.86610482120886,
+                    "offline": false
+                },
+                {
+                    "time": 54.135,
+                    "downloadThroughput": 58148.47548686655,
+                    "latency": 152.956247178372,
+                    "offline": false
+                },
+                {
+                    "time": 55.138,
+                    "downloadThroughput": 48444.809235551606,
+                    "latency": 130.4059587768279,
+                    "offline": false
+                },
+                {
+                    "time": 56.139,
+                    "downloadThroughput": 83889.56394351549,
+                    "latency": 57.58654507808387,
+                    "offline": false
+                },
+                {
+                    "time": 57.141,
+                    "downloadThroughput": 71299.44932004239,
+                    "latency": 546.8942108913325,
+                    "offline": false
+                },
+                {
+                    "time": 58.145,
+                    "downloadThroughput": 52533.21954144555,
+                    "latency": 114.37537271995097,
+                    "offline": false
+                },
+                {
+                    "time": 59.148,
+                    "downloadThroughput": 72528.58232778189,
+                    "latency": 103.81374584976584,
+                    "offline": false
+                },
+                {
+                    "time": 60.151,
+                    "downloadThroughput": 69161.55806150146,
+                    "latency": 52.04014286864549,
+                    "offline": false
+                },
+                {
+                    "time": 61.153,
+                    "downloadThroughput": 65055.89088415582,
+                    "latency": 135.2053253678605,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-2s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "noisy-mobile",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.31290617680734406,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6643194047645524,
+                    "finalScore": 0.6580263516758481,
+                    "avgBitrate": 355225.84862889675,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.202999999999996
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.178,
+            "timeline": [
+                {
+                    "time": 1.0195,
+                    "event": "playing",
+                    "bandwidth": 286639
+                },
+                {
+                    "time": 43.23689999997616,
+                    "event": "qualityChange",
+                    "bandwidth": 516219
+                },
+                {
+                    "time": 61.2225,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.22260000002384,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 70968.8108929655,
+                    "latency": 50.41035817703232,
+                    "offline": false
+                },
+                {
+                    "time": 1.001,
+                    "downloadThroughput": 101110.85853985009,
+                    "latency": 195.25668473215774,
+                    "offline": false
+                },
+                {
+                    "time": 2.003,
+                    "downloadThroughput": 69965.7206667104,
+                    "latency": 158.11147117055953,
+                    "offline": false
+                },
+                {
+                    "time": 3.007,
+                    "downloadThroughput": 102512.98796665146,
+                    "latency": 118.29066907521337,
+                    "offline": false
+                },
+                {
+                    "time": 4.009,
+                    "downloadThroughput": 43558.29431410227,
+                    "latency": 110.56171476375312,
+                    "offline": false
+                },
+                {
+                    "time": 5.01,
+                    "downloadThroughput": 44241.34201698582,
+                    "latency": 123.37158431764692,
+                    "offline": false
+                },
+                {
+                    "time": 6.012,
+                    "downloadThroughput": 56248.86554756383,
+                    "latency": 165.06620389409363,
+                    "offline": false
+                },
+                {
+                    "time": 7.014,
+                    "downloadThroughput": 45880.497475170174,
+                    "latency": 56.40945649938658,
+                    "offline": false
+                },
+                {
+                    "time": 8.017,
+                    "downloadThroughput": 68412.05488278292,
+                    "latency": 169.80263234581798,
+                    "offline": false
+                },
+                {
+                    "time": 9.019,
+                    "downloadThroughput": 46555.09004011166,
+                    "latency": 148.7194466870278,
+                    "offline": false
+                },
+                {
+                    "time": 10.021,
+                    "downloadThroughput": 80932.0082036181,
+                    "latency": 78.9221046725288,
+                    "offline": false
+                },
+                {
+                    "time": 11.023,
+                    "downloadThroughput": 59698.24201949418,
+                    "latency": 165.56207368848845,
+                    "offline": false
+                },
+                {
+                    "time": 12.025,
+                    "downloadThroughput": 48158.60718212339,
+                    "latency": 163.55019410839304,
+                    "offline": false
+                },
+                {
+                    "time": 13.027,
+                    "downloadThroughput": 52378.60342511754,
+                    "latency": 111.97954626986757,
+                    "offline": false
+                },
+                {
+                    "time": 14.029,
+                    "downloadThroughput": 44135.075479291256,
+                    "latency": 158.91572434920818,
+                    "offline": false
+                },
+                {
+                    "time": 15.032,
+                    "downloadThroughput": 43050.654273860775,
+                    "latency": 489.6986435051076,
+                    "offline": false
+                },
+                {
+                    "time": 16.034,
+                    "downloadThroughput": 70625.17008450246,
+                    "latency": 179.86580989090726,
+                    "offline": false
+                },
+                {
+                    "time": 17.036,
+                    "downloadThroughput": 101956.27497483692,
+                    "latency": 157.7457684907131,
+                    "offline": false
+                },
+                {
+                    "time": 18.038,
+                    "downloadThroughput": 51292.23650761706,
+                    "latency": 151.58224167535082,
+                    "offline": false
+                },
+                {
+                    "time": 19.04,
+                    "downloadThroughput": 95439.99600517967,
+                    "latency": 153.91156617552042,
+                    "offline": false
+                },
+                {
+                    "time": 20.042,
+                    "downloadThroughput": 87320.77623795465,
+                    "latency": 190.07574314018711,
+                    "offline": false
+                },
+                {
+                    "time": 21.045,
+                    "downloadThroughput": 0,
+                    "latency": 0,
+                    "offline": true
+                },
+                {
+                    "time": 24.054,
+                    "downloadThroughput": 39433.4548080901,
+                    "latency": 180.30292181065306,
+                    "offline": false
+                },
+                {
+                    "time": 25.057,
+                    "downloadThroughput": 91504.9516983841,
+                    "latency": 126.50879464345053,
+                    "offline": false
+                },
+                {
+                    "time": 26.059,
+                    "downloadThroughput": 76673.94296882732,
+                    "latency": 74.93857651716098,
+                    "offline": false
+                },
+                {
+                    "time": 27.061,
+                    "downloadThroughput": 97909.91017343599,
+                    "latency": 69.78808739222586,
+                    "offline": false
+                },
+                {
+                    "time": 28.063,
+                    "downloadThroughput": 44619.874312085296,
+                    "latency": 108.25332780368626,
+                    "offline": false
+                },
+                {
+                    "time": 29.066,
+                    "downloadThroughput": 56622.65318972752,
+                    "latency": 98.6487384303473,
+                    "offline": false
+                },
+                {
+                    "time": 30.068,
+                    "downloadThroughput": 63069.10697994602,
+                    "latency": 129.73160253604874,
+                    "offline": false
+                },
+                {
+                    "time": 31.07,
+                    "downloadThroughput": 85043.02613271546,
+                    "latency": 178.13580449437723,
+                    "offline": false
+                },
+                {
+                    "time": 32.073,
+                    "downloadThroughput": 44675.9590017671,
+                    "latency": 95.48847588011995,
+                    "offline": false
+                },
+                {
+                    "time": 33.076,
+                    "downloadThroughput": 50658.445970169894,
+                    "latency": 71.55937044881284,
+                    "offline": false
+                },
+                {
+                    "time": 34.079,
+                    "downloadThroughput": 65642.76877151619,
+                    "latency": 98.69256359525025,
+                    "offline": false
+                },
+                {
+                    "time": 35.081,
+                    "downloadThroughput": 43663.40201040896,
+                    "latency": 60.114266886375844,
+                    "offline": false
+                },
+                {
+                    "time": 36.084,
+                    "downloadThroughput": 74498.17007631785,
+                    "latency": 147.71651673363522,
+                    "offline": false
+                },
+                {
+                    "time": 37.087,
+                    "downloadThroughput": 63012.74991667984,
+                    "latency": 128.4855105681345,
+                    "offline": false
+                },
+                {
+                    "time": 38.091,
+                    "downloadThroughput": 83710.55269055588,
+                    "latency": 87.85124704008922,
+                    "offline": false
+                },
+                {
+                    "time": 39.093,
+                    "downloadThroughput": 98413.19140220413,
+                    "latency": 580.5014863028191,
+                    "offline": false
+                },
+                {
+                    "time": 40.096,
+                    "downloadThroughput": 45519.35476334523,
+                    "latency": 54.252589552197605,
+                    "offline": false
+                },
+                {
+                    "time": 41.098,
+                    "downloadThroughput": 52714.173011850784,
+                    "latency": 158.10124486451969,
+                    "offline": false
+                },
+                {
+                    "time": 42.102,
+                    "downloadThroughput": 41638.24571486429,
+                    "latency": 87.59127875091508,
+                    "offline": false
+                },
+                {
+                    "time": 43.106,
+                    "downloadThroughput": 83963.34771634417,
+                    "latency": 168.7732603168115,
+                    "offline": false
+                },
+                {
+                    "time": 44.109,
+                    "downloadThroughput": 41738.73377446091,
+                    "latency": 72.3706167540513,
+                    "offline": false
+                },
+                {
+                    "time": 45.112,
+                    "downloadThroughput": 65217.05253574378,
+                    "latency": 93.09433820890263,
+                    "offline": false
+                },
+                {
+                    "time": 46.115,
+                    "downloadThroughput": 51798.75177718078,
+                    "latency": 186.36585904750973,
+                    "offline": false
+                },
+                {
+                    "time": 47.119,
+                    "downloadThroughput": 71388.63706796747,
+                    "latency": 150.3594912821427,
+                    "offline": false
+                },
+                {
+                    "time": 48.122,
+                    "downloadThroughput": 55635.21218111002,
+                    "latency": 96.1278370115906,
+                    "offline": false
+                },
+                {
+                    "time": 49.125,
+                    "downloadThroughput": 49407.71571960616,
+                    "latency": 189.64583930792287,
+                    "offline": false
+                },
+                {
+                    "time": 50.127,
+                    "downloadThroughput": 44479.36553775855,
+                    "latency": 99.44922960130498,
+                    "offline": false
+                },
+                {
+                    "time": 51.13,
+                    "downloadThroughput": 39321.091836549815,
+                    "latency": 167.54532543709502,
+                    "offline": false
+                },
+                {
+                    "time": 52.133,
+                    "downloadThroughput": 48370.78636724288,
+                    "latency": 72.26229242514819,
+                    "offline": false
+                },
+                {
+                    "time": 53.135,
+                    "downloadThroughput": 51579.04263151039,
+                    "latency": 183.86610482120886,
+                    "offline": false
+                },
+                {
+                    "time": 54.137,
+                    "downloadThroughput": 58148.47548686655,
+                    "latency": 152.956247178372,
+                    "offline": false
+                },
+                {
+                    "time": 55.14,
+                    "downloadThroughput": 48444.809235551606,
+                    "latency": 130.4059587768279,
+                    "offline": false
+                },
+                {
+                    "time": 56.148,
+                    "downloadThroughput": 83889.56394351549,
+                    "latency": 57.58654507808387,
+                    "offline": false
+                },
+                {
+                    "time": 57.151,
+                    "downloadThroughput": 71299.44932004239,
+                    "latency": 546.8942108913325,
+                    "offline": false
+                },
+                {
+                    "time": 58.153,
+                    "downloadThroughput": 52533.21954144555,
+                    "latency": 114.37537271995097,
+                    "offline": false
+                },
+                {
+                    "time": 59.156,
+                    "downloadThroughput": 72528.58232778189,
+                    "latency": 103.81374584976584,
+                    "offline": false
+                },
+                {
+                    "time": 60.159,
+                    "downloadThroughput": 69161.55806150146,
+                    "latency": 52.04014286864549,
+                    "offline": false
+                },
+                {
+                    "time": 61.162,
+                    "downloadThroughput": 65055.89088415582,
+                    "latency": 135.2053253678605,
+                    "offline": false
+                },
+                {
+                    "time": 62.165,
+                    "downloadThroughput": 42929.230104934795,
+                    "latency": 60.5300476658158,
+                    "offline": false
+                }
+            ]
+        },
+        {
+            "track": {
+                "label": "video-4s",
+                "type": "dash",
+                "uri": "https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd"
+            },
+            "scenario": "noisy-mobile",
+            "engine": "vinyl",
+            "score": {
+                "breakdown": {
+                    "quality": 0.2886002685577076,
+                    "rebuffer": 1,
+                    "stall": 1,
+                    "startup": 0.6641429235624077,
+                    "finalScore": 0.6482686921355645,
+                    "avgBitrate": 283940,
+                    "rebufferCount": 0,
+                    "totalStallSeconds": 0,
+                    "playbackSeconds": 60.19939999997616
+                }
+            },
+            "timedOut": false,
+            "endTime": 62.18489999997616,
+            "timeline": [
+                {
+                    "time": 1.023,
+                    "event": "playing",
+                    "bandwidth": 283940
+                },
+                {
+                    "time": 61.22239999997616,
+                    "event": "paused",
+                    "bandwidth": null
+                },
+                {
+                    "time": 61.2225,
+                    "event": "ended",
+                    "bandwidth": null
+                }
+            ],
+            "networkSeries": [
+                {
+                    "time": 0,
+                    "downloadThroughput": 70968.8108929655,
+                    "latency": 50.41035817703232,
+                    "offline": false
+                },
+                {
+                    "time": 1,
+                    "downloadThroughput": 101110.85853985009,
+                    "latency": 195.25668473215774,
+                    "offline": false
+                },
+                {
+                    "time": 2.003,
+                    "downloadThroughput": 69965.7206667104,
+                    "latency": 158.11147117055953,
+                    "offline": false
+                },
+                {
+                    "time": 3.006,
+                    "downloadThroughput": 102512.98796665146,
+                    "latency": 118.29066907521337,
+                    "offline": false
+                },
+                {
+                    "time": 4.009,
+                    "downloadThroughput": 43558.29431410227,
+                    "latency": 110.56171476375312,
+                    "offline": false
+                },
+                {
+                    "time": 5.012,
+                    "downloadThroughput": 44241.34201698582,
+                    "latency": 123.37158431764692,
+                    "offline": false
+                },
+                {
+                    "time": 6.018,
+                    "downloadThroughput": 56248.86554756383,
+                    "latency": 165.06620389409363,
+                    "offline": false
+                },
+                {
+                    "time": 7.021,
+                    "downloadThroughput": 45880.497475170174,
+                    "latency": 56.40945649938658,
+                    "offline": false
+                },
+                {
+                    "time": 8.023,
+                    "downloadThroughput": 68412.05488278292,
+                    "latency": 169.80263234581798,
+                    "offline": false
+                },
+                {
+                    "time": 9.026,
+                    "downloadThroughput": 46555.09004011166,
+                    "latency": 148.7194466870278,
+                    "offline": false
+                },
+                {
+                    "time": 10.028,
+                    "downloadThroughput": 80932.0082036181,
+                    "latency": 78.9221046725288,
+                    "offline": false
+                },
+                {
+                    "time": 11.03,
+                    "downloadThroughput": 59698.24201949418,
+                    "latency": 165.56207368848845,
+                    "offline": false
+                },
+                {
+                    "time": 12.033,
+                    "downloadThroughput": 48158.60718212339,
+                    "latency": 163.55019410839304,
+                    "offline": false
+                },
+                {
+                    "time": 13.035,
+                    "downloadThroughput": 52378.60342511754,
+                    "latency": 111.97954626986757,
+                    "offline": false
+                },
+                {
+                    "time": 14.037,
+                    "downloadThroughput": 44135.075479291256,
+                    "latency": 158.91572434920818,
+                    "offline": false
+                },
+                {
+                    "time": 15.04,
+                    "downloadThroughput": 43050.654273860775,
+                    "latency": 489.6986435051076,
+                    "offline": false
+                },
+                {
+                    "time": 16.043,
+                    "downloadThroughput": 70625.17008450246,
+                    "latency": 179.86580989090726,
+                    "offline": false
+                },
+                {
+                    "time": 17.045,
+                    "downloadThroughput": 101956.27497483692,
+                    "latency": 157.7457684907131,
+                    "offline": false
+                },
+                {
+                    "time": 18.048,
+                    "downloadThroughput": 51292.23650761706,
+                    "latency": 151.58224167535082,
+                    "offline": false
+                },
+                {
+                    "time": 19.051,
+                    "downloadThroughput": 95439.99600517967,
+                    "latency": 153.91156617552042,
+                    "offline": false
+                },
+                {
+                    "time": 20.054,
+                    "downloadThroughput": 87320.77623795465,
+                    "latency": 190.07574314018711,
+                    "offline": false
+                },
+                {
+                    "time": 21.056,
+                    "downloadThroughput": 0,
+                    "latency": 0,
+                    "offline": true
+                },
+                {
+                    "time": 24.065,
+                    "downloadThroughput": 39433.4548080901,
+                    "latency": 180.30292181065306,
+                    "offline": false
+                },
+                {
+                    "time": 25.067,
+                    "downloadThroughput": 91504.9516983841,
+                    "latency": 126.50879464345053,
+                    "offline": false
+                },
+                {
+                    "time": 26.069,
+                    "downloadThroughput": 76673.94296882732,
+                    "latency": 74.93857651716098,
+                    "offline": false
+                },
+                {
+                    "time": 27.071,
+                    "downloadThroughput": 97909.91017343599,
+                    "latency": 69.78808739222586,
+                    "offline": false
+                },
+                {
+                    "time": 28.074,
+                    "downloadThroughput": 44619.874312085296,
+                    "latency": 108.25332780368626,
+                    "offline": false
+                },
+                {
+                    "time": 29.077,
+                    "downloadThroughput": 56622.65318972752,
+                    "latency": 98.6487384303473,
+                    "offline": false
+                },
+                {
+                    "time": 30.08,
+                    "downloadThroughput": 63069.10697994602,
+                    "latency": 129.73160253604874,
+                    "offline": false
+                },
+                {
+                    "time": 31.083,
+                    "downloadThroughput": 85043.02613271546,
+                    "latency": 178.13580449437723,
+                    "offline": false
+                },
+                {
+                    "time": 32.086,
+                    "downloadThroughput": 44675.9590017671,
+                    "latency": 95.48847588011995,
+                    "offline": false
+                },
+                {
+                    "time": 33.089,
+                    "downloadThroughput": 50658.445970169894,
+                    "latency": 71.55937044881284,
+                    "offline": false
+                },
+                {
+                    "time": 34.092,
+                    "downloadThroughput": 65642.76877151619,
+                    "latency": 98.69256359525025,
+                    "offline": false
+                },
+                {
+                    "time": 35.094,
+                    "downloadThroughput": 43663.40201040896,
+                    "latency": 60.114266886375844,
+                    "offline": false
+                },
+                {
+                    "time": 36.097,
+                    "downloadThroughput": 74498.17007631785,
+                    "latency": 147.71651673363522,
+                    "offline": false
+                },
+                {
+                    "time": 37.1,
+                    "downloadThroughput": 63012.74991667984,
+                    "latency": 128.4855105681345,
+                    "offline": false
+                },
+                {
+                    "time": 38.104,
+                    "downloadThroughput": 83710.55269055588,
+                    "latency": 87.85124704008922,
+                    "offline": false
+                },
+                {
+                    "time": 39.106,
+                    "downloadThroughput": 98413.19140220413,
+                    "latency": 580.5014863028191,
+                    "offline": false
+                },
+                {
+                    "time": 40.109,
+                    "downloadThroughput": 45519.35476334523,
+                    "latency": 54.252589552197605,
+                    "offline": false
+                },
+                {
+                    "time": 41.114,
+                    "downloadThroughput": 52714.173011850784,
+                    "latency": 158.10124486451969,
+                    "offline": false
+                },
+                {
+                    "time": 42.116,
+                    "downloadThroughput": 41638.24571486429,
+                    "latency": 87.59127875091508,
+                    "offline": false
+                },
+                {
+                    "time": 43.12,
+                    "downloadThroughput": 83963.34771634417,
+                    "latency": 168.7732603168115,
+                    "offline": false
+                },
+                {
+                    "time": 44.122,
+                    "downloadThroughput": 41738.73377446091,
+                    "latency": 72.3706167540513,
+                    "offline": false
+                },
+                {
+                    "time": 45.124,
+                    "downloadThroughput": 65217.05253574378,
+                    "latency": 93.09433820890263,
+                    "offline": false
+                },
+                {
+                    "time": 46.126,
+                    "downloadThroughput": 51798.75177718078,
+                    "latency": 186.36585904750973,
+                    "offline": false
+                },
+                {
+                    "time": 47.128,
+                    "downloadThroughput": 71388.63706796747,
+                    "latency": 150.3594912821427,
+                    "offline": false
+                },
+                {
+                    "time": 48.13,
+                    "downloadThroughput": 55635.21218111002,
+                    "latency": 96.1278370115906,
+                    "offline": false
+                },
+                {
+                    "time": 49.134,
+                    "downloadThroughput": 49407.71571960616,
+                    "latency": 189.64583930792287,
+                    "offline": false
+                },
+                {
+                    "time": 50.136,
+                    "downloadThroughput": 44479.36553775855,
+                    "latency": 99.44922960130498,
+                    "offline": false
+                },
+                {
+                    "time": 51.137,
+                    "downloadThroughput": 39321.091836549815,
+                    "latency": 167.54532543709502,
+                    "offline": false
+                },
+                {
+                    "time": 52.139,
+                    "downloadThroughput": 48370.78636724288,
+                    "latency": 72.26229242514819,
+                    "offline": false
+                },
+                {
+                    "time": 53.143,
+                    "downloadThroughput": 51579.04263151039,
+                    "latency": 183.86610482120886,
+                    "offline": false
+                },
+                {
+                    "time": 54.145,
+                    "downloadThroughput": 58148.47548686655,
+                    "latency": 152.956247178372,
+                    "offline": false
+                },
+                {
+                    "time": 55.148,
+                    "downloadThroughput": 48444.809235551606,
+                    "latency": 130.4059587768279,
+                    "offline": false
+                },
+                {
+                    "time": 56.152,
+                    "downloadThroughput": 83889.56394351549,
+                    "latency": 57.58654507808387,
+                    "offline": false
+                },
+                {
+                    "time": 57.154,
+                    "downloadThroughput": 71299.44932004239,
+                    "latency": 546.8942108913325,
+                    "offline": false
+                },
+                {
+                    "time": 58.157,
+                    "downloadThroughput": 52533.21954144555,
+                    "latency": 114.37537271995097,
+                    "offline": false
+                },
+                {
+                    "time": 59.159,
+                    "downloadThroughput": 72528.58232778189,
+                    "latency": 103.81374584976584,
+                    "offline": false
+                },
+                {
+                    "time": 60.162,
+                    "downloadThroughput": 69161.55806150146,
+                    "latency": 52.04014286864549,
+                    "offline": false
+                },
+                {
+                    "time": 61.166,
+                    "downloadThroughput": 65055.89088415582,
+                    "latency": 135.2053253678605,
+                    "offline": false
+                },
+                {
+                    "time": 62.168,
+                    "downloadThroughput": 42929.230104934795,
+                    "latency": 60.5300476658158,
+                    "offline": false
+                }
+            ]
+        }
+    ],
+    "summary": {
+        "engineAverages": {
+            "vinyl": 0.6786,
+            "shaka": 0.6282
+        }
+    }
+}

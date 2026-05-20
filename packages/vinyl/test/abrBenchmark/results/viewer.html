@@ -1,0 +1,720 @@
+<!--
+  ~ Copyright (c) 2026. Amazon.com, Inc. or its affiliates. All rights reserved.
+  -->
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>ABR Benchmark Results</title>
+        <script src="https://www.gstatic.com/charts/loader.js"></script>
+        <style>
+            * {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+            body {
+                font-family: system-ui, sans-serif;
+                background: #f5f5f5;
+                color: #333;
+                padding: 24px;
+            }
+            h1 {
+                margin-bottom: 8px;
+            }
+            .meta {
+                color: #666;
+                margin-bottom: 24px;
+                font-size: 14px;
+            }
+            .charts {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 24px;
+            }
+            .charts .chart-card {
+                margin-top: 0;
+            }
+            .chart-card {
+                background: #fff;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+                padding: 16px;
+                flex: 1 1 600px;
+                min-width: 0;
+                margin-top: 24px;
+            }
+            .chart-card h2 {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+            table {
+                border-collapse: collapse;
+                width: 100%;
+                margin-top: 24px;
+                background: #fff;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+            }
+            th,
+            td {
+                padding: 10px 14px;
+                text-align: left;
+                border-bottom: 1px solid #eee;
+                font-size: 14px;
+            }
+            th {
+                background: #fafafa;
+                font-weight: 600;
+            }
+            .score {
+                font-weight: 600;
+            }
+            .score-high {
+                color: #2e7d32;
+            }
+            .score-mid {
+                color: #f57f17;
+            }
+            .score-low {
+                color: #c62828;
+            }
+            #drop-zone {
+                border: 2px dashed #ccc;
+                border-radius: 8px;
+                padding: 48px;
+                text-align: center;
+                color: #999;
+                margin-bottom: 24px;
+                cursor: pointer;
+                transition:
+                    border-color 0.2s,
+                    padding 0.2s;
+            }
+            #drop-zone.over {
+                border-color: #1976d2;
+                color: #1976d2;
+            }
+            #drop-zone.loaded {
+                padding: 10px;
+                font-size: 13px;
+                margin-bottom: 16px;
+            }
+            .timelines {
+                margin-top: 24px;
+            }
+            .timeline-scenario {
+                margin-top: 16px;
+            }
+            .timeline-scenario h3 {
+                margin: 0 0 4px 0;
+                font-size: 14px;
+                color: #333;
+            }
+            .timeline-chart {
+                height: 220px;
+            }
+            .legend {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px 12px;
+                margin-bottom: 8px;
+                font-size: 12px;
+                user-select: none;
+            }
+            .legend-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                cursor: pointer;
+                padding: 2px 6px;
+                border-radius: 4px;
+                opacity: 1;
+                transition: opacity 0.15s;
+            }
+            .legend-item.dim {
+                opacity: 0.25;
+            }
+            .legend-item:hover {
+                background: #f0f0f0;
+            }
+            .legend-swatch {
+                width: 12px;
+                height: 12px;
+                border-radius: 2px;
+                flex-shrink: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>ABR Benchmark Results</h1>
+        <div id="drop-zone">Drop results.json here or click to load</div>
+        <input type="file" id="file-input" accept=".json" hidden />
+        <div id="content" hidden>
+            <div class="meta" id="meta"></div>
+            <div class="charts">
+                <div class="chart-card">
+                    <h2>Final Score</h2>
+                    <div id="legend-scenario" class="legend"></div>
+                    <div id="chart-scenario"></div>
+                </div>
+            </div>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Engine</th>
+                        <th>Track</th>
+                        <th>Final</th>
+                        <th>Quality</th>
+                        <th>Rebuffer</th>
+                        <th>Stall</th>
+                        <th>Startup</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div class="chart-card timelines">
+                <h2>Playback Timelines</h2>
+                <p style="margin: 0 0 8px 0; color: #666; font-size: 13px">
+                    Quality bitrate over time per engine (stepped lines). Dashed
+                    gray line is the scenario's throttled download bandwidth.
+                    Line drops to 0 during rebuffer, pause, or before playback
+                    starts. Click a legend item to isolate; ⌘/Ctrl-click to add
+                    or remove from the selection.
+                </p>
+                <div id="timelines"></div>
+            </div>
+            <div class="chart-card">
+                <h2>Bundle Load Time Estimates (gzipped)</h2>
+                <div id="legend-bundle" class="legend"></div>
+                <div id="chart-bundle"></div>
+            </div>
+        </div>
+
+        <script>
+            google.charts.load('current', { packages: ['corechart', 'bar'] })
+
+            const dropZone = document.getElementById('drop-zone')
+            const fileInput = document.getElementById('file-input')
+
+            dropZone.addEventListener('click', () => fileInput.click())
+            fileInput.addEventListener('change', () => {
+                if (fileInput.files[0]) loadFile(fileInput.files[0])
+            })
+
+            // Drop anywhere on the page to load a new results.json.
+            window.addEventListener('dragover', (e) => {
+                e.preventDefault()
+                dropZone.classList.add('over')
+            })
+            window.addEventListener('dragleave', (e) => {
+                // Only unhighlight when leaving the window itself.
+                if (e.relatedTarget == null) dropZone.classList.remove('over')
+            })
+            window.addEventListener('drop', (e) => {
+                e.preventDefault()
+                dropZone.classList.remove('over')
+                if (e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0])
+            })
+
+            // Auto-load results.json from same directory
+            fetch('results.json')
+                .then((r) => (r.ok ? r.json() : null))
+                .then((data) => {
+                    if (data) render(data)
+                })
+                .catch(() => {})
+
+            function loadFile(file) {
+                const reader = new FileReader()
+                reader.onload = () => render(JSON.parse(reader.result))
+                reader.readAsText(file)
+            }
+
+            function scoreClass(v) {
+                // v is 0–1
+                return v >= 0.8
+                    ? 'score-high'
+                    : v >= 0.5
+                      ? 'score-mid'
+                      : 'score-low'
+            }
+
+            // Engine base palette (up to 6). Each track index picks a tint
+            // (lightness shift) of its engine's base color. Supports up to
+            // 4 tracks.
+            const ENGINE_PALETTE = [
+                '#1976d2', // blue
+                '#ff9800', // orange
+                '#2e7d32', // green
+                '#c62828', // red
+                '#6a1b9a', // purple
+                '#00838f', // teal
+            ]
+            const TRACK_TINTS = [0, -18, 18, -36] // lightness delta per track
+            const NETWORK_COLOR = '#9e9e9e' // neutral gray for throttle overlay
+
+            function hexToHsl(hex) {
+                const n = parseInt(hex.slice(1), 16)
+                const r = (n >> 16) / 255,
+                    g = ((n >> 8) & 255) / 255,
+                    b = (n & 255) / 255
+                const max = Math.max(r, g, b),
+                    min = Math.min(r, g, b)
+                let h = 0,
+                    s = 0
+                const l = (max + min) / 2
+                if (max !== min) {
+                    const d = max - min
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
+                    h =
+                        max === r
+                            ? (g - b) / d + (g < b ? 6 : 0)
+                            : max === g
+                              ? (b - r) / d + 2
+                              : (r - g) / d + 4
+                    h *= 60
+                }
+                return [h, s * 100, l * 100]
+            }
+
+            function hslToHex(h, s, l) {
+                s /= 100
+                l /= 100
+                const k = (n) => (n + h / 30) % 12
+                const a = s * Math.min(l, 1 - l)
+                const f = (n) =>
+                    Math.round(
+                        255 *
+                            (l -
+                                a *
+                                    Math.max(
+                                        -1,
+                                        Math.min(k(n) - 3, 9 - k(n), 1)
+                                    ))
+                    )
+                const to2 = (v) => v.toString(16).padStart(2, '0')
+                return `#${to2(f(0))}${to2(f(8))}${to2(f(4))}`
+            }
+
+            function seriesColor(engineIdx, trackIdx) {
+                const base = ENGINE_PALETTE[engineIdx % ENGINE_PALETTE.length]
+                const [h, s, l] = hexToHsl(base)
+                const dl = TRACK_TINTS[trackIdx % TRACK_TINTS.length]
+                const L = Math.max(10, Math.min(85, l + dl))
+                return hslToHex(h, s, L)
+            }
+
+            /**
+             * Render a chart with a custom HTML legend. Click selects a
+             * single series; cmd/ctrl-click adds/removes from the current
+             * selection. Clicking the only selected series restores all.
+             * Series whose index is in `alwaysOn` are not affected by
+             * default-isolate clicks (e.g. the network throttle overlay),
+             * but can still be toggled explicitly via cmd/ctrl-click.
+             *
+             * `drawFn(active)` receives a Set of visible series indices
+             * and is responsible for rendering only those series.
+             */
+            function renderWithLegend(
+                legendEl,
+                labels,
+                colors,
+                { alwaysOn = [] } = {},
+                drawFn
+            ) {
+                // Default: all visible.
+                let active = new Set(labels.map((_, i) => i))
+                const alwaysOnSet = new Set(alwaysOn)
+                legendEl.innerHTML = ''
+                const chips = labels.map((label, i) => {
+                    const chip = document.createElement('span')
+                    chip.className = 'legend-item'
+                    chip.innerHTML = `<span class="legend-swatch" style="background:${colors[i]}"></span>${label}`
+                    chip.addEventListener('click', (e) => {
+                        if (e.metaKey || e.ctrlKey) {
+                            // Additive toggle.
+                            if (active.has(i)) active.delete(i)
+                            else active.add(i)
+                        } else {
+                            // Isolate. If already the sole selection
+                            // (ignoring always-on), restore all.
+                            const nonAlwaysOn = [...active].filter(
+                                (x) => !alwaysOnSet.has(x)
+                            )
+                            const isSoleSelection =
+                                nonAlwaysOn.length === 1 && nonAlwaysOn[0] === i
+                            if (isSoleSelection) {
+                                active = new Set(labels.map((_, j) => j))
+                            } else {
+                                active = new Set([i, ...alwaysOn])
+                            }
+                        }
+                        updateChips()
+                        drawFn(active)
+                    })
+                    legendEl.appendChild(chip)
+                    return chip
+                })
+                const updateChips = () => {
+                    chips.forEach((c, i) =>
+                        c.classList.toggle('dim', !active.has(i))
+                    )
+                }
+                drawFn(active)
+            }
+
+            function render(data) {
+                dropZone.classList.add('loaded')
+                dropZone.textContent =
+                    'Drop a new results.json here or click to load another'
+                document.getElementById('content').hidden = false
+                document.getElementById('meta').textContent =
+                    `${new Date(data.timestamp).toLocaleString()} · Seed: ${data.seed} · Engines: ${data.engines.join(', ')}`
+
+                google.charts.setOnLoadCallback(() => {
+                    drawScenarioChart(data)
+                    drawBundleChart(data)
+                    drawTimelines(data)
+                })
+                drawTable(data)
+            }
+
+            function drawScenarioChart(data) {
+                // One series per (engine, track). No aggregation across tracks.
+                const scenarioNames = [
+                    ...new Set(data.results.map((r) => r.scenario)),
+                ]
+                const engineNames = data.engines
+                const trackLabels = [
+                    ...new Set(data.results.map((r) => r.track.label)),
+                ]
+                // Build series in (engine, track) order so color grouping is stable.
+                const seriesKeys = []
+                for (const e of engineNames)
+                    for (const t of trackLabels) seriesKeys.push(`${e}|${t}`)
+                const byKey = {}
+                for (const r of data.results) {
+                    byKey[`${r.scenario}|${r.engine}|${r.track.label}`] = r
+                }
+                const seriesColors = seriesKeys.map((k) => {
+                    const [e, t] = k.split('|')
+                    return seriesColor(
+                        engineNames.indexOf(e),
+                        trackLabels.indexOf(t)
+                    )
+                })
+                const seriesLabels = seriesKeys.map((k) =>
+                    k.replace('|', ' · ')
+                )
+
+                function tooltipHtml(scenario, seriesLabel, r) {
+                    const b = r.score.breakdown
+                    return `<div style="padding:8px;min-width:200px;font-family:sans-serif;font-size:13px">
+                        <div style="font-weight:600;margin-bottom:6px">${scenario} · ${seriesLabel}</div>
+                        <div style="display:flex;justify-content:space-between"><span>Final</span><b>${(b.finalScore * 100).toFixed(2)}</b></div>
+                        <div style="display:flex;justify-content:space-between;color:#2e7d32"><span>Quality</span><span>${(b.quality * 100).toFixed(2)}</span></div>
+                        <div style="display:flex;justify-content:space-between;color:#c62828"><span>− Rebuffer loss</span><span>${((1 - b.rebuffer) * 100).toFixed(2)}</span></div>
+                        <div style="display:flex;justify-content:space-between;color:#ff7043"><span>− Stall loss</span><span>${((1 - b.stall) * 100).toFixed(2)}</span></div>
+                        <div style="display:flex;justify-content:space-between;color:#9e9e9e"><span>− Startup loss</span><span>${((1 - b.startup) * 100).toFixed(2)}</span></div>
+                    </div>`
+                }
+
+                const header = ['Scenario']
+                for (const label of seriesLabels) {
+                    header.push(label)
+                    header.push({
+                        role: 'tooltip',
+                        type: 'string',
+                        p: { html: true },
+                    })
+                    header.push({ role: 'annotation', type: 'string' })
+                }
+
+                const rows = scenarioNames.map((s) => {
+                    const row = [s]
+                    for (let i = 0; i < seriesKeys.length; i++) {
+                        const r = byKey[`${s}|${seriesKeys[i]}`]
+                        const v = r ? r.score.breakdown.finalScore * 100 : null
+                        row.push(Number.isFinite(v) ? v : null)
+                        row.push(r ? tooltipHtml(s, seriesLabels[i], r) : null)
+                        row.push(r ? v.toFixed(1) : null)
+                    }
+                    return row
+                })
+
+                const dt = google.visualization.arrayToDataTable([
+                    header,
+                    ...rows,
+                ])
+                const chart = new google.visualization.ColumnChart(
+                    document.getElementById('chart-scenario')
+                )
+                renderWithLegend(
+                    document.getElementById('legend-scenario'),
+                    seriesLabels,
+                    seriesColors,
+                    {},
+                    (active) => {
+                        const cols = [0]
+                        const visibleColors = []
+                        for (let i = 0; i < seriesKeys.length; i++) {
+                            if (!active.has(i)) continue
+                            cols.push(1 + i * 3, 2 + i * 3, 3 + i * 3)
+                            visibleColors.push(seriesColors[i])
+                        }
+                        const view = new google.visualization.DataView(dt)
+                        view.setColumns(cols)
+                        chart.draw(view, {
+                            height: 300,
+                            legend: { position: 'none' },
+                            vAxis: {
+                                title: 'Final Score',
+                                minValue: 0,
+                                maxValue: 100,
+                            },
+                            tooltip: { isHtml: true },
+                            colors: visibleColors,
+                        })
+                    }
+                )
+            }
+
+            function drawTable(data) {
+                const tbody = document.querySelector('#results-table tbody')
+                tbody.innerHTML = ''
+                for (const r of data.results) {
+                    const b = r.score.breakdown
+                    const tr = document.createElement('tr')
+                    tr.innerHTML = `
+                    <td>${r.scenario}${r.coldStart ? ' ❄️' : ''}</td>
+                    <td>${r.engine}</td>
+                    <td title="${r.track.uri}">${r.track.label}</td>
+                    <td class="score ${scoreClass(b.finalScore)}">${(b.finalScore * 100).toFixed(2)}</td>
+                    <td>${(b.quality * 100).toFixed(2)}</td>
+                    <td>${(b.rebuffer * 100).toFixed(2)}</td>
+                    <td>${(b.stall * 100).toFixed(2)}</td>
+                    <td>${(b.startup * 100).toFixed(2)}</td>`
+                    tbody.appendChild(tr)
+                }
+            }
+
+            function drawBundleChart(data) {
+                const bundles = data.bundleLoadTimes ?? []
+                if (!bundles.length) return
+                const tiers = [
+                    ['500 kbps', 'low'],
+                    ['1 Mbps', '3g'],
+                    ['10 Mbps', '4g'],
+                    ['50 Mbps', 'wifi'],
+                ]
+                const labels = bundles.map(
+                    (b) => `${b.engine} (${b.bundleSizeKB} KB)`
+                )
+                const header = ['Network', ...labels]
+                const rows = tiers.map(([label, key]) => [
+                    label,
+                    ...bundles.map((b) => b.estimatedLoadTimes[key]),
+                ])
+                const dt = google.visualization.arrayToDataTable([
+                    header,
+                    ...rows,
+                ])
+                const chart = new google.visualization.LineChart(
+                    document.getElementById('chart-bundle')
+                )
+                const bundleColors = ['#1976d2', '#ff9800']
+                renderWithLegend(
+                    document.getElementById('legend-bundle'),
+                    labels,
+                    bundleColors,
+                    {},
+                    (active) => {
+                        const cols = [0]
+                        const visibleColors = []
+                        for (let i = 0; i < labels.length; i++) {
+                            if (!active.has(i)) continue
+                            cols.push(1 + i)
+                            visibleColors.push(bundleColors[i])
+                        }
+                        const view = new google.visualization.DataView(dt)
+                        view.setColumns(cols)
+                        chart.draw(view, {
+                            height: 300,
+                            legend: { position: 'none' },
+                            vAxis: {
+                                title: 'Estimated load time (ms)',
+                                minValue: 0,
+                            },
+                            hAxis: { title: 'Network' },
+                            pointSize: 6,
+                            colors: visibleColors,
+                        })
+                    }
+                )
+            }
+
+            function drawTimelines(data) {
+                const container = document.getElementById('timelines')
+                container.innerHTML = ''
+                const byScenario = new Map()
+                // networkSeries is shared across engines; capture once per scenario.
+                const networkByScenario = new Map()
+                for (const r of data.results) {
+                    if (!r.timeline || !r.timeline.length) continue
+                    if (!byScenario.has(r.scenario))
+                        byScenario.set(r.scenario, [])
+                    byScenario.get(r.scenario).push(r)
+                    if (
+                        r.networkSeries?.length &&
+                        !networkByScenario.has(r.scenario)
+                    ) {
+                        networkByScenario.set(r.scenario, r.networkSeries)
+                    }
+                }
+                const engineNames = data.engines
+                const trackLabels = [
+                    ...new Set(data.results.map((r) => r.track.label)),
+                ]
+                for (const [scenario, runs] of byScenario) {
+                    const block = document.createElement('div')
+                    block.className = 'timeline-scenario'
+                    const title = document.createElement('h3')
+                    title.textContent = scenario
+                    block.appendChild(title)
+                    const legendDiv = document.createElement('div')
+                    legendDiv.className = 'legend'
+                    block.appendChild(legendDiv)
+                    const chartDiv = document.createElement('div')
+                    chartDiv.className = 'timeline-chart'
+                    block.appendChild(chartDiv)
+                    container.appendChild(block)
+
+                    const networkSeries = networkByScenario.get(scenario) ?? []
+                    const hasNetwork = networkSeries.length > 0
+
+                    // Collect all event times across engines + network for a
+                    // shared x-axis.
+                    const times = new Set()
+                    let maxT = 0
+                    for (const r of runs) {
+                        for (const s of r.timeline) times.add(s.time)
+                        if (r.endTime != null) {
+                            times.add(r.endTime)
+                            if (r.endTime > maxT) maxT = r.endTime
+                        }
+                    }
+                    for (const s of networkSeries) times.add(s.time)
+                    // Densify to 1s ticks so tooltips show the held state
+                    // at every second.
+                    for (let t = 0; t <= Math.ceil(maxT); t++) times.add(t)
+                    const sortedTimes = [...times].sort((a, b) => a - b)
+
+                    const runLabels = runs.map(
+                        (r) =>
+                            `${r.engine} · ${r.track.label}${r.timedOut ? ' ⏱' : ''}`
+                    )
+                    const labels = hasNetwork
+                        ? [...runLabels, 'Network throttle']
+                        : runLabels
+                    const runColors = runs.map((r) =>
+                        seriesColor(
+                            engineNames.indexOf(r.engine),
+                            trackLabels.indexOf(r.track.label)
+                        )
+                    )
+                    const colors = hasNetwork
+                        ? [...runColors, NETWORK_COLOR]
+                        : runColors
+
+                    // Build DataTable manually so we can mark the network
+                    // column as a line (not stepped area).
+                    const dt = new google.visualization.DataTable()
+                    dt.addColumn('number', 't (s)')
+                    for (const label of runLabels) dt.addColumn('number', label)
+                    if (hasNetwork) dt.addColumn('number', 'Network throttle')
+                    for (const t of sortedTimes) {
+                        const row = [t]
+                        for (const r of runs) {
+                            let bw = 0
+                            for (const s of r.timeline) {
+                                if (s.time <= t) {
+                                    bw = s.bandwidth ? s.bandwidth / 1000 : 0
+                                } else break
+                            }
+                            row.push(bw)
+                        }
+                        if (hasNetwork) {
+                            let n = null
+                            for (const s of networkSeries) {
+                                if (s.time <= t) {
+                                    // Treat offline or pathologically high
+                                    // latency (>10s, used to simulate stalls
+                                    // while staying "online") as 0 throughput.
+                                    const stalled =
+                                        s.offline ||
+                                        (s.latency != null && s.latency > 10000)
+                                    n = stalled
+                                        ? 0
+                                        : (s.downloadThroughput * 8) / 1000
+                                } else break
+                            }
+                            row.push(n)
+                        }
+                        dt.addRow(row)
+                    }
+
+                    const chart = new google.visualization.ComboChart(chartDiv)
+                    const networkIdx = hasNetwork ? labels.length - 1 : -1
+                    renderWithLegend(
+                        legendDiv,
+                        labels,
+                        colors,
+                        { alwaysOn: hasNetwork ? [networkIdx] : [] },
+                        (active) => {
+                            const cols = [0]
+                            const visibleColors = []
+                            const seriesOpts = {}
+                            let visIdx = 0
+                            for (let i = 0; i < labels.length; i++) {
+                                if (!active.has(i)) continue
+                                cols.push(1 + i)
+                                visibleColors.push(colors[i])
+                                if (i === networkIdx) {
+                                    seriesOpts[visIdx] = {
+                                        type: 'line',
+                                        lineDashStyle: [4, 4],
+                                        lineWidth: 2,
+                                    }
+                                } else {
+                                    seriesOpts[visIdx] = {
+                                        type: 'steppedArea',
+                                    }
+                                }
+                                visIdx++
+                            }
+                            const view = new google.visualization.DataView(dt)
+                            view.setColumns(cols)
+                            chart.draw(view, {
+                                height: 220,
+                                legend: { position: 'none' },
+                                vAxis: { title: 'kbps', minValue: 0 },
+                                hAxis: { title: 'Time (s)' },
+                                areaOpacity: 0,
+                                connectSteps: true,
+                                focusTarget: 'category',
+                                seriesType: 'steppedArea',
+                                series: seriesOpts,
+                                colors: visibleColors,
+                            })
+                        }
+                    )
+                }
+            }
+        </script>
+    </body>
+</html>

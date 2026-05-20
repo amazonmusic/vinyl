@@ -1,0 +1,22 @@
+{
+    "extends": "../../../../tsconfig.test.json",
+    "include": ["./**/*"],
+    "compilerOptions": {
+        "outDir": "../../dist/unit/types/current",
+        "noEmit": true,
+        "paths": {
+            "@amazon/vinyl-mpd-parser": ["../../src/index"],
+            "@amazon/vinyl-mpd-parser/dashTestAssets": [
+                "../dashTestAssets/index"
+            ]
+        }
+    },
+    "references": [
+        {
+            "path": "../../src"
+        },
+        {
+            "path": "../dashTestAssets"
+        }
+    ]
+}

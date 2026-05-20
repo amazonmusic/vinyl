@@ -1,0 +1,11 @@
+/** Auto-generated from build scripts */
+import './setup'
+import './jsx.test'
+import './domUtil.test'
+export * from './domPolyfill'
+import './ActiveText.test'
+import './extensions/connectedObserver.test'
+import './extensions/applyVisibility.test'
+import './extensions/applyStyles.test'
+import './extensions/applyPassiveHandler.test'
+import './extensions/applyClassList.test'

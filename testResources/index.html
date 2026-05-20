@@ -1,0 +1,61 @@
+<!--
+  ~ Copyright (c) 2025. Amazon.com, Inc. or its affiliates. All rights reserved.
+  -->
+
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Jasmine Spec Runner</title>
+
+        <link rel="shortcut icon" type="image/png" href="favicon.png" />
+        <link rel="stylesheet" href="styles.css" />
+        <link rel="stylesheet" href="jasmine.css" />
+
+        <script>
+            /**
+             * Loads a script.
+             *
+             * @param options {{
+             *     src: string,
+             *     module?: boolean
+             * }}
+             */
+            function loadScript(options) {
+                const script = document.createElement('script')
+                if (options.module) script.type = 'module'
+                script.src = options.src
+                script.async = false
+                document.head.appendChild(script)
+            }
+
+            const isModernBrowser = typeof BigInt !== 'undefined'
+
+            // Detects if this is a modern es2020 browser.
+            // Otherwise, loads the es5 version.
+            if (isModernBrowser) {
+                loadScript({
+                    src: 'jasmineHtml.js',
+                    module: true,
+                })
+                loadScript({
+                    src: 'integ.js',
+                    module: true,
+                })
+            } else {
+                loadScript({
+                    src: 'jasmineHtml.es5.js',
+                })
+                loadScript({
+                    src: 'integ.es5.js',
+                })
+            }
+        </script>
+    </head>
+
+    <body>
+        <div class="callout" id="unlockAudioPrompt" style="display: none">
+            <div class="instructions">Press any key or click to begin.</div>
+        </div>
+    </body>
+</html>
