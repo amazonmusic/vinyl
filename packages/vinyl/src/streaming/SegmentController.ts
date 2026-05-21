@@ -14,6 +14,23 @@ import type { SegmentReference } from '@/streaming/SegmentReference'
 import type { ChangeEvent } from '@/event/ChangeEvent'
 import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
 
+/**
+ * Forward-snap tolerance, in seconds, applied when looking up a segment by time.
+ *
+ * If the requested time falls within this window before a segment's `startTime`,
+ * that segment is returned rather than treating the gap as uncovered. This absorbs
+ * small alignment differences between qualities, where one quality's segment may
+ * begin a few milliseconds later than another's at the same logical boundary.
+ *
+ * Pass to `getSegmentAtTime` (and `MediaQualityData.getSegment`) as the `affordance`
+ * argument. Callers resuming streaming after a seek should also bias the requested
+ * time *behind* the playhead by at least this amount, so any subsequent appends
+ * cover the playhead without leaving a gap. The `SegmentController` clamps negative
+ * request times to `0`, so callers don't need to guard against the bias going below
+ * the start of the timeline.
+ */
+export const SEGMENT_START_AFFORDANCE = 0.2
+
 export interface SegmentControllerEventMap {
     /**
      * fetchedRanges have been updated.
@@ -58,12 +75,22 @@ export interface ReadonlySegmentController
     getDuration(): Promise<number | null>
 
     /**
-     * Returns a Promise for a segment for the given time and currently selected media.
-     * The returned promise may abort with an AbortError if a seek occurs to outside the prefetch window.
+     * Returns a Promise for a segment covering the given time, with quality chosen by
+     * the configured `QualitySelector`. Resolves to `null` if no media exists at that
+     * time. Negative `time` values are clamped to `0`.
+     *
+     * The lookup forward-snaps by `SEGMENT_START_AFFORDANCE`: if `time` falls within
+     * that window before a segment's `startTime`, that segment is returned. This
+     * absorbs sub-second segment-boundary differences across qualities so an ABR
+     * switch doesn't replay or skip media at the boundary.
+     *
+     * Calling this also blocks the prefetch queue until the returned promise settles,
+     * so the active request is prioritized over background prefetching.
      *
      * @param time The time, in seconds, the requested segment should span.
-     * @param abort Aborts the returned promise and releases the lock on prefetching. The segment request will not be
-     * interrupted unless the time goes out of prefetch ranges.
+     * @param abort Aborts the returned promise (rejecting with `AbortError`) and
+     * releases the prefetch-queue lock. The underlying network request may continue
+     * so its result can still populate the cache.
      */
     getSegment(
         time: number,

@@ -36,7 +36,7 @@ export function buildDashMediaTimeline(
         const endTime = calculatePeriodEnd(period) ?? Infinity
         const representations = flattenRepresentations(period)
         const qualities: MediaQualityData[] = representations.map(
-            (representation: RepresentationType) => {
+            (representation: RepresentationType): MediaQualityData => {
                 const metadata =
                     deps.mediaQualityMetadataResolver(representation)
                 const segmentProvider = createDashRepresentationSegmentProvider(
@@ -46,8 +46,8 @@ export function buildDashMediaTimeline(
                 )
                 return {
                     metadata,
-                    getSegment: (time: number) =>
-                        segmentProvider.getSegment(time),
+                    getSegment: (time: number, affordance?: number) =>
+                        segmentProvider.getSegment(time, affordance),
                 }
             }
         )

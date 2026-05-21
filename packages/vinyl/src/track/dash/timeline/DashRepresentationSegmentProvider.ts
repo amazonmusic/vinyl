@@ -59,9 +59,12 @@ export interface DashRepresentationSegmentProvider {
      * Gets a segment reference within this representation for the given time, in seconds, relative to the period.
      *
      * @param time
+     * @param affordance Forward-snap tolerance in seconds: if `time` falls just before a
+     * segment's start (within `affordance`), that segment is returned. Defaults to `0`.
      */
     getSegment(
-        time: number
+        time: number,
+        affordance?: number
     ): Promise<SegmentReference<SegmentDataProvider> | null>
 }
 
@@ -173,7 +176,8 @@ export function createDashRepresentationSegmentProvider(
 
     return {
         async getSegment(
-            time: number
+            time: number,
+            affordance = 0
         ): Promise<SegmentReference<SegmentDataProvider> | null> {
             if (!segmentsPromise) segmentsPromise = getSegmentReferences()
             const segments = await Promise.resolve(segmentsPromise).catch(
@@ -184,7 +188,7 @@ export function createDashRepresentationSegmentProvider(
                     throw error
                 }
             )
-            const segment = getSegmentAtTime(time, segments)
+            const segment = getSegmentAtTime(time, segments, affordance)
             if (!segment) return null
             return {
                 quality,

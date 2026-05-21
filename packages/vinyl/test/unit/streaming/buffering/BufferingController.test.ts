@@ -26,6 +26,7 @@ import {
     MIN_APPEND_SIZE,
     POLL_BUFFER_THROTTLE,
     QUOTA_REACHED_SCALE,
+    SEGMENT_START_AFFORDANCE,
     type SegmentReference,
 } from '@amazon/vinyl'
 import type { MutableDeep, Task } from '@amazon/vinyl-util'
@@ -61,7 +62,10 @@ const timeUpdateEvent: ChangeEvent<number> = {
 type MockSegmentReference = MutableDeep<SegmentReference<ArrayBuffer>>
 
 function createMockSegment(time: number, size = 1): MockSegmentReference {
-    const startTime = floorToNearest(time, 10)
+    // Mirror SegmentControllerImpl.getSegment, which clamps negative request times to 0
+    // and forward-snaps by SEGMENT_START_AFFORDANCE before resolving the underlying segment.
+    const snapped = Math.max(0, time) + SEGMENT_START_AFFORDANCE
+    const startTime = floorToNearest(snapped, 10)
     const endTime = Math.min(DURATION, startTime + SEGMENT_DURATION)
     return {
         initData: new ArrayBuffer(INIT_DATA_SIZE),

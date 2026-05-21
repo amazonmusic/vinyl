@@ -26,10 +26,11 @@ import {
     withAbort,
 } from '@amazon/vinyl-util'
 import type { ReadonlyPlaybackController } from '@/playback/ReadonlyPlaybackController'
-import type {
-    PrefetchOptions,
-    SegmentController,
-    SegmentControllerEventMap,
+import {
+    type PrefetchOptions,
+    SEGMENT_START_AFFORDANCE,
+    type SegmentController,
+    type SegmentControllerEventMap,
 } from '@/streaming/SegmentController'
 import {
     type SegmentDataProvider,
@@ -48,8 +49,8 @@ import {
 } from '@/streaming/util/segment'
 import type { SegmentReference } from '@/streaming/SegmentReference'
 import type {
-    MediaQualityMetadata,
     ContentType,
+    MediaQualityMetadata,
 } from '@/streaming/MediaQualityMetadata'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import type { MediaTimeline } from '@/streaming/MediaTimeline'
@@ -411,7 +412,10 @@ export class SegmentControllerImpl
         abort?: ReadonlyAbort
     ): Promise<SegmentReference<ArrayBuffer> | null> {
         logDebug(this, `requesting segment at time: ${time.toFixed(4)}`)
-        const segmentReferencePromise = withAbort(this._getSegment(time), abort)
+        const segmentReferencePromise = withAbort(
+            this._getSegment(Math.max(0, time)),
+            abort
+        )
 
         // When a segment is actively needed, block the prefetch queue until the active segment promise settles:
         enqueueSegmentPrefetch(
@@ -425,7 +429,7 @@ export class SegmentControllerImpl
     private async _getSegment(
         time: number
     ): Promise<SegmentReference<ArrayBuffer> | null> {
-        const streamingSlot = await this.getSlotAtTime(time)
+        const streamingSlot = await this.getSlotAtTime(time + 0.2)
         if (!streamingSlot) return null
         logDebug(
             this,
@@ -485,7 +489,11 @@ export class SegmentControllerImpl
         time: number
     ): Promise<SegmentReference<SegmentDataSlot> | null> {
         // Check if there is a cached slot.
-        const cachedSegment = getSegmentAtTime(time, this.cachedSegments)
+        const cachedSegment = getSegmentAtTime(
+            time,
+            this.cachedSegments,
+            SEGMENT_START_AFFORDANCE
+        )
         if (cachedSegment) return cachedSegment
 
         const newSlot = await withAbort(
@@ -574,7 +582,10 @@ export class SegmentControllerImpl
         )
         const selectedQuality = filteredQualities[index]
 
-        const segment = await selectedQuality.getSegment(time)
+        const segment = await selectedQuality.getSegment(
+            time,
+            SEGMENT_START_AFFORDANCE
+        )
         if (this.disposed) throw new AbortError()
         this.streamingQuality = segment?.quality ?? null
         if (!segment) return null

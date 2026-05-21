@@ -18,9 +18,12 @@ export interface MediaQualityData {
     /**
      * Gets the segment reference at the given time, or null if the time is outside the range.
      * @param time The time, in seconds, relative to the presentation timeline.
+     * @param affordance Forward-snap tolerance in seconds: if `time` falls just before a
+     * segment's start (within `affordance`), that segment is returned. Defaults to `0`.
      */
     getSegment(
-        time: number
+        time: number,
+        affordance?: number
     ): Promise<SegmentReference<SegmentDataProvider> | null>
 }
 

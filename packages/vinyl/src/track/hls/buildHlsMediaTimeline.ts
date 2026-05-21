@@ -79,7 +79,8 @@ export function buildHlsMediaTimeline(
                 return {
                     metadata,
                     async getSegment(
-                        time: number
+                        time: number,
+                        affordance = 0
                     ): Promise<SegmentReference<SegmentDataProvider> | null> {
                         // For an audio quality on a variant that also carries video,
                         // the audio is delivered through a separate rendition group
@@ -107,7 +108,11 @@ export function buildHlsMediaTimeline(
                             playlistBaseUrl,
                             playlist.segments
                         )
-                        const segment = getSegmentAtTime(time, segments)
+                        const segment = getSegmentAtTime(
+                            time,
+                            segments,
+                            affordance
+                        )
                         if (!segment) return null
 
                         // fMP4: use #EXT-X-MAP init segment directly.

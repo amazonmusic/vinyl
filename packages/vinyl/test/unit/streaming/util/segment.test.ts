@@ -68,6 +68,55 @@ describe('segment utils', () => {
                 expect(getSegmentAtTime(40, segments)).toBeNull()
             })
         })
+
+        describe('with a forward-snap affordance', () => {
+            it('snaps forward to the next segment when time is within affordance of its start', () => {
+                expect(getSegmentAtTime(9.9, segments, 0.2)).toEqual(
+                    objectContaining({ startTime: 10 })
+                )
+                expect(getSegmentAtTime(19.85, segments, 0.2)).toEqual(
+                    objectContaining({ startTime: 20 })
+                )
+            })
+
+            it('does not snap forward when the gap exceeds affordance', () => {
+                expect(getSegmentAtTime(9.5, segments, 0.2)).toEqual(
+                    objectContaining({ startTime: 0 })
+                )
+            })
+
+            it('returns the next segment even when the previous one still covers time', () => {
+                // Documented trade-off: time=9.9 is covered by [0,10) but
+                // affordance forward-snaps to [10,20).
+                expect(getSegmentAtTime(9.9, segments, 0.2)).toEqual(
+                    objectContaining({ startTime: 10 })
+                )
+            })
+
+            it('snaps forward into the first segment when time is just before 0', () => {
+                expect(getSegmentAtTime(-0.1, segments, 0.2)).toEqual(
+                    objectContaining({ startTime: 0 })
+                )
+            })
+
+            it('returns null when the snapped lookup lands past the last segment', () => {
+                expect(getSegmentAtTime(40, segments, 0.2)).toBeNull()
+                expect(getSegmentAtTime(39.9, segments, 0.2)).toEqual(
+                    objectContaining({ startTime: 30 })
+                )
+            })
+
+            it('still gates on the original time against endTime', () => {
+                // time + affordance lands in [0,10), but endTime is exclusive
+                // and time itself is at endTime — must return null.
+                expect(getSegmentAtTime(10, segments, 0)).toEqual(
+                    objectContaining({ startTime: 10 })
+                )
+                // With one-segment list and affordance, time at endTime returns null.
+                const oneSegment = [segments[0]]
+                expect(getSegmentAtTime(10, oneSegment, 0.2)).toBeNull()
+            })
+        })
     })
 
     describe('getSegmentInsertionIndexAtTime', () => {

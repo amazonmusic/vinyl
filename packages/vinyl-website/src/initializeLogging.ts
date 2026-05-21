@@ -4,14 +4,13 @@
  */
 
 import {
-    consoleLogHandler,
     getSearchParams,
     initializeLogging as initializeVinylLogging,
     logInfo,
-    type LogLevel,
+    LogLevel,
     parseLogLevel,
-    setLogLevel,
 } from '@amazon/vinyl-util'
+import { configureVinylGlobal } from '@amazon/vinyl'
 
 const target = { logPrefix: 'App' }
 
@@ -20,9 +19,14 @@ export function initializeLogging() {
     const logLevelParam = getSearchParams().get('logLevel') ?? 'warn'
     const logLevel: LogLevel | null = parseLogLevel(logLevelParam)
     if (logLevel != null) {
-        setLogLevel(logLevel)
-        const cLH = consoleLogHandler.value
-        if (cLH) cLH.logLevel = logLevel
+        configureVinylGlobal({
+            logging: {
+                logLevel: Math.min(LogLevel.DEBUG, logLevel),
+                console: {
+                    logLevel,
+                },
+            },
+        })
     }
     logInfo(target, 'Amazon Vinyl Demo')
 }

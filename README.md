@@ -75,3 +75,16 @@ formats or specialized processing workflows.
 
 For installation instructions and detailed API documentation, please refer to
 the [USAGE.md](./packages/vinyl/docs/USAGE.md) guide.
+
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) for more
+information.
+
+## Contributing
+
+See [CONTRIBUTING](CONTRIBUTING.md) for more information.
+
+## License
+
+This project is licensed under the Apache-2.0 License.

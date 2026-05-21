@@ -34,6 +34,7 @@ import type {
     MediaQualityMetadata,
 } from '@/streaming/MediaQualityMetadata'
 import { type MediaSourceController } from '@/streaming/buffering/MediaSourceController'
+import { SEGMENT_START_AFFORDANCE } from '@/streaming/SegmentController'
 
 /**
  * Chrome 52 has decoding errors when duration is set to the mediaPresentationDuration.
@@ -425,9 +426,11 @@ export class BufferingControllerImpl
         } else {
             streamingSegment = await this.segmentController.getSegment(
                 // If buffering is a continuation from the previous segment, use its end time.
-                tail?.endTime ?? time,
+                // Otherwise, start streaming from slightly behind the playhead.
+                tail?.endTime ?? time - SEGMENT_START_AFFORDANCE,
                 this.segmentAbort.value
             )
+            logVerbose(this, 'streamingSegment', streamingSegment)
             if (streamingSegment) this.appendOffset = 0
         }
         if (!streamingSegment) {
