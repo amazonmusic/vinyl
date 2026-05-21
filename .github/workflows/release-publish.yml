@@ -1,51 +1,55 @@
 name: Release Publish
 
 on:
-  pull_request:
-    types: [closed]
-    branches: [main]
+    pull_request:
+        types: [closed]
+        branches: [main]
 
 concurrency:
-  group: release-publish
-  cancel-in-progress: false
+    group: release-publish
+    cancel-in-progress: false
 
 jobs:
-  publish:
-    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/v')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
-          token: ${{ secrets.RELEASE_PUSH_TOKEN }}
+    publish:
+        if:
+            github.event.pull_request.merged == true &&
+            startsWith(github.event.pull_request.head.ref, 'release/v')
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+                  ref: main
+                  token: ${{ secrets.RELEASE_PUSH_TOKEN }}
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .tool-versions
-          cache: npm
-          registry-url: https://registry.npmjs.org
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: .tool-versions
+                  cache: npm
+                  registry-url: https://registry.npmjs.org
 
-      - run: npm ci
+            - run: npm ci
 
-      - run: npm run release
+            - run: npm run release
 
-      - name: Tag
-        run: |
-          VERSION=$(node -p "require('./lerna.json').version")
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${VERSION}" -m "v${VERSION}"
-          git push origin "v${VERSION}"
+            - name: Tag
+              run: |
+                  VERSION=$(node -p "require('./lerna.json').version")
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                  git tag -a "v${VERSION}" -m "v${VERSION}"
+                  git push origin "v${VERSION}"
 
-      - name: Create GitHub release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "v$(node -p "require('./lerna.json').version")" --generate-notes
+            - name: Create GitHub release
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run:
+                  gh release create "v$(node -p
+                  "require('./lerna.json').version")" --generate-notes
 
-      - name: Publish to npm
-        run: npx lerna publish from-package --yes
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}
+            - name: Publish to npm
+              run: npx lerna publish from-package --yes
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_PUBLISH_TOKEN }}

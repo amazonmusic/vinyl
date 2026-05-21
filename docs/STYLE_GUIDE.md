@@ -97,7 +97,8 @@ should be prefixed with an underscore.
 Booleans should not be prefixed with `is`. Example: Prefer `active` over
 ~~`isActive`~~.
 
-Acronyms should use camel case. Example: Prefer `HlsParser` over ~~`HLSParser`~~.
+Acronyms should use camel case. Example: Prefer `HlsParser` over
+~~`HLSParser`~~.
 
 ### type or interface?
 
@@ -225,7 +226,10 @@ paths (`@/`):
 #### ✅ Correct
 
 ```typescript
-import { createResourceTypeFilter, type MediaQualityFilter } from '@amazon/vinyl'
+import {
+    createResourceTypeFilter,
+    type MediaQualityFilter,
+} from '@amazon/vinyl'
 ```
 
 #### ❌ Incorrect

@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-di",
-    "version": "0.0.0",
+    "version": "1.0.0",
     "description": "Simple dependency injection",
     "repository": "https://github.com/amazonmusic/vinyl",
     "license": "UNLICENSED",
@@ -66,11 +66,11 @@
         "watch:release": "tsx buildSrc/build.ts --watch --release"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^0.0.0",
-        "@amazon/vinyl-jasmine-wrapper": "^0.0.0"
+        "@amazon/vinyl-build-utils": "^1.0.0",
+        "@amazon/vinyl-jasmine-wrapper": "^1.0.0"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^0.0.0"
+        "@amazon/vinyl-util": "^1.0.0"
     },
     "browserslist": [
         "defaults, chrome 52, firefox 54, edge 15, safari 8"
