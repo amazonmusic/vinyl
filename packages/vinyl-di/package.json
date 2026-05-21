@@ -2,7 +2,7 @@
     "name": "@amazon/vinyl-di",
     "version": "0.0.0",
     "description": "Simple dependency injection",
-    "repository": "https://code.amazon.com/packages/Vinyl",
+    "repository": "https://github.com/amazonmusic/vinyl",
     "license": "UNLICENSED",
     "module": "./dist/index.js",
     "main": "./dist/index.cjs",

@@ -2,7 +2,7 @@
     "name": "@amazon/vinyl-mpd-parser",
     "version": "0.0.0",
     "description": "A fast dash manifest parser for browser and Node.",
-    "repository": "https://code.amazon.com/packages/Vinyl",
+    "repository": "https://github.com/amazonmusic/vinyl",
     "license": "UNLICENSED",
     "module": "./dist/index.js",
     "main": "./dist/index.cjs",
