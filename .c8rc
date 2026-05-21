@@ -1,8 +1,6 @@
 {
     "extends": "./.c8rc.base.json",
-    "include": [
-        "packages/**/src/**"
-    ],
+    "include": ["packages/**/src/**"],
     "exclude": [
         "packages/vinyl-build-utils/**",
         "packages/vinyl-jasmine-wrapper/**",
