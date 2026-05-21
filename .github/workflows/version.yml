@@ -1,0 +1,54 @@
+name: Version
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: version
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PUSH_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .tool-versions
+          cache: npm
+
+      - run: npm ci
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Generate version and changelogs
+        run: npx lerna version --conventional-commits --yes --no-git-tag-version --no-push
+
+      - name: Format
+        run: npx prettier . --write
+
+      - name: Commit and open PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN }}
+        run: |
+          VERSION=$(node -p "require('./lerna.json').version")
+          BRANCH="release/v${VERSION}"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "chore(release): ${VERSION}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "chore(release): ${VERSION}" \
+            --body "Automated release PR. Merging will tag v${VERSION} and publish to npm."
