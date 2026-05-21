@@ -9,7 +9,7 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://code.amazon.com/packages/Vinyl"
+        "url": "https://github.com/amazonmusic/vinyl"
     },
     "scripts": {
         "analyzeExports": "lerna run build:release && lerna run analyzeExports --stream",

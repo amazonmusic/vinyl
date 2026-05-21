@@ -4,7 +4,7 @@
     "description": "Build utilities and configuration for TypeScript libraries.",
     "repository": {
         "type": "git",
-        "url": "https://code.amazon.com/packages/Vinyl"
+        "url": "https://github.com/amazonmusic/vinyl"
     },
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
