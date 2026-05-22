@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-jasmine-wrapper",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A wrapper for jasmine core to allow an html runner to boot on legacy browsers",
     "repository": "https://github.com/amazonmusic/vinyl",
     "license": "UNLICENSED",

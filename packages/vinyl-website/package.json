@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-website",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "Documentation, demos and tutorials for the Amazon Vinyl player",
     "repository": "https://github.com/amazonmusic/vinyl",
     "license": "UNLICENSED",
@@ -32,10 +32,10 @@
         "vite": "^8.0.13"
     },
     "dependencies": {
-        "@amazon/vinyl": "^1.0.0",
-        "@amazon/vinyl-observable": "^1.0.0",
-        "@amazon/vinyl-tsx": "^1.0.0",
-        "@amazon/vinyl-util": "^1.0.0"
+        "@amazon/vinyl": "^1.0.1",
+        "@amazon/vinyl-observable": "^1.0.1",
+        "@amazon/vinyl-tsx": "^1.0.1",
+        "@amazon/vinyl-util": "^1.0.1"
     },
     "browserslist": [
         "defaults, chrome 52, firefox 54, edge 15, safari 8"
