@@ -3,6 +3,9 @@ name: BrowserStack
 on:
     workflow_dispatch:
 
+permissions:
+    contents: read
+
 concurrency:
     group: browserstack-${{ github.ref }}
     cancel-in-progress: true

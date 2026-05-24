@@ -26,6 +26,7 @@
         "test": "lerna run test",
         "pretest:coverage": "npm run build:release",
         "test:coverage": "c8 npm run test -ws --if-present",
+        "pretest:browserstack": "lerna run build:release",
         "test:browserstack": "npm run test:browserstack -ws --if-present",
         "release": "lerna run build:release && npm run lint -ws && npm run test:coverage && lerna run analyzeExports --stream",
         "prestart": "npm run build:release",
