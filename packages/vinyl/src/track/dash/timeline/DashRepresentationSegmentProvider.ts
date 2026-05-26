@@ -46,8 +46,7 @@ import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
 import type { DashMediaQualityMetadataResolver } from '@/track/dash/DashMediaQualityMetadataResolver'
 
 export interface DashSegmentProviderDeps
-    extends DashUriResolveDeps,
-        CreateSegmentDataProviderDeps {
+    extends DashUriResolveDeps, CreateSegmentDataProviderDeps {
     /**
      * Produces abstract metadata from a dash representation.
      */

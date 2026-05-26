@@ -90,7 +90,8 @@ export interface BufferingControllerEventMap {
 }
 
 export interface BufferingController
-    extends ReadonlyEventHost<BufferingControllerEventMap>,
+    extends
+        ReadonlyEventHost<BufferingControllerEventMap>,
         Clearable,
         Disposable {
     /**

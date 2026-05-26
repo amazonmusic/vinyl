@@ -9,7 +9,6 @@ import type { SignalOptions } from '@amazon/vinyl-util'
 import { withTimeout } from '@amazon/vinyl-util'
 
 declare global {
-    // eslint-disable-next-line no-var
     var ManagedMediaSource: typeof MediaSource | undefined
 }
 

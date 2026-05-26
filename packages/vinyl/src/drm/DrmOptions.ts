@@ -111,10 +111,10 @@ export interface DrmKeySystemOptions {
  * @returns The transformed init data to pass to the CDM.
  */
 export type InitDataTransformer = (
-    initData: Uint8Array,
+    initData: Uint8Array<ArrayBuffer>,
     initDataType: DrmInitDataType,
     drmInfo: MediaFormatMetadata
-) => Uint8Array
+) => Uint8Array<ArrayBuffer>
 
 export interface DrmMediaKeySystemOptions {
     readonly robustness?: DrmRobustness

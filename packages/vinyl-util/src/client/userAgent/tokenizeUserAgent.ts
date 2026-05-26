@@ -46,7 +46,7 @@ export function tokenizeUserAgent(userAgent: string): TokenizedUserAgent {
     userAgent = userAgent.substring(0, MAX_USER_AGENT_LENGTH)
     const systemParts: UserAgentPart[] = []
     const platformParts: UserAgentPart[] = []
-    let match: RegExpMatchArray | null
+    let match: Array<string | undefined> | null
     while ((match = userAgentRegex.exec(userAgent))) {
         if (match[1]) {
             // System part
@@ -76,10 +76,10 @@ export function tokenizeUserAgent(userAgent: string): TokenizedUserAgent {
             })
         } else {
             // Platform part
-            const name = match[2]
+            const name = match[2]!
             platformParts.push({
                 name,
-                version: parseVersionPart((match[3] as Maybe<string>) ?? ''),
+                version: parseVersionPart(match[3] ?? ''),
                 tokens: tokenizeWords(name),
             })
         }

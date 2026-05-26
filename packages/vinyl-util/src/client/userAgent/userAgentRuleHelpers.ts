@@ -102,7 +102,7 @@ export function uaDeviceRule(
     vendor: string | null,
     type: string | null,
     expr: string,
-    model: Maybe<string> = undefined
+    model?: Maybe<string>
 ): DeviceInfoRule {
     return (t: TokenizedUserAgent): UaDeviceInfo | null => {
         const found = tokenQuery(

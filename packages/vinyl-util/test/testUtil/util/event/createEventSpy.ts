@@ -19,9 +19,7 @@ import Spy = jasmine.Spy
  * Do not use `and` on an EventSpy, the callFake is used to provide the next promise.
  */
 export interface EventSpy<EventMap, K extends keyof EventMap>
-    extends Spy<EventHandler<EventMap[K]>>,
-        Fun,
-        Disposable {
+    extends Spy<EventHandler<EventMap[K]>>, Fun, Disposable {
     /**
      * Returns a promise that resolves when the event has next been dispatched, or rejects
      * if timeout has elapsed.

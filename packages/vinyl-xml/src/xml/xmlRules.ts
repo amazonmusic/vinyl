@@ -85,8 +85,9 @@ export interface NamespacedRuleOptions {
 /**
  * A rule definition for a list of elements.
  */
-export interface ElementsRule<T extends readonly object[] | undefined>
-    extends Required<ElementsRuleOptions> {
+export interface ElementsRule<
+    T extends readonly object[] | undefined,
+> extends Required<ElementsRuleOptions> {
     readonly type: XmlRuleType.ELEMENTS
 
     /**
@@ -122,8 +123,9 @@ export interface ElementsRuleOptions extends NamespacedRuleOptions {
 /**
  * A rule definition for a single element.
  */
-export interface ElementRule<T extends object | undefined>
-    extends Required<ElementRuleOptions> {
+export interface ElementRule<
+    T extends object | undefined,
+> extends Required<ElementRuleOptions> {
     /**
      * Prevents rule from losing nullable type information.
      */

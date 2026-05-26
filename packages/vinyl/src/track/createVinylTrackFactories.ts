@@ -28,7 +28,8 @@ import {
 } from '@/track/hls/HlsTrack'
 
 export interface VinylTrackFactoryDeps
-    extends SourceTrackDeps,
+    extends
+        SourceTrackDeps,
         SourceObjectTrackDeps,
         DashTrackFactoryDeps,
         HlsTrackFactoryDeps {}

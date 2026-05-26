@@ -20,21 +20,21 @@ describe('applyStyles', () => {
     it('applies static style properties', () => {
         const el = dom.createElement('div')
         const spy = spyOn(el.style, 'setProperty')
-        applyStyles(el, { fontSize: '12px' } as any)
+        applyStyles(el, { fontSize: '12px' })
         expect(spy).toHaveBeenCalledWith('font-size', '12px')
     })
 
     it('applies null value as null', () => {
         const el = dom.createElement('div')
         const spy = spyOn(el.style, 'setProperty')
-        applyStyles(el, { fontSize: null } as any)
+        applyStyles(el, { fontSize: null })
         expect(spy).toHaveBeenCalledWith('font-size', null)
     })
 
     it('applies undefined value as null', () => {
         const el = dom.createElement('div')
         const spy = spyOn(el.style, 'setProperty')
-        applyStyles(el, { fontSize: undefined } as any)
+        applyStyles(el, { fontSize: undefined })
         expect(spy).toHaveBeenCalledWith('font-size', null)
     })
 
@@ -44,7 +44,7 @@ describe('applyStyles', () => {
         const spy = spyOn(el.style, 'setProperty')
         const fontSize = data('14px')
 
-        applyStyles(el, { fontSize } as any)
+        applyStyles(el, { fontSize })
         expect(spy).not.toHaveBeenCalled()
 
         dom.simulateConnect(dom.document, el)
@@ -57,7 +57,7 @@ describe('applyStyles', () => {
         const spy = spyOn(el.style, 'setProperty')
         const fontSize = data('14px')
 
-        applyStyles(el, { fontSize } as any)
+        applyStyles(el, { fontSize })
         dom.simulateConnect(dom.document, el)
         spy.calls.reset()
 
@@ -71,7 +71,7 @@ describe('applyStyles', () => {
         const spy = spyOn(el.style, 'setProperty')
         const fontSize = data<string | null>('14px')
 
-        applyStyles(el, { fontSize } as any)
+        applyStyles(el, { fontSize })
         dom.simulateConnect(dom.document, el)
         spy.calls.reset()
 
@@ -85,7 +85,7 @@ describe('applyStyles', () => {
         const spy = spyOn(el.style, 'setProperty')
         const fontSize = data('14px')
 
-        applyStyles(el, { fontSize } as any)
+        applyStyles(el, { fontSize })
         dom.simulateConnect(dom.document, el)
         dom.simulateDisconnect(dom.document, el)
         spy.calls.reset()

@@ -707,9 +707,9 @@ function hasMimeType(
  */
 function defaultInitDataTransformer(
     keySystem: DrmKeySystem,
-    certBytes: Uint8Array | null
+    certBytes: Uint8Array<ArrayBuffer> | null
 ): InitDataTransformer {
-    return (initData: Uint8Array): Uint8Array => {
+    return (initData: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> => {
         if (keySystem === DrmKeySystem.FAIR_PLAY_1_0) {
             if (!certBytes) {
                 throw new DrmError('FairPlay requires certificate data')

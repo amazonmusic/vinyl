@@ -8,7 +8,6 @@ import { globalRef, lazy } from '@amazon/vinyl-util'
 type MaybeAudioContext = typeof AudioContext | undefined
 
 declare global {
-    // eslint-disable-next-line no-var
     var webkitAudioContext: MaybeAudioContext
 }
 

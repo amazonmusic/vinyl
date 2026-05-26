@@ -18,7 +18,7 @@ import { globalRef } from '@/global/globalRegistry'
  * @param rules The user agent rules.
  */
 export function parseUserAgent(
-    userAgent: Maybe<string> = undefined,
+    userAgent?: Maybe<string>,
     rules: UserAgentRules = defaultUserAgentRules
 ): UserAgentInfo {
     if (userAgent === undefined && typeof navigator === 'object')

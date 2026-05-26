@@ -80,9 +80,9 @@ export const trackBaseOptionsValidator: ObjectSchema<TrackBaseOptions> = object(
  * A base class for all tracks.
  */
 export abstract class TrackBase<
-        EventMap extends TrackEventMap = TrackEventMap,
-        LoadOptionsType extends TrackBaseOptions = TrackBaseOptions,
-    >
+    EventMap extends TrackEventMap = TrackEventMap,
+    LoadOptionsType extends TrackBaseOptions = TrackBaseOptions,
+>
     extends EventHostImpl<EventMap>
     implements Track<LoadOptionsType>
 {

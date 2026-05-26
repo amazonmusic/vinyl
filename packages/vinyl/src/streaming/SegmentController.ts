@@ -54,8 +54,7 @@ export interface SegmentControllerEventMap {
  * It is expected to prefetch segments based on the expectation of when the segments will be
  * needed next.
  */
-export interface ReadonlySegmentController
-    extends ReadonlyEventHost<SegmentControllerEventMap> {
+export interface ReadonlySegmentController extends ReadonlyEventHost<SegmentControllerEventMap> {
     readonly error: Error | null
 
     /**
@@ -118,8 +117,7 @@ export interface PrefetchOptions {
  * Handles segment prefetching and caching.
  */
 export interface SegmentController
-    extends ReadonlySegmentController,
-        Disposable {
+    extends ReadonlySegmentController, Disposable {
     /**
      * Configures this segment provider.
      */

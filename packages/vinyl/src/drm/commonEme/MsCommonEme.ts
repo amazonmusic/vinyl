@@ -33,7 +33,7 @@ declare global {
 
     interface MSMediaKeyNeededEvent extends Event {
         readonly initDataType: string
-        readonly initData: Uint8Array | null
+        readonly initData: Uint8Array<ArrayBuffer> | null
     }
 }
 
@@ -80,14 +80,13 @@ export class MsCommonEme implements CommonEme {
         handler: (event: MediaEncryptedEvent) => void
     ): Unsubscribe {
         const event = 'msneedkey'
-        element.addEventListener(event, handler)
-        return () => element.removeEventListener(event, handler)
+        element.addEventListener(event, handler as EventListener)
+        return () =>
+            element.removeEventListener(event, handler as EventListener)
     }
 }
 
-export class MsCommonMediaKeySystemAccess
-    implements CommonMediaKeySystemAccess
-{
+export class MsCommonMediaKeySystemAccess implements CommonMediaKeySystemAccess {
     constructor(readonly keySystem: DrmKeySystem) {}
 
     createMediaKeys(): Promise<CommonMediaKeys> {
@@ -167,7 +166,7 @@ export class MsCommonMediaKeySession
 
     private readonly messageHandler = (event: MSMediaKeyMessageEvent) => {
         this.dispatch('message', {
-            message: event.message.buffer,
+            message: event.message.buffer as ArrayBuffer,
         })
     }
 
@@ -184,7 +183,7 @@ export class MsCommonMediaKeySession
         }
     }
 
-    update(key: ArrayBufferLike): Promise<void> {
+    update(key: ArrayBuffer): Promise<void> {
         if (this.disposed) return Promise.reject(new DisposedError())
         this.session.update(new Uint8Array(key))
         return Promise.resolve()

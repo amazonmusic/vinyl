@@ -12,7 +12,7 @@ import type { Maybe } from '@/util/type'
  * @param buffer
  */
 export function bufferToByteStr(
-    buffer: ArrayLike<number> | ArrayBufferLike
+    buffer: ArrayLike<number> | ArrayBuffer
 ): string {
     return String.fromCharCode.apply(
         null,
@@ -26,7 +26,7 @@ export function bufferToByteStr(
  * @param byteStr The 8 bit-width string to convert to a byte array.
  * @return Returns a byte array representing the byte string.
  */
-export function byteStrToByteArray(byteStr: string): Uint8Array {
+export function byteStrToByteArray(byteStr: string): Uint8Array<ArrayBuffer> {
     // This does the same thing as {@link TextEncoder.encode}, but TextEncoder is not available on
     // Edge Legacy, which we require for PlayReady testing.
     const n = byteStr.length
@@ -44,7 +44,7 @@ export function byteStrToByteArray(byteStr: string): Uint8Array {
  * @return Returns a Base64 encoded string representing the provided binary data.
  */
 export function bufferToBase64(
-    buffer: ArrayLike<number> | ArrayBufferLike
+    buffer: ArrayLike<number> | ArrayBuffer
 ): string {
     return global.btoa(bufferToByteStr(buffer))
 }
@@ -55,7 +55,7 @@ export function bufferToBase64(
  *
  * @param base64 A Base64 encoded string.
  */
-export function base64ToByteArray(base64: string): Uint8Array {
+export function base64ToByteArray(base64: string): Uint8Array<ArrayBuffer> {
     return byteStrToByteArray(global.atob(base64))
 }
 
@@ -67,9 +67,7 @@ export function base64ToByteArray(base64: string): Uint8Array {
  * @param buffer An iterable of double-byte code points.
  * @return Returns a UTF-16 string.
  */
-export function bufferToUtf16(
-    buffer: ArrayLike<number> | ArrayBufferLike
-): string {
+export function bufferToUtf16(buffer: ArrayLike<number> | ArrayBuffer): string {
     return String.fromCharCode.apply(
         null,
         new Uint16Array(buffer) as unknown as number[]
@@ -82,7 +80,7 @@ export function bufferToUtf16(
  * @see https://developer.chrome.com/blog/how-to-convert-arraybuffer-to-and-from-string
  * @param str A UTF-16 string.
  */
-export function utf16ToUint16Array(str: string): Uint16Array {
+export function utf16ToUint16Array(str: string): Uint16Array<ArrayBuffer> {
     const n = str.length
     const uint16Array = new Uint16Array(n)
     for (let i = 0; i < n; i++) {
@@ -96,8 +94,8 @@ export function utf16ToUint16Array(str: string): Uint16Array {
  * @param buffer
  */
 export function bufferToByteArray(
-    buffer: Uint8Array | ArrayLike<number> | ArrayBufferLike
-): Uint8Array {
+    buffer: Uint8Array<ArrayBuffer> | ArrayLike<number> | ArrayBuffer
+): Uint8Array<ArrayBuffer> {
     return buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
 }
 
@@ -105,8 +103,8 @@ export function bufferToByteArray(
  * Returns true if the two buffers are equal.
  */
 export function buffersEqual(
-    bufferA: Maybe<Uint8Array | ArrayLike<number> | ArrayBufferLike>,
-    bufferB: Maybe<Uint8Array | ArrayLike<number> | ArrayBufferLike>
+    bufferA: Maybe<Uint8Array | ArrayLike<number> | ArrayBuffer>,
+    bufferB: Maybe<Uint8Array | ArrayLike<number> | ArrayBuffer>
 ): boolean {
     if (bufferA === bufferB) return true
     if (!bufferA && !bufferB) return true

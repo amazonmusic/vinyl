@@ -56,5 +56,4 @@ export interface MediaSegmentReference<T> extends MediaSegmentMetadata {
  * A reference, with metadata, to streaming and initialization data.
  */
 export interface SegmentReference<T>
-    extends InitSegmentReference<T>,
-        MediaSegmentReference<T> {}
+    extends InitSegmentReference<T>, MediaSegmentReference<T> {}

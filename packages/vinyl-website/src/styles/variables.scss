@@ -1,8 +1,10 @@
 :root {
-    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto,
-        Helvetica, Arial, sans-serif;
-    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Segoe UI Mono',
-        Menlo, monospace;
+    --font-sans:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica,
+        Arial, sans-serif;
+    --font-mono:
+        ui-monospace, 'SF Mono', 'Cascadia Code', 'Segoe UI Mono', Menlo,
+        monospace;
 
     // Spacing
     --space-xs: 4px;
@@ -70,7 +72,8 @@
     --color-nav-text: #536471;
 
     --color-focus-ring: #2563eb;
-    --focus-ring: 0 0 0 1px var(--color-bg), 0 0 0 2.5px var(--color-focus-ring);
+    --focus-ring:
+        0 0 0 1px var(--color-bg), 0 0 0 2.5px var(--color-focus-ring);
 }
 
 // Dark mode
@@ -114,5 +117,6 @@
     --color-nav-text: #8b949e;
 
     --color-focus-ring: #58a6ff;
-    --focus-ring: 0 0 0 1px var(--color-bg), 0 0 0 2.5px var(--color-focus-ring);
+    --focus-ring:
+        0 0 0 1px var(--color-bg), 0 0 0 2.5px var(--color-focus-ring);
 }

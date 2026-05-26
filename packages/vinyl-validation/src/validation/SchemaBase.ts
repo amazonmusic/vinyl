@@ -26,9 +26,10 @@ const requiredValidationOptions = {
  *
  * Subclasses should not override constructors.
  */
-export abstract class SchemaBase<T>
-    implements PropertyValidator<T, { readonly optional: false }>
-{
+export abstract class SchemaBase<T> implements PropertyValidator<
+    T,
+    { readonly optional: false }
+> {
     __type = invariant<T>()
 
     private readonly validator: Validator<T>

@@ -27,8 +27,7 @@ import {
 import { hlsByteRangeToMediaRange } from '@/track/hls/util/hlsByteRangeToMediaRange'
 import { createTransmuxer } from '@amazon/vinyl-transmux'
 
-export interface BuildHlsMediaTimelineDeps
-    extends CreateSegmentDataProviderDeps {
+export interface BuildHlsMediaTimelineDeps extends CreateSegmentDataProviderDeps {
     readonly mediaQualityMetadataResolver: HlsMediaQualityMetadataResolver
 }
 

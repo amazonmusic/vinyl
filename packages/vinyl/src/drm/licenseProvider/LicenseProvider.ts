@@ -21,7 +21,7 @@ export type LicenseProvider = (
     serverOptions: LicenseServerOptions,
     challenge: ArrayBuffer,
     abort?: ReadonlyAbort
-) => Promise<ArrayBufferLike>
+) => Promise<ArrayBuffer>
 
 /**
  * Basic license server configuration.
@@ -54,7 +54,7 @@ export interface LicenseServerOptions {
  * The contents are Key System-specific.
  * If a `string` is provided, the value will be considered to be Base 64.
  */
-export type ServerCertificate = ArrayBufferLike | string
+export type ServerCertificate = ArrayBuffer | string
 
 export const licenseServerOptionsValidator: ObjectSchema<LicenseServerOptions> =
     object({

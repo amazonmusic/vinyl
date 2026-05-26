@@ -95,11 +95,14 @@ function buildInitSegment(state: TrackState, moovBox: Uint8Array): void {
 /** Returns the cached init segment as an ArrayBuffer. */
 function getInitSegment(state: TrackState): ArrayBuffer {
     const init = state.initSegment!
-    return init.buffer.slice(init.byteOffset, init.byteOffset + init.byteLength)
+    return init.buffer.slice(
+        init.byteOffset,
+        init.byteOffset + init.byteLength
+    ) as ArrayBuffer
 }
 
 function transmux(state: TrackState, data: ArrayBuffer): TransmuxResult {
-    let segment = new Uint8Array(data)
+    let segment: Uint8Array = new Uint8Array(data)
 
     // Skip ID3 tags that may precede the audio/video data.
     // ID3 tags are common in HLS for carrying timestamps.
@@ -486,7 +489,7 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
         mediaSegment: mediaSegment.buffer.slice(
             mediaSegment.byteOffset,
             mediaSegment.byteOffset + mediaSegment.byteLength
-        ),
+        ) as ArrayBuffer,
         duration,
     }
 }

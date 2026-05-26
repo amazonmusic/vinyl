@@ -121,8 +121,7 @@ export interface CommonMediaKeySessionEventMap {
 /**
  * This provides a common interface for MediaKeySession EME implementations.
  */
-export interface CommonMediaKeySession
-    extends ReadonlyEventHost<CommonMediaKeySessionEventMap> {
+export interface CommonMediaKeySession extends ReadonlyEventHost<CommonMediaKeySessionEventMap> {
     readonly mimeType: string
     readonly initDataType: DrmInitDataType
     readonly initData: EncryptedInitData
@@ -131,7 +130,7 @@ export interface CommonMediaKeySession
      * Updates the session with the license data.
      * @param key
      */
-    update(key: ArrayBufferLike): Promise<void>
+    update(key: ArrayBuffer): Promise<void>
 
     /**
      * Returns true if the session has been disposed.

@@ -48,7 +48,7 @@ declare global {
 
         close(): void
 
-        update(key: Uint8Array): void
+        update(key: Uint8Array<ArrayBuffer>): void
 
         addEventListener<K extends keyof WebKitMediaKeySessionEventMap>(
             type: K,

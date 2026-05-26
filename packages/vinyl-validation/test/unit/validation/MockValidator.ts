@@ -6,9 +6,10 @@
 import type { Validator } from '@amazon/vinyl-validation'
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
 
-export class MockValidator<Output extends Input = any, Input = any>
-    implements Validator<Output, Input>
-{
+export class MockValidator<
+    Output extends Input = any,
+    Input = any,
+> implements Validator<Output, Input> {
     private readonly spyFactory = createSpyFactory<Validator<Output, Input>>()
 
     description = ''

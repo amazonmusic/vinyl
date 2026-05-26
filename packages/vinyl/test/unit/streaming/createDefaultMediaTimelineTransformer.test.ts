@@ -206,7 +206,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
             minBufferTime: 2,
         }
         const options = data({
-            preferredAudioLanguage: 'en' as string | null,
+            preferredAudioLanguage: 'en',
         })
         const deps: DefaultMediaTimelineTransformerDeps = {
             capabilities,

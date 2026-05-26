@@ -201,6 +201,7 @@ export class ArraySchema<T extends readonly unknown[]> extends ValueSchema<T> {
      * This is a shallow cast, elements of the array will not be changed.
      */
     readonly(): ArraySchema<Readonly<T>> {
+        // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
         return this as any
     }
 
