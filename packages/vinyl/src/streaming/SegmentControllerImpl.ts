@@ -429,7 +429,7 @@ export class SegmentControllerImpl
     private async _getSegment(
         time: number
     ): Promise<SegmentReference<ArrayBuffer> | null> {
-        const streamingSlot = await this.getSlotAtTime(time + 0.2)
+        const streamingSlot = await this.getSlotAtTime(time)
         if (!streamingSlot) return null
         logDebug(
             this,
