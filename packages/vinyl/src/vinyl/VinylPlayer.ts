@@ -73,7 +73,9 @@ import type { VinylOptions } from '@/vinyl/VinylOptions'
  */
 export interface VinylPlayerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions = VinylTrackLoadOptions,
-> extends PlaybackControllerEventMap,
+>
+    extends
+        PlaybackControllerEventMap,
         TrackControllerEventMap<TrackLoadOptionsType>,
         StreamingEventMap {}
 
@@ -84,9 +86,9 @@ export interface VinylPlayerEventMap<
  * a new player implementation.
  */
 export class VinylPlayer<
-        TrackLoadOptionsType extends TrackLoadOptions = VinylTrackLoadOptions,
-        OptionsType = VinylOptions,
-    >
+    TrackLoadOptionsType extends TrackLoadOptions = VinylTrackLoadOptions,
+    OptionsType = VinylOptions,
+>
     extends EventHostImpl<VinylPlayerEventMap<TrackLoadOptionsType>>
     implements
         PlaybackController,

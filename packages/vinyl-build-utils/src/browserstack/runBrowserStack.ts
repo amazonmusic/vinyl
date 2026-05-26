@@ -26,8 +26,7 @@ import { getRootProjectDir } from '../util/getRootProjectDir'
 import path from 'node:path'
 import crypto from 'node:crypto'
 
-export interface BrowserStackOptions
-    extends BrowserStackWorkerControllerOptions {
+export interface BrowserStackOptions extends BrowserStackWorkerControllerOptions {
     /**
      * BrowserStack local connection options.
      */

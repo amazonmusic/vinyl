@@ -19,8 +19,7 @@ export interface NetworkMetricsEventMap {
     readonly metricsChange: AnyRecord
 }
 
-export interface ReadonlyNetworkMetricsController
-    extends ReadonlyEventHost<NetworkMetricsEventMap> {
+export interface ReadonlyNetworkMetricsController extends ReadonlyEventHost<NetworkMetricsEventMap> {
     /**
      * The current metrics state.
      * The returned object is static at the time of request.
@@ -39,8 +38,7 @@ export interface ReadonlyNetworkMetricsController
     getServiceMetrics(serviceId: Maybe<string>): ServiceMetrics
 }
 
-export interface NetworkMetricsController
-    extends ReadonlyNetworkMetricsController {
+export interface NetworkMetricsController extends ReadonlyNetworkMetricsController {
     /**
      * Adds information about a completed settled request.
      * Note: This does not update estimated bandwidth.

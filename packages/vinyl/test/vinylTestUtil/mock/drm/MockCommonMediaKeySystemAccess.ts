@@ -9,9 +9,7 @@ import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
 
 const spyFactory = createSpyFactory<CommonMediaKeySystemAccess>()
 
-export class MockCommonMediaKeySystemAccess
-    implements CommonMediaKeySystemAccess
-{
+export class MockCommonMediaKeySystemAccess implements CommonMediaKeySystemAccess {
     constructor(public keySystem: DrmKeySystem) {}
 
     createMediaKeys = spyFactory('createMediaKeys')

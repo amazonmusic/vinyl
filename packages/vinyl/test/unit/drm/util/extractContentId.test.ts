@@ -8,7 +8,7 @@ import { extractContentId } from '@amazon/vinyl'
 import { utf16ToUint16Array, ValidationError } from '@amazon/vinyl-util'
 
 describe('extractContentId', () => {
-    function createContentIdByteArray(str: string): Uint8Array {
+    function createContentIdByteArray(str: string): Uint8Array<ArrayBuffer> {
         const uint16Array = utf16ToUint16Array(str)
         return new Uint8Array(uint16Array.buffer)
     }

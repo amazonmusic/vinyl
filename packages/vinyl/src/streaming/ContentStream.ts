@@ -27,8 +27,7 @@ import { createContainer, type Factories } from '@amazon/vinyl-di'
 export type ContentStreamFactory = (contentType: ContentType) => ContentStream
 
 export interface ContentStream
-    extends ReadonlyEventHost<StreamingEventMap>,
-        Disposable {
+    extends ReadonlyEventHost<StreamingEventMap>, Disposable {
     /**
      * The content type for this stream.
      * E.g. 'audio' or 'video'

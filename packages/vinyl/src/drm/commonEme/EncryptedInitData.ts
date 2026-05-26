@@ -10,4 +10,4 @@
  * - webkitneedkey: ArrayBuffer
  * - encrypted: ArrayBuffer
  */
-export type EncryptedInitData = ArrayBuffer | Uint8Array
+export type EncryptedInitData = ArrayBuffer | Uint8Array<ArrayBuffer>

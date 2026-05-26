@@ -385,8 +385,7 @@ export enum PlaybackNetworkState {
     NETWORK_NO_SOURCE = 3,
 }
 
-export interface ReadonlyPlaybackController
-    extends ReadonlyEventHost<PlaybackControllerEventMap> {
+export interface ReadonlyPlaybackController extends ReadonlyEventHost<PlaybackControllerEventMap> {
     /**
      * Returns a new static normalized ReadonlyRanges object that represents the ranges of the
      * media resource, if any, that the user agent has buffered at the moment the buffered

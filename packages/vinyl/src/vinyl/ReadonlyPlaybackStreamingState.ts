@@ -23,8 +23,7 @@ import type { TrackEventMap, ReadonlyStreamingState } from '@/track/Track'
  */
 
 export interface ReadonlyPlaybackStreamingState
-    extends ReadonlyEventHost<TrackEventMap>,
-        ReadonlyStreamingState {
+    extends ReadonlyEventHost<TrackEventMap>, ReadonlyStreamingState {
     /**
      * Returns the time of the prefetch end.
      * If no data has been prefetched for the current track, 0 will be returned.

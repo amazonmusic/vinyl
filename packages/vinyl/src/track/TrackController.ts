@@ -104,8 +104,9 @@ export interface ReadonlyTrackController<
  * Responsible for queuing track load configurations.
  * This is the authority for which is the current track.
  */
-export interface TrackController<TrackLoadOptionsType extends TrackLoadOptions>
-    extends ReadonlyTrackController<TrackLoadOptionsType> {
+export interface TrackController<
+    TrackLoadOptionsType extends TrackLoadOptions,
+> extends ReadonlyTrackController<TrackLoadOptionsType> {
     /**
      * Preloads the given list of tracks.
      * The tracks provided will not be enqueued.

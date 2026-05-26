@@ -36,7 +36,7 @@ declare global {
 
     interface WebKitMediaKeyNeededEvent extends Event {
         readonly initDataType: string
-        readonly initData: Uint8Array | null
+        readonly initData: Uint8Array<ArrayBuffer> | null
     }
 }
 
@@ -84,9 +84,7 @@ export class WebKitCommonEme implements CommonEme {
     }
 }
 
-export class WebKitCommonMediaKeySystemAccess
-    implements CommonMediaKeySystemAccess
-{
+export class WebKitCommonMediaKeySystemAccess implements CommonMediaKeySystemAccess {
     constructor(public readonly keySystem: DrmKeySystem) {}
 
     createMediaKeys(): Promise<CommonMediaKeys> {
@@ -164,7 +162,7 @@ export class WebKitCommonMediaKeySession
 
     private readonly messageHandler = (event: WebKitMediaKeyMessageEvent) => {
         this.dispatch('message', {
-            message: event.message.buffer,
+            message: event.message.buffer as ArrayBuffer,
         })
     }
 
@@ -181,7 +179,7 @@ export class WebKitCommonMediaKeySession
         }
     }
 
-    update(key: ArrayBufferLike): Promise<void> {
+    update(key: ArrayBuffer): Promise<void> {
         if (this.disposed) return Promise.reject(new DisposedError())
         this.session.update(new Uint8Array(key))
         return Promise.resolve()

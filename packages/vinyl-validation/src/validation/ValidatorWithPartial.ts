@@ -6,8 +6,10 @@
 import type { PartialDeep } from '@amazon/vinyl-util'
 import type { Validator } from './Validator'
 
-export interface ValidatorWithPartial<Output extends Input, Input>
-    extends Validator<Output, Input> {
+export interface ValidatorWithPartial<
+    Output extends Input,
+    Input,
+> extends Validator<Output, Input> {
     partial(): ValidatorWithPartial<Partial<Output> & Input, Input>
     partialDeep(): ValidatorWithPartial<PartialDeep<Output> & Input, Input>
 }

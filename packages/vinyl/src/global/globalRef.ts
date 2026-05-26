@@ -18,7 +18,6 @@ declare global {
     /**
      * A reference to Vinyl's global state, easily accessible via console.
      */
-    // eslint-disable-next-line no-var
     var vinylGlobal: any
 }
 

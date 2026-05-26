@@ -16,9 +16,8 @@ export class VinylEngine extends PlaybackEngine {
     }
 
     protected async initialize(): Promise<void> {
-        const { createVinylPlayer, CapabilitiesImpl } = await import(
-            '@amazon/vinyl'
-        )
+        const { createVinylPlayer, CapabilitiesImpl } =
+            await import('@amazon/vinyl')
         const { max, compareBy } = await import('@amazon/vinyl-util')
 
         // Disable sample-rate filtering for apples-to-apples ABR comparisons:

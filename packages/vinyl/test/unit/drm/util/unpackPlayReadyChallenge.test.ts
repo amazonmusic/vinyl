@@ -52,7 +52,11 @@ describe('unpackPlayReadyChallenge', () => {
          </HttpHeaders>
        </LicenseAcquisition>
      </PlayReadyKeyMessage>`
-            expect(unpackPlayReadyChallenge(utf16ToUint16Array(xml))).toEqual({
+            expect(
+                unpackPlayReadyChallenge(
+                    utf16ToUint16Array(xml) as unknown as ArrayBuffer
+                )
+            ).toEqual({
                 headers: {
                     'Content-Type': 'text/xml; charset=utf-8',
                     SOAPAction: 'http://schemas.microsoft.com/DRM/etc/etc',

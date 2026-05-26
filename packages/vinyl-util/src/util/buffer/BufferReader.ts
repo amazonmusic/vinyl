@@ -9,7 +9,7 @@ import { BufferError } from '@/util/buffer/BufferError'
 export class BufferReader {
     position: number = 0
 
-    private dataView: DataView
+    private dataView: DataView<ArrayBuffer>
 
     constructor(buffer: ArrayBuffer) {
         this.dataView = new DataView(buffer)

@@ -16,8 +16,9 @@ import { covariant } from '@/util/type'
  */
 export type DomEventMap<T> = ExtractValues<Pick<T, keyof T & string>, Event>
 
-export interface DomReadonlyEventHost<EventMap>
-    extends ReadonlyEventHost<DomEventMap<EventMap>> {
+export interface DomReadonlyEventHost<EventMap> extends ReadonlyEventHost<
+    DomEventMap<EventMap>
+> {
     /**
      * Adds an event handler for the given typed event.
      *
@@ -39,8 +40,7 @@ export interface DomReadonlyEventHost<EventMap>
  * Note: signal not supported, use abort utilities.
  */
 export interface DomEventListenerOptions
-    extends SignalOptions,
-        Omit<AddEventListenerOptions, 'signal'> {}
+    extends SignalOptions, Omit<AddEventListenerOptions, 'signal'> {}
 
 /**
  * Wraps a js `EventTarget` with a {@link ReadonlyEventHost} interface.

@@ -914,8 +914,8 @@ describe('DrmControllerImpl', () => {
 
             const message1 = new ArrayBuffer(1)
             const message2 = new ArrayBuffer(2)
-            const licenseResponsePromise1 = new Deferred<Uint8Array>()
-            const licenseResponsePromise2 = new Deferred<Uint8Array>()
+            const licenseResponsePromise1 = new Deferred<ArrayBuffer>()
+            const licenseResponsePromise2 = new Deferred<ArrayBuffer>()
             licenseProvider.and.returnValues(
                 licenseResponsePromise1,
                 licenseResponsePromise2
@@ -940,16 +940,16 @@ describe('DrmControllerImpl', () => {
 
             const licenseResponse1 = new Uint8Array(1)
             const licenseResponse2 = new Uint8Array(2)
-            licenseResponsePromise1.resolve(licenseResponse1)
-            licenseResponsePromise2.resolve(licenseResponse2)
+            licenseResponsePromise1.resolve(licenseResponse1.buffer)
+            licenseResponsePromise2.resolve(licenseResponse2.buffer)
 
             await flushPromises()
 
             expect(getSession(0).update).toHaveBeenCalledOnceWith(
-                licenseResponse1
+                licenseResponse1.buffer
             )
             expect(getSession(1).update).toHaveBeenCalledOnceWith(
-                licenseResponse2
+                licenseResponse2.buffer
             )
         })
 
@@ -975,14 +975,14 @@ describe('DrmControllerImpl', () => {
             it('does not update the closed session', async () => {
                 drmController.setBufferingDrmInfo(drmInfo)
                 await emitEncrypted(new Uint8Array(0), 'cenc')
-                const licenseResponsePromise = new Deferred<Uint8Array>()
+                const licenseResponsePromise = new Deferred<ArrayBuffer>()
                 licenseProvider.and.returnValue(licenseResponsePromise)
 
                 const session = getSession(0)
                 await emitMessage()
 
                 session.disposed = true
-                licenseResponsePromise.resolve(new Uint8Array(1))
+                licenseResponsePromise.resolve(new Uint8Array(1).buffer)
                 await licenseResponsePromise
                 expect(session.update).not.toHaveBeenCalled()
             })
@@ -1173,7 +1173,7 @@ describe('DrmControllerImpl', () => {
                         keySystems: {
                             [DrmKeySystem.FAIR_PLAY_1_0]: {
                                 licenseServer: {
-                                    serverCertificate: certBuffer,
+                                    serverCertificate: certBuffer.buffer,
                                 },
                                 initDataTransformer: transform,
                             },
@@ -1457,7 +1457,7 @@ describe('DrmControllerImpl', () => {
                 media.error = null
 
                 // Make license provider succeed on retry
-                licenseProvider.and.resolveTo(new Uint8Array([1, 2, 3]))
+                licenseProvider.and.resolveTo(new Uint8Array([1, 2, 3]).buffer)
                 licenseProvider.calls.reset()
 
                 // Reset should retry license request

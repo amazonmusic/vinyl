@@ -50,9 +50,7 @@ export class StandardCommonEme implements CommonEme {
 /**
  * CommonMediaKeySystemAccess for unprefixed EME implementations.
  */
-export class StandardCommonMediaKeySystemAccess
-    implements CommonMediaKeySystemAccess
-{
+export class StandardCommonMediaKeySystemAccess implements CommonMediaKeySystemAccess {
     constructor(
         public readonly keySystem: DrmKeySystem,
         private readonly access: MediaKeySystemAccess
@@ -161,7 +159,7 @@ export class StandardCommonMediaKeySession
 
     update(key: ArrayBufferLike): Promise<void> {
         if (this.disposed) throw new DisposedError()
-        return this.session.update(key)
+        return this.session.update(key as ArrayBuffer)
     }
 
     get disposed(): boolean {

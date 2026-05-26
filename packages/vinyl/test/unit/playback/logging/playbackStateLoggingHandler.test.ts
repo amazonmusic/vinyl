@@ -38,21 +38,21 @@ describe('playbackStateLoggingHandler', () => {
 
         it('records all playback events', () => {
             const logger = loggerRef.value
-            playback.dispatch('play', {} as any)
+            playback.dispatch('play', {})
             expect(logger.debug).toHaveBeenCalledWith(
                 any(Object),
                 'play',
                 any(Object)
             )
             logger.debug.calls.reset()
-            playback.dispatch('loadedMetadata', {} as any)
+            playback.dispatch('loadedMetadata', {})
             expect(logger.debug).toHaveBeenCalledWith(
                 any(Object),
                 'loadedMetadata',
                 any(Object)
             )
             logger.debug.calls.reset()
-            playback.dispatch('abort', {} as any)
+            playback.dispatch('abort', {})
             expect(logger.debug).toHaveBeenCalledWith(
                 any(Object),
                 'abort',

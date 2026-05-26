@@ -8,8 +8,7 @@ import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
 
 export class MockTrackFactory<
     TrackLoadOptionsType extends TrackLoadOptions = TrackLoadOptions,
-> implements TrackFactory<TrackLoadOptionsType>
-{
+> implements TrackFactory<TrackLoadOptionsType> {
     private readonly spyFactory =
         createSpyFactory<TrackFactory<TrackLoadOptionsType>>()
 

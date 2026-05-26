@@ -72,8 +72,7 @@ export interface ReadonlyEventHost<out EventMap> {
  * the execution of another handler.
  */
 export interface EventHost<EventMap>
-    extends ReadonlyEventHost<EventMap>,
-        EventDispatcher<EventMap> {}
+    extends ReadonlyEventHost<EventMap>, EventDispatcher<EventMap> {}
 
 export class EventHostImpl<EventMap>
     implements EventHost<EventMap>, Disposable

@@ -17,8 +17,7 @@ export interface LoudnessNormalizationControllerEventMap {
  * based on track loudness metadata.
  */
 export interface LoudnessNormalizationController
-    extends EventHost<LoudnessNormalizationControllerEventMap>,
-        Clearable {
+    extends EventHost<LoudnessNormalizationControllerEventMap>, Clearable {
     /**
      * Loudness gain adjustment value.
      */

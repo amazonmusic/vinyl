@@ -59,7 +59,7 @@ describe('createTransmuxer', () => {
         it('produces an init segment on first call', () => {
             const transmuxer = createTransmuxer()
             const segment = concatFrames(adtsFrame(100), adtsFrame(100))
-            const result = transmuxer.transmux(segment.buffer as ArrayBuffer)
+            const result = transmuxer.transmux(segment.buffer)
 
             expect(result.initSegment).not.toBeNull()
             const init = new Uint8Array(result.initSegment)
@@ -72,7 +72,7 @@ describe('createTransmuxer', () => {
         it('produces a media segment with moof + mdat', () => {
             const transmuxer = createTransmuxer()
             const segment = concatFrames(adtsFrame(100), adtsFrame(100))
-            const result = transmuxer.transmux(segment.buffer as ArrayBuffer)
+            const result = transmuxer.transmux(segment.buffer)
 
             const media = new Uint8Array(result.mediaSegment)
             expect(readBoxType(media, 0)).toBe('moof')
@@ -84,10 +84,10 @@ describe('createTransmuxer', () => {
             const transmuxer = createTransmuxer()
             const segment = concatFrames(adtsFrame(100))
 
-            const first = transmuxer.transmux(segment.buffer as ArrayBuffer)
+            const first = transmuxer.transmux(segment.buffer)
             expect(first.initSegment).not.toBeNull()
 
-            const second = transmuxer.transmux(segment.buffer as ArrayBuffer)
+            const second = transmuxer.transmux(segment.buffer)
             expect(new Uint8Array(second.initSegment)).toEqual(
                 new Uint8Array(first.initSegment)
             )
@@ -98,7 +98,7 @@ describe('createTransmuxer', () => {
             // 10 frames at 44100 Hz, 1024 samples/frame
             const frames = Array.from({ length: 10 }, () => adtsFrame(100))
             const segment = concatFrames(...frames)
-            const result = transmuxer.transmux(segment.buffer as ArrayBuffer)
+            const result = transmuxer.transmux(segment.buffer)
 
             const expectedDuration = (10 * 1024) / 44100
             expect(result.duration).toBeCloseTo(expectedDuration, 3)
@@ -108,8 +108,8 @@ describe('createTransmuxer', () => {
             const transmuxer = createTransmuxer()
             const segment = concatFrames(adtsFrame(100))
 
-            const r1 = transmuxer.transmux(segment.buffer as ArrayBuffer)
-            const r2 = transmuxer.transmux(segment.buffer as ArrayBuffer)
+            const r1 = transmuxer.transmux(segment.buffer)
+            const r2 = transmuxer.transmux(segment.buffer)
 
             // Both should produce valid media segments
             expect(new Uint8Array(r1.mediaSegment).length).toBeGreaterThan(0)
@@ -139,12 +139,11 @@ describe('createTransmuxer', () => {
 
     describe('MPEG-TS transmuxing', () => {
         it('produces init and media segments from synthetic TS', async () => {
-            const { buildMinimalTsSegment } = await import(
-                '../testUtil/buildTsSegment'
-            )
+            const { buildMinimalTsSegment } =
+                await import('../testUtil/buildTsSegment')
             const transmuxer = createTransmuxer()
             const tsData = buildMinimalTsSegment()
-            const result = transmuxer.transmux(tsData.buffer as ArrayBuffer)
+            const result = transmuxer.transmux(tsData.buffer)
 
             expect(result.initSegment).not.toBeNull()
             const init = new Uint8Array(result.initSegment)
@@ -156,16 +155,15 @@ describe('createTransmuxer', () => {
         })
 
         it('returns cached initSegment on subsequent TS segments', async () => {
-            const { buildMinimalTsSegment } = await import(
-                '../testUtil/buildTsSegment'
-            )
+            const { buildMinimalTsSegment } =
+                await import('../testUtil/buildTsSegment')
             const transmuxer = createTransmuxer()
             const tsData = buildMinimalTsSegment()
 
-            const first = transmuxer.transmux(tsData.buffer as ArrayBuffer)
+            const first = transmuxer.transmux(tsData.buffer)
             expect(first.initSegment).not.toBeNull()
 
-            const second = transmuxer.transmux(tsData.buffer as ArrayBuffer)
+            const second = transmuxer.transmux(tsData.buffer)
             expect(new Uint8Array(second.initSegment)).toEqual(
                 new Uint8Array(first.initSegment)
             )
@@ -174,9 +172,8 @@ describe('createTransmuxer', () => {
 
     describe('real MPEG-TS transmuxing (bipbop H.264+AAC)', () => {
         it('produces ftyp+moov init segment with video and audio tracks', async () => {
-            const { decodeBipbopTsSegment } = await import(
-                '../testUtil/bipbopTsFixture'
-            )
+            const { decodeBipbopTsSegment } =
+                await import('../testUtil/bipbopTsFixture')
             const transmuxer = createTransmuxer()
             const tsData = decodeBipbopTsSegment()
             const result = transmuxer.transmux(
@@ -194,9 +191,8 @@ describe('createTransmuxer', () => {
         })
 
         it('produces moof+mdat media segment', async () => {
-            const { decodeBipbopTsSegment } = await import(
-                '../testUtil/bipbopTsFixture'
-            )
+            const { decodeBipbopTsSegment } =
+                await import('../testUtil/bipbopTsFixture')
             const transmuxer = createTransmuxer()
             const tsData = decodeBipbopTsSegment()
             const result = transmuxer.transmux(
@@ -213,9 +209,8 @@ describe('createTransmuxer', () => {
         })
 
         it('reports positive duration', async () => {
-            const { decodeBipbopTsSegment } = await import(
-                '../testUtil/bipbopTsFixture'
-            )
+            const { decodeBipbopTsSegment } =
+                await import('../testUtil/bipbopTsFixture')
             const transmuxer = createTransmuxer()
             const tsData = decodeBipbopTsSegment()
             const result = transmuxer.transmux(
@@ -228,9 +223,8 @@ describe('createTransmuxer', () => {
         })
 
         it('returns cached initSegment on second call', async () => {
-            const { decodeBipbopTsSegment } = await import(
-                '../testUtil/bipbopTsFixture'
-            )
+            const { decodeBipbopTsSegment } =
+                await import('../testUtil/bipbopTsFixture')
             const transmuxer = createTransmuxer()
             const tsData = decodeBipbopTsSegment()
             const buf = tsData.buffer.slice(
@@ -250,9 +244,8 @@ describe('createTransmuxer', () => {
 
     describe('H.264 High profile transmuxing', () => {
         it('parses High profile SPS and produces init segment', async () => {
-            const { buildHighProfileTsSegment } = await import(
-                '../testUtil/highProfileTsFixture'
-            )
+            const { buildHighProfileTsSegment } =
+                await import('../testUtil/highProfileTsFixture')
             const transmuxer = createTransmuxer()
             const tsData = buildHighProfileTsSegment()
             const result = transmuxer.transmux(
@@ -269,9 +262,8 @@ describe('createTransmuxer', () => {
 
     describe('video-only TS transmuxing', () => {
         it('produces videoMoov when no audio stream present', async () => {
-            const { buildHighProfileTsSegment } = await import(
-                '../testUtil/highProfileTsFixture'
-            )
+            const { buildHighProfileTsSegment } =
+                await import('../testUtil/highProfileTsFixture')
             const transmuxer = createTransmuxer()
             const tsData = buildHighProfileTsSegment()
             const result = transmuxer.transmux(
@@ -288,9 +280,8 @@ describe('createTransmuxer', () => {
 
     describe('known-length PES transmuxing', () => {
         it('handles PES packets with non-zero packet length', async () => {
-            const { buildKnownLengthPesTsSegment } = await import(
-                '../testUtil/knownLengthPesFixture'
-            )
+            const { buildKnownLengthPesTsSegment } =
+                await import('../testUtil/knownLengthPesFixture')
             const transmuxer = createTransmuxer()
             const tsData = buildKnownLengthPesTsSegment()
             const result = transmuxer.transmux(
@@ -306,9 +297,8 @@ describe('createTransmuxer', () => {
 
     describe('multi-PES unbounded transmuxing', () => {
         it('handles two unbounded PES packets in the same stream', async () => {
-            const { buildMultiPesTsSegment } = await import(
-                '../testUtil/knownLengthPesFixture'
-            )
+            const { buildMultiPesTsSegment } =
+                await import('../testUtil/knownLengthPesFixture')
             const transmuxer = createTransmuxer()
             const tsData = buildMultiPesTsSegment()
             const result = transmuxer.transmux(
@@ -325,9 +315,8 @@ describe('createTransmuxer', () => {
 
     describe('SPS parser branches', () => {
         it('parses High profile SPS with scaling matrix and chroma=3', async () => {
-            const { buildScalingMatrixTsSegment } = await import(
-                '../testUtil/spsVariantFixtures'
-            )
+            const { buildScalingMatrixTsSegment } =
+                await import('../testUtil/spsVariantFixtures')
             const transmuxer = createTransmuxer()
             const tsData = buildScalingMatrixTsSegment()
             const result = transmuxer.transmux(
@@ -340,9 +329,8 @@ describe('createTransmuxer', () => {
         })
 
         it('parses High profile SPS with scaling matrix and chroma=1', async () => {
-            const { buildScalingMatrixChroma1TsSegment } = await import(
-                '../testUtil/spsVariantFixtures'
-            )
+            const { buildScalingMatrixChroma1TsSegment } =
+                await import('../testUtil/spsVariantFixtures')
             const transmuxer = createTransmuxer()
             const tsData = buildScalingMatrixChroma1TsSegment()
             const result = transmuxer.transmux(
@@ -355,9 +343,8 @@ describe('createTransmuxer', () => {
         })
 
         it('parses SPS with pic_order_cnt_type=1', async () => {
-            const { buildPocType1TsSegment } = await import(
-                '../testUtil/spsVariantFixtures'
-            )
+            const { buildPocType1TsSegment } =
+                await import('../testUtil/spsVariantFixtures')
             const transmuxer = createTransmuxer()
             const tsData = buildPocType1TsSegment()
             const result = transmuxer.transmux(

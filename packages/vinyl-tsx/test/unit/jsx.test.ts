@@ -118,9 +118,9 @@ describe('jsx', () => {
             const factory = (
                 _props: Record<string, unknown>,
                 _children: unknown[]
-            ): HTMLElement => result as unknown as HTMLElement
+            ): HTMLElement => result
 
-            expect(jsx(factory, {})).toBe(result as unknown as HTMLElement)
+            expect(jsx(factory, {})).toBe(result)
         })
     })
 

@@ -56,7 +56,7 @@ const defaultFrequencyAnalyzerOptions = {
 } as const satisfies FrequencyAnalyzerOptions
 
 export class FrequencyAnalyzer implements LogTarget {
-    private readonly data: Float32Array
+    private readonly data: Float32Array<ArrayBuffer>
     private readonly analyser: AnalyserNode
 
     private readonly options: FrequencyAnalyzerOptions

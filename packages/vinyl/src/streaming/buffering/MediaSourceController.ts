@@ -58,8 +58,7 @@ export interface MediaSourceControllerEventMap {
     readonly error: BasicErrorEvent
 }
 
-export interface ReadonlyMediaSourceController
-    extends ReadonlyEventHost<MediaSourceControllerEventMap> {
+export interface ReadonlyMediaSourceController extends ReadonlyEventHost<MediaSourceControllerEventMap> {
     /**
      * Returns the parent media source ready state.
      */

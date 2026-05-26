@@ -56,8 +56,7 @@ export interface KeySessionEvent {
 /**
  * DrmController manages media keys and sessions, provides tracks a way to declare their content protections.
  */
-export interface DrmController
-    extends ReadonlyEventHost<DrmControllerEventMap> {
+export interface DrmController extends ReadonlyEventHost<DrmControllerEventMap> {
     /**
      * The last error emitted.
      * Use `reset` to reset error state.

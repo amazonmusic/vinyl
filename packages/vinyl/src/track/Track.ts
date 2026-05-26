@@ -57,8 +57,7 @@ export interface TrackPreloadOptions {
  * - `bufferingQualityChange`
  * - `playbackQualityChange`
  */
-export interface ReadonlyStreamingState
-    extends ReadonlyEventHost<StreamingEventMap> {
+export interface ReadonlyStreamingState extends ReadonlyEventHost<StreamingEventMap> {
     /**
      * The time ranges the track has fetched.
      * This will be a snapshot of the fetched ranges at the time this property is accessed.
@@ -163,9 +162,7 @@ export interface ReadonlyTrack extends ReadonlyStreamingState, LogTarget {
  * One track is active on the track controller at a time.
  */
 export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
-    extends ReadonlyTrack,
-        StreamingState,
-        Disposable {
+    extends ReadonlyTrack, StreamingState, Disposable {
     /**
      * Provides configuration to the track and begins preloading (if applicable).
      *

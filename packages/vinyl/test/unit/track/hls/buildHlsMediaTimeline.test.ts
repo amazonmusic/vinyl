@@ -21,7 +21,7 @@ describe('buildHlsMediaTimeline', () => {
             bandwidth,
             uri,
             codecs: 'mp4a.40.2',
-        } as VariantStream
+        }
     }
 
     function createMediaPlaylist(durations: number[]): MediaPlaylist {
@@ -209,7 +209,7 @@ describe('buildHlsMediaTimeline', () => {
         const manifestData = createManifestData([variant], playlist)
 
         // Build a minimal ADTS frame for the transmuxer
-        function adtsFrame(payloadSize: number): Uint8Array {
+        function adtsFrame(payloadSize: number): Uint8Array<ArrayBuffer> {
             const frameLength = 7 + payloadSize
             const frame = new Uint8Array(frameLength)
             frame[0] = 0xff

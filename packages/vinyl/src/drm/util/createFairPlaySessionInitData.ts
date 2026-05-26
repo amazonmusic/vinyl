@@ -18,7 +18,7 @@ export function createFairPlaySessionInitData(
     initData: Uint8Array,
     contentId: string,
     certificateData: Uint8Array
-): Uint8Array {
+): Uint8Array<ArrayBuffer> {
     const contentIdUint16 = utf16ToUint16Array(contentId)
     const certificateDataUint8 = certificateData
 

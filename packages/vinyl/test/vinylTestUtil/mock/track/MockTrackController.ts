@@ -15,8 +15,8 @@ import { MockEventHost } from '@amazon/vinyl-util/testUtil'
 const spyFactory = createSpyFactory<TrackController<any>>()
 
 export class MockTrackController<
-        TrackLoadOptionsType extends TrackLoadOptions = TrackLoadOptions,
-    >
+    TrackLoadOptionsType extends TrackLoadOptions = TrackLoadOptions,
+>
     extends MockEventHost<TrackControllerEventMap<TrackLoadOptionsType>>
     implements TrackController<TrackLoadOptionsType>
 {

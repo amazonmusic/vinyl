@@ -38,8 +38,7 @@ export interface AutoResetControllerEventMap {
  * setError() should be called again to schedule the next retry attempt.
  */
 export interface AutoResetController
-    extends ReadonlyEventHost<AutoResetControllerEventMap>,
-        Clearable {
+    extends ReadonlyEventHost<AutoResetControllerEventMap>, Clearable {
     /**
      * Sets the current playback error and begins monitoring for retry opportunities.
      *
