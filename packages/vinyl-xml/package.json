@@ -2,7 +2,10 @@
     "name": "@amazon/vinyl-xml",
     "version": "1.0.0",
     "description": "A SAX XML parser",
-    "repository": "https://github.com/amazonmusic/vinyl",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/amazonmusic/vinyl.git"
+    },
     "license": "UNLICENSED",
     "module": "./dist/index.js",
     "main": "./dist/index.cjs",

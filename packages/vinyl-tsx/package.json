@@ -2,7 +2,10 @@
     "name": "@amazon/vinyl-tsx",
     "version": "1.0.0",
     "description": "TSX declarative markup for creating UI",
-    "repository": "https://github.com/amazonmusic/vinyl",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/amazonmusic/vinyl.git"
+    },
     "license": "UNLICENSED",
     "module": "./dist/index.js",
     "main": "./dist/index.cjs",

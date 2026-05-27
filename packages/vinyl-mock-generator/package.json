@@ -2,7 +2,10 @@
     "name": "@amazon/vinyl-mock-generator",
     "version": "1.0.0",
     "description": "Generates mock classes from interfaces",
-    "repository": "https://github.com/amazonmusic/vinyl",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/amazonmusic/vinyl.git"
+    },
     "license": "UNLICENSED",
     "main": "./dist/index.cjs",
     "types": "dist/index.d.ts",

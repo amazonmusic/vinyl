@@ -2,7 +2,10 @@
     "name": "@amazon/vinyl-transmux",
     "version": "1.0.0",
     "description": "MPEG-TS to fMP4 transmuxer for browser and Node.",
-    "repository": "https://github.com/amazonmusic/vinyl",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/amazonmusic/vinyl.git"
+    },
     "license": "UNLICENSED",
     "module": "./dist/index.js",
     "main": "./dist/index.cjs",
