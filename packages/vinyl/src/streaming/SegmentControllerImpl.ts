@@ -6,7 +6,6 @@
 import type { Mutable, Unsubscribe } from '@amazon/vinyl-util'
 import {
     Abort,
-    AbortError,
     clone,
     closeTo,
     createDisposer,
@@ -343,10 +342,13 @@ export class SegmentControllerImpl
                             this.ended = true
                             return
                         }
-                        await Promise.all([
-                            slot.initData.request(),
-                            slot.data.request(),
-                        ])
+                        await withAbort(
+                            Promise.all([
+                                slot.initData.request(),
+                                slot.data.request(),
+                            ]),
+                            this.abort
+                        )
                     },
                     this.contentType,
                     this.prefetchingPriority
@@ -586,7 +588,7 @@ export class SegmentControllerImpl
             time,
             SEGMENT_START_AFFORDANCE
         )
-        if (this.disposed) throw new AbortError()
+        this.abort.throwIfAborted()
         this.streamingQuality = segment?.quality ?? null
         if (!segment) return null
 
