@@ -2,7 +2,10 @@
     "name": "@amazon/vinyl",
     "version": "1.0.0",
     "description": "An HTML5 streaming media player",
-    "repository": "https://github.com/amazonmusic/vinyl",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/amazonmusic/vinyl.git"
+    },
     "license": "UNLICENSED",
     "module": "./dist/index.js",
     "main": "./dist/index.cjs",

@@ -2,7 +2,11 @@
     "name": "@amazon/vinyl-website",
     "version": "1.0.0",
     "description": "Documentation, demos and tutorials for the Amazon Vinyl player",
-    "repository": "https://github.com/amazonmusic/vinyl",
+    "private": true,
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/amazonmusic/vinyl.git"
+    },
     "license": "UNLICENSED",
     "type": "module",
     "scripts": {
