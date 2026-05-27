@@ -36,7 +36,7 @@
         "validate": "npm run lint"
     },
     "author": "",
-    "license": "ISC",
+    "license": "Apache-2.0",
     "devDependencies": {
         "@nbilyk/downlevel-dts": "^0.15.2",
         "@types/babel__core": "^7.20.5",
