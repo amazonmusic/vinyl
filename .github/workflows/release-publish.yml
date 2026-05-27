@@ -18,16 +18,16 @@ jobs:
         permissions:
             contents: write
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
               with:
                   fetch-depth: 0
                   ref: main
                   token: ${{ secrets.RELEASE_PUSH_TOKEN }}
 
-            - uses: actions/setup-node@v4
+            - uses: actions/setup-node@v6
               with:
                   node-version-file: .tool-versions
-                  cache: npm
+                  package-manager-cache: false
                   registry-url: https://registry.npmjs.org
 
             - run: npm ci
