@@ -10,6 +10,7 @@ import {
     GlobalRefImpl,
     GlobalRegistry,
     IllegalStateError,
+    setGlobalRefDebug,
 } from '@amazon/vinyl-util'
 import createSpy = jasmine.createSpy
 import objectContaining = jasmine.objectContaining
@@ -202,6 +203,68 @@ describe('getGlobalRegistry', () => {
                     expect(() => ref.initialize()).toThrowError(
                         IllegalStateError
                     )
+                })
+            })
+        })
+
+        describe('setGlobalRefDebug', () => {
+            afterEach(() => {
+                setGlobalRefDebug(false)
+            })
+
+            describe('when disabled (default)', () => {
+                it('throws without a stack detail when set is called after initialize', () => {
+                    const ref = new GlobalRefImpl(() => 1)
+                    ref.initialize()
+                    expect(() => ref.set(() => 2)).toThrowError(
+                        IllegalStateError,
+                        'Cannot call when initialized'
+                    )
+                })
+            })
+
+            describe('when enabled', () => {
+                it('includes the initialization stack in the error message', () => {
+                    setGlobalRefDebug(true)
+                    const ref = new GlobalRefImpl(() => 1)
+                    ref.initialize()
+                    expect(() => ref.set(() => 2)).toThrowError(
+                        IllegalStateError,
+                        /Cannot call when initialized\nLast initialized at:\n[\s\S]*globalRef initialized/
+                    )
+                })
+
+                it('clears the recorded stack on reset so re-init does not leak the prior stack', () => {
+                    setGlobalRefDebug(true)
+                    const ref = new GlobalRefImpl(() => 1)
+                    ref.initialize()
+                    ref.reset()
+                    setGlobalRefDebug(false)
+                    ref.initialize()
+                    expect(() => ref.set(() => 2)).toThrowError(
+                        IllegalStateError,
+                        // No "Last initialized at:" detail because debug was off at the second initialize.
+                        /^Cannot call when initialized$/
+                    )
+                })
+
+                it('refreshes the recorded stack on each initialize', () => {
+                    setGlobalRefDebug(true)
+                    const ref = new GlobalRefImpl(() => 1)
+                    const firstInit = () => ref.initialize()
+                    firstInit()
+                    ref.reset()
+                    const secondInit = () => ref.initialize()
+                    secondInit()
+                    let captured: Error | undefined
+                    try {
+                        ref.set(() => 2)
+                    } catch (e) {
+                        captured = e as Error
+                    }
+                    expect(captured).toBeDefined()
+                    expect(captured!.message).toContain('secondInit')
+                    expect(captured!.message).not.toContain('firstInit')
                 })
             })
         })

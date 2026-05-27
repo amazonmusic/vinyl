@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getGlobalRegistry } from '@amazon/vinyl-util'
+import { getGlobalRegistry, setGlobalRefDebug } from '@amazon/vinyl-util'
 import {
     addCustomMatchers,
     ConsoleReporter,
@@ -13,6 +13,9 @@ import { RestApiReporter } from '@amazon/vinyl-util/testUtil'
 import { initializeFrequencyAnalyzer } from '@amazon/vinyl/vinylTestUtil'
 
 addCustomMatchers()
+
+// Diagnostic: GlobalRefImpl records the stack
+setGlobalRefDebug(true)
 
 // Configured here instead of the jasmine.config.json to work with both ts-node and the html
 // test runner.

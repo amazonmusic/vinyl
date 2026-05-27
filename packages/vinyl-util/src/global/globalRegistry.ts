@@ -6,6 +6,7 @@
 import { isDisposable } from '@/core/disposable'
 import { IllegalStateError } from '@/error/IllegalStateError'
 import { remove } from '@/util/collection/array'
+import type { Maybe } from '@/util/type'
 
 /**
  * Manages global initializers.
@@ -95,11 +96,25 @@ export interface GlobalRef<T> {
     initialize(): void
 }
 
+/**
+ * When set, GlobalRefImpl records a stack trace each time it is initialized,
+ * so a later "Cannot call when initialized" error can include the stack of
+ * whoever last touched the ref. Used to diagnose async leakage between specs.
+ *
+ * Tests opt in via setGlobalRefDebug(true).
+ */
+let globalRefDebug = false
+
+export function setGlobalRefDebug(enabled: boolean): void {
+    globalRefDebug = enabled
+}
+
 export class GlobalRefImpl<T> implements GlobalRef<T> {
     private _value: T | undefined
     private _initialized = false
     private constructing = false
     private initializer: () => T
+    private lastInitStack: Maybe<string> = null
 
     constructor(private readonly defaultInitializer: () => T) {
         this.initializer = defaultInitializer
@@ -119,6 +134,7 @@ export class GlobalRefImpl<T> implements GlobalRef<T> {
         if (!this._initialized) return
         this.assertNotConstructing()
         this._initialized = false
+        this.lastInitStack = null
         if (isDisposable(this._value)) {
             this._value.dispose()
         }
@@ -137,6 +153,9 @@ export class GlobalRefImpl<T> implements GlobalRef<T> {
         }
         this.constructing = false
         this._initialized = true
+        if (globalRefDebug) {
+            this.lastInitStack = new Error('globalRef initialized').stack
+        }
     }
 
     set(newInitializer: (previousInitializer: () => T) => T): GlobalRef<T> {
@@ -155,8 +174,12 @@ export class GlobalRefImpl<T> implements GlobalRef<T> {
     }
 
     private assertNotInitialized() {
-        if (this._initialized)
-            throw new IllegalStateError('Cannot call when initialized')
+        if (this._initialized) {
+            const detail = this.lastInitStack
+                ? `\nLast initialized at:\n${this.lastInitStack}`
+                : ''
+            throw new IllegalStateError(`Cannot call when initialized${detail}`)
+        }
     }
 
     private assertNotConstructing() {
