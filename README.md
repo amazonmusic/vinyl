@@ -1,10 +1,27 @@
 # Amazon Vinyl
 
+[![CI](https://github.com/amazonmusic/vinyl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/amazonmusic/vinyl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/amazonmusic/vinyl/branch/main/graph/badge.svg)](https://codecov.io/gh/amazonmusic/vinyl)
 
 Amazon Vinyl is an HTML5 playback engine for Dash and HLS streaming. It features
 high stability, performance, bundle size, compatibility, and standards
 compliance.
+
+## Packages
+
+| Package                                                       | Version                                                                                                                           | Minified + gzipped                                                                                                                          |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [@amazon/vinyl](./packages/vinyl)                             | [![npm](https://img.shields.io/npm/v/@amazon/vinyl.svg)](https://www.npmjs.com/package/@amazon/vinyl)                             | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl)                             |
+| [@amazon/vinyl-cache-manager](./packages/vinyl-cache-manager) | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-cache-manager.svg)](https://www.npmjs.com/package/@amazon/vinyl-cache-manager) | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-cache-manager.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-cache-manager) |
+| [@amazon/vinyl-di](./packages/vinyl-di)                       | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-di.svg)](https://www.npmjs.com/package/@amazon/vinyl-di)                       | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-di.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-di)                       |
+| [@amazon/vinyl-hls-parser](./packages/vinyl-hls-parser)       | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-hls-parser.svg)](https://www.npmjs.com/package/@amazon/vinyl-hls-parser)       | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-hls-parser.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-hls-parser)       |
+| [@amazon/vinyl-mpd-parser](./packages/vinyl-mpd-parser)       | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-mpd-parser.svg)](https://www.npmjs.com/package/@amazon/vinyl-mpd-parser)       | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-mpd-parser.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-mpd-parser)       |
+| [@amazon/vinyl-observable](./packages/vinyl-observable)       | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-observable.svg)](https://www.npmjs.com/package/@amazon/vinyl-observable)       | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-observable.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-observable)       |
+| [@amazon/vinyl-transmux](./packages/vinyl-transmux)           | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-transmux.svg)](https://www.npmjs.com/package/@amazon/vinyl-transmux)           | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-transmux.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-transmux)           |
+| [@amazon/vinyl-tsx](./packages/vinyl-tsx)                     | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-tsx.svg)](https://www.npmjs.com/package/@amazon/vinyl-tsx)                     | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-tsx.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-tsx)                     |
+| [@amazon/vinyl-util](./packages/vinyl-util)                   | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-util.svg)](https://www.npmjs.com/package/@amazon/vinyl-util)                   | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-util.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-util)                   |
+| [@amazon/vinyl-validation](./packages/vinyl-validation)       | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-validation.svg)](https://www.npmjs.com/package/@amazon/vinyl-validation)       | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-validation.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-validation)       |
+| [@amazon/vinyl-xml](./packages/vinyl-xml)                     | [![npm](https://img.shields.io/npm/v/@amazon/vinyl-xml.svg)](https://www.npmjs.com/package/@amazon/vinyl-xml)                     | [![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-xml.svg?label=)](https://bundlejs.com/?q=@amazon/vinyl-xml)                     |
 
 ## Performance
 
