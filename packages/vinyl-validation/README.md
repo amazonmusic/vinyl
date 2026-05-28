@@ -1,30 +1,34 @@
-# Validation
+# @amazon/vinyl-validation
+
+[![Website](https://img.shields.io/badge/website-amazonmusic.github.io%2Fvinyl-blue)](https://amazonmusic.github.io/vinyl)
+[![npm](https://img.shields.io/npm/v/@amazon/vinyl-validation.svg)](https://www.npmjs.com/package/@amazon/vinyl-validation)
+[![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-validation.svg?label=size)](https://bundlejs.com/?q=@amazon/vinyl-validation)
 
 A TypeScript-first validation library for runtime type checking and schema
-validation.
+validation. Composable validators for primitives, objects, arrays, sets,
+records, tuples, functions, and unions, with strong inference of the result
+type.
 
-## Installation
+## Install
 
-```bash
+```shell
 npm install @amazon/vinyl-validation
 ```
 
 ## Basic Usage
 
 ```typescript
-import { string, number, object, array } from '@amazon/vinyl-validation'
+import { string, number } from '@amazon/vinyl-validation'
 
-// Create validators
 const nameValidator = string().notEmpty()
 const ageValidator = number().gte(0)
 
-// Validate values
-console.log(nameValidator.isValid('John')) // true
-console.log(ageValidator.isValid(-5)) // false
+nameValidator.isValid('John') // true
+ageValidator.isValid(-5) // false
 
 // Get validation errors
 const errors = nameValidator.validate('')
-console.log(errors) // [{ message: 'Expected: not empty, but was: "". At: ', path: [] }]
+// [{ message: 'Expected: not empty, but was: "". At: ', path: [] }]
 ```
 
 ## Core Validators
@@ -60,10 +64,8 @@ const nullishValidator = nullish() // null or undefined
 ```typescript
 import { isOneOf, instanceOf } from '@amazon/vinyl-validation'
 
-// Literal values
 const statusValidator = isOneOf('active', 'inactive', 'pending')
 
-// Instance checking
 const dateValidator = instanceOf(Date)
 const errorValidator = instanceOf(Error)
 ```
@@ -74,13 +76,12 @@ const errorValidator = instanceOf(Error)
 import { string } from '@amazon/vinyl-validation'
 
 const validator = string()
-    .notEmpty() // not empty string
-    .minLength(3) // at least 3 characters
-    .maxLength(50) // at most 50 characters
-    .noWhitespace() // no whitespace characters
-    .matches(/^[a-z]+$/) // matches regex pattern
+    .notEmpty()
+    .minLength(3)
+    .maxLength(50)
+    .noWhitespace()
+    .matches(/^[a-z]+$/)
 
-// Usage
 validator.isValid('hello') // true
 validator.isValid('') // false (empty)
 validator.isValid('ab') // false (too short)
@@ -91,16 +92,8 @@ validator.isValid('ab') // false (too short)
 ```typescript
 import { number } from '@amazon/vinyl-validation'
 
-const validator = number()
-    .gte(0) // greater than or equal to 0
-    .gt(0) // greater than 0
-    .lte(100) // less than or equal to 100
-    .lt(100) // less than 100
-    .within(1, 99) // between 1 and 99 (inclusive)
-    .safeInteger() // safe integer
-    .finite() // finite number
+const validator = number().gte(0).lte(100).within(1, 99).safeInteger().finite()
 
-// Usage
 validator.isValid(50) // true
 validator.isValid(-1) // false (less than 0)
 validator.isValid(Infinity) // false (not finite)
@@ -109,7 +102,13 @@ validator.isValid(Infinity) // false (not finite)
 ## Object Validation
 
 ```typescript
-import { object, string, number } from '@amazon/vinyl-validation'
+import {
+    object,
+    string,
+    number,
+    isOneOf,
+    array,
+} from '@amazon/vinyl-validation'
 
 const userValidator = object({
     name: string().notEmpty(),
@@ -117,9 +116,8 @@ const userValidator = object({
     email: string().matches(/^[^\s@]+@[^\s@]+\.[^\s@]+$/),
 })
 
-// Usage
 const user = { name: 'John', age: 30, email: 'john@example.com' }
-console.log(userValidator.isValid(user)) // true
+userValidator.isValid(user) // true
 
 // Extend existing schemas
 const adminValidator = userValidator.extend({
@@ -131,22 +129,19 @@ const adminValidator = userValidator.extend({
 ## Array Validation
 
 ```typescript
-import { array, string, number, tuple } from '@amazon/vinyl-validation'
+import { array, string, number, tuple, boolean } from '@amazon/vinyl-validation'
 
-// Array of strings
 const stringArrayValidator = array(string())
 
-// Array of numbers with constraints
 const numberArrayValidator = array(number().gte(0))
-    .minLength(1) // at least 1 element
-    .maxLength(10) // at most 10 elements
-    .notEmpty() // not empty array
+    .minLength(1)
+    .maxLength(10)
+    .notEmpty()
 
-// Tuple validation (fixed-length array with specific types)
+// Tuples (fixed-length, positional)
 const coordinateValidator = tuple(number(), number()) // [x, y]
 const personValidator = tuple(string(), number(), boolean()) // [name, age, active]
 
-// Usage
 stringArrayValidator.isValid(['a', 'b', 'c']) // true
 coordinateValidator.isValid([10, 20]) // true
 coordinateValidator.isValid([10, 20, 30]) // false (wrong length)
@@ -157,16 +152,13 @@ coordinateValidator.isValid([10, 20, 30]) // false (wrong length)
 ```typescript
 import { record, recordValues, string, number } from '@amazon/vinyl-validation'
 
-// Record with string keys and number values
 const scoresValidator = recordValues(number().gte(0))
 
-// Record with specific key and value types
 const configValidator = record(
-    string().matches(/^[A-Z_]+$/), // keys must be uppercase with underscores
-    string().notEmpty() // values must be non-empty strings
+    string().matches(/^[A-Z_]+$/),
+    string().notEmpty()
 )
 
-// Usage
 scoresValidator.isValid({ alice: 95, bob: 87 }) // true
 configValidator.isValid({ API_KEY: 'secret', DB_URL: 'localhost' }) // true
 ```
@@ -178,7 +170,6 @@ import { set, string } from '@amazon/vinyl-validation'
 
 const tagValidator = set(string().notEmpty())
 
-// Usage
 tagValidator.isValid(new Set(['tag1', 'tag2'])) // true
 tagValidator.isValid(new Set(['tag1', ''])) // false (empty string)
 ```
@@ -188,12 +179,8 @@ tagValidator.isValid(new Set(['tag1', ''])) // false (empty string)
 ```typescript
 import { func } from '@amazon/vinyl-validation'
 
-const functionValidator = func()
-    .withArity(2) // exactly 2 parameters
-    .withMinArity(1) // at least 1 parameter
-    .withMaxArity(3) // at most 3 parameters
+const functionValidator = func().withArity(2).withMinArity(1).withMaxArity(3)
 
-// Usage
 functionValidator.isValid((a, b) => a + b) // true
 functionValidator.isValid(() => 'hello') // false (wrong arity)
 ```
@@ -201,18 +188,12 @@ functionValidator.isValid(() => 'hello') // false (wrong arity)
 ## Optional and Nullable Values
 
 ```typescript
-import { string, number } from '@amazon/vinyl-validation'
+import { string } from '@amazon/vinyl-validation'
 
-// Optional (allows undefined)
-const optionalName = string().optional()
+const optionalName = string().optional() // allows undefined
+const nullableName = string().nullable() // allows null
+const maybeName = string().maybe() // allows null or undefined
 
-// Nullable (allows null)
-const nullableName = string().nullable()
-
-// Maybe (allows null or undefined)
-const maybeName = string().maybe()
-
-// Usage
 optionalName.isValid(undefined) // true
 nullableName.isValid(null) // true
 maybeName.isValid(null) // true
@@ -224,9 +205,9 @@ maybeName.isValid(undefined) // true
 ### OR Logic
 
 ```typescript
-import { or, string, number } from '@amazon/vinyl-validation'
+import { orValidators, string, number } from '@amazon/vinyl-validation'
 
-const stringOrNumber = or(string(), number())
+const stringOrNumber = orValidators(string(), number())
 
 stringOrNumber.isValid('hello') // true
 stringOrNumber.isValid(42) // true
@@ -236,9 +217,9 @@ stringOrNumber.isValid(true) // false
 ### AND Logic
 
 ```typescript
-import { and, string } from '@amazon/vinyl-validation'
+import { andValidators, string } from '@amazon/vinyl-validation'
 
-const shortUppercaseString = and(
+const shortUppercaseString = andValidators(
     string().maxLength(10),
     string().matches(/^[A-Z]+$/)
 )
@@ -258,14 +239,6 @@ const evenNumberValidator = custom<number>(
     (input): input is number => typeof input === 'number' && input % 2 === 0
 )
 
-// With custom stringify function
-const positiveValidator = custom<number>(
-    'positive number',
-    (input): input is number => typeof input === 'number' && input > 0,
-    (input) => `number: ${input}`
-)
-
-// Usage
 evenNumberValidator.isValid(4) // true
 evenNumberValidator.isValid(3) // false
 ```
@@ -282,12 +255,6 @@ const validator = object({
 
 // Collect all errors (default: stop at first error)
 const errors = validator.validate({ name: '', email: 'invalid' }, { all: true })
-
-console.log(errors)
-// [
-//   { message: 'Expected: not empty, but was: "". At: name', path: ['name'] },
-//   { message: 'Expected: matches /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/, but was: "invalid". At: email', path: ['email'] }
-// ]
 ```
 
 ## Error Handling
@@ -302,43 +269,35 @@ try {
     validator.assert('') // throws ValidationError if invalid
 } catch (error) {
     if (error instanceof ValidationError) {
-        console.log(error.message) // validation error details
+        console.log(error.message)
     }
-}
-
-// Or use validate() for non-throwing validation
-const errors = validator.validate('')
-if (errors.length > 0) {
-    console.log('Validation failed:', errors)
 }
 ```
 
 ## TypeScript Integration
 
-The idiomatic usage is to start with an interface and create a schema for it:
-
 ```typescript
 import { object, string, number, array } from '@amazon/vinyl-validation'
 
-// Define your interface first
 interface User {
     name: string
     age?: number
     tags: string[]
 }
 
-// Create a validator that matches the interface
 const userValidator = object<User>({
     name: string(),
     age: number().optional(),
     tags: array(string()),
 })
 
-// Type-safe validation
 function processUser(data: unknown) {
     if (userValidator.isValid(data)) {
-        // data is now typed as User
-        console.log(data.name) // TypeScript knows this is a string
+        console.log(data.name) // typed as string
     }
 }
 ```
+
+## License
+
+Apache-2.0

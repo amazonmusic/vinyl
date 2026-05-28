@@ -1,49 +1,51 @@
-## Shared Build Utilities
+# @amazon/vinyl-build-utils
 
-Reusable build utility for Amazon Vinyl and Amazon Vinyl-related TypeScript
+[![Website](https://img.shields.io/badge/website-amazonmusic.github.io%2Fvinyl-blue)](https://amazonmusic.github.io/vinyl)
+[![npm](https://img.shields.io/npm/v/@amazon/vinyl-build-utils.svg)](https://www.npmjs.com/package/@amazon/vinyl-build-utils)
+
+Reusable build utilities used to build Amazon Vinyl and related TypeScript
 libraries.
 
-## Packages
+## Modules
 
-### util
+### `util`
 
 General utilities for build scripts and configuration.
 
-### vinyl
+### `vinyl`
 
 Amazon Vinyl defaults for the provided tools.
 
-### typescript
+### `typescript`
 
 Utilities for compiling and running TypeScript code.
 
 ## Build Tools
 
-### ESBuild (https://esbuild.github.io/)
+### [ESBuild](https://esbuild.github.io/)
 
-ESBuild provides an exceptionally fast typescript build system that provides
-simple hooks where we can add our custom plugins. This allows us to run babel
-transpilation, replace path aliases, and emit type declarations after file
-changes were detected.
+ESBuild provides an exceptionally fast TypeScript build with simple plugin
+hooks. We use it to run Babel transpilation, replace path aliases, and emit type
+declarations after file changes are detected.
 
-### Babel (https://babeljs.io/)
+### [Babel](https://babeljs.io/)
 
-Babel is a transpiler for js or ts that produces highly-compatible applications
-or libraries.
-
-The compatibility targets are defined in the package.json "browserslist"
-property. Use https://browsersl.ist/ to generate the expression for
-compatibility targets.
+Babel is a transpiler for JS or TS that produces highly compatible applications
+or libraries. Compatibility targets are defined in the package.json
+`browserslist` property — use [browsersl.ist](https://browsersl.ist/) to
+generate the expression.
 
 ### BrowserStack
 
-We use the BrowserStack service to run integration and unit tests on real
-browsers and devices. It allows us to set a compatibility matrix which we can
-assert that all functionality for our playback engine works as expected for
-every supported platform.
-
-[BrowserStack Readme](./src/browserstack/README.md)
+We use BrowserStack to run integration and unit tests on real browsers and
+devices. See the [BrowserStack runner](./src/browserstack/README.md) for the
+runner contract and a usage example.
 
 ### Express
 
-Express is an HTTP server which supports SSL, proxies, and REST apis.
+Express is the HTTP server used for the local test server (SSL, proxies, REST
+APIs).
+
+## License
+
+Apache-2.0
