@@ -23,21 +23,33 @@
         ">=5.4": {
             "*": [
                 "./dist/types/current/index.d.ts"
+            ],
+            "hlsTestAssets": [
+                "./dist/hlsTestAssets/types/current/index.d.ts"
             ]
         },
         ">=4.7": {
             "*": [
                 "./dist/types/ts4.7/index.d.ts"
+            ],
+            "hlsTestAssets": [
+                "./dist/hlsTestAssets/types/ts4.7/index.d.ts"
             ]
         },
         ">=4.1": {
             "*": [
                 "./dist/types/ts4.1/index.d.ts"
+            ],
+            "hlsTestAssets": [
+                "./dist/hlsTestAssets/types/ts4.1/index.d.ts"
             ]
         },
         ">=3.7": {
             "*": [
                 "./dist/types/ts3.7/index.d.ts"
+            ],
+            "hlsTestAssets": [
+                "./dist/hlsTestAssets/types/ts3.7/index.d.ts"
             ]
         }
     },
@@ -45,10 +57,14 @@
         ".": {
             "types@>=5.4": "./dist/types/current/index.d.ts",
             "types@>=4.7": "./dist/types/ts4.7/index.d.ts",
+            "development": "./src/index.ts",
             "require": "./dist/index.cjs",
             "import": "./dist/index.js"
         },
         "./hlsTestAssets": {
+            "types@>=5.4": "./dist/hlsTestAssets/types/current/index.d.ts",
+            "types@>=4.7": "./dist/hlsTestAssets/types/ts4.7/index.d.ts",
+            "development": "./test/hlsTestAssets/index.ts",
             "import": "./dist/hlsTestAssets/index.js"
         }
     },
@@ -66,11 +82,9 @@
         "eslint:write": "eslint . --cache --fix",
         "lint": "npm run indexFiles:check && npm run eslint:check && npm run prettier:check",
         "lint:write": "npm run indexFiles:write && npm run eslint:write && npm run prettier:write",
-        "validate": "npm run lint && npm run test",
-        "test": "tsx --tsconfig ../../tsconfig.flat.json ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
+        "test": "tsx ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
         "test:coverage": "c8 npm run test",
-        "test:benchmark": "tsx --tsconfig ../../tsconfig.flat.json ../../node_modules/jasmine/bin/jasmine test/benchmark/index.ts",
-        "test:integration": "tsx --tsconfig ../../tsconfig.flat.json ../../node_modules/jasmine/bin/jasmine test/integ/index.ts",
+        "test:benchmark": "tsx ../../node_modules/jasmine/bin/jasmine test/benchmark/index.ts",
         "watch": "tsx buildSrc/build.ts --watch",
         "watch:release": "tsx buildSrc/build.ts --watch --release"
     },

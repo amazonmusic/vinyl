@@ -22,11 +22,11 @@ import {
     type DescriptorRecord,
     descriptorRecordValidator,
     descriptorValidator,
-} from '@/streaming/DescriptorRecord'
+} from './DescriptorRecord'
 
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
-import type { CencEncryptionScheme } from '@/drm/CencEncryptionScheme'
-import { DrmKeySystem } from '@/drm/DrmKeySystem'
+import type { DrmInitDataType } from './DrmInitDataType'
+import type { CencEncryptionScheme } from '../drm/CencEncryptionScheme'
+import { DrmKeySystem } from '../drm/DrmKeySystem'
 import type { FrameRate } from '@amazon/vinyl-mpd-parser'
 
 export type ContentType = 'audio' | 'video' | 'text'

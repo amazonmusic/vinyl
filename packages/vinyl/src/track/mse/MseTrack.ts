@@ -7,7 +7,7 @@ import {
     TrackBase,
     type TrackBaseDeps,
     type TrackBaseOptions,
-} from '@/track/TrackBase'
+} from '../TrackBase'
 import {
     Abort,
     equalDeep,
@@ -19,27 +19,27 @@ import {
     redispatchEvents,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
-import type { TrackPreloadOptions, TrackTypeId, TrackUri } from '@/track/Track'
+import type { TrackPreloadOptions, TrackTypeId, TrackUri } from '../Track'
 import type {
     ContentType,
     MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
+} from '../../streaming/MediaQualityMetadata'
 import { createContainer, type Factories } from '@amazon/vinyl-di'
 import type {
     ContentStream,
     ContentStreamActivateOptions,
     ContentStreamPreloadOptions,
-} from '@/streaming/ContentStream'
-import type { MediaSourceController } from '@/streaming/buffering/MediaSourceController'
-import type { PlaybackSource } from '@/playback/PlaybackSource'
-import type { ContentTypesValue } from '@/streaming/ContentTypesValue'
-import type { ManifestController } from '@/streaming/ManifestController'
+} from '../../streaming/ContentStream'
+import type { MediaSourceController } from '../../streaming/buffering/MediaSourceController'
+import type { PlaybackSource } from '../../playback/PlaybackSource'
+import type { ContentTypesValue } from '../../streaming/ContentTypesValue'
+import type { ManifestController } from '../../streaming/ManifestController'
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { MediaTimeline } from '@/streaming/MediaTimeline'
+import type { MediaTimeline } from '../../streaming/MediaTimeline'
 import {
     getMediaPeriodAtTime,
     type MediaPeriod,
-} from '@/streaming/MediaTimeline'
+} from '../../streaming/MediaTimeline'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ReadonlyAbort } from '@/util/async/Abort'
-import type { Maybe } from '@/util/type'
+import type { ReadonlyAbort } from '../util/async/Abort'
+import type { Maybe } from '../util/type'
 
 /**
  * Init options for the request.

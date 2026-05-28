@@ -3,13 +3,14 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "outDir": "../../dist/unit/types/current",
-        "paths": {
-            "@amazon/vinyl-hls-parser": ["../../src/index"]
-        }
+        "noEmit": true
     },
     "references": [
         {
             "path": "../../src"
+        },
+        {
+            "path": "../hlsTestAssets"
         }
     ]
 }

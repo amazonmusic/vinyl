@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { LinkedList, type LinkedNode } from '@/util/collection/LinkedList'
+import { LinkedList, type LinkedNode } from '../collection/LinkedList'
 import { createAbortSlot, type ReadonlyAbort } from './Abort'
 import { withAbort } from './abortUtils'
-import { type Comparator } from '@/util/comparison/compare'
-import type { Maybe, MaybePromise } from '@/util/type'
-import { AbortError } from '@/error/AbortError'
+import { type Comparator } from '../comparison/compare'
+import type { Maybe, MaybePromise } from '../type'
+import { AbortError } from '../../error/AbortError'
 
 export type Task<T = void> = (abort: ReadonlyAbort) => MaybePromise<T>
 

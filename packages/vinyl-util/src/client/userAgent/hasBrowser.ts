@@ -6,9 +6,9 @@
 import type { Browser } from './defaultUserAgentRules'
 import { getUserAgentInfo } from './parseUserAgent'
 import type { UserAgentInfo } from './UserAgentInfo'
-import type { Version } from '@/client/Version'
-import { compareVersions, parseVersion } from '@/client/Version'
-import type { Maybe } from '@/util/type'
+import type { Version } from '../Version'
+import { compareVersions, parseVersion } from '../Version'
+import type { Maybe } from '../../util/type'
 
 export interface HasBrowserOptions {
     /**

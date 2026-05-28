@@ -8,8 +8,8 @@ import { networkMetricsController } from './metrics/networkMetricsGlobal'
 import type { Requester } from './Requester'
 import type { RequesterImplDeps, RequesterImplOptions } from './RequesterImpl'
 import { nativeFetchRef, RequesterImpl } from './RequesterImpl'
-import { merge } from '@/util/object/merge'
-import type { Maybe, PartialDeep } from '@/util/type'
+import { merge } from '../util/object/merge'
+import type { Maybe, PartialDeep } from '../util/type'
 
 /**
  * Creates a default Requester implementation with optional configuration or dependency overrides.

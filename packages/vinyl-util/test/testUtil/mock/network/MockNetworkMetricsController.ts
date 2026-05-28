@@ -11,7 +11,7 @@ import type {
 import { EMPTY_NETWORK_METRICS } from '@amazon/vinyl-util'
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
 
-import { MockEventHost } from '@/mock/event/MockEventHost'
+import { MockEventHost } from '../event/MockEventHost'
 
 const spyFactory = createSpyFactory<NetworkMetricsController>()
 export class MockNetworkMetricsController

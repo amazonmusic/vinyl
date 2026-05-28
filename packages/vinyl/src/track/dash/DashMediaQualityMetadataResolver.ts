@@ -26,15 +26,15 @@ import type {
     ContentType,
     DrmProtection,
     MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
-import { type DrmKeySystemResolver } from '@/drm/DrmKeySystemResolver'
-import { getRepresentationMimeInfo } from '@/track/dash/util/mimeType'
-import type { DescriptorRecord } from '@/streaming/DescriptorRecord'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
+} from '../../streaming/MediaQualityMetadata'
+import { type DrmKeySystemResolver } from '../../drm/DrmKeySystemResolver'
+import { getRepresentationMimeInfo } from './util/mimeType'
+import type { DescriptorRecord } from '../../streaming/DescriptorRecord'
+import type { DrmInitDataType } from '../../streaming/DrmInitDataType'
 import {
     type CencEncryptionScheme,
     parseCencEncryptionScheme,
-} from '@/drm/CencEncryptionScheme'
+} from '../../drm/CencEncryptionScheme'
 
 /**
  * DASH supplemental property scheme URI for adaptation set switching.

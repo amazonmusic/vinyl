@@ -5,27 +5,27 @@
 
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import { combineData } from '@amazon/vinyl-observable'
-import type { Capabilities } from '@/client/Capabilities'
-import type { DrmController } from '@/drm/DrmController'
-import type { MediaTimeline } from '@/streaming/MediaTimeline'
+import type { Capabilities } from '../client/Capabilities'
+import type { DrmController } from '../drm/DrmController'
+import type { MediaTimeline } from './MediaTimeline'
 import {
     filterTimelineQualities,
     filterTimelineQualitiesAsync,
-} from '@/streaming/mediaTimelineFilter'
-import { createLanguageFilter } from '@/streaming/mediaTimelineLanguageFilter'
+} from './mediaTimelineFilter'
+import { createLanguageFilter } from './mediaTimelineLanguageFilter'
 import {
     canPlayMimeType,
     throwMimeTypesUnsupported,
-} from '@/track/filters/resourceTypeFilter'
+} from '../track/filters/resourceTypeFilter'
 import {
     canPlayKeySystem,
     throwKeySystemsUnsupported,
-} from '@/track/filters/keySystemFilter'
+} from '../track/filters/keySystemFilter'
 import {
     supportsAudioSamplingRate,
     throwSamplingRatesUnsupported,
-} from '@/track/filters/sampleRateFilter'
-import { throwLanguagesUnsupported } from '@/track/filters/languageFilter'
+} from '../track/filters/sampleRateFilter'
+import { throwLanguagesUnsupported } from '../track/filters/languageFilter'
 
 export interface DefaultMediaTimelineTransformerDeps {
     readonly capabilities: Capabilities

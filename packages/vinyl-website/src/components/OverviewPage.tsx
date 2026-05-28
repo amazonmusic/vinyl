@@ -1,7 +1,7 @@
 import { jsx } from '@amazon/vinyl-tsx'
 import { data } from '@amazon/vinyl-observable'
-import { Icon } from '@/components/icons'
-import { navigateTo } from '@/router/router'
+import { Icon } from './icons'
+import { navigateTo } from '../router/router'
 
 type PackageManager = 'npm' | 'yarn'
 

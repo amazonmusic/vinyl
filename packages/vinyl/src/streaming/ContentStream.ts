@@ -12,13 +12,10 @@ import {
     type ReadonlyRanges,
     redispatchEvents,
 } from '@amazon/vinyl-util'
-import type { StreamingEventMap } from '@/streaming/StreamingEventMap'
-import type { SegmentController } from '@/streaming/SegmentController'
-import type { BufferingController } from '@/streaming/buffering/BufferingController'
-import type {
-    ContentType,
-    MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
+import type { StreamingEventMap } from './StreamingEventMap'
+import type { SegmentController } from './SegmentController'
+import type { BufferingController } from './buffering/BufferingController'
+import type { ContentType, MediaQualityMetadata } from './MediaQualityMetadata'
 import { createContainer, type Factories } from '@amazon/vinyl-di'
 
 /**

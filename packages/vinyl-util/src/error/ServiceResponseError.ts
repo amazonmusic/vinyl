@@ -5,7 +5,7 @@
 
 import { ErrorOrigin } from './ErrorOrigin'
 import { ReportableError } from './ReportableError'
-import { type Json, toJson } from '@/util/serialization/json'
+import { type Json, toJson } from '../util/serialization/json'
 
 export const SERVICE_RESPONSE_ERROR_MESSAGE = 'Unexpected service response'
 

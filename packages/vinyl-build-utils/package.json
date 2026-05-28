@@ -9,6 +9,13 @@
     "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "development": "./src/index.ts",
+            "default": "./dist/index.js"
+        }
+    },
     "sideEffects": [
         "test/**/*"
     ],
@@ -32,8 +39,7 @@
         "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
         "release": "npm run lint && npm run build:release",
         "test": "tsx ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
-        "test:coverage": "echo \"No tests\"",
-        "validate": "npm run lint"
+        "test:coverage": "echo \"No tests\""
     },
     "author": "",
     "license": "Apache-2.0",

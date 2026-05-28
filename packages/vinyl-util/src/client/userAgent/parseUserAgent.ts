@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Maybe } from '@/util/type'
+import type { Maybe } from '../../util/type'
 import { defaultUserAgentRules } from './defaultUserAgentRules'
 import type { UserAgentRules } from './tokenizeUserAgent'
 import { tokenizeUserAgent } from './tokenizeUserAgent'
 import type { UaDeviceInfo, UaSystemInfo, UserAgentInfo } from './UserAgentInfo'
 import { emptyUserAgentInfo } from './UserAgentInfo'
-import { globalRef } from '@/global/globalRegistry'
+import { globalRef } from '../../global/globalRegistry'
 
 /**
  * Parses the user agent into a {@link UserAgentInfo} object.

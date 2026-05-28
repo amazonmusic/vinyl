@@ -13,7 +13,7 @@ import {
     type ValueSchema,
 } from '@amazon/vinyl-validation'
 
-import type { Track, TrackTypeId, TrackUri } from '@/track/Track'
+import type { Track, TrackTypeId, TrackUri } from './Track'
 
 export interface TrackLoadOptions {
     /**

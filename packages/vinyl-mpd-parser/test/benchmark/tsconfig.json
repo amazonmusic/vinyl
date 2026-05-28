@@ -2,14 +2,7 @@
     "extends": "../../../../tsconfig.test.json",
     "include": ["./**/*"],
     "compilerOptions": {
-        "noEmit": true,
-        "paths": {
-            "@amazon/vinyl-mpd-parser": ["../../src/index"],
-            "@amazon/vinyl-mpd-parser/dashTestAssets": [
-                "../dashTestAssets/index"
-            ],
-            "@/*": ["./*"]
-        }
+        "noEmit": true
     },
     "references": [
         {

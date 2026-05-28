@@ -13,7 +13,7 @@ import { noop } from '@amazon/vinyl-util'
 import { clone, getLocation, resolveUrl } from '@amazon/vinyl-util'
 import { requestWithRetry } from '@amazon/vinyl-util'
 import { parseDashManifest } from '@amazon/vinyl-mpd-parser'
-import type { DashManifestProvider } from '@/track/dash/DashManifestProvider'
+import type { DashManifestProvider } from './DashManifestProvider'
 
 /**
  * Creates a DashManifestProvider which performs a request to retrieve a dash manifest.

@@ -16,7 +16,7 @@ import {
     logDebug,
 } from '@amazon/vinyl-util'
 import { setTestTimeout } from '@amazon/vinyl-util/browserTestUtil'
-import { mediaRef } from '@/player/mediaRef'
+import { mediaRef } from './mediaRef'
 
 export interface VinylSuiteOptions {
     /**

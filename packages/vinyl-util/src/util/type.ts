@@ -273,3 +273,26 @@ export type IsAny<T> = 0 extends 1 & T ? true : false
  */
 export type IsPropertyOptional<U, P extends keyof U> =
     AnyRecord extends Pick<U, P> ? true : false
+
+/**
+ * A type that equals true if Left and Right are loosely equal, that is, that Left extends Right
+ * and Right extends Left.
+ * This will always equal true or false, and never the union `true | false`
+ */
+export type Equal<Left, Right> = [Left] extends [Right]
+    ? [Right] extends [Left]
+        ? true
+        : false
+    : false
+
+/**
+ * A type that equals true if Left and Right are strictly equal.
+ * Works with complex objects, readonly, and optional modifiers.
+ * Works with method input arguments.
+ * This will always equal true or false, and never the union `true | false`
+ */
+export type StrictEqual<Left, Right> =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+    (<T>() => T extends Left ? 0 : 1) extends <T>() => T extends Right ? 0 : 1
+        ? Equal<Left, Right>
+        : false

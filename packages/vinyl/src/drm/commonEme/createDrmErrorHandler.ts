@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DrmError } from '@/drm/error/DrmError'
+import { DrmError } from '../error/DrmError'
 import { ErrorLevel, ErrorOrigin, toJson } from '@amazon/vinyl-util'
 
 export function createDrmErrorHandler(

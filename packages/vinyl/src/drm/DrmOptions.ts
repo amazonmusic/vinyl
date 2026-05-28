@@ -4,8 +4,8 @@
  */
 
 import type { ReadonlyRecord, ValueProvider } from '@amazon/vinyl-util'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
-import type { MediaFormatMetadata } from '@/streaming/MediaQualityMetadata'
+import type { DrmInitDataType } from '../streaming/DrmInitDataType'
+import type { MediaFormatMetadata } from '../streaming/MediaQualityMetadata'
 import {
     enumOf,
     func,
@@ -23,7 +23,7 @@ import {
     type LicenseProvider,
     type LicenseServerOptions,
     licenseServerOptionsValidator,
-} from '@/drm/licenseProvider/LicenseProvider'
+} from './licenseProvider/LicenseProvider'
 
 /**
  * DrmRobustness is the requested security level for audio or video decryption.

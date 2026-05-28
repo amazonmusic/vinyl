@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
-import { DisposedError } from '@/core/disposable'
-import { TimeoutSlot } from '@/util/async/TimeoutSlot'
+import type { Disposable } from '../../core/disposable'
+import { DisposedError } from '../../core/disposable'
+import { TimeoutSlot } from '../async/TimeoutSlot'
 
 export type DebounceCallback = Disposable & (() => void)
 

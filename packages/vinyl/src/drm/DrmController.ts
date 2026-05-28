@@ -9,11 +9,11 @@ import {
     type ReadonlyAbort,
     type ReadonlyEventHost,
 } from '@amazon/vinyl-util'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
-import type { MediaFormatMetadata } from '@/streaming/MediaQualityMetadata'
-import type { BasicErrorEvent } from '@/event/BasicErrorEvent'
-import type { DrmOptions } from '@/drm/DrmOptions'
+import type { DrmInitDataType } from '../streaming/DrmInitDataType'
+import type { DrmKeySystem } from './DrmKeySystem'
+import type { MediaFormatMetadata } from '../streaming/MediaQualityMetadata'
+import type { BasicErrorEvent } from '../event/BasicErrorEvent'
+import type { DrmOptions } from './DrmOptions'
 
 export interface DrmControllerEventMap {
     /**

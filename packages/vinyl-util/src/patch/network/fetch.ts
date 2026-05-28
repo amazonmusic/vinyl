@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Fetch } from '@/network/Requester'
-import { hasBrowser } from '@/client/userAgent/hasBrowser'
-import { Browser } from '@/client/userAgent/defaultUserAgentRules'
+import type { Fetch } from '../../network/Requester'
+import { hasBrowser } from '../../client/userAgent/hasBrowser'
+import { Browser } from '../../client/userAgent/defaultUserAgentRules'
 import {
     changeRequestInputUrl,
     getHeaderFromRequestParams,
-} from '@/util/network/request'
-import { createShortUid } from '@/util/string/uid'
+} from '../../util/network/request'
+import { createShortUid } from '../../util/string/uid'
 
 export function requiresPreventCacheRangeRequestsPatch(): boolean {
     return hasBrowser(Browser.CHROMIUM, null, '64')

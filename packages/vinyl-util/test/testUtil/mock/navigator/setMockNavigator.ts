@@ -4,7 +4,7 @@
  */
 
 import { MockNavigator } from '@amazon/vinyl-util/browserTestUtil'
-import { spyOnPropertySafe } from '@/mock/util/spyOnPropertySafe'
+import { spyOnPropertySafe } from '../util/spyOnPropertySafe'
 
 /**
  * Sets the global navigator to a Mock

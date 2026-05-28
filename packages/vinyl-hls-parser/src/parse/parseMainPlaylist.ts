@@ -4,11 +4,11 @@
  */
 
 import { StringReader, ValidationError } from '@amazon/vinyl-util'
-import type { AlternativeRendition } from '@/types/AlternativeRendition'
-import { renditionTypeValidator } from '@/types/AlternativeRendition'
-import type { MainPlaylist } from '@/types/MainPlaylist'
-import type { SessionData } from '@/types/SessionData'
-import type { VariantStream } from '@/types/VariantStream'
+import type { AlternativeRendition } from '../types/AlternativeRendition'
+import { renditionTypeValidator } from '../types/AlternativeRendition'
+import type { MainPlaylist } from '../types/MainPlaylist'
+import type { SessionData } from '../types/SessionData'
+import type { VariantStream } from '../types/VariantStream'
 import { parseAttributes } from './parseAttributes'
 import { readLine, skipWhitespaceLine, addIfPresent } from './parseUtil'
 

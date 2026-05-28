@@ -11,7 +11,7 @@ import {
     StringReader,
 } from '@amazon/vinyl-util'
 
-import type { Uri } from '@/xmlns/org/w3/2001/XmlSchema'
+import type { Uri } from '../xmlns/org/w3/2001/XmlSchema'
 import type { Attributes, ParseXmlHandler } from './ParseXmlHandler'
 import type { QName } from './QName'
 import type { XmlElement } from './ParseXmlHandlerImpl'

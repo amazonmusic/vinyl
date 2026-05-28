@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Timestamp } from '@/util/date/date'
-import type { ReadonlyRecord } from '@/util/object/readonlyType'
-import type { Maybe } from '@/util/type'
+import type { Timestamp } from '../../util/date/date'
+import type { ReadonlyRecord } from '../../util/object/readonlyType'
+import type { Maybe } from '../../util/type'
 
 /**
  * Statistics for service calls and content transfers.

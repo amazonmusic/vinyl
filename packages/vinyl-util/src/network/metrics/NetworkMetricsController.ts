@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ReadonlyEventHost } from '@/event/EventHost'
-import type { AnyRecord, Maybe } from '@/util/type'
+import type { ReadonlyEventHost } from '../../event/EventHost'
+import type { AnyRecord, Maybe } from '../../util/type'
 import type {
     NetworkMetrics,
     NetworkMetricsEntry,

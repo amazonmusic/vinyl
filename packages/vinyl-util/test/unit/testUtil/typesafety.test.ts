@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Equal, StrictEqual } from '@amazon/vinyl-util/browserTestUtil'
+import type { Equal, StrictEqual } from '@amazon/vinyl-util'
 import {
     expectTypeExtends,
     expectTypeFalse,

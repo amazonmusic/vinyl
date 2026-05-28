@@ -6,8 +6,8 @@
 import type { LogEventMap, Logger, LogTarget } from '@amazon/vinyl-util'
 import { loggerRef, LogLevel } from '@amazon/vinyl-util'
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
-import { overrideGlobalInit } from '@/global/overrideGlobalInit'
-import { MockEventHost } from '@/mock/event/MockEventHost'
+import { overrideGlobalInit } from '../../global/overrideGlobalInit'
+import { MockEventHost } from '../event/MockEventHost'
 import createSpy = jasmine.createSpy
 
 type LogFilterFun = (target: LogTarget, ...messages: any[]) => void

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { SegmentControllerImplOptions } from '@/streaming/SegmentControllerImpl'
-import type { BufferingControllerImplOptions } from '@/streaming/buffering/BufferingController'
+import type { SegmentControllerImplOptions } from './SegmentControllerImpl'
+import type { BufferingControllerImplOptions } from './buffering/BufferingController'
 
 export interface ContentStreamingOptions {
     /**

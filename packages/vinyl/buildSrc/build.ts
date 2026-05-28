@@ -16,7 +16,7 @@ const tsc = tscPlugin(vinylDefaultTscOptions)
 buildVinylPackage({
     commonOptions: {
         define: {
-            'process.env.VINYL_VERSION': JSON.stringify(packageJson.version),
+            'globalThis.__VINYL_VERSION__': JSON.stringify(packageJson.version),
         },
     },
     buildOptions: [

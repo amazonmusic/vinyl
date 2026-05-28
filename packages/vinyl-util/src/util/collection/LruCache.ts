@@ -4,10 +4,10 @@
  */
 
 import type { CacheMap } from './CacheMap'
-import { mapIter } from '@/util/iteration/iterable'
+import { mapIter } from '../iteration/iterable'
 import type { LinkedNode } from './LinkedList'
 import { LinkedList } from './LinkedList'
-import { IllegalStateError } from '@/error/IllegalStateError'
+import { IllegalStateError } from '../../error/IllegalStateError'
 
 /**
  * An LRU Cache implementation.

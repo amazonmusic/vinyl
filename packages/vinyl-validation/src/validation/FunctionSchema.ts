@@ -8,7 +8,7 @@ import { substitute } from '@amazon/vinyl-util'
 import { ValueSchema } from './ValueSchema'
 import type { Validator } from './Validator'
 import { createValidator } from './Validator'
-import { typeOfValidators } from '@/validation/typeOfValidators'
+import { typeOfValidators } from './typeOfValidators'
 
 /**
  * @private

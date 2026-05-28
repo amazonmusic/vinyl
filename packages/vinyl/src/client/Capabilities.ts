@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
-import type { DrmKeySystemSupport } from '@/drm/DrmController'
+import type { DrmKeySystem } from '../drm/DrmKeySystem'
+import type { DrmKeySystemSupport } from '../drm/DrmController'
 
 export enum CanPlayTypeResult {
     /**

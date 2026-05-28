@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Maybe } from '@/util/type'
-import { IllegalArgumentError } from '@/error/IllegalArgumentError'
+import type { Maybe } from '../type'
+import { IllegalArgumentError } from '../../error/IllegalArgumentError'
 
 /**
  * Given request parameters, returns the header for the given key, or null.

@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AbortError } from '@/error/AbortError'
-import type { ReadonlyEventHost } from '@/event/EventHost'
-import { EventHostImpl } from '@/event/EventHost'
-import type { Unsubscribe } from '@/core/Unsubscribe'
-import { noop } from '@/util/fun/function'
+import { AbortError } from '../../error/AbortError'
+import type { ReadonlyEventHost } from '../../event/EventHost'
+import { EventHostImpl } from '../../event/EventHost'
+import type { Unsubscribe } from '../../core/Unsubscribe'
+import { noop } from '../fun/function'
 
 export interface AbortEvent {
     readonly reason: Error

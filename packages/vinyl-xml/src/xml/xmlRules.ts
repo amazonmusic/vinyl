@@ -20,7 +20,7 @@ import {
     type ReadonlyDate,
 } from '@amazon/vinyl-util'
 
-import type { Uri } from '@/xmlns/org/w3/2001/XmlSchema'
+import type { Uri } from '../xmlns/org/w3/2001/XmlSchema'
 
 export enum XmlRuleType {
     CHARACTERS = 'characters',

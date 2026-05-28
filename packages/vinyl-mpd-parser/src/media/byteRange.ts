@@ -4,7 +4,7 @@
  */
 
 import { parseIntSafe } from '@amazon/vinyl-util'
-import { throwParsingError } from '@/error/parsingError'
+import { throwParsingError } from '../error/parsingError'
 
 /**
  * A range of bytes, [from, to (optional, inclusive)].

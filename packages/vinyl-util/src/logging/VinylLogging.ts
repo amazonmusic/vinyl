@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalRef } from '@/global/globalRegistry'
+import { globalRef } from '../global/globalRegistry'
 import type { ConsoleLogHandler } from './ConsoleLogHandler'
 import { ConsoleLogHandlerImpl } from './ConsoleLogHandler'
 import type { HistoryLogHandler } from './HistoryLogHandler'

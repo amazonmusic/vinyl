@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { mediaRef } from '@/player/mediaRef'
-import { vinylTestAssets } from '@/assets/vinylTestAssets'
+import { mediaRef } from '../player/mediaRef'
+import { vinylTestAssets } from '../assets/vinylTestAssets'
 import { noop } from '@amazon/vinyl-util'
 
 /**

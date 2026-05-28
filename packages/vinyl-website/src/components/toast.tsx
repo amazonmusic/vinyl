@@ -1,5 +1,5 @@
 import { jsx } from '@amazon/vinyl-tsx'
-import { Icon } from '@/components/icons'
+import { Icon } from './icons'
 
 const FADE_OUT_MS = 200
 

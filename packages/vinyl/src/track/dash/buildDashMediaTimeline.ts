@@ -3,23 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DashManifestData } from '@/track/dash/DashManifestProvider'
+import type { DashManifestData } from './DashManifestProvider'
 import type {
     MediaPeriod,
     MediaQualityData,
     MediaTimeline,
-} from '@/streaming/MediaTimeline'
+} from '../../streaming/MediaTimeline'
 import type { RepresentationType } from '@amazon/vinyl-mpd-parser'
 import {
     calculateDuration,
     calculatePeriodEnd,
     calculatePeriodStart,
     flattenRepresentations,
-} from '@/track/dash/util/mpd'
+} from './util/mpd'
 import {
     createDashRepresentationSegmentProvider,
     type DashSegmentProviderDeps,
-} from '@/track/dash/timeline/DashRepresentationSegmentProvider'
+} from './timeline/DashRepresentationSegmentProvider'
 
 export type BuildDashMediaTimelineDeps = DashSegmentProviderDeps
 

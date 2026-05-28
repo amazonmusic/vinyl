@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Timestamp } from '@/util/date/date'
-import type { ErrorBodyType } from '@/network/Requester'
+import type { Timestamp } from '../util/date/date'
+import type { ErrorBodyType } from './Requester'
 
 /**
  * Events {@link RequesterImpl} emits.

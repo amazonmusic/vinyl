@@ -4,7 +4,7 @@
  */
 
 import { element, elements, type XmlRules } from '@amazon/vinyl-xml'
-import { dashNamespaceUri } from '@/manifest/dashManifestXmlRules'
+import { dashNamespaceUri } from '../../dashManifestXmlRules'
 
 /**
  * ContentProtection extension point for Dash manifests.

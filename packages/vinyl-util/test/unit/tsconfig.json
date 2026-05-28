@@ -3,12 +3,7 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "outDir": "../../dist/unit/types/current",
-        "noEmit": true,
-        "paths": {
-            "@amazon/vinyl-util": ["../../src/index"],
-            "@amazon/vinyl-util/browserTestUtil": ["../browserTestUtil/index"],
-            "@amazon/vinyl-util/testUtil": ["../testUtil/index"]
-        }
+        "noEmit": true
     },
     "references": [
         {

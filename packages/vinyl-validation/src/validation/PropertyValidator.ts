@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Validator } from '@/validation/Validator'
+import type { Validator } from './Validator'
 import type { Merge } from '@amazon/vinyl-util'
 
 export interface PropertyValidatorOptions {

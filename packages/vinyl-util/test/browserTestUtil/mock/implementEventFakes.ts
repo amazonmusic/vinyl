@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MockEvent } from '@/mock/dom/lib.dom'
-import { asSpy } from '@/mock/asSpy'
+import type { MockEvent } from './dom/lib.dom'
+import { asSpy } from './asSpy'
 
 type Callback = (event: Event) => any
 interface CallbackOptions {

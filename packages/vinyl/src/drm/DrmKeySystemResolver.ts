@@ -8,7 +8,7 @@ import {
     DrmKeySystem,
     FAIR_PLAY_KEY_SYSTEMS,
     PLAY_READY_KEY_SYSTEMS,
-} from '@/drm/DrmKeySystem'
+} from './DrmKeySystem'
 import { ContentProtectionScheme } from '@amazon/vinyl-mpd-parser'
 
 /**

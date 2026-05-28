@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DomEventHost } from '@/event/DomEventHost'
-import type { ReadonlyEventHost } from '@/event/EventHost'
-import { nextEventAsPromise } from '@/event/nextEventAsPromise'
-import { globalRef } from '@/global/globalRegistry'
-import type { ReadonlyAbort } from '@/util/async/Abort'
-import type { Maybe } from '@/util/type'
+import { DomEventHost } from '../event/DomEventHost'
+import type { ReadonlyEventHost } from '../event/EventHost'
+import { nextEventAsPromise } from '../event/nextEventAsPromise'
+import { globalRef } from '../global/globalRegistry'
+import type { ReadonlyAbort } from '../util/async/Abort'
+import type { Maybe } from '../util/type'
 
 export type DomEventTarget = EventTarget
 

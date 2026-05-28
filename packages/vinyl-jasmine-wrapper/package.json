@@ -29,6 +29,7 @@
     "main": "./dist/index.cjs",
     "exports": {
         ".": {
+            "development": "./src/index.ts",
             "import": "./dist/index.js"
         }
     },

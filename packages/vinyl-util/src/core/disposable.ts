@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IllegalStateError } from '@/error/IllegalStateError'
-import type { Unsubscribe } from '@/core/Unsubscribe'
-import type { Maybe } from '@/util/type'
+import { IllegalStateError } from '../error/IllegalStateError'
+import type { Unsubscribe } from './Unsubscribe'
+import type { Maybe } from '../util/type'
 
 /**
  * Any object that may be disposed.

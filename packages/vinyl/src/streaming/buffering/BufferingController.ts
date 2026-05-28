@@ -22,19 +22,16 @@ import {
     type ReadonlyEventHost,
     throttle,
 } from '@amazon/vinyl-util'
-import type { ReadonlyPlaybackController } from '@/playback/ReadonlyPlaybackController'
+import type { ReadonlyPlaybackController } from '../../playback/ReadonlyPlaybackController'
 import type { SourceBufferController } from './SourceBufferController'
-import type { ReadonlySegmentController } from '@/streaming/SegmentController'
-import type { SegmentReference } from '@/streaming/SegmentReference'
-import { LIVE_DURATION } from '@/playback/PlaybackController'
-import type { BasicErrorEvent } from '@/event/BasicErrorEvent'
-import type { ChangeEvent } from '@/event/ChangeEvent'
-import type {
-    ContentType,
-    MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
-import { type MediaSourceController } from '@/streaming/buffering/MediaSourceController'
-import { SEGMENT_START_AFFORDANCE } from '@/streaming/SegmentController'
+import type { ReadonlySegmentController } from '../SegmentController'
+import type { SegmentReference } from '../SegmentReference'
+import { LIVE_DURATION } from '../../playback/PlaybackController'
+import type { BasicErrorEvent } from '../../event/BasicErrorEvent'
+import type { ChangeEvent } from '../../event/ChangeEvent'
+import type { ContentType, MediaQualityMetadata } from '../MediaQualityMetadata'
+import { type MediaSourceController } from './MediaSourceController'
+import { SEGMENT_START_AFFORDANCE } from '../SegmentController'
 
 /**
  * Chrome 52 has decoding errors when duration is set to the mediaPresentationDuration.

@@ -2,7 +2,7 @@ import { jsx } from '@amazon/vinyl-tsx'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import { combineData, data } from '@amazon/vinyl-observable'
 import { clamp, createDisposer, type Unsubscribe } from '@amazon/vinyl-util'
-import { windowEvents } from '@/util/interaction'
+import { windowEvents } from '../util/interaction'
 
 export interface ScrubBarProps {
     readonly currentTimePercent$: ObservableValue<number>

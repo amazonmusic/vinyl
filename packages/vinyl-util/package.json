@@ -69,20 +69,24 @@
         ".": {
             "types@>=5.4": "./dist/types/current/index.d.ts",
             "types@>=4.7": "./dist/types/ts4.7/index.d.ts",
+            "development": "./src/index.ts",
             "require": "./dist/index.cjs",
             "import": "./dist/index.js"
         },
         "./testUtil": {
             "types@>=5.4": "./dist/testUtil/types/current/index.d.ts",
             "types@>=4.7": "./dist/testUtil/types/ts4.7/index.d.ts",
+            "development": "./test/testUtil/index.ts",
             "import": "./dist/testUtil/index.js"
         },
         "./polyfill": {
+            "development": "./polyfill/index.ts",
             "import": "./dist/polyfill/index.js"
         },
         "./browserTestUtil": {
             "types@>=5.4": "./dist/browserTestUtil/types/current/index.d.ts",
             "types@>=4.7": "./dist/browserTestUtil/types/ts4.7/index.d.ts",
+            "development": "./test/browserTestUtil/index.ts",
             "import": "./dist/browserTestUtil/index.js"
         }
     },
@@ -94,15 +98,14 @@
         "indexFiles:write": "tsx buildSrc/writeIndexFiles.ts",
         "generateDomMocks": "tsx buildSrc/generateDomMocks.ts && npm run prettier:write",
         "build": "tsx buildSrc/build.ts",
-        "build:release": "tsx buildSrc/build.ts --release",
+        "build:release": "tsx buildSrc/build.ts --release && tsc --project test/unit",
         "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
         "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
         "eslint:check": "eslint . --cache --max-warnings=0",
         "eslint:write": "eslint . --cache --fix",
         "lint": "npm run indexFiles:check && npm run eslint:check && npm run prettier:check",
         "lint:write": "npm run indexFiles:write && npm run eslint:write && npm run prettier:write",
-        "validate": "tsc --project test/unit && npm run lint && npm run test",
-        "test": "tsx --tsconfig ../../tsconfig.flat.json ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
+        "test": "tsx ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
         "test:coverage": "c8 npm run test",
         "watch": "tsx buildSrc/build.ts --watch",
         "watch:release": "tsx buildSrc/build.ts --watch --release"

@@ -11,7 +11,7 @@
 /* eslint-disable @typescript-eslint/prefer-as-const */
 /* eslint-disable @typescript-eslint/no-deprecated */
 
-import { createSpy2 } from '@/mock/createSpyFactory'
+import { createSpy2 } from '../createSpyFactory'
 
 export class MockAbortController implements AbortController {
     signal: AbortSignal = undefined as any

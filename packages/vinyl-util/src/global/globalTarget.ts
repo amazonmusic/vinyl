@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { LogTarget } from '@/logging/LogTarget'
+import type { LogTarget } from '../logging/LogTarget'
 
 /**
  * The global path target.

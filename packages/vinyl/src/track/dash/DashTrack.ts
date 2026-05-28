@@ -3,16 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-    type TrackBaseOptions,
-    trackBaseOptionsValidator,
-} from '@/track/TrackBase'
+import { type TrackBaseOptions, trackBaseOptionsValidator } from '../TrackBase'
 import {
     type DashManifestProvider,
     type DashManifestData,
 } from './DashManifestProvider'
 import type { DashManifestController } from './DashManifestController'
-import type { TrackFactory, TrackLoadOptions } from '@/track/TrackFactory'
+import type { TrackFactory, TrackLoadOptions } from '../TrackFactory'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import {
     ErrorOrigin,
@@ -26,11 +23,11 @@ import {
     type ObjectSchema,
     string,
 } from '@amazon/vinyl-validation'
-import type { Track } from '@/track/Track'
+import type { Track } from '../Track'
 import { type Factories } from '@amazon/vinyl-di'
-import type { DashMediaQualityMetadataResolver } from '@/track/dash/DashMediaQualityMetadataResolver'
-import { MseTrack, type MseTrackDeps } from '@/track/mse/MseTrack'
-import type { MediaTimeline } from '@/streaming/MediaTimeline'
+import type { DashMediaQualityMetadataResolver } from './DashMediaQualityMetadataResolver'
+import { MseTrack, type MseTrackDeps } from '../mse/MseTrack'
+import type { MediaTimeline } from '../../streaming/MediaTimeline'
 
 export interface DashTrackLoadOptions extends TrackLoadOptions {
     readonly type: 'dash'

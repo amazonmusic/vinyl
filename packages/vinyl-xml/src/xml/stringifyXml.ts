@@ -11,7 +11,7 @@ import {
     substitute,
 } from '@amazon/vinyl-util'
 
-import type { Uri } from '@/xmlns/org/w3/2001/XmlSchema'
+import type { Uri } from '../xmlns/org/w3/2001/XmlSchema'
 import type {
     MappedAttributeRule,
     MappedCharactersRule,
@@ -19,7 +19,7 @@ import type {
     MappedXmlRules,
 } from './mappedXmlRules'
 import { XmlSchemaError, xmlSchemaErrorLocale } from './XmlSchemaError'
-import type { ReservedXmlRuleKeys } from '@/xml/xmlRules'
+import type { ReservedXmlRuleKeys } from './xmlRules'
 
 /**
  * @private

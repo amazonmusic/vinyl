@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IllegalArgumentError } from '@/error/IllegalArgumentError'
+import { IllegalArgumentError } from '../../error/IllegalArgumentError'
 
 /**
  * Returns an array of numbers between start and end, incrementing by step.

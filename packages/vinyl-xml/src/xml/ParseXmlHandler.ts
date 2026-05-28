@@ -4,7 +4,7 @@
  */
 
 import type { QName } from './QName'
-import type { XmlElement } from '@/xml/ParseXmlHandlerImpl'
+import type { XmlElement } from './ParseXmlHandlerImpl'
 
 /**
  * A handler for XML deserialization.

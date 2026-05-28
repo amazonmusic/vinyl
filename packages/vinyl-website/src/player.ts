@@ -5,7 +5,7 @@
 
 import { createVinylPlayer, type MediaQualityMetadata } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
-import { toastError } from '@/components/toast'
+import { toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
 
 const media = document.createElement('video')

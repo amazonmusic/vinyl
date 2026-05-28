@@ -10,9 +10,9 @@ import { parseBoolean } from '@amazon/vinyl-util'
 import { logDebug } from '@amazon/vinyl-util'
 import { getSearchParams } from '@amazon/vinyl-util'
 import { createLogPrefix } from '@amazon/vinyl-util'
-import { mediaRef } from '@/player/mediaRef'
-import { requireUserInteraction } from '@/ui/requireUserInteraction'
-import { unlockMediaElement } from '@/media/unlockMediaElement'
+import { mediaRef } from '../player/mediaRef'
+import { requireUserInteraction } from '../ui/requireUserInteraction'
+import { unlockMediaElement } from './unlockMediaElement'
 import { setNextTestTimeout } from '@amazon/vinyl-util/browserTestUtil'
 
 /**

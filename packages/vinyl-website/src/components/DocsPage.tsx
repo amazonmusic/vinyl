@@ -1,5 +1,5 @@
 import { jsx } from '@amazon/vinyl-tsx'
-import { navigateTo } from '@/router/router'
+import { navigateTo } from '../router/router'
 import docsManifest from 'virtual:docs-manifest'
 
 const allDocs = docsManifest

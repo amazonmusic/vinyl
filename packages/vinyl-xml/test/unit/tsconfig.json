@@ -3,10 +3,7 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "outDir": "../../dist/unit/types/current",
-        "noEmit": true,
-        "paths": {
-            "@amazon/vinyl-xml": ["../../src/index"]
-        }
+        "noEmit": true
     },
     "references": [
         {

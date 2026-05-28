@@ -19,13 +19,13 @@ import {
     adtsSampleRate,
     buildAudioSpecificConfig,
     parseAdtsFrames,
-} from '@/aac/adts'
+} from '../aac/adts'
 import {
     type AudioTrackConfig,
     type VideoTrackConfig,
     mp4aSampleEntry,
     avc1SampleEntry,
-} from '@/transmux/sampleEntry'
+} from './sampleEntry'
 import {
     type SampleEntry,
     audioTrak,
@@ -36,14 +36,14 @@ import {
     patchDataOffset,
     videoTrak,
     MPEG_TIMESCALE,
-} from '@/mp4/mp4'
+} from '../mp4/mp4'
 import {
     STREAM_TYPE_AAC,
     STREAM_TYPE_H264,
     concatBuffers,
     demuxTsSegment,
     parsePesPts,
-} from '@/mpegts/mpegts'
+} from '../mpegts/mpegts'
 
 export interface TransmuxResult {
     /** The initialization segment (ftyp + moov). Always present. */

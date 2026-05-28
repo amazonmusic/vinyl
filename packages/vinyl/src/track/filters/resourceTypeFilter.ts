@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Capabilities } from '@/client/Capabilities'
-import type { MediaFormatMetadata } from '@/streaming/MediaQualityMetadata'
+import type { Capabilities } from '../../client/Capabilities'
+import type { MediaFormatMetadata } from '../../streaming/MediaQualityMetadata'
 import { MediaUnsupportedError } from '@amazon/vinyl-util'
 
 export function throwMimeTypesUnsupported(): never {

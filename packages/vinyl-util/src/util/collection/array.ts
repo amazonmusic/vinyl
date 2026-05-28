@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type Comparator, compare } from '@/util/comparison/compare'
-import type { Maybe, MaybePromise, Primitive } from '@/util/type'
-import { IllegalArgumentError } from '@/error/IllegalArgumentError'
-import { createTaskQueue } from '@/util/async/TaskQueue'
+import { type Comparator, compare } from '../comparison/compare'
+import type { Maybe, MaybePromise, Primitive } from '../type'
+import { IllegalArgumentError } from '../../error/IllegalArgumentError'
+import { createTaskQueue } from '../async/TaskQueue'
 
 export type FilterPredicateAsync<T> = (
     value: T,

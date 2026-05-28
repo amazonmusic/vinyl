@@ -4,12 +4,12 @@
  */
 
 import type { HlsSegment } from '@amazon/vinyl-hls-parser'
-import type { MediaSegmentReference } from '@/streaming/SegmentReference'
-import type { SegmentDataProvider } from '@/streaming/SegmentDataSlot'
+import type { MediaSegmentReference } from '../../../streaming/SegmentReference'
+import type { SegmentDataProvider } from '../../../streaming/SegmentDataSlot'
 import {
     createSegmentDataProvider,
     type CreateSegmentDataProviderDeps,
-} from '@/track/createSegmentDataProvider'
+} from '../../createSegmentDataProvider'
 import { hlsByteRangeToMediaRange } from './hlsByteRangeToMediaRange'
 import { resolveUrl } from '@amazon/vinyl-util'
 

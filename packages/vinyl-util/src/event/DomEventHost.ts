@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
+import type { Disposable } from '../core/disposable'
 import type { ReadonlyEventHost } from './EventHost'
 import type { EventHandler, SignalOptions } from './Signal'
-import type { Unsubscribe } from '@/core/Unsubscribe'
-import { remove } from '@/util/collection/array'
-import type { ExtractValues } from '@/util/type'
-import { covariant } from '@/util/type'
+import type { Unsubscribe } from '../core/Unsubscribe'
+import { remove } from '../util/collection/array'
+import type { ExtractValues } from '../util/type'
+import { covariant } from '../util/type'
 
 /**
  * Picks the keys from T that satisfy: `[keyof T extends string]: Event`

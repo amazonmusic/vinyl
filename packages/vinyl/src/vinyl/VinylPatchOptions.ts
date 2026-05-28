@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MediaElementPatchOptions } from '@/patch/media/MediaElementPatchOptions'
-import { defaultMediaElementPatchOptions } from '@/patch/media/MediaElementPatchOptions'
+import type { MediaElementPatchOptions } from '../patch/media/MediaElementPatchOptions'
+import { defaultMediaElementPatchOptions } from '../patch/media/MediaElementPatchOptions'
 import { lazy } from '@amazon/vinyl-util'
 
 /**

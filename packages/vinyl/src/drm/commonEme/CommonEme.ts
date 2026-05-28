@@ -8,12 +8,12 @@
  * @module
  */
 
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
+import type { DrmKeySystem } from '../DrmKeySystem'
 import type { Json, ReadonlyEventHost, Unsubscribe } from '@amazon/vinyl-util'
 import { ErrorLevel, ErrorOrigin, ReportableError } from '@amazon/vinyl-util'
-import type { EncryptedInitData } from '@/drm/commonEme/EncryptedInitData'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
-import type { BasicErrorEvent } from '@/event/BasicErrorEvent'
+import type { EncryptedInitData } from './EncryptedInitData'
+import type { DrmInitDataType } from '../../streaming/DrmInitDataType'
+import type { BasicErrorEvent } from '../../event/BasicErrorEvent'
 
 /**
  * Top-level Common EME methods for initiating encrypted audio session.

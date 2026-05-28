@@ -3,6 +3,7 @@
         "target": "ES2020",
         "module": "ESNext",
         "moduleResolution": "bundler",
+        "customConditions": ["development"],
         "jsx": "react",
         "jsxFactory": "jsx",
         "jsxFragmentFactory": "Fragment",
@@ -13,10 +14,7 @@
         "resolveJsonModule": true,
         "isolatedModules": true,
         "noEmit": true,
-        "baseUrl": ".",
-        "paths": {
-            "@/*": ["src/*"]
-        }
+        "baseUrl": "."
     },
     "include": ["src", "buildSrc", "vite.config.ts"]
 }

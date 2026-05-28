@@ -3,10 +3,7 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "outDir": "../../dist/unit/types/current",
-        "noEmit": true,
-        "paths": {
-            "@amazon/vinyl-tsx": ["../../src/index"]
-        }
+        "noEmit": true
     },
     "references": [
         {

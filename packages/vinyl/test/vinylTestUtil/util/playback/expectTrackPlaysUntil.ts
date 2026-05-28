@@ -3,12 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-    onCanPlayThrough,
-    onPlaying,
-    onTimeUpdate,
-} from '@/util/playback/eventPromises'
-import { assertFrequency } from '@/media/FrequencyAnalyzer'
+import { onCanPlayThrough, onPlaying, onTimeUpdate } from './eventPromises'
+import { assertFrequency } from '../../media/FrequencyAnalyzer'
 import type { ReadonlyPlaybackController } from '@amazon/vinyl'
 import { sleep } from '@amazon/vinyl-util'
 

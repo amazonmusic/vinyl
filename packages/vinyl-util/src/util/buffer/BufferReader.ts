@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { bufferToByteStr, bufferToUtf16 } from '@/util/buffer/buffer'
-import { BufferError } from '@/util/buffer/BufferError'
+import { bufferToByteStr, bufferToUtf16 } from './buffer'
+import { BufferError } from './BufferError'
 
 export class BufferReader {
     position: number = 0

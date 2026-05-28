@@ -8,8 +8,8 @@ import {
     LogReporter,
     type LogReporterDoneEvent,
     type LogReporterStartedEvent,
-} from '@/reporters/LogReporter'
-import { initializeUncaughtErrorLogging } from '@/util/initializeUncaughtErrorLogging'
+} from './LogReporter'
+import { initializeUncaughtErrorLogging } from '../util/initializeUncaughtErrorLogging'
 import { stringifyLogLevel } from '@amazon/vinyl-util'
 
 export class RestApiReporter extends LogReporter {

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Maybe } from '@/util/type'
+import type { Maybe } from '../type'
 
 /**
  * Converts a byte buffer to an 8-bit width string.

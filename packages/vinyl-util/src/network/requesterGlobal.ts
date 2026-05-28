@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalRef } from '@/global/globalRegistry'
-import type { Maybe } from '@/util/type'
+import { globalRef } from '../global/globalRegistry'
+import type { Maybe } from '../util/type'
 import { createRequester } from './createRequester'
 import type { Requester, RequestInitOptions, RequestOptions } from './Requester'
 import { RetryStrategy } from './RequesterImpl'

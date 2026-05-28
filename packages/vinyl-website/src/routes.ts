@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { OverviewPage } from '@/components/OverviewPage'
-import { PlayerPage } from '@/components/PlayerPage'
-import type { RouteOptions, PropsFromKeys } from '@/router/router'
+import { OverviewPage } from './components/OverviewPage'
+import { PlayerPage } from './components/PlayerPage'
+import type { RouteOptions, PropsFromKeys } from './router/router'
 
 export const routes: RouteOptions<any>[] = [
     {
@@ -22,14 +22,14 @@ export const routes: RouteOptions<any>[] = [
         pattern: '/docs',
         paramNames: [],
         factory: async () => {
-            return (await import('@/components/DocsPage')).DocsPage(null)
+            return (await import('./components/DocsPage')).DocsPage(null)
         },
     },
     {
         pattern: '/docs/:slug',
         paramNames: ['slug'],
         factory: async ({ slug }: PropsFromKeys<['slug']>) => {
-            return (await import('@/components/DocsPage')).DocsPage(slug)
+            return (await import('./components/DocsPage')).DocsPage(slug)
         },
     },
 ]

@@ -13,7 +13,7 @@
  */
 
 import { BufferWriter } from '@amazon/vinyl-util'
-import { box, fullBox } from '@/mp4/mp4'
+import { box, fullBox } from '../mp4/mp4'
 
 /** 72 dpi in 16.16 fixed point. */
 const RESOLUTION_72_DPI = 0x00480000

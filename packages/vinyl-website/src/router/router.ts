@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { windowEvents } from '@/util/interaction'
-import { createErrorHandler } from '@/errorHandler'
+import { windowEvents } from '../util/interaction'
+import { createErrorHandler } from '../errorHandler'
 import {
     Abort,
     createDisposer,
@@ -24,8 +24,8 @@ import {
     ValidationError,
     withAbort,
 } from '@amazon/vinyl-util'
-import { startViewTransition } from '@/util/viewTransition'
-import { scrollToTop } from '@/util/domUtil'
+import { startViewTransition } from '../util/viewTransition'
+import { scrollToTop } from '../util/domUtil'
 
 type RouteParams = Record<string, string>
 export type RouteViewFactory<T extends RouteParams> = (

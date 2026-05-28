@@ -5,14 +5,14 @@ import {
     seekToPercent,
     togglePlayPause,
     unloadTrack,
-} from '@/player'
+} from '../player'
 import type { LogTarget } from '@amazon/vinyl-util'
 import { logDebug } from '@amazon/vinyl-util'
 import { combineData, externalData } from '@amazon/vinyl-observable'
-import { Icon } from '@/components/icons'
+import { Icon } from './icons'
 import { LIVE_DURATION } from '@amazon/vinyl'
-import { ScrubBar } from '@/components/ScrubBar'
-import { VolumeControl } from '@/components/VolumeControl'
+import { ScrubBar } from './ScrubBar'
+import { VolumeControl } from './VolumeControl'
 
 const target: LogTarget = {
     logPrefix: 'TransportBar',

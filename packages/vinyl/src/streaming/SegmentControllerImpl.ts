@@ -24,43 +24,34 @@ import {
     throttle,
     withAbort,
 } from '@amazon/vinyl-util'
-import type { ReadonlyPlaybackController } from '@/playback/ReadonlyPlaybackController'
+import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
 import {
     type PrefetchOptions,
     SEGMENT_START_AFFORDANCE,
     type SegmentController,
     type SegmentControllerEventMap,
-} from '@/streaming/SegmentController'
+} from './SegmentController'
 import {
     type SegmentDataProvider,
     SegmentDataSlot,
     SegmentStatus,
-} from '@/streaming/SegmentDataSlot'
+} from './SegmentDataSlot'
 import {
     defaultTrackPriority,
     enqueueSegmentPrefetch,
     immediatePrefetchPriority,
     type SegmentPrefetchPriority,
-} from '@/streaming/SegmentPrefetch'
+} from './SegmentPrefetch'
 import {
     getSegmentAtTime,
     getSegmentInsertionIndexAtTime,
-} from '@/streaming/util/segment'
-import type { SegmentReference } from '@/streaming/SegmentReference'
-import type {
-    ContentType,
-    MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
+} from './util/segment'
+import type { SegmentReference } from './SegmentReference'
+import type { ContentType, MediaQualityMetadata } from './MediaQualityMetadata'
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { MediaTimeline } from '@/streaming/MediaTimeline'
-import {
-    getMediaPeriodAtTime,
-    type MediaPeriod,
-} from '@/streaming/MediaTimeline'
-import type {
-    PrefetchState,
-    QualitySelector,
-} from '@/streaming/abr/QualitySelector'
+import type { MediaTimeline } from './MediaTimeline'
+import { getMediaPeriodAtTime, type MediaPeriod } from './MediaTimeline'
+import type { PrefetchState, QualitySelector } from './abr/QualitySelector'
 
 /**
  * The interval to check if additional segments should be prefetched.

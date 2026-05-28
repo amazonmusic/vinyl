@@ -5,7 +5,7 @@
 
 import { promise } from '@amazon/vinyl-util'
 import type { Maybe } from '@amazon/vinyl-util'
-import { SourceBufferError } from '@/streaming/buffering/error/SourceBufferError'
+import { SourceBufferError } from '../../streaming/buffering/error/SourceBufferError'
 import { AbortError } from '@amazon/vinyl-util'
 
 /**

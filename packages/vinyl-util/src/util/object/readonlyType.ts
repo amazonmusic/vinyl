@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Fun } from '@/util/type'
+import type { Fun } from '../type'
 
 /**
  * Recursively marks Objects, Arrays, Maps, Sets, or Dates as read only.

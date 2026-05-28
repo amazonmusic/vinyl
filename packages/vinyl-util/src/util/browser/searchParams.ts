@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { memoize } from '@/util/fun/memoize'
+import { memoize } from '../fun/memoize'
 import { getLocation } from '../../global/environment'
 
 /**

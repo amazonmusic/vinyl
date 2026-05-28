@@ -4,10 +4,10 @@
  */
 
 import { StringReader, substitute } from '@amazon/vinyl-util'
-import type { EncryptionKey } from '@/types/EncryptionKey'
-import { encryptionMethodValidator } from '@/types/EncryptionKey'
-import type { HlsSegment, HlsMap } from '@/types/HlsSegment'
-import type { MediaPlaylist } from '@/types/MediaPlaylist'
+import type { EncryptionKey } from '../types/EncryptionKey'
+import { encryptionMethodValidator } from '../types/EncryptionKey'
+import type { HlsSegment, HlsMap } from '../types/HlsSegment'
+import type { MediaPlaylist } from '../types/MediaPlaylist'
 import { parseAttributes } from './parseAttributes'
 import { readLine, skipWhitespaceLine, addIfPresent } from './parseUtil'
 

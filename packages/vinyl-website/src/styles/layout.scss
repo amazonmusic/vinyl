@@ -80,10 +80,21 @@ body {
         font-weight: 600;
         border-radius: var(--radius-sm);
         letter-spacing: -0.02em;
+        white-space: nowrap;
 
         img {
             width: 32px;
             height: 32px;
+        }
+
+        .logoText {
+            display: flex;
+            flex-direction: column;
+            line-height: 1.1;
+
+            .versionTag {
+                margin-left: 0;
+            }
         }
     }
 
@@ -374,6 +385,16 @@ body {
         border-top: 1px solid var(--color-border);
         margin: var(--space-lg) 0;
     }
+}
+
+.versionTag {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.6em;
+    font-weight: 400;
+    color: var(--color-text-secondary);
+    opacity: 0.6;
+    letter-spacing: 0;
+    margin-left: var(--space-xs);
 }
 
 // Mobile header (hamburger)

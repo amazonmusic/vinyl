@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
+import type { MediaQualityMetadata } from '../../streaming/MediaQualityMetadata'
 import {
     hasBrowser,
     Browser,
@@ -13,7 +13,7 @@ import {
     map,
     min,
 } from '@amazon/vinyl-util'
-import type { Capabilities } from '@/client/Capabilities'
+import type { Capabilities } from '../../client/Capabilities'
 
 export function throwSamplingRatesUnsupported(): never {
     throw new MediaUnsupportedError('No supported sample rate', 'sampling-rate')

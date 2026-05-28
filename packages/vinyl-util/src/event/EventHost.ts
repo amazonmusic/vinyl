@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
+import type { Disposable } from '../core/disposable'
 import type { EventHandler, SignalImpl, SignalOptions } from './Signal'
 import { signal } from './Signal'
-import type { Unsubscribe } from '@/core/Unsubscribe'
-import { getOrSet } from '@/util/map/map'
-import type { Covariant } from '@/util/type'
-import { covariant } from '@/util/type'
-import { createLogPrefix, type LogTarget } from '@/logging/LogTarget'
+import type { Unsubscribe } from '../core/Unsubscribe'
+import { getOrSet } from '../util/map/map'
+import type { Covariant } from '../util/type'
+import { covariant } from '../util/type'
+import { createLogPrefix, type LogTarget } from '../logging/LogTarget'
 
 export interface EventDispatcher<in EventMap> extends LogTarget {
     /**

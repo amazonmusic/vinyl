@@ -2,12 +2,7 @@
     "extends": "../../../../tsconfig.test.json",
     "include": ["./**/*"],
     "compilerOptions": {
-        "noEmit": true,
-        "paths": {
-            "@amazon/vinyl": ["../../src/index"],
-            "@amazon/vinyl/vinylTestUtil": ["../vinylTestUtil/index"],
-            "@/*": ["./*"]
-        }
+        "noEmit": true
     },
     "references": [
         {

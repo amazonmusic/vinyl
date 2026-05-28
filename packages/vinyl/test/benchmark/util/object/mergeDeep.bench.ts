@@ -5,7 +5,7 @@
 
 import { mergeDeep } from '@amazon/vinyl-util'
 import { benchmark } from '@amazon/vinyl-util/browserTestUtil'
-import { addBenchmarks, setupBenchmark } from '@/setup'
+import { addBenchmarks, setupBenchmark } from '../../setup'
 
 describe('mergeDeep', () => {
     setupBenchmark()

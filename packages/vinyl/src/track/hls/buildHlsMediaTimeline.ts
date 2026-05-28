@@ -3,28 +3,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { HlsManifestData } from '@/track/hls/HlsManifestProvider'
-import type { HlsMediaQualityMetadataResolver } from '@/track/hls/HlsMediaQualityMetadataResolver'
+import type { HlsManifestData } from './HlsManifestProvider'
+import type { HlsMediaQualityMetadataResolver } from './HlsMediaQualityMetadataResolver'
 import type {
     ContentType,
     MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
+} from '../../streaming/MediaQualityMetadata'
 import type {
     MediaPeriod,
     MediaQualityData,
     MediaTimeline,
-} from '@/streaming/MediaTimeline'
-import type { SegmentReference } from '@/streaming/SegmentReference'
-import type { SegmentDataProvider } from '@/streaming/SegmentDataSlot'
-import { buildSegmentTimeline } from '@/track/hls/util/hlsSegmentTime'
-import { getSegmentAtTime } from '@/streaming/util/segment'
+} from '../../streaming/MediaTimeline'
+import type { SegmentReference } from '../../streaming/SegmentReference'
+import type { SegmentDataProvider } from '../../streaming/SegmentDataSlot'
+import { buildSegmentTimeline } from './util/hlsSegmentTime'
+import { getSegmentAtTime } from '../../streaming/util/segment'
 import { resolveUrl } from '@amazon/vinyl-util'
-import { codecToContentType, contentTypeToMimeType } from '@/track/mse/codec'
+import { codecToContentType, contentTypeToMimeType } from '../mse/codec'
 import {
     createSegmentDataProvider,
     type CreateSegmentDataProviderDeps,
-} from '@/track/createSegmentDataProvider'
-import { hlsByteRangeToMediaRange } from '@/track/hls/util/hlsByteRangeToMediaRange'
+} from '../createSegmentDataProvider'
+import { hlsByteRangeToMediaRange } from './util/hlsByteRangeToMediaRange'
 import { createTransmuxer } from '@amazon/vinyl-transmux'
 
 export interface BuildHlsMediaTimelineDeps extends CreateSegmentDataProviderDeps {

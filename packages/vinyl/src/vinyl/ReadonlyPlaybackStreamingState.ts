@@ -4,7 +4,7 @@
  */
 
 import type { ReadonlyEventHost } from '@amazon/vinyl-util'
-import type { TrackEventMap, ReadonlyStreamingState } from '@/track/Track'
+import type { TrackEventMap, ReadonlyStreamingState } from '../track/Track'
 
 /**
  * Represents the streaming state of the currently active track.

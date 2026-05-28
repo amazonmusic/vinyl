@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
-import { DisposedError, isDisposable } from '@/core/disposable'
-import { IllegalStateError } from '@/error/IllegalStateError'
+import type { Disposable } from '../../core/disposable'
+import { DisposedError, isDisposable } from '../../core/disposable'
+import { IllegalStateError } from '../../error/IllegalStateError'
 
 export interface ReadonlyLazy<T> {
     /**

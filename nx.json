@@ -11,12 +11,10 @@
     },
     "targetDefaults": {
         "build": {
-            "dependsOn": ["^build"],
             "outputs": ["{projectRoot}/dist"],
             "cache": true
         },
         "build:release": {
-            "dependsOn": ["^build:release"],
             "outputs": ["{projectRoot}/dist"],
             "cache": true
         },
@@ -25,28 +23,25 @@
             "cache": true
         },
         "lint": {
-            "dependsOn": ["^build:release"],
             "cache": true,
             "inputs": ["default", "lintConfig"]
         },
         "lint:write": {
-            "dependsOn": ["^build:release"],
             "cache": true,
             "inputs": ["default", "lintConfig"]
         },
-        "validate": {
-            "dependsOn": ["^build:release"],
-            "cache": true
-        },
         "test": {
-            "dependsOn": ["^build:release"],
             "cache": true
         },
         "test:coverage": {
-            "dependsOn": ["^build:release"],
             "cache": true,
             "outputs": ["{projectRoot}/coverage"]
+        },
+        "analyzeExports": {
+            "dependsOn": ["build:release", "^build:release"],
+            "cache": true
         }
     },
-    "defaultBase": "master"
+    "defaultBase": "main",
+    "analytics": false
 }

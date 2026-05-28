@@ -4,7 +4,7 @@
  */
 
 import { isOneOf, type Validator } from '@amazon/vinyl-validation'
-import type { actuateType } from '@/xmlns/org/w3/1999/xlink'
+import type { actuateType } from '../xmlns/org/w3/1999/xlink'
 import { ErrorOrigin } from '@amazon/vinyl-util'
 
 const actuateValidator: Validator<actuateType> = isOneOf('onLoad', 'onRequest')

@@ -17,7 +17,7 @@ import {
     type ReadonlyRanges,
     type ReadonlySet,
 } from '@amazon/vinyl-util'
-import type { PlaybackController } from '@/playback/PlaybackController'
+import type { PlaybackController } from '../playback/PlaybackController'
 import type {
     Track,
     TrackEventMap,
@@ -25,12 +25,12 @@ import type {
     TrackTypeId,
     TrackUri,
 } from './Track'
-import { type DrmController } from '@/drm/DrmController'
+import { type DrmController } from '../drm/DrmController'
 import type {
     ContentType,
     MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
-import { type DrmOptions, drmOptionsValidator } from '@/drm/DrmOptions'
+} from '../streaming/MediaQualityMetadata'
+import { type DrmOptions, drmOptionsValidator } from '../drm/DrmOptions'
 
 /**
  * Dependencies for TrackBase.

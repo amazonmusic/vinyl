@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TypedArray } from '@/util/collection/typedArray'
-import { isTypedArray } from '@/util/collection/typedArray'
+import type { TypedArray } from '../collection/typedArray'
+import { isTypedArray } from '../collection/typedArray'
 import { isPlainObject, ownKeys } from './object'
 
 /**

@@ -337,7 +337,8 @@ describe('string', () => {
                 expectTypeStrictlyEquals<typeof _nullReturn, string | null>(
                     true
                 )
-                const input: Maybe<string> = null // cast as any to prevent type narrowing
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+                const input: Maybe<string> = null as any // cast as any to prevent type narrowing
                 const _maybeReturn = truncate(input, 1)
                 expectTypeStrictlyEquals<typeof _maybeReturn, Maybe<string>>(
                     true

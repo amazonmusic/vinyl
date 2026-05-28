@@ -4,8 +4,8 @@
  */
 
 import type { RepresentationType } from '@amazon/vinyl-mpd-parser'
-import type { ContentType } from '@/streaming/MediaQualityMetadata'
-import { codecToContentType } from '@/track/mse/codec'
+import type { ContentType } from '../../../streaming/MediaQualityMetadata'
+import { codecToContentType } from '../../mse/codec'
 
 export interface RepresentationMimeInfo {
     readonly mimeType: string | null

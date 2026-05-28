@@ -4,7 +4,7 @@
  */
 
 import { marbleTest } from './marble'
-import type { MockTime } from '@/async/async'
+import type { MockTime } from './async'
 import Spy = jasmine.Spy
 import createSpy = jasmine.createSpy
 

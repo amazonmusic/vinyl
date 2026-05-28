@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import { ErrorLevel, ReportableError } from '@/error/ReportableError'
+import { ErrorOrigin } from '../error/ErrorOrigin'
+import { ErrorLevel, ReportableError } from '../error/ReportableError'
 import {
     type RequestErrorEvent,
     RequestFailureType,
 } from './RequesterImplEventMap'
-import { type Json, toJson } from '@/util/serialization/json'
-import { substitute } from '@/util/string/string'
+import { type Json, toJson } from '../util/serialization/json'
+import { substitute } from '../util/string/string'
 
 const locale = {
     requestFailed: 'request failed, attempt {current} of {total}',

@@ -8,14 +8,14 @@ import {
     type TrackBaseDeps,
     type TrackBaseOptions,
     trackBaseOptionsValidator,
-} from '@/track/TrackBase'
+} from '../TrackBase'
 import type {
     TrackEventMap,
     TrackPreloadOptions,
     TrackTypeId,
     TrackUri,
-} from '@/track/Track'
-import { FixedPlaybackQuality } from '@/track/source/FixedPlaybackQuality'
+} from '../Track'
+import { FixedPlaybackQuality } from './FixedPlaybackQuality'
 import {
     logDebug,
     type Maybe,
@@ -27,7 +27,7 @@ import {
     createEmptyMediaQualityMetadata,
     type MediaQualityMetadata,
     mediaQualityMetadataValidator,
-} from '@/streaming/MediaQualityMetadata'
+} from '../../streaming/MediaQualityMetadata'
 import type { ObjectSchema } from '@amazon/vinyl-validation'
 
 export interface SourceTrackBaseOptions extends TrackBaseOptions {

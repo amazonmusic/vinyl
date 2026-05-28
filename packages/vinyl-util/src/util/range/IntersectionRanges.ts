@@ -4,7 +4,7 @@
  */
 
 import { type Range, type ReadonlyRanges, ReadonlyRangesImpl } from './Ranges'
-import type { Maybe } from '@/util/type'
+import type { Maybe } from '../type'
 
 export interface IntersectionRangesOptions {
     /**

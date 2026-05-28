@@ -6,7 +6,7 @@
 import type {
     PlaybackControllerEventMap,
     ReadonlyPlaybackController,
-} from '@/playback/ReadonlyPlaybackController'
+} from './ReadonlyPlaybackController'
 import {
     type AnyRecord,
     nextEventAsPromise,

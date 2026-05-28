@@ -8,7 +8,7 @@ import type {
     DashManifest,
     RepresentationType,
 } from '@amazon/vinyl-mpd-parser'
-import type { DashManifestData } from '@/track/dash/DashManifestProvider'
+import type { DashManifestData } from './DashManifestProvider'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import {
     clone,

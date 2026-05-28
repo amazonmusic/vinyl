@@ -4,7 +4,7 @@
  */
 
 import { ErrorOrigin } from './ErrorOrigin'
-import type { Json } from '@/util/serialization/json'
+import type { Json } from '../util/serialization/json'
 
 export enum ErrorLevel {
     /**

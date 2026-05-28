@@ -3,17 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
-import { createDisposer } from '@/core/disposable'
-import type { ReadonlyEventHost } from '@/event/EventHost'
-import { logDebug } from '@/logging/Logger'
+import type { Disposable } from '../../core/disposable'
+import { createDisposer } from '../../core/disposable'
+import type { ReadonlyEventHost } from '../../event/EventHost'
+import { logDebug } from '../../logging/Logger'
 import type {
     RequestAttemptStartEvent,
     RequestCompletedEvent,
     RequesterImplEventMap,
-} from '@/network/RequesterImplEventMap'
-import { truncate } from '@/util/string/string'
-import { createLogPrefix, type LogTarget } from '@/logging/LogTarget'
+} from '../RequesterImplEventMap'
+import { truncate } from '../../util/string/string'
+import { createLogPrefix, type LogTarget } from '../../logging/LogTarget'
 
 /**
  * The max length to truncate the logged service id.

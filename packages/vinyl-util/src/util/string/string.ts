@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IllegalArgumentError } from '@/error/IllegalArgumentError'
-import { flipMap } from '@/util/map/map'
-import type { Maybe } from '@/util/type'
-import type { ReadonlyRecord } from '@/util/object/readonlyType'
+import { IllegalArgumentError } from '../../error/IllegalArgumentError'
+import { flipMap } from '../map/map'
+import type { Maybe } from '../type'
+import type { ReadonlyRecord } from '../object/readonlyType'
 
 /**
  * @private

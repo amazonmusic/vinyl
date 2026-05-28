@@ -3,13 +3,7 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "outDir": "../../dist/unit/types/current",
-        "noEmit": true,
-        "paths": {
-            "@amazon/vinyl-mpd-parser": ["../../src/index"],
-            "@amazon/vinyl-mpd-parser/dashTestAssets": [
-                "../dashTestAssets/index"
-            ]
-        }
+        "noEmit": true
     },
     "references": [
         {

@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
+import type { MediaQualityMetadata } from './MediaQualityMetadata'
 import type { FilterPredicate } from '@amazon/vinyl-util'
 import { memoize } from '@amazon/vinyl-util'
 import {
     findBestLanguageMatch,
     languageRelatedness,
-} from '@/track/filters/languageFilter'
+} from '../track/filters/languageFilter'
 
 /**
  * Creates a filter predicate that keeps qualities matching the preferred language.

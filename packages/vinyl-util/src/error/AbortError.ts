@@ -4,7 +4,7 @@
  */
 
 import { ErrorLevel, ReportableError } from './ReportableError'
-import { ErrorOrigin } from '@/error/ErrorOrigin'
+import { ErrorOrigin } from './ErrorOrigin'
 
 export class AbortError extends ReportableError {
     get [Symbol.toStringTag](): string {

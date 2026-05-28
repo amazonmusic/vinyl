@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { logDebug } from '@/logging/Logger'
-import type { LogTarget } from '@/logging/LogTarget'
+import { logDebug } from './Logger'
+import type { LogTarget } from './LogTarget'
 
 /**
  * Creates a timer that logs elapsed time when called.

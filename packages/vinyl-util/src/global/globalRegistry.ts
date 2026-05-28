@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { isDisposable } from '@/core/disposable'
-import { IllegalStateError } from '@/error/IllegalStateError'
-import { remove } from '@/util/collection/array'
-import type { Maybe } from '@/util/type'
+import { isDisposable } from '../core/disposable'
+import { IllegalStateError } from '../error/IllegalStateError'
+import { remove } from '../util/collection/array'
+import type { Maybe } from '../util/type'
 
 /**
  * Manages global initializers.

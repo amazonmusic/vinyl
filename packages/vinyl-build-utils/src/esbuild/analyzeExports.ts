@@ -6,8 +6,8 @@
 import path from 'path'
 import { existsSync } from 'fs'
 import fs from 'fs/promises'
-import { exit } from 'process'
 import os from 'os'
+import { exit } from 'process'
 import esbuild from 'esbuild'
 import crypto from 'node:crypto'
 
@@ -19,26 +19,28 @@ async function getBundleSize(
 ): Promise<number> {
     const virtualEntry = path.join(
         os.tmpdir(),
-        `esbuild-test-${importName}-${crypto.randomUUID()}.js`
+        `analyze-exports-${importName}-${crypto.randomUUID()}.js`
     )
     await fs.writeFile(
         virtualEntry,
         `import { ${importName} } from "${importPath}";\nconsole.log(${importName});`
     )
 
-    const result = await esbuild.build({
-        entryPoints: [virtualEntry],
-        bundle: true,
-        write: false,
-        treeShaking: true,
-        minify: true,
-        format: 'esm',
-        platform: 'node',
-        logLevel: 'silent',
-    })
-
-    await fs.unlink(virtualEntry)
-    return result.outputFiles[0].text.length
+    try {
+        const result = await esbuild.build({
+            entryPoints: [virtualEntry],
+            bundle: true,
+            write: false,
+            treeShaking: true,
+            minify: true,
+            format: 'esm',
+            platform: 'node',
+            logLevel: 'silent',
+        })
+        return result.outputFiles[0].text.length
+    } finally {
+        await fs.unlink(virtualEntry).catch(() => undefined)
+    }
 }
 
 export interface AnalyzeExportsOptions {

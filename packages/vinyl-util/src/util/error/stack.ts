@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { compareBy } from '@/util/comparison/compare'
-import { lazy } from '@/util/object/lazy'
-import type { Maybe } from '@/util/type'
+import { compareBy } from '../comparison/compare'
+import { lazy } from '../object/lazy'
+import type { Maybe } from '../type'
 
 /**
  * A location in code.

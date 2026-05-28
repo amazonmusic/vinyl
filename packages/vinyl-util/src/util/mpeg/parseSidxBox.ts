@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { BufferReader } from '@/util/buffer/BufferReader'
-import { ValidationError } from '@/error/ValidationError'
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import { MediaUnsupportedError } from '@/error/MediaUnsupportedError'
+import { BufferReader } from '../buffer/BufferReader'
+import { ValidationError } from '../../error/ValidationError'
+import { ErrorOrigin } from '../../error/ErrorOrigin'
+import { MediaUnsupportedError } from '../../error/MediaUnsupportedError'
 
 /**
  * ISO_IEC_14496-12 Segment Index Box

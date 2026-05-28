@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { clamp } from '@/util/math/math'
+import { clamp } from '../math/math'
 
 export interface ParseError {
     /**

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { toastError } from '@/components/toast'
+import { toastError } from './components/toast'
 
 export function handleError(error: unknown): void {
     const message = error instanceof Error ? error.message : String(error)

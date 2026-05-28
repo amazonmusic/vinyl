@@ -22,7 +22,6 @@
         "eslint:write": "eslint . --cache --fix",
         "lint": "npm run eslint:check && npm run prettier:check",
         "lint:write": "npm run eslint:write && npm run prettier:write",
-        "validate": "npm run lint",
         "test": ""
     },
     "devDependencies": {

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ContentType } from '@/streaming/MediaQualityMetadata'
+import type { ContentType } from '../../streaming/MediaQualityMetadata'
 
 /**
  * RFC 6381 codec prefixes for video content.

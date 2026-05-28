@@ -5,7 +5,7 @@
 
 import type { Requester, RequesterImplEventMap } from '@amazon/vinyl-util'
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
-import { MockEventHost } from '@/mock/event/MockEventHost'
+import { MockEventHost } from '../event/MockEventHost'
 
 const spyFactory = createSpyFactory<Requester>()
 export class MockRequester

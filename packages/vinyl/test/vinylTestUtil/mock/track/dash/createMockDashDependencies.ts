@@ -10,12 +10,12 @@ import {
     type DashTrackDeps,
     type MediaTimeline,
 } from '@amazon/vinyl'
-import { MockDashManifestController } from '@/mock/dash/MockDashManifestController'
-import { MockMediaSourceController } from '@/mock/streaming/buffering/MockMediaSourceController'
-import { MockPlaybackSource } from '@/mock/playback/MockPlaybackSource'
-import { MockContentStream } from '@/mock/streaming/MockContentStream'
-import { MockPlaybackController } from '@/mock/playback/MockPlaybackController'
-import { MockDrmController } from '@/mock/drm/MockDrmController'
+import { MockDashManifestController } from '../../dash/MockDashManifestController'
+import { MockMediaSourceController } from '../../streaming/buffering/MockMediaSourceController'
+import { MockPlaybackSource } from '../../playback/MockPlaybackSource'
+import { MockContentStream } from '../../streaming/MockContentStream'
+import { MockPlaybackController } from '../../playback/MockPlaybackController'
+import { MockDrmController } from '../../drm/MockDrmController'
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
 import { data } from '@amazon/vinyl-observable'
 

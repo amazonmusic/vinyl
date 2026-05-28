@@ -20,11 +20,11 @@ import {
     type CommonMediaKeySystemAccess,
     MediaKeySessionErrorType,
 } from './CommonEme'
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
+import type { DrmKeySystem } from '../DrmKeySystem'
 import { type EncryptedInitData } from './EncryptedInitData'
-import type { MSMediaKeyMessageEvent } from '@/drm/dom/MSMediaKeys'
-import { DrmError } from '@/drm/error/DrmError'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
+import type { MSMediaKeyMessageEvent } from '../dom/MSMediaKeys'
+import { DrmError } from '../error/DrmError'
+import type { DrmInitDataType } from '../../streaming/DrmInitDataType'
 
 declare global {
     interface HTMLMediaElementEventMap extends HTMLElementEventMap {

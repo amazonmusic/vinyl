@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { isPlainObject } from '@/util/object/object'
-import type { AnyRecord, Fun, IsAny } from '@/util/type'
+import { isPlainObject } from '../object/object'
+import type { AnyRecord, Fun, IsAny } from '../type'
 
 /**
  * A representation of the conversion the toJson function will apply to make an input JSON compatible.
