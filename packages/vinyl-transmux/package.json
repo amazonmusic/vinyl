@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-transmux",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "description": "MPEG-TS to fMP4 transmuxer for browser and Node.",
     "repository": {
         "type": "git",
@@ -70,11 +70,11 @@
         "watch:release": "tsx buildSrc/build.ts --watch --release"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^1.1.0",
-        "@amazon/vinyl-jasmine-wrapper": "^1.1.0"
+        "@amazon/vinyl-build-utils": "^1.1.1",
+        "@amazon/vinyl-jasmine-wrapper": "^1.1.1"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^1.1.0"
+        "@amazon/vinyl-util": "^1.1.1"
     },
     "browserslist": [
         "defaults, chrome 52, firefox 54, edge 15, safari 8"
