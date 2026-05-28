@@ -66,7 +66,7 @@ export function Sidebar() {
                 <ExternalNavItem
                     icon="code"
                     label="API Docs"
-                    href="/tsdocs/index.html"
+                    href="tsdocs/index.html"
                 />
                 <ExternalNavItem
                     icon="github"
