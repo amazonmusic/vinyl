@@ -12,8 +12,8 @@ declare module '*.md' {
 
 declare module 'virtual:docs-manifest' {
     const manifest: Array<{
+        slug: string
         title: string
-        filename: string
         category: string
         html: string
     }>

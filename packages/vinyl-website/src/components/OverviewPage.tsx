@@ -93,10 +93,10 @@ player.load({
                     <p>
                         See the{' '}
                         <a
-                            href="#!/docs/USAGE"
+                            href="#!/docs/vinyl-usage"
                             onclick={(e: MouseEvent) => {
                                 e.preventDefault()
-                                navigateTo('/docs/USAGE')
+                                navigateTo('/docs/vinyl-usage')
                             }}
                         >
                             full usage guide

@@ -1,7 +1,17 @@
-# Transmux
+# @amazon/vinyl-transmux
+
+[![Website](https://img.shields.io/badge/website-amazonmusic.github.io%2Fvinyl-blue)](https://amazonmusic.github.io/vinyl)
+[![npm](https://img.shields.io/npm/v/@amazon/vinyl-transmux.svg)](https://www.npmjs.com/package/@amazon/vinyl-transmux)
+[![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-transmux.svg?label=size)](https://bundlejs.com/?q=@amazon/vinyl-transmux)
 
 Converts MPEG-TS and raw ADTS segments into fragmented MP4 (fMP4) for playback
 via Media Source Extensions. Zero external dependencies.
+
+## Install
+
+```shell
+npm install @amazon/vinyl-transmux
+```
 
 ## Architecture
 
@@ -59,10 +69,10 @@ calls.
 
 | Input              | Output                          | Status |
 | ------------------ | ------------------------------- | ------ |
-| ADTS AAC           | fMP4 audio (`mp4a`)             | ✅     |
-| MPEG-TS with AAC   | fMP4 audio (`mp4a`)             | ✅     |
-| MPEG-TS with H.264 | fMP4 video (`avc1`)             | ✅     |
-| MPEG-TS muxed      | fMP4 video + audio (multi-trak) | ✅     |
+| ADTS AAC           | fMP4 audio (`mp4a`)             | yes    |
+| MPEG-TS with AAC   | fMP4 audio (`mp4a`)             | yes    |
+| MPEG-TS with H.264 | fMP4 video (`avc1`)             | yes    |
+| MPEG-TS muxed      | fMP4 video + audio (multi-trak) | yes    |
 
 ## MP4 Box Writer
 
@@ -82,13 +92,11 @@ import {
     patchDataOffset,
 } from '@amazon/vinyl-transmux'
 
-// Custom ftyp
 const ftypBox = ftyp({
     majorBrand: 'dash',
     compatibleBrands: ['iso6', 'mp41'],
 })
 
-// Build a moov with custom tracks
 const moovBox = moov(
     audioTrak({
         trackId: 1,
@@ -104,7 +112,6 @@ const moovBox = moov(
     })
 )
 
-// Build a media fragment
 const moofBox = moof({
     sequenceNumber: 1,
     trackId: 1,
@@ -129,3 +136,7 @@ The transmuxer includes a minimal H.264 SPS parser that extracts resolution and
 profile information from Sequence Parameter Set NAL units. It supports Baseline,
 Main, and High profiles including the chroma format and scaling matrix
 extensions.
+
+## License
+
+Apache-2.0

@@ -1,4 +1,19 @@
-# Dependency Injection
+# @amazon/vinyl-di
+
+[![Website](https://img.shields.io/badge/website-amazonmusic.github.io%2Fvinyl-blue)](https://amazonmusic.github.io/vinyl)
+[![npm](https://img.shields.io/npm/v/@amazon/vinyl-di.svg)](https://www.npmjs.com/package/@amazon/vinyl-di)
+[![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-di.svg?label=size)](https://bundlejs.com/?q=@amazon/vinyl-di)
+
+Constructor-based dependency injection with a compile-time-checked dependency
+graph. Used internally by Amazon Vinyl, but standalone.
+
+## Install
+
+```shell
+npm install @amazon/vinyl-di
+```
+
+## Dependency Injection
 
 Amazon Vinyl uses the most common form of dependency injection; requesting
 dependencies through constructors.
@@ -29,7 +44,7 @@ const requester = new Requester({
 })
 ```
 
-There are two steps to dependency injection, creating a record of dependency
+There are two steps to dependency injection: creating a record of dependency
 factories, then creating a container that uses the factories to construct
 implementations.
 
@@ -43,7 +58,7 @@ there are no cyclic dependencies, missing dependencies, or incompatible types.
 Example:
 
 ```typescript
-import { validateFactories } from '@amazon/vinyl-util'
+import { validateFactories } from '@amazon/vinyl-di'
 
 class A {}
 
@@ -73,10 +88,11 @@ const factories = validateFactories({
 
 These factories will be used to create implementations. Use `createContainer` to
 create a container that may be disposed and provides an object with getters to
-lazily-construct implementations from the provided factories.
+lazily construct implementations from the provided factories.
 
 ```typescript
-import { createContainer, createDisposer } from '@amazon/vinyl-util'
+import { createContainer } from '@amazon/vinyl-di'
+import { createDisposer } from '@amazon/vinyl-util'
 
 const { add, dispose } = createDisposer()
 
@@ -98,7 +114,7 @@ import {
     externalDependencies,
     validateFactories,
     createContainer,
-} from '@amazon/vinyl-util'
+} from '@amazon/vinyl-di'
 
 // External services managed elsewhere
 const logger = new Logger()
@@ -127,3 +143,7 @@ container.dispose()
 As a general guideline, when defining a dependency to be provided, the interface
 requested should be the minimum API needed, and disposal should be the
 responsibility of the creator.
+
+## License
+
+Apache-2.0

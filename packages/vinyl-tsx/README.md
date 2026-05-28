@@ -1,27 +1,31 @@
-# TSX UI
+# @amazon/vinyl-tsx
 
-Amazon Vinyl TSX is a lightweight, reactive JSX runtime for creating dynamic DOM
-elements with TypeScript support. It provides a declarative way to build user
-interfaces with reactive data binding using vinyl-observable.
+[![Website](https://img.shields.io/badge/website-amazonmusic.github.io%2Fvinyl-blue)](https://amazonmusic.github.io/vinyl)
+[![npm](https://img.shields.io/npm/v/@amazon/vinyl-tsx.svg)](https://www.npmjs.com/package/@amazon/vinyl-tsx)
+[![size](https://img.shields.io/bundlejs/size/@amazon/vinyl-tsx.svg?label=size)](https://bundlejs.com/?q=@amazon/vinyl-tsx)
+
+A lightweight, reactive JSX runtime for creating dynamic DOM elements with
+TypeScript support. Provides a declarative way to build user interfaces with
+reactive data binding via [`@amazon/vinyl-observable`](../vinyl-observable).
 
 ## Features
 
-- **Reactive Properties**: Bind observable values to DOM properties that update
-  automatically
-- **Hook Extensions**: Enhanced DOM manipulation through custom hooks (style,
-  visibility, classList)
-- **Lifecycle Management**: Automatic cleanup and connection tracking for DOM
-  elements
-- **TypeScript Support**: Full type safety with utility types for property
-  extraction
-- **Zero Dependencies**: Lightweight runtime with no external framework
-  dependencies
-- **Performance Optimized**: Efficient updates with passive event handlers and
-  selective rendering
+- **Reactive properties** — bind observable values to DOM properties that update
+  automatically.
+- **Hook extensions** — enhanced DOM manipulation through custom hooks (`style`,
+  `visible`, `classList`).
+- **Lifecycle management** — automatic cleanup and connection tracking for DOM
+  elements.
+- **TypeScript support** — full type safety with utility types for property
+  extraction.
+- **Zero dependencies** — lightweight runtime with no external framework
+  dependencies.
+- **Performance optimized** — efficient updates with passive event handlers and
+  selective rendering.
 
-## Installation
+## Install
 
-```bash
+```shell
 npm install @amazon/vinyl-tsx @amazon/vinyl-util @amazon/vinyl-observable
 ```
 
@@ -31,9 +35,8 @@ npm install @amazon/vinyl-tsx @amazon/vinyl-util @amazon/vinyl-observable
 
 Configure your TypeScript compiler to use the vinyl-tsx JSX factory:
 
-// tsconfig.json
-
 ```json
+// tsconfig.json
 {
     "compilerOptions": {
         "jsx": "preserve",
@@ -65,8 +68,8 @@ const container = (
 
 ### Reactive Properties
 
-Use vinyl-observable to create reactive properties that automatically update the
-DOM:
+Use `@amazon/vinyl-observable` to create reactive properties that automatically
+update the DOM:
 
 ```tsx
 import { data } from '@amazon/vinyl-observable'
@@ -83,15 +86,11 @@ const counter = (
     </div>
 )
 
-// Updates automatically when observable changes
 count.value = 5 // DOM updates to show "Count: 5"
 isVisible.value = false // Button becomes hidden
 ```
 
 ## Hook Extensions
-
-Amazon Vinyl TSX provides several built-in hook extensions for enhanced DOM
-manipulation:
 
 ### Style Hook
 
@@ -116,7 +115,6 @@ const styledDiv = (
     </div>
 )
 
-// Updates automatically
 color.value = 'green' // Text color changes to green
 ```
 
@@ -159,8 +157,6 @@ const element = (
     <div
         onConnect={(el) => {
             console.log('Element connected:', el)
-
-            // Return cleanup function (optional)
             return () => {
                 console.log('Element disconnected:', el)
             }
@@ -173,8 +169,7 @@ const element = (
 
 ### Event Handlers
 
-Amazon Vinyl TSX automatically applies passive event listeners for touch and
-scroll events:
+Touch and scroll events use passive listeners automatically:
 
 ```tsx
 const element = (
@@ -200,25 +195,18 @@ const list = (
     <Fragment>
         <li>Item 1</li>
         <li>Item 2</li>
-        <li>Item 3</li>
     </Fragment>
 )
 
-// Or with JSX fragment syntax
 const list2 = (
     <>
         <li>Item 1</li>
         <li>Item 2</li>
-        <li>Item 3</li>
     </>
 )
 ```
 
-## Advanced Usage
-
-### Custom Components
-
-Create reusable components as functions:
+## Custom Components
 
 ```tsx
 interface ButtonProps {
@@ -235,30 +223,10 @@ function Button({ text, onClick, variant = 'primary' }: ButtonProps) {
     )
 }
 
-// Usage
 const myButton = <Button text="Click me" onClick={() => alert('Clicked!')} />
 ```
 
-### Reactive Text Content
-
-Text content automatically becomes reactive when using observables:
-
-```tsx
-const message = data('Hello')
-const count = data(0)
-
-const dynamicContent = (
-    <div>
-        <p>{message}</p>
-        <p>Count: {count}</p>
-    </div>
-)
-
-message.value = 'Hello World!' // Text updates automatically
-count.value = 42 // Count updates automatically
-```
-
-### Conditional Rendering
+## Conditional Rendering
 
 Unlike React, vinyl-tsx does not re-render — JSX expressions are evaluated once
 at creation time. Use the `visible` hook to reactively show or hide content:
@@ -281,36 +249,23 @@ const userCard = (
 
 ## Best Practices
 
-1. **Initialize Connected Observer**: Call `initializeConnectedObserver()` once
-   in your application to enable lifecycle management:
+1. **Initialize the connected observer** once in your application to enable
+   lifecycle management:
 
-```tsx
-import { initializeConnectedObserver } from '@amazon/vinyl-tsx'
+    ```tsx
+    import { initializeConnectedObserver } from '@amazon/vinyl-tsx'
 
-// Call once at application startup
-const cleanup = initializeConnectedObserver()
+    const cleanup = initializeConnectedObserver()
+    ```
 
-// Call cleanup when shutting down (optional)
-// cleanup()
-```
-
-1. **Use Observables for Dynamic Content**: Prefer observable values for
+2. **Use observables for dynamic content** — prefer observable values for
    properties that change over time.
+3. **Leverage hook extensions** — `style`, `visible`, and `classList` cover most
+   common DOM manipulations.
+4. **Type safety** — let TypeScript check your props and children.
+5. **Memory management** — observable subscriptions are cleaned up automatically
+   when elements are disconnected.
 
-2. **Leverage Hook Extensions**: Use built-in hooks like `style`, `visible`, and
-   `classList` for common DOM manipulations.
+## License
 
-3. **Type Safety**: Take advantage of TypeScript's type checking for props and
-   children.
-
-4. **Memory Management**: The library automatically handles cleanup for
-   observable subscriptions when elements are disconnected.
-
-## Performance Considerations
-
-- **Selective Updates**: Only observable properties trigger DOM updates when
-  changed
-- **Passive Events**: Touch and scroll events use passive listeners for better
-  performance
-- **Efficient Cleanup**: Automatic subscription cleanup prevents memory leaks
-- **Minimal Bundle Size**: Zero runtime dependencies keep bundle size small
+Apache-2.0
