@@ -2,11 +2,7 @@
     "extends": "../../../../tsconfig.test.json",
     "include": ["./**/*"],
     "compilerOptions": {
-        "outDir": "../../dist/vinylTestUtil/types/current",
-        "paths": {
-            "@amazon/vinyl": ["../../src/index"],
-            "@/*": ["./*"]
-        }
+        "outDir": "../../dist/vinylTestUtil/types/current"
     },
     "references": [
         {

@@ -1,14 +1,15 @@
 import './polyfill'
 import './styles/index.scss'
-import { initializeLogging } from '@/initializeLogging'
+import { initializeLogging } from './initializeLogging'
 import { jsx, Fragment, initializeConnectedObserver } from '@amazon/vinyl-tsx'
-import { Sidebar } from '@/components/Sidebar'
-import { TransportBar } from '@/components/TransportBar'
+import { vinylVersion } from '@amazon/vinyl'
+import { Sidebar } from './components/Sidebar'
+import { TransportBar } from './components/TransportBar'
 import { data } from '@amazon/vinyl-observable'
-import { getRouter } from '@/router/router'
-import { routes } from '@/routes'
-import { Icon } from '@/components/icons'
-import { playerState } from '@/player'
+import { getRouter } from './router/router'
+import { routes } from './routes'
+import { Icon } from './components/icons'
+import { playerState } from './player'
 
 initializeLogging()
 initializeConnectedObserver()
@@ -50,7 +51,9 @@ const mobileHeader = (
             <Icon name="menu" />
         </button>
         <img src="./img/logo-64.png" alt="Amazon Vinyl" />
-        <span className="mobileTitle">Amazon Vinyl</span>
+        <span className="mobileTitle">
+            Amazon Vinyl <span className="versionTag">v{vinylVersion.str}</span>
+        </span>
         <a
             className="mobileGithub"
             href="https://github.com/amazonmusic/vinyl"

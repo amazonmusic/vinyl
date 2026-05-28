@@ -4,10 +4,10 @@
  */
 
 import type { ReadonlyEventHost } from './EventHost'
-import type { ReadonlyAbort } from '@/util/async/Abort'
-import { promise } from '@/util/async/promise'
-import { withTimeout } from '@/util/async/timeout'
-import type { Maybe } from '@/util/type'
+import type { ReadonlyAbort } from '../util/async/Abort'
+import { promise } from '../util/async/promise'
+import { withTimeout } from '../util/async/timeout'
+import type { Maybe } from '../util/type'
 
 export interface NextEventAsPromiseOptions<EventMap, K extends keyof EventMap> {
     /**

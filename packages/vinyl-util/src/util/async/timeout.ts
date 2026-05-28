@@ -3,13 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { TimeoutError } from '@/error/TimeoutError'
+import { TimeoutError } from '../../error/TimeoutError'
 import type { ReadonlyAbort } from './Abort'
 import { Abort } from './Abort'
 import { sleep } from './sleep'
-import { substitute } from '@/util/string/string'
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import { ErrorLevel } from '@/error/ReportableError'
+import { substitute } from '../string/string'
+import { ErrorOrigin } from '../../error/ErrorOrigin'
+import { ErrorLevel } from '../../error/ReportableError'
 
 export const DEFAULT_TIMEOUT_MESSAGE = 'Timed out after {time}s'
 

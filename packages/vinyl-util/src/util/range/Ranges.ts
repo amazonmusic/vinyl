@@ -7,7 +7,7 @@ import {
     createArrayLikeIterator,
     slice,
     sortedInsertionIndex,
-} from '@/util/collection/array'
+} from '../collection/array'
 
 // Compares with a Range's start value.
 function startComparator(value: number, range: Range) {

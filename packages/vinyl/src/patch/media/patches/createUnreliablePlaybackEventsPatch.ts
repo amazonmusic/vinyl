@@ -11,7 +11,7 @@ import {
     onAny,
     SignalImpl,
 } from '@amazon/vinyl-util'
-import type { HtmlMediaElementPatch } from '@/patch/media/HtmlMediaElementPatch'
+import type { HtmlMediaElementPatch } from '../HtmlMediaElementPatch'
 
 /**
  * The interval (in seconds) to poll for time progress in a media element.

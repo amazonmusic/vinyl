@@ -11,34 +11,23 @@
 // tests that only have compile-time assertions.
 //----------------------------------------------------------------------------
 
-/**
- * A type that equals true if Left and Right are strictly equal.
- * Works with complex objects, readonly, and optional modifiers.
- * Works with method input arguments.
- * This will always equal true or false, and never the union `true | false`
- */
-export type StrictEqual<Left, Right> =
-    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
-    (<T>() => T extends Left ? 0 : 1) extends <T>() => T extends Right ? 0 : 1
-        ? Equal<Left, Right>
-        : false
-
-/**
- * A type that equals true if Left and Right are loosely equal, that is, that Left extends Right
- * and Right extends Left.
- * This will always equal true or false, and never the union `true | false`
- */
-export type Equal<Left, Right> = [Left] extends [Right]
+type LooseEqual<Left, Right> = [Left] extends [Right]
     ? [Right] extends [Left]
         ? true
         : false
     : false
 
+type Strict<Left, Right> =
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-parameters
+    (<T>() => T extends Left ? 0 : 1) extends <T>() => T extends Right ? 0 : 1
+        ? LooseEqual<Left, Right>
+        : false
+
 /**
  * Adds a compile-time check that types Left and Right are identical.
  */
 export function expectTypeStrictlyEquals<Left, Right>(
-    _matches: StrictEqual<Left, Right>
+    _matches: Strict<Left, Right>
 ): void {
     expect(true).toBeTrue()
 }
@@ -51,7 +40,7 @@ export function expectTypeStrictlyEquals<Left, Right>(
  * - any types
  */
 export function expectTypeEquals<Left, Right>(
-    _matches: Equal<Left, Right>
+    _matches: LooseEqual<Left, Right>
 ): void {
     expect(true).toBeTrue()
 }

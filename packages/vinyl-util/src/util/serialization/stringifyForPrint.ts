@@ -4,7 +4,7 @@
  */
 
 import { toJson } from './json'
-import { truncate } from '@/util/string/string'
+import { truncate } from '../string/string'
 
 /**
  * Stringifies a value suitable for human-readable messages.

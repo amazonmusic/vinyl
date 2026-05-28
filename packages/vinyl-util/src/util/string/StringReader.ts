@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import { ReportableError } from '@/error/ReportableError'
-import type { ParseError } from '@/util/serialization/ParseError'
-import { printStringPosition } from '@/util/serialization/ParseError'
+import { ErrorOrigin } from '../../error/ErrorOrigin'
+import { ReportableError } from '../../error/ReportableError'
+import type { ParseError } from '../serialization/ParseError'
+import { printStringPosition } from '../serialization/ParseError'
 import { eqStr, isWhitespaceChar } from './string'
-import type { Json } from '@/util/serialization/json'
+import type { Json } from '../serialization/json'
 
 /**
  * A cursor on a string that allows for fast, naive parsing.

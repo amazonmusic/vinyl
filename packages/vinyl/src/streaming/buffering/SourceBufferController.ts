@@ -17,13 +17,13 @@ import {
     type ReadonlyRanges,
     type Task,
 } from '@amazon/vinyl-util'
-import { nextSourceBufferIdle } from '@/util/media/sourceBuffer'
+import { nextSourceBufferIdle } from '../../util/media/sourceBuffer'
 import { SourceBufferError } from './error/SourceBufferError'
 import type {
     MediaSourceController,
     SourceBufferRef,
 } from './MediaSourceController'
-import type { ContentType } from '@/streaming/MediaQualityMetadata'
+import type { ContentType } from '../MediaQualityMetadata'
 
 // Prevents unintentionally dropped keyframes
 export const APPEND_WINDOW_START_OFFSET = 0.05

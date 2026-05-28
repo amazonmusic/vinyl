@@ -7,11 +7,15 @@ import { defineConfig } from 'vite'
 import { resolve } from 'path'
 import { docsPlugin } from './buildSrc/docsPlugin'
 import { highlightPlugin } from './buildSrc/highlightPlugin'
+import packageJson from './package.json' with { type: 'json' }
 
 export default defineConfig({
     base: './',
     root: 'src',
     publicDir: '../public',
+    define: {
+        'globalThis.__VINYL_VERSION__': JSON.stringify(packageJson.version),
+    },
     build: {
         outDir: '../dist',
         emptyOutDir: true,
@@ -23,10 +27,14 @@ export default defineConfig({
         alias: {
             '@': resolve(__dirname, 'src'),
         },
+        conditions: ['development'],
     },
-    esbuild: {
-        jsxFactory: 'jsx',
-        jsxFragment: 'Fragment',
+    oxc: {
+        jsx: {
+            runtime: 'classic',
+            pragma: 'jsx',
+            pragmaFrag: 'Fragment',
+        },
     },
     plugins: [highlightPlugin(), docsPlugin(resolve(__dirname, '../..'))],
     server: {

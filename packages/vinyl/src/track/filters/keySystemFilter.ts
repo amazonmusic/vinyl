@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
-import { type DrmController } from '@/drm/DrmController'
+import type { MediaQualityMetadata } from '../../streaming/MediaQualityMetadata'
+import { type DrmController } from '../../drm/DrmController'
 import { MediaUnsupportedError } from '@amazon/vinyl-util'
 
 export function throwKeySystemsUnsupported(): never {

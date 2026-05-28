@@ -37,12 +37,12 @@ import {
     playedReasons,
     waitedReasons,
 } from './ReadonlyPlaybackController'
-import { InvalidSeekError } from '@/playback/error/InvalidSeekError'
-import { playbackStateLoggingHandler } from '@/playback/logging/playbackStateLoggingHandler'
-import { createChangeEventTrigger } from '@/event/ChangeEvent'
-import { nextHasMetadata } from '@/playback/nextHasMetadata'
-import type { LoudnessNormalizationController } from '@/playback/loudness/LoudnessNormalizationController'
-import { ReportableMediaError } from '@/playback/error/ReportableMediaError'
+import { InvalidSeekError } from './error/InvalidSeekError'
+import { playbackStateLoggingHandler } from './logging/playbackStateLoggingHandler'
+import { createChangeEventTrigger } from '../event/ChangeEvent'
+import { nextHasMetadata } from './nextHasMetadata'
+import type { LoudnessNormalizationController } from './loudness/LoudnessNormalizationController'
+import { ReportableMediaError } from './error/ReportableMediaError'
 
 export interface PlaybackControllerImplOptions {
     /**

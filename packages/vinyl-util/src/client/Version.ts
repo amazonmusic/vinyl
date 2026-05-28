@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Comparator } from '@/util/comparison/compare'
-import { compareBy } from '@/util/comparison/compare'
-import type { Maybe } from '@/util/type'
-import { parseIntSafe } from '@/util/serialization/primitives'
+import type { Comparator } from '../util/comparison/compare'
+import { compareBy } from '../util/comparison/compare'
+import type { Maybe } from '../util/type'
+import { parseIntSafe } from '../util/serialization/primitives'
 
 /**
  * An object representing a version.

@@ -20,9 +20,9 @@ import {
     toJson,
     toLowerCase,
 } from '@amazon/vinyl-util'
-import type { ContentTypesValue } from '@/streaming/ContentTypesValue'
-import type { BasicErrorEvent } from '@/event/BasicErrorEvent'
-import type { ContentType } from '@/streaming/MediaQualityMetadata'
+import type { ContentTypesValue } from '../ContentTypesValue'
+import type { BasicErrorEvent } from '../../event/BasicErrorEvent'
+import type { ContentType } from '../MediaQualityMetadata'
 
 export interface SourceBufferRef extends Disposable {
     /**

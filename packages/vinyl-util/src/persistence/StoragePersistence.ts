@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { KeyValuePersistence } from '@/persistence/KeyValuePersistence'
-import type { Maybe } from '@/util/type'
+import type { KeyValuePersistence } from './KeyValuePersistence'
+import type { Maybe } from '../util/type'
 
 export class StoragePersistence implements KeyValuePersistence<string> {
     constructor(private readonly storage: Maybe<Storage>) {}

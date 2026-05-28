@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { LruCache } from '@/util/collection/LruCache'
-import { getOrSet } from '@/util/map/map'
-import type { Fun } from '@/util/type'
+import { LruCache } from '../collection/LruCache'
+import { getOrSet } from '../map/map'
+import type { Fun } from '../type'
 
 export interface MemoizedFunction {
     clear(): void

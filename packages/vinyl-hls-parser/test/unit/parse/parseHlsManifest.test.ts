@@ -8,9 +8,9 @@ import {
     hls_mainPlaylist,
     hls_mediaPlaylist,
     hls_mediaPlaylistWithByteRanges,
-} from '../hlsTestAssets'
+} from '@amazon/vinyl-hls-parser/hlsTestAssets'
 
-describe('HLS Parser Integration Tests', () => {
+describe('parseHlsManifest', () => {
     it('parses HLS main playlist test asset', () => {
         const result = parseMainPlaylist(hls_mainPlaylist)
 

@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ReadonlyEventHost } from '@/event/EventHost'
-import { EventHostImpl } from '@/event/EventHost'
-import { globalRef } from '@/global/globalRegistry'
-import { toJson } from '@/util/serialization/json'
-import type { LogTarget } from '@/logging/LogTarget'
-import { getLogLevelFromSearch } from '@/logging/getLogLevelFromSearch'
+import type { ReadonlyEventHost } from '../event/EventHost'
+import { EventHostImpl } from '../event/EventHost'
+import { globalRef } from '../global/globalRegistry'
+import { toJson } from '../util/serialization/json'
+import type { LogTarget } from './LogTarget'
+import { getLogLevelFromSearch } from './getLogLevelFromSearch'
 
 export enum LogLevel {
     VERBOSE,

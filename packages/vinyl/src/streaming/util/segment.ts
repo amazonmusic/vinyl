@@ -4,7 +4,7 @@
  */
 
 import { sortedInsertionIndex } from '@amazon/vinyl-util'
-import type { MediaSegmentMetadata } from '@/streaming/SegmentReference'
+import type { MediaSegmentMetadata } from '../SegmentReference'
 
 /**
  * Returns the segment whose range covers `time` (`startTime <= time < endTime`), or

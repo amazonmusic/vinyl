@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
-import type { TimeoutId } from '@/global/environment'
-import { TimeoutError } from '@/error/TimeoutError'
+import type { Disposable } from '../../core/disposable'
+import type { TimeoutId } from '../../global/environment'
+import { TimeoutError } from '../../error/TimeoutError'
 import { Abort, type ReadonlyAbort } from './Abort'
 import { sleep } from './sleep'
-import type { Timestamp } from '@/util/date/date'
-import { substitute } from '@/util/string/string'
-import type { Maybe } from '@/util/type'
+import type { Timestamp } from '../date/date'
+import { substitute } from '../string/string'
+import type { Maybe } from '../type'
 
 /**
  * A `TimeoutController` is an {@link ReadonlyAbort} implementation that will abort either after

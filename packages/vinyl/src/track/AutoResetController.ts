@@ -17,7 +17,7 @@ import {
     ReportableError,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
-import type { PlaybackController } from '@/playback/PlaybackController'
+import type { PlaybackController } from '../playback/PlaybackController'
 
 export interface AutoResetControllerEventMap {
     /**

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MaybePromise } from '@/util/type'
+import type { MaybePromise } from '../type'
 
 /**
  * A value of type T, a function returning T, or an async function returning a Promise<T>.

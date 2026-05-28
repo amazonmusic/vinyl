@@ -2,9 +2,6 @@
     "extends": "../../../../tsconfig.test.json",
     "include": ["./**/*"],
     "compilerOptions": {
-        "outDir": "../../dist/browserTestUtil/types/current",
-        "paths": {
-            "@/*": ["./*"]
-        }
+        "outDir": "../../dist/browserTestUtil/types/current"
     }
 }

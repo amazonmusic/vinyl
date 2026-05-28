@@ -3,12 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Unsubscribe } from '@/core/Unsubscribe'
+import type { Unsubscribe } from '../../core/Unsubscribe'
 import { Abort, type ReadonlyAbort } from './Abort'
 import { Deferred } from './Deferred'
-import type { Maybe } from '@/util/type'
-import { type Disposable, DisposedError, isDisposable } from '@/core/disposable'
-import { withAbort } from '@/util/async/abortUtils'
+import type { Maybe } from '../type'
+import {
+    type Disposable,
+    DisposedError,
+    isDisposable,
+} from '../../core/disposable'
+import { withAbort } from './abortUtils'
 
 /**
  * Creates a promise that can be rejected early from an abort signal and can optionally provide

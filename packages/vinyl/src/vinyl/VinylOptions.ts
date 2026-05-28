@@ -7,14 +7,14 @@ import {
     defaultQualitySelectorImplOptions,
     type QualitySelectorImplOptions,
     qualitySelectorImplOptionsValidator,
-} from '@/streaming/abr/QualitySelectorImpl'
+} from '../streaming/abr/QualitySelectorImpl'
 import type { ObjectSchema } from '@amazon/vinyl-validation'
 import { object, string } from '@amazon/vinyl-validation'
 import {
     defaultLoudnessNormalizationControllerImplOptions,
     type LoudnessNormalizationControllerImplOptions,
     loudnessNormalizationControllerImplOptionsValidator,
-} from '@/playback/loudness/LoudnessNormalizationControllerImplOptions'
+} from '../playback/loudness/LoudnessNormalizationControllerImplOptions'
 
 export interface VinylOptions {
     /**

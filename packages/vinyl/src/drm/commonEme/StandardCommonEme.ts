@@ -19,10 +19,10 @@ import type {
     CommonMediaKeySessionEventMap,
     CommonMediaKeySystemAccess,
 } from './CommonEme'
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
+import type { DrmKeySystem } from '../DrmKeySystem'
 import { type EncryptedInitData } from './EncryptedInitData'
 import { createDrmErrorHandler } from './createDrmErrorHandler'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
+import type { DrmInitDataType } from '../../streaming/DrmInitDataType'
 
 /**
  * A CommonEme implementation of unprefixed Encrypted Media Extensions.

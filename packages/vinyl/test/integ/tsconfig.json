@@ -3,12 +3,7 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "noEmit": true,
-        "rootDir": "../",
-        "paths": {
-            "@amazon/vinyl": ["../../src/index"],
-            "@amazon/vinyl/vinylTestUtil": ["../vinylTestUtil/index"],
-            "@unit": ["../unit/index"]
-        }
+        "rootDir": "../"
     },
     "references": [
         {

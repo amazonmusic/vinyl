@@ -9,8 +9,8 @@ import type {
     ReadonlyRanges,
     Timestamp,
 } from '@amazon/vinyl-util'
-import type { ChangeEvent } from '@/event/ChangeEvent'
-import type { BasicErrorEvent } from '@/event/BasicErrorEvent'
+import type { ChangeEvent } from '../event/ChangeEvent'
+import type { BasicErrorEvent } from '../event/BasicErrorEvent'
 
 export interface ProgressEvent {
     readonly loaded: number

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Maybe, Primitive } from '@/util/type'
+import type { Maybe, Primitive } from '../type'
 
 /**
  * A function that can be used as a comparator for sorting.

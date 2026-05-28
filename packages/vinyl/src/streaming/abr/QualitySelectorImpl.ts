@@ -3,10 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-    PrefetchState,
-    QualitySelector,
-} from '@/streaming/abr/QualitySelector'
+import type { PrefetchState, QualitySelector } from './QualitySelector'
 import {
     clamp,
     createDisposer,
@@ -23,7 +20,7 @@ import {
     object,
     type ObjectSchema,
 } from '@amazon/vinyl-validation'
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
+import type { MediaQualityMetadata } from '../MediaQualityMetadata'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 
 export interface QualitySelectorImplOptions {

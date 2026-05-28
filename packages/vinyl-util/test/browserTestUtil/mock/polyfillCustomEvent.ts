@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { MockEvent } from '@/mock/dom/lib.dom'
+import { MockEvent } from './dom/lib.dom'
 
 class FakeCustomEvent<T = any> extends MockEvent implements CustomEvent<T> {
     readonly detail: T

@@ -24,7 +24,7 @@ import {
 import { trackBaseOptionsValidator } from '../TrackBase'
 import type { Factories } from '@amazon/vinyl-di'
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { MediaTimeline } from '@/streaming/MediaTimeline'
+import type { MediaTimeline } from '../../streaming/MediaTimeline'
 
 export interface HlsTrackLoadOptions extends TrackLoadOptions {
     readonly type: 'hls'

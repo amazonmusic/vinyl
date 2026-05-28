@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DashManifestData } from '@/track/dash/DashManifestProvider'
-import type { DashMediaQualityMetadataResolver } from '@/track/dash/DashMediaQualityMetadataResolver'
-import { flattenRepresentations } from '@/track/dash/util/mpd'
-import type { ContentType } from '@/streaming/MediaQualityMetadata'
-import type { ContentTypesValue } from '@/streaming/ContentTypesValue'
+import type { DashManifestData } from './DashManifestProvider'
+import type { DashMediaQualityMetadataResolver } from './DashMediaQualityMetadataResolver'
+import { flattenRepresentations } from './util/mpd'
+import type { ContentType } from '../../streaming/MediaQualityMetadata'
+import type { ContentTypesValue } from '../../streaming/ContentTypesValue'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import type { DashManifest } from '@amazon/vinyl-mpd-parser'
 

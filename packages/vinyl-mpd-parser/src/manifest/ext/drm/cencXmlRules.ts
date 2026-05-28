@@ -6,11 +6,11 @@
 import {
     parseStringVector,
     stringifyStringVector,
-} from '@/manifest/dashManifestXmlRules'
+} from '../../dashManifestXmlRules'
 import type { XmlRules } from '@amazon/vinyl-xml'
 import { attr, charactersString, element } from '@amazon/vinyl-xml'
-import type { CencContentProtection } from '@/xmlns/mpeg/cenc/2013'
-import { CENC_NAMESPACE_URI } from '@/xmlns/mpeg/cenc/2013'
+import type { CencContentProtection } from '../../../xmlns/mpeg/cenc/2013'
+import { CENC_NAMESPACE_URI } from '../../../xmlns/mpeg/cenc/2013'
 
 /**
  * A parser for ContentProtection elements using the cenc namespace.

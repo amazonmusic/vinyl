@@ -18,7 +18,7 @@ import {
     type XmlRule,
     type XmlRules,
     XmlRuleType,
-} from '@/xml/xmlRules'
+} from './xmlRules'
 
 const locale = {
     illegalRuleOverrideTypeError:

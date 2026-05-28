@@ -3,12 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ChangeEvent } from '@/event/ChangeEvent'
-import type {
-    ContentType,
-    MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
-import type { BasicErrorEvent } from '@/event/BasicErrorEvent'
+import type { ChangeEvent } from '../event/ChangeEvent'
+import type { ContentType, MediaQualityMetadata } from './MediaQualityMetadata'
+import type { BasicErrorEvent } from '../event/BasicErrorEvent'
 import type { AnyRecord } from '@amazon/vinyl-util'
 
 /**

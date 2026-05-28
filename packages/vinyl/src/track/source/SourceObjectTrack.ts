@@ -3,21 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { PlaybackSource } from '@/playback/PlaybackSource'
-import type { Track, TrackTypeId, TrackUri } from '@/track/Track'
-import { type TrackBaseDeps } from '@/track/TrackBase'
+import type { PlaybackSource } from '../../playback/PlaybackSource'
+import type { Track, TrackTypeId, TrackUri } from '../Track'
+import { type TrackBaseDeps } from '../TrackBase'
 import {
     type TrackFactory,
     type TrackLoadOptions,
     trackLoadOptionsValidator,
-} from '@/track/TrackFactory'
+} from '../TrackFactory'
 import { ErrorOrigin, type Maybe } from '@amazon/vinyl-util'
 import { func, isOneOf, type ObjectSchema } from '@amazon/vinyl-validation'
 import {
     SourceTrackBase,
     type SourceTrackBaseOptions,
     sourceTrackBaseOptionsValidator,
-} from '@/track/source/SourceTrackBase'
+} from './SourceTrackBase'
 
 /**
  * Dependencies for a SourceObjectTrack.

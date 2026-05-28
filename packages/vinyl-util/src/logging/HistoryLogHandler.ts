@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
-import type { ReadonlyEventHost } from '@/event/EventHost'
-import type { Unsubscribe } from '@/core/Unsubscribe'
+import type { Disposable } from '../core/disposable'
+import type { ReadonlyEventHost } from '../event/EventHost'
+import type { Unsubscribe } from '../core/Unsubscribe'
 import type { LogEventMap } from './Logger'
 import { LogLevel } from './Logger'
-import type { ReadonlyDate } from '@/util/object/readonlyType'
+import type { ReadonlyDate } from '../util/object/readonlyType'
 
 /**
  * The default maximum history size for the history log handler.

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DashTrackLoadOptions } from '@/track/dash/DashTrack'
-import { urlDashManifestProvider } from '@/track/dash/urlDashManifestProvider'
+import type { DashTrackLoadOptions } from './DashTrack'
+import { urlDashManifestProvider } from './urlDashManifestProvider'
 import type { RequestInterceptor } from '@amazon/vinyl-util'
 
 /**

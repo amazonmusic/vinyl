@@ -11,10 +11,10 @@
 import type { actuateType, Uri, UriType } from '@amazon/vinyl-xml'
 
 import type { ReadonlyDate } from '@amazon/vinyl-util'
-import type { ByteRange } from '@/media/byteRange'
-import type { Ratio } from '@/media/ratio'
-import type { Duration } from '@/duration/duration'
-import type { FrameRate } from '@/media/frameRate'
+import type { ByteRange } from '../../../../../media/byteRange'
+import type { Ratio } from '../../../../../media/ratio'
+import type { Duration } from '../../../../../duration/duration'
+import type { FrameRate } from '../../../../../media/frameRate'
 
 /**
  * Represents an adaptation set in a DASH Media Presentation. An adaptation set groups

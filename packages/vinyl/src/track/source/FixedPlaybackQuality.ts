@@ -3,16 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TrackEventMap } from '@/track/Track'
+import type { TrackEventMap } from '../Track'
 import type { Unsubscribe } from '@amazon/vinyl-util'
 import { EventHostImpl, type ReadonlySet } from '@amazon/vinyl-util'
-import { PlaybackReadyState } from '@/playback/ReadonlyPlaybackController'
-import type { PlaybackController } from '@/playback/PlaybackController'
-import type { ChangeEvent } from '@/event/ChangeEvent'
+import { PlaybackReadyState } from '../../playback/ReadonlyPlaybackController'
+import type { PlaybackController } from '../../playback/PlaybackController'
+import type { ChangeEvent } from '../../event/ChangeEvent'
 import type {
     ContentType,
     MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
+} from '../../streaming/MediaQualityMetadata'
 
 /**
  * FixedPlaybackQuality has a singular quality for selection.

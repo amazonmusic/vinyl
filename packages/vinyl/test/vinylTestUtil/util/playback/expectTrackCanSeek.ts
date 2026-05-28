@@ -14,8 +14,8 @@ import {
     expectPlayingState,
     expectTimeDoesNotElapse,
 } from './playbackStateExpectations'
-import { onPlaying } from '@/util/playback/eventPromises'
-import { assertFrequency } from '@/media/FrequencyAnalyzer'
+import { onPlaying } from './eventPromises'
+import { assertFrequency } from '../../media/FrequencyAnalyzer'
 
 export async function expectTrackCanSeekTo(player: VinylPlayer, time: number) {
     const tolerance = 0.5

@@ -9,12 +9,12 @@
  * @brief
  */
 
-import { globalTarget } from '@/global/globalTarget'
-import { logWarn } from '@/logging/Logger'
+import { globalTarget } from '../global/globalTarget'
+import { logWarn } from '../logging/Logger'
 import type { ResponseInfo } from './RequesterImplEventMap'
-import type { Timestamp } from '@/util/date/date'
-import type { Maybe } from '@/util/type'
-import { parseIntSafe } from '@/util/serialization/primitives'
+import type { Timestamp } from '../util/date/date'
+import type { Maybe } from '../util/type'
+import { parseIntSafe } from '../util/serialization/primitives'
 
 const retryableStatusCodes = new Set([
     429, // Too many requests

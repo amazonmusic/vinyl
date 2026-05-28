@@ -7,14 +7,14 @@ import {
     createDisposer,
     type Disposable,
     DisposedError,
-} from '@/core/disposable'
-import type { Unsubscribe } from '@/core/Unsubscribe'
-import { IllegalArgumentError } from '@/error/IllegalArgumentError'
-import { EventHostImpl } from '@/event/EventHost'
-import { emptySignal, type Signal, SignalImpl } from '@/event/Signal'
-import { logDebug } from '@/logging/Logger'
-import type { AnyRecord } from '@/util/type'
-import { createLogPrefix, type LogTarget } from '@/logging/LogTarget'
+} from '../core/disposable'
+import type { Unsubscribe } from '../core/Unsubscribe'
+import { IllegalArgumentError } from '../error/IllegalArgumentError'
+import { EventHostImpl } from '../event/EventHost'
+import { emptySignal, type Signal, SignalImpl } from '../event/Signal'
+import { logDebug } from '../logging/Logger'
+import type { AnyRecord } from '../util/type'
+import { createLogPrefix, type LogTarget } from '../logging/LogTarget'
 
 export interface Patch<in T, in EventMap = AnyRecord> extends Disposable {
     /**

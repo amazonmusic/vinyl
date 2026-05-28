@@ -3,8 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getLocationSearch, getSearchParams } from '@/util/browser/searchParams'
-import { LogLevel, parseLogLevel } from '@/logging/Logger'
+import {
+    getLocationSearch,
+    getSearchParams,
+} from '../util/browser/searchParams'
+import { LogLevel, parseLogLevel } from './Logger'
 
 /**
  * Returns the current vinyl logging level, as set by the querystring parameter: vinylLogLevel.

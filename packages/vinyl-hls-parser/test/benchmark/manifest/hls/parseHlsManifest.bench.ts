@@ -5,7 +5,7 @@
 
 import { parseMainPlaylist, parseMediaPlaylist } from '@amazon/vinyl-hls-parser'
 import { benchmark } from '@amazon/vinyl-util/browserTestUtil'
-import { addBenchmarks, setupBenchmark } from '@/setup'
+import { addBenchmarks, setupBenchmark } from '../../setup'
 
 const sampleMainPlaylist = `#EXTM3U
 #EXT-X-VERSION:6

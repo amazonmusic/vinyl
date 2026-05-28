@@ -12,12 +12,12 @@ import {
     ParseXmlHandlerImpl,
     stringifyXml,
 } from '@amazon/vinyl-xml'
-import type { PlayreadyContentProtection } from '@/xmlns/microsoft/playready'
-import type { CencContentProtection } from '@/xmlns/mpeg/cenc/2013'
+import type { PlayreadyContentProtection } from '../xmlns/microsoft/playready'
+import type { CencContentProtection } from '../xmlns/mpeg/cenc/2013'
 import type {
     DashManifest,
     DescriptorType,
-} from '@/xmlns/mpeg/dash/schema/mpd/2011'
+} from '../xmlns/mpeg/dash/schema/mpd/2011'
 import { dashManifestXmlRules } from './dashManifestXmlRules'
 import { cencXmlRules } from './ext/drm/cencXmlRules'
 import type { DashProtections } from './ext/drm/contentProtection'

@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalRef } from '@/global/globalRegistry'
-import { getNetworkInformation } from '@/network/browser/NetworkInformation'
+import { globalRef } from '../../global/globalRegistry'
+import { getNetworkInformation } from '../browser/NetworkInformation'
 import type { NetworkMetricsController } from './NetworkMetricsController'
 import { NetworkMetricsControllerImpl } from './NetworkMetricsControllerImpl'
 import type { NetworkMetrics } from './networkMetricsModel'

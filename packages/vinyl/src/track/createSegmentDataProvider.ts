@@ -20,7 +20,7 @@ import {
     requestWithRetry,
 } from '@amazon/vinyl-util'
 import { type ByteRange, stringifyByteRange } from '@amazon/vinyl-mpd-parser'
-import type { SegmentDataProvider } from '@/streaming/SegmentDataSlot'
+import type { SegmentDataProvider } from '../streaming/SegmentDataSlot'
 
 export interface CreateSegmentDataProviderDeps {
     readonly requestInterceptor: RequestInterceptor

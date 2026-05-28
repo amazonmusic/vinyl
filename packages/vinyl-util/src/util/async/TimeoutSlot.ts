@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
-import { DisposedError } from '@/core/disposable'
-import type { TimeoutId } from '@/global/environment'
+import type { Disposable } from '../../core/disposable'
+import { DisposedError } from '../../core/disposable'
+import type { TimeoutId } from '../../global/environment'
 
 /**
  * A TimeoutSlot provides a way to have a managed window timeout that can be added to a

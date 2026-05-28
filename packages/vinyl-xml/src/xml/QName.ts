@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Uri } from '@/xmlns/org/w3/2001/XmlSchema'
+import type { Uri } from '../xmlns/org/w3/2001/XmlSchema'
 
 /**
  * An XML name for an element or attribute.

@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { last } from '@/util/collection/array'
-import { memoize } from '@/util/fun/memoize'
-import { substringBefore, tokenizeWords } from '@/util/string/string'
-import type { Maybe } from '@/util/type'
-import type { Version } from '@/client/Version'
-import { parseVersion } from '@/client/Version'
+import { last } from '../../util/collection/array'
+import { memoize } from '../../util/fun/memoize'
+import { substringBefore, tokenizeWords } from '../../util/string/string'
+import type { Maybe } from '../../util/type'
+import type { Version } from '../Version'
+import { parseVersion } from '../Version'
 import type { UaDeviceInfo, UaSystemInfo } from './UserAgentInfo'
 
 const MAX_USER_AGENT_LENGTH = 500

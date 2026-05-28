@@ -8,7 +8,7 @@ import { type TrackLoadOptions } from '@amazon/vinyl'
 import { createDisposer } from '@amazon/vinyl-util'
 import { createEventSpy } from '@amazon/vinyl-util/testUtil'
 import { onDuration } from './eventPromises'
-import { expectTrackPlaysUntil } from '@/util/playback/expectTrackPlaysUntil'
+import { expectTrackPlaysUntil } from './expectTrackPlaysUntil'
 
 /**
  * The total amount of time to allow playback for a play test.

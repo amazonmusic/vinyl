@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { throwParsingError } from '@/error/parsingError'
+import { throwParsingError } from '../error/parsingError'
 
 /**
  * A numerator and denominator.

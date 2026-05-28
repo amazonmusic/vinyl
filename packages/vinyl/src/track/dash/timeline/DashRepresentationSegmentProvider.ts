@@ -26,24 +26,24 @@ import {
     getSegmentTemplate,
     type PeriodRange,
     sampleToMpdTime,
-} from '@/track/dash/util/mpd'
+} from '../util/mpd'
 import {
     type DashUriResolveDeps,
     resolveDashUri,
     segmentTemplateUrl,
-} from '@/track/dash/util/uriResolution'
+} from '../util/uriResolution'
 import {
     createSegmentDataProvider,
     type CreateSegmentDataProviderDeps,
-} from '@/track/createSegmentDataProvider'
-import { getSegmentAtTime } from '@/streaming/util/segment'
+} from '../../createSegmentDataProvider'
+import { getSegmentAtTime } from '../../../streaming/util/segment'
 import type {
     MediaSegmentReference,
     SegmentReference,
-} from '@/streaming/SegmentReference'
-import type { SegmentDataProvider } from '@/streaming/SegmentDataSlot'
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
-import type { DashMediaQualityMetadataResolver } from '@/track/dash/DashMediaQualityMetadataResolver'
+} from '../../../streaming/SegmentReference'
+import type { SegmentDataProvider } from '../../../streaming/SegmentDataSlot'
+import type { MediaQualityMetadata } from '../../../streaming/MediaQualityMetadata'
+import type { DashMediaQualityMetadataResolver } from '../DashMediaQualityMetadataResolver'
 
 export interface DashSegmentProviderDeps
     extends DashUriResolveDeps, CreateSegmentDataProviderDeps {

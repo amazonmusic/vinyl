@@ -5,7 +5,7 @@
 
 import type { ReadonlyAbort } from '@amazon/vinyl-util'
 import { requestWithRetry, ValidationError } from '@amazon/vinyl-util'
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
+import type { DrmKeySystem } from '../DrmKeySystem'
 import type { LicenseProvider, LicenseServerOptions } from './LicenseProvider'
 
 /**

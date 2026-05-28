@@ -4,8 +4,8 @@
  */
 
 import { charactersString, element, type XmlRules } from '@amazon/vinyl-xml'
-import type { PlayreadyContentProtection } from '@/xmlns/microsoft/playready'
-import { PLAY_READY_NAMESPACE_URI } from '@/xmlns/microsoft/playready'
+import type { PlayreadyContentProtection } from '../../../xmlns/microsoft/playready'
+import { PLAY_READY_NAMESPACE_URI } from '../../../xmlns/microsoft/playready'
 
 export const playreadyXmlRules: XmlRules<PlayreadyContentProtection> = {
     pro: element(

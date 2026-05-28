@@ -14,8 +14,8 @@ import type {
 import type {
     ContentType,
     MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
-import type { StreamingEventMap } from '@/streaming/StreamingEventMap'
+} from '../streaming/MediaQualityMetadata'
+import type { StreamingEventMap } from '../streaming/StreamingEventMap'
 
 /**
  * All events a track may emit.

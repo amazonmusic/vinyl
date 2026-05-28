@@ -4,7 +4,7 @@
  */
 
 import { initializeLogging } from '@amazon/vinyl-util'
-import { vinylGlobalRef } from '@/global/globalRef'
+import { vinylGlobalRef } from './globalRef'
 
 export function initializeVinylGlobal() {
     initializeLogging()

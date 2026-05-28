@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Version } from '@/client/Version'
+import type { Version } from '../Version'
 
 /**
  * A parsed user agent.

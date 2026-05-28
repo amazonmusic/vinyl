@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ReportableError } from '@/error/ReportableError'
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import type { Json } from '@/util/serialization/json'
+import { ReportableError } from './ReportableError'
+import { ErrorOrigin } from './ErrorOrigin'
+import type { Json } from '../util/serialization/json'
 
 /**
  * An error indicating that input had an invalid shape.

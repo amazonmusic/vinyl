@@ -3,10 +3,7 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "outDir": "../../dist/unit/types/current",
-        "noEmit": true,
-        "paths": {
-            "@amazon/vinyl-cache-manager": ["../../src/index"]
-        }
+        "noEmit": true
     },
     "references": [
         {

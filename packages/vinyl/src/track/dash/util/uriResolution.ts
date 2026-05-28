@@ -4,7 +4,7 @@
  */
 
 import type { BaseURLType, RepresentationType } from '@amazon/vinyl-mpd-parser'
-import { getRepresentationAncestry } from '@/track/dash/util/mpd'
+import { getRepresentationAncestry } from './mpd'
 import type { Uri } from '@amazon/vinyl-xml'
 import type { Maybe } from '@amazon/vinyl-util'
 import {

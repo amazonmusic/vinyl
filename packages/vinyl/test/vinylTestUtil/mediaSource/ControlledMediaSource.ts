@@ -9,7 +9,7 @@ import {
     requestWithRetry,
     substitute,
 } from '@amazon/vinyl-util'
-import { type SegmentedAsset, vinylTestAssets } from '@/assets/vinylTestAssets'
+import { type SegmentedAsset, vinylTestAssets } from '../assets/vinylTestAssets'
 
 const mimeCodec = 'audio/mp4;codecs="mp4a.40.5"'
 

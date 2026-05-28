@@ -26,10 +26,10 @@ import {
 } from '@amazon/vinyl-xml'
 import { ErrorOrigin, stringify } from '@amazon/vinyl-util'
 import { isOneOf, number, type Validator } from '@amazon/vinyl-validation'
-import { parseDuration, stringifyDuration } from '@/duration/duration'
-import { parseByteRange, stringifyByteRange } from '@/media/byteRange'
-import { parseRatio, stringifyRatio } from '@/media/ratio'
-import { parseFrameRate, stringifyFrameRate } from '@/media/frameRate'
+import { parseDuration, stringifyDuration } from '../duration/duration'
+import { parseByteRange, stringifyByteRange } from '../media/byteRange'
+import { parseRatio, stringifyRatio } from '../media/ratio'
+import { parseFrameRate, stringifyFrameRate } from '../media/frameRate'
 import type {
     AdaptationSetType,
     BaseURLType,
@@ -60,7 +60,7 @@ import type {
     SwitchingTypeType,
     URLType,
     VideoScanType,
-} from '@/xmlns/mpeg/dash/schema/mpd/2011'
+} from '../xmlns/mpeg/dash/schema/mpd/2011'
 
 export const dashNamespaceUri = 'urn:mpeg:dash:schema:mpd:2011'
 

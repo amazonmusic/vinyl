@@ -6,7 +6,7 @@
 import { type PatchedRef, patchTargetFromFlags } from '@amazon/vinyl-util'
 import type { MediaElementPatchOptions } from './MediaElementPatchOptions'
 import { createUnreliablePlaybackEventsPatch } from './patches/createUnreliablePlaybackEventsPatch'
-import { createPreventStallsPatch } from '@/patch/media/patches/createPreventStallsPatch'
+import { createPreventStallsPatch } from './patches/createPreventStallsPatch'
 
 /**
  * Applies patches corresponding to the patch flags on the given media element.

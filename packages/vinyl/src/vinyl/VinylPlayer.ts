@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Client } from '@/client/Client'
+import type { Client } from '../client/Client'
 import {
     type AnyRecord,
     createDisposer,
@@ -23,25 +23,25 @@ import {
     type Factories,
     type ValidFactoryOverrides,
 } from '@amazon/vinyl-di'
-import { playerRegistryRef } from '@/global/PlayerRegistry'
-import type { PlaybackController } from '@/playback/PlaybackController'
+import { playerRegistryRef } from '../global/PlayerRegistry'
+import type { PlaybackController } from '../playback/PlaybackController'
 import {
     ALL_PLAYBACK_STATE_EVENTS,
     type PlaybackControllerEventMap,
     type PlaybackNetworkState,
     type PlaybackReadyState,
-} from '@/playback/ReadonlyPlaybackController'
-import type { VinylTrackLoadOptions } from '@/track/createVinylTrackFactories'
-import { type ReadonlyTrack, type TrackUri } from '@/track/Track'
+} from '../playback/ReadonlyPlaybackController'
+import type { VinylTrackLoadOptions } from '../track/createVinylTrackFactories'
+import { type ReadonlyTrack, type TrackUri } from '../track/Track'
 import {
     ALL_TRACK_CONTROLLER_EVENTS,
     type TrackController,
     type TrackControllerEventMap,
-} from '@/track/TrackController'
+} from '../track/TrackController'
 import type {
     InferLoadOptionsFromFactory,
     TrackLoadOptions,
-} from '@/track/TrackFactory'
+} from '../track/TrackFactory'
 import type {
     DefaultVinylFactories,
     InferVinylOverrideDependencyType,
@@ -49,24 +49,24 @@ import type {
 } from './createVinylFactories'
 import { createVinylFactories } from './createVinylFactories'
 import type { VinylDeps } from './VinylDeps'
-import type { Capabilities } from '@/client/Capabilities'
-import { initializeVinylGlobal } from '@/global/initializeVinylGlobal'
+import type { Capabilities } from '../client/Capabilities'
+import { initializeVinylGlobal } from '../global/initializeVinylGlobal'
 import {
     ALL_CONTENT_TYPES,
     type ContentType,
     type MediaQualityMetadata,
-} from '@/streaming/MediaQualityMetadata'
-import type { ReadonlyPlaybackStreamingState } from '@/vinyl/ReadonlyPlaybackStreamingState'
-import type { DrmController } from '@/drm/DrmController'
+} from '../streaming/MediaQualityMetadata'
+import type { ReadonlyPlaybackStreamingState } from './ReadonlyPlaybackStreamingState'
+import type { DrmController } from '../drm/DrmController'
 import {
     ALL_STREAMING_EVENTS,
     type StreamingEventMap,
-} from '@/streaming/StreamingEventMap'
+} from '../streaming/StreamingEventMap'
 import type {
     InferObservableValueType,
     MutableValue,
 } from '@amazon/vinyl-observable'
-import type { VinylOptions } from '@/vinyl/VinylOptions'
+import type { VinylOptions } from './VinylOptions'
 
 /**
  * Events the Vinyl Player emits.

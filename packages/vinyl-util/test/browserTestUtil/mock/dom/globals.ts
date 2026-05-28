@@ -4,7 +4,7 @@
  */
 
 import { MockAbortSignal, MockMediaSource } from './lib.dom'
-import { createSpy2 } from '@/mock/createSpyFactory'
+import { createSpy2 } from '../createSpyFactory'
 
 export class MockMediaSourceGlobal extends MockMediaSource {
     static canConstructInDedicatedWorker = false

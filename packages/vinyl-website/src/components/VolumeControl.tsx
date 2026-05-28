@@ -1,6 +1,6 @@
 import { jsx } from '@amazon/vinyl-tsx'
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import { Icon } from '@/components/icons'
+import { Icon } from './icons'
 
 export interface VolumeControlProps {
     readonly muted$: ObservableValue<boolean>

@@ -8,8 +8,8 @@ import { createAbortSlot, createDisposer, logDebug } from '@amazon/vinyl-util'
 import type {
     DashManifestData,
     DashManifestProvider,
-} from '@/track/dash/DashManifestProvider'
-import type { ManifestController } from '@/streaming/ManifestController'
+} from './DashManifestProvider'
+import type { ManifestController } from '../../streaming/ManifestController'
 
 export type DashManifestController = ManifestController<
     Promise<DashManifestData>

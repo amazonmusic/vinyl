@@ -15,7 +15,7 @@ import {
     logWarn,
     noop,
 } from '@amazon/vinyl-util'
-import type { HtmlMediaElementPatch } from '@/patch/media/HtmlMediaElementPatch'
+import type { HtmlMediaElementPatch } from '../HtmlMediaElementPatch'
 
 /**
  * The number of timeupdate events stuck at the same position before attempting to jiggle the playhead.

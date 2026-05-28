@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IllegalArgumentError } from '@/error/IllegalArgumentError'
-import type { TypedArray } from '@/util/collection/typedArray'
-import { cloneTypedArray, isTypedArray } from '@/util/collection/typedArray'
-import { union } from '@/util/set/set'
-import { substitute } from '@/util/string/string'
+import { IllegalArgumentError } from '../../error/IllegalArgumentError'
+import type { TypedArray } from '../collection/typedArray'
+import { cloneTypedArray, isTypedArray } from '../collection/typedArray'
+import { union } from '../set/set'
+import { substitute } from '../string/string'
 import { ownKeys, isPlainObject } from './object'
-import { ReportableError } from '@/error/ReportableError'
-import { type Cloneable, isCloneable } from '@/core/cloneable'
+import { ReportableError } from '../../error/ReportableError'
+import { type Cloneable, isCloneable } from '../../core/cloneable'
 
 const locale = {
     cyclicRefError: 'Cyclic reference found at: {path}',

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { IllegalArgumentError } from '@/error/IllegalArgumentError'
-import { EventHostImpl } from '@/event/EventHost'
-import { globalRef } from '@/global/globalRegistry'
+import { IllegalArgumentError } from '../error/IllegalArgumentError'
+import { EventHostImpl } from '../event/EventHost'
+import { globalRef } from '../global/globalRegistry'
 import type { NetworkMetricsController } from './metrics/NetworkMetricsController'
 import {
     type BackoffOptions,
@@ -33,13 +33,13 @@ import {
     retryAfterJitter,
     shouldRetry,
 } from './requesterUtil'
-import { withAbort } from '@/util/async/abortUtils'
-import { TimeoutController } from '@/util/async/TimeoutController'
-import { mergeDeep } from '@/util/object/mergeDeep'
-import { substitute } from '@/util/string/string'
-import { createShortUid } from '@/util/string/uid'
-import type { Maybe, PartialDeep } from '@/util/type'
-import { patchFetch } from '@/patch/network/fetch'
+import { withAbort } from '../util/async/abortUtils'
+import { TimeoutController } from '../util/async/TimeoutController'
+import { mergeDeep } from '../util/object/mergeDeep'
+import { substitute } from '../util/string/string'
+import { createShortUid } from '../util/string/uid'
+import type { Maybe, PartialDeep } from '../util/type'
+import { patchFetch } from '../patch/network/fetch'
 
 /**
  * Request impl options configuring retry and timeout behavior.

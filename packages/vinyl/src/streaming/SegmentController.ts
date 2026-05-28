@@ -10,9 +10,9 @@ import type {
     ReadonlyEventHost,
     ReadonlyRanges,
 } from '@amazon/vinyl-util'
-import type { SegmentReference } from '@/streaming/SegmentReference'
-import type { ChangeEvent } from '@/event/ChangeEvent'
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
+import type { SegmentReference } from './SegmentReference'
+import type { ChangeEvent } from '../event/ChangeEvent'
+import type { MediaQualityMetadata } from './MediaQualityMetadata'
 
 /**
  * Forward-snap tolerance, in seconds, applied when looking up a segment by time.

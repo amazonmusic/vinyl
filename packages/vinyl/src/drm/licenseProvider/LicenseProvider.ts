@@ -4,7 +4,7 @@
  */
 
 import { type Maybe, type ReadonlyAbort } from '@amazon/vinyl-util'
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
+import type { DrmKeySystem } from '../DrmKeySystem'
 import {
     any,
     instanceOf,

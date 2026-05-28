@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import { ErrorLevel, ReportableError } from '@/error/ReportableError'
+import { ErrorOrigin } from '../../error/ErrorOrigin'
+import { ErrorLevel, ReportableError } from '../../error/ReportableError'
 
 export class BufferError extends ReportableError {
     get [Symbol.toStringTag](): string {

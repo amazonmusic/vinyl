@@ -4,7 +4,7 @@
  */
 
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { DashManifestData } from '@/track/dash/DashManifestProvider'
+import type { DashManifestData } from './DashManifestProvider'
 import type {
     AdaptationSetType,
     DashManifest,
@@ -14,7 +14,7 @@ import { type Comparator, compareBy } from '@amazon/vinyl-util'
 import {
     sortDashAdaptationSets,
     sortDashRepresentations,
-} from '@/track/dash/manifestTransformUtils'
+} from './manifestTransformUtils'
 
 export interface DashManifestTransformerDeps {
     readonly manifestController: ObservableValue<Promise<DashManifestData>>

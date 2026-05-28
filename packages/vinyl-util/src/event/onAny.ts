@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createDisposer } from '@/core/disposable'
-import type { Unsubscribe } from '@/core/Unsubscribe'
+import { createDisposer } from '../core/disposable'
+import type { Unsubscribe } from '../core/Unsubscribe'
 import type { ReadonlyEventHost } from './EventHost'
 import type { SignalOptions } from './Signal'
 

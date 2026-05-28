@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Disposable } from '@/core/disposable'
-import type { Unsubscribe } from '@/core/Unsubscribe'
-import { LinkedList } from '@/util/collection/LinkedList'
+import type { Disposable } from '../core/disposable'
+import type { Unsubscribe } from '../core/Unsubscribe'
+import { LinkedList } from '../util/collection/LinkedList'
 
 export type EventHandler<in T> = (event: T) => void
 

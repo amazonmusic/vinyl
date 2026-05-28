@@ -24,12 +24,12 @@
         "lint:write": "npm run eslint:write && npm run prettier:write",
         "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
         "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
-        "release": "npm run lint && npm run build:release",
-        "validate": "npm run lint"
+        "release": "npm run lint && npm run build:release"
     },
     "module": "./dist/index.js",
     "exports": {
         ".": {
+            "development": "./src/index.ts",
             "import": "./dist/index.js"
         }
     },

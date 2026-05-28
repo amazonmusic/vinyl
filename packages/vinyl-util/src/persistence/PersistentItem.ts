@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { LogTarget } from '@/logging/LogTarget'
-import { logError, logVerbose } from '@/logging/Logger'
-import type { KeyValuePersistence } from '@/persistence/KeyValuePersistence'
-import { persistenceRef } from '@/persistence/persistenceRef'
-import type { Maybe } from '@/util/type'
-import { lazy, type Lazy } from '@/util/object/lazy'
+import type { LogTarget } from '../logging/LogTarget'
+import { logError, logVerbose } from '../logging/Logger'
+import type { KeyValuePersistence } from './KeyValuePersistence'
+import { persistenceRef } from './persistenceRef'
+import type { Maybe } from '../util/type'
+import { lazy, type Lazy } from '../util/object/lazy'
 
 /**
  * Configuration for PersistentItemImpl

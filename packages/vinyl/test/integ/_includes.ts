@@ -4,4 +4,4 @@
  */
 
 import '@amazon/vinyl-util/polyfill'
-import '@unit'
+import '../unit'

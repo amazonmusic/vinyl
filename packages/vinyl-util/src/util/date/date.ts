@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import type { ReadonlyDate } from '@/util/object/readonlyType'
-import { substitute } from '@/util/string/string'
-import { ValidationError } from '@/error/ValidationError'
+import { ErrorOrigin } from '../../error/ErrorOrigin'
+import type { ReadonlyDate } from '../object/readonlyType'
+import { substitute } from '../string/string'
+import { ValidationError } from '../../error/ValidationError'
 
 /**
  * @private

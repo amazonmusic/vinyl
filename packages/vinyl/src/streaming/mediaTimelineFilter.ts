@@ -7,8 +7,8 @@ import type {
     MediaPeriod,
     MediaQualityData,
     MediaTimeline,
-} from '@/streaming/MediaTimeline'
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
+} from './MediaTimeline'
+import type { MediaQualityMetadata } from './MediaQualityMetadata'
 import type {
     FilterPredicate,
     FilterPredicateAsync,
@@ -85,4 +85,4 @@ export async function filterTimelineQualitiesAsync(
 /**
  * Creates a language filter predicate for use with filterTimelineQualities.
  */
-export { createLanguageFilter } from '@/streaming/mediaTimelineLanguageFilter'
+export { createLanguageFilter } from './mediaTimelineLanguageFilter'

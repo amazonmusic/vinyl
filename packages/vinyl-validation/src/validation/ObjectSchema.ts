@@ -15,8 +15,8 @@ import { ValueSchema } from './ValueSchema'
 import { typeOfValidators } from './typeOfValidators'
 import type { ValidationErrorMessage } from './Validator'
 import { createDeepValidator } from './Validator'
-import type { PropertyValidator } from '@/validation/PropertyValidator'
-import type { Equal } from '@amazon/vinyl-util/browserTestUtil'
+import type { PropertyValidator } from './PropertyValidator'
+import type { Equal } from '@amazon/vinyl-util'
 
 /**
  * @private

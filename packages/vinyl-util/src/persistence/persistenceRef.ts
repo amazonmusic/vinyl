@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { globalRef } from '@/global/globalRegistry'
-import type { KeyValuePersistence } from '@/persistence/KeyValuePersistence'
-import { StoragePersistence } from '@/persistence/StoragePersistence'
+import { globalRef } from '../global/globalRegistry'
+import type { KeyValuePersistence } from './KeyValuePersistence'
+import { StoragePersistence } from './StoragePersistence'
 
 /**
  * The default storage persistence for simple key / value pairs.

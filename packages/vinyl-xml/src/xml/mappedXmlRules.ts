@@ -13,7 +13,7 @@ import {
 
 import type { XmlRule, XmlRules } from './xmlRules'
 import { XmlRuleType } from './xmlRules'
-import type { Uri } from '@/xmlns/org/w3/2001/XmlSchema'
+import type { Uri } from '../xmlns/org/w3/2001/XmlSchema'
 
 /**
  * A machine-readable representation of parse rules for random access based on qualified namespace

@@ -9,6 +9,50 @@ To iterate on tests in a browser, run `npm run start`. Jasmine can isolate to a
 specific test either by temporarily using `fit` or `fdescribe` (read f for
 focus) in the test, or by providing a filter.
 
+## Running tests from your IDE
+
+Tests run through `tsx` and rely on the `development` Node export condition so
+cross-package imports resolve to TypeScript source rather than built `dist/`
+artifacts. The repo's `.npmrc` sets this automatically for any `npm run`
+invocation, but IDE run configurations bypass npm and must set the equivalent
+Node options manually.
+
+Pass these options to Node:
+
+```
+--import tsx/esm --conditions=development
+```
+
+### IntelliJ IDEA / WebStorm
+
+1. **Run** → **Edit Configurations…**
+2. Select (or create) your Jasmine configuration.
+3. Set **Node options** to:
+    ```
+    --import tsx/esm --conditions=development
+    ```
+
+To make this the default for new Jasmine configurations, edit the template under
+**Edit Configurations… → Edit configuration templates… → Jasmine** and set the
+same Node options.
+
+### VS Code
+
+Add the options to the relevant launch configuration in `.vscode/launch.json`:
+
+```jsonc
+{
+    "type": "node",
+    "request": "launch",
+    "name": "Jasmine: current spec",
+    "program": "${workspaceFolder}/node_modules/jasmine/bin/jasmine",
+    "args": ["--config=${fileDirname}/jasmine.config.json"],
+    "runtimeArgs": ["--import", "tsx/esm", "--conditions=development"],
+    "cwd": "${fileDirname}",
+    "console": "integratedTerminal",
+}
+```
+
 When running tests in a browser, here are the possible queryString parameters:
 
 - `vinylLogLevel` - one of 'verbose', 'debug', 'info', 'warn', 'error', or

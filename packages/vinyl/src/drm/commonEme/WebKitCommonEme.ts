@@ -23,11 +23,11 @@ import {
     CommonMediaKeySessionError,
     MediaKeySessionErrorType,
 } from './CommonEme'
-import type { WebKitMediaKeyMessageEvent } from '@/drm/dom/WebKitMediaKeys'
-import type { DrmKeySystem } from '@/drm/DrmKeySystem'
-import { DrmError } from '@/drm/error/DrmError'
-import type { EncryptedInitData } from '@/drm/commonEme/EncryptedInitData'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
+import type { WebKitMediaKeyMessageEvent } from '../dom/WebKitMediaKeys'
+import type { DrmKeySystem } from '../DrmKeySystem'
+import { DrmError } from '../error/DrmError'
+import type { EncryptedInitData } from './EncryptedInitData'
+import type { DrmInitDataType } from '../../streaming/DrmInitDataType'
 
 declare global {
     interface HTMLMediaElementEventMap extends HTMLElementEventMap {

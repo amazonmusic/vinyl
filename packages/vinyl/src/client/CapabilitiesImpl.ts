@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type DrmKeySystem } from '@/drm/DrmKeySystem'
+import { type DrmKeySystem } from '../drm/DrmKeySystem'
 import type { Capabilities } from './Capabilities'
 import { CanPlayTypeResult } from './Capabilities'
-import { isTypeSupported, supportsMse } from '@/util/media/mediaSource'
-import { getAudioContext } from '@/util/media/getAudioContext'
-import type { DrmController, DrmKeySystemSupport } from '@/drm/DrmController'
+import { isTypeSupported, supportsMse } from '../util/media/mediaSource'
+import { getAudioContext } from '../util/media/getAudioContext'
+import type { DrmController, DrmKeySystemSupport } from '../drm/DrmController'
 
 /**
  * Dependencies for CapabilitiesImpl.

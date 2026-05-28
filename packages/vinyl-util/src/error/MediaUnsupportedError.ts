@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ErrorOrigin } from '@/error/ErrorOrigin'
-import { ReportableError } from '@/error/ReportableError'
-import type { Json } from '@/util/serialization/json'
+import { ErrorOrigin } from './ErrorOrigin'
+import { ReportableError } from './ReportableError'
+import type { Json } from '../util/serialization/json'
 
 export class MediaUnsupportedError extends ReportableError {
     constructor(

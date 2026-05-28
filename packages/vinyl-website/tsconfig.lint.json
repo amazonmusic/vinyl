@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "noEmit": true
+    },
+    "include": [
+        "src/**/*",
+        "basic-demo/**/*",
+        "buildSrc/**/*",
+        "vite.config.ts"
+    ]
+}

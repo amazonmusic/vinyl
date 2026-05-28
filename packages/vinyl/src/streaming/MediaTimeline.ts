@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { SegmentReference } from '@/streaming/SegmentReference'
-import type { SegmentDataProvider } from '@/streaming/SegmentDataSlot'
-import type { MediaQualityMetadata } from '@/streaming/MediaQualityMetadata'
+import type { SegmentReference } from './SegmentReference'
+import type { SegmentDataProvider } from './SegmentDataSlot'
+import type { MediaQualityMetadata } from './MediaQualityMetadata'
 import { sortedInsertionIndex } from '@amazon/vinyl-util'
 
 /**

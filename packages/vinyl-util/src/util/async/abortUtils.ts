@@ -4,7 +4,7 @@
  */
 
 import type { ReadonlyAbort } from './Abort'
-import type { Maybe } from '@/util/type'
+import type { Maybe } from '../type'
 
 /**
  * Races a promise and an abort signal.

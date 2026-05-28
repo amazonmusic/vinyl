@@ -91,7 +91,25 @@ function writePackageJsonExports() {
                 }
             }
 
-            // require/import must come after @types
+            // development condition resolves to TS source so tests can run without a build.
+            // Convention: '.' -> src/index.ts; './X' -> src/X, test/X, or X under the package root.
+            const sourceCandidates = exportDirRel
+                ? [
+                      `${packageDir}/src/${exportDirRel}/index.ts`,
+                      `${packageDir}/test/${exportDirRel}/index.ts`,
+                      `${packageDir}/${exportDirRel}/index.ts`,
+                  ]
+                : [`${packageDir}/src/index.ts`]
+            const sourcePath = sourceCandidates.find((p) => fs.existsSync(p))
+            if (sourcePath) {
+                exportJson.development = `./${path.relative(packageDir, sourcePath)}`
+            } else {
+                console.warn(
+                    `No source found for ${packageDir} export ${exportKey}; tried: ${sourceCandidates.join(', ')}`
+                )
+            }
+
+            // require/import must come after @types and development
             const commonJsPath = path.resolve(exportDir, 'index.cjs')
             if (fs.existsSync(commonJsPath)) {
                 exportJson.require = `./${path.relative(packageDir, commonJsPath)}`

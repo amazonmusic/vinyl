@@ -7,25 +7,25 @@ import {
     createSourceObjectTrackFactory,
     type SourceObjectTrackDeps,
     type SourceObjectTrackLoadOptions,
-} from '@/track/source/SourceObjectTrack'
+} from './source/SourceObjectTrack'
 import {
     createSourceTrackFactory,
     type SourceTrackDeps,
     type SourceTrackLoadOptions,
-} from '@/track/source/SourceTrack'
-import type { TrackTypeId } from '@/track/Track'
-import type { TrackFactory } from '@/track/TrackFactory'
+} from './source/SourceTrack'
+import type { TrackTypeId } from './Track'
+import type { TrackFactory } from './TrackFactory'
 import type { ReadonlyRecord } from '@amazon/vinyl-util'
 import {
     createDashTrackFactory,
     type DashTrackFactoryDeps,
     type DashTrackLoadOptions,
-} from '@/track/dash/DashTrack'
+} from './dash/DashTrack'
 import {
     createHlsTrackFactory,
     type HlsTrackFactoryDeps,
     type HlsTrackLoadOptions,
-} from '@/track/hls/HlsTrack'
+} from './hls/HlsTrack'
 
 export interface VinylTrackFactoryDeps
     extends

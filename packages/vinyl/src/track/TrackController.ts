@@ -19,10 +19,10 @@ import {
     type ReadonlyEventHost,
     type TimeoutId,
 } from '@amazon/vinyl-util'
-import type { PlaybackController } from '@/playback/PlaybackController'
-import type { ReadonlyTrack, Track, TrackUri } from '@/track/Track'
-import type { TrackFactory, TrackLoadOptions } from '@/track/TrackFactory'
-import type { ChangeEvent } from '@/event/ChangeEvent'
+import type { PlaybackController } from '../playback/PlaybackController'
+import type { ReadonlyTrack, Track, TrackUri } from './Track'
+import type { TrackFactory, TrackLoadOptions } from './TrackFactory'
+import type { ChangeEvent } from '../event/ChangeEvent'
 
 export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,

@@ -5,11 +5,16 @@
 
 import { parseVersion } from '@amazon/vinyl-util'
 
+declare global {
+    var __VINYL_VERSION__: string | undefined
+}
+
 /**
- * process.env.VINYL_VERSION will be null in node unit tests, but in the built library it is
- * replaced by the webpack DefinePlugin with the package.version.
+ * `globalThis.__VINYL_VERSION__` is replaced at build time with the package.version via
+ * esbuild's `define` option. In unit tests and unbundled dev builds the replacement does not
+ * happen and the global is undefined, so we fall through to a placeholder version.
  */
 export const vinylVersion = parseVersion(
     /* istanbul ignore next */
-    process.env.VINYL_VERSION ?? '0.0.0.0'
+    globalThis.__VINYL_VERSION__ ?? '0.0.0.0'
 )

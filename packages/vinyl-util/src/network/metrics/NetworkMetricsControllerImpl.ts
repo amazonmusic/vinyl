@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EventHostImpl } from '@/event/EventHost'
-import type { NetworkInformation } from '@/network/browser/NetworkInformation'
+import { EventHostImpl } from '../../event/EventHost'
+import type { NetworkInformation } from '../browser/NetworkInformation'
 import type {
     NetworkMetricsController,
     NetworkMetricsEventMap,
@@ -20,19 +20,19 @@ import {
     EMPTY_NETWORK_METRICS,
     EMPTY_SERVICE_METRICS,
 } from './networkMetricsModel'
-import { lerp } from '@/util/math/math'
-import { clone } from '@/util/object/clone'
-import type { ReadonlyDeep } from '@/util/object/readonlyType'
-import type { Mutable, MutableDeep } from '@/util/object/mutableType'
-import { getOrSetProp } from '@/util/object/object'
-import type { Maybe } from '@/util/type'
-import { logVerbose } from '@/logging/Logger'
-import type { Timestamp } from '@/util/date/date'
-import { throttle, type ThrottledCallback } from '@/util/fun/throttle'
-import { createDisposer } from '@/core/disposable'
-import { UnionRanges } from '@/util/range/UnionRanges'
-import type { Range } from '@/util/range/Ranges'
-import { rangesOf } from '@/util/range/Ranges'
+import { lerp } from '../../util/math/math'
+import { clone } from '../../util/object/clone'
+import type { ReadonlyDeep } from '../../util/object/readonlyType'
+import type { Mutable, MutableDeep } from '../../util/object/mutableType'
+import { getOrSetProp } from '../../util/object/object'
+import type { Maybe } from '../../util/type'
+import { logVerbose } from '../../logging/Logger'
+import type { Timestamp } from '../../util/date/date'
+import { throttle, type ThrottledCallback } from '../../util/fun/throttle'
+import { createDisposer } from '../../core/disposable'
+import { UnionRanges } from '../../util/range/UnionRanges'
+import type { Range } from '../../util/range/Ranges'
+import { rangesOf } from '../../util/range/Ranges'
 
 /*
  * Worldwide customer bandwidth for all devices was obtained using:

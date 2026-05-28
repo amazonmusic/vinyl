@@ -3,56 +3,56 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { CapabilitiesImplDeps } from '@/client/CapabilitiesImpl'
-import { CapabilitiesImpl } from '@/client/CapabilitiesImpl'
+import type { CapabilitiesImplDeps } from '../client/CapabilitiesImpl'
+import { CapabilitiesImpl } from '../client/CapabilitiesImpl'
 import type { Merge, PartialDeep, PatchedRef } from '@amazon/vinyl-util'
 import { mergeDeep, noop } from '@amazon/vinyl-util'
-import { patchMediaElement } from '@/patch/media/patchMediaElement'
+import { patchMediaElement } from '../patch/media/patchMediaElement'
 import type {
     PlaybackControllerImplDeps,
     PlaybackControllerImplOptions,
-} from '@/playback/PlaybackControllerImpl'
-import { PlaybackControllerImpl } from '@/playback/PlaybackControllerImpl'
-import type { PlaybackSourceImplDeps } from '@/playback/PlaybackSourceImpl'
-import { PlaybackSourceImpl } from '@/playback/PlaybackSourceImpl'
+} from '../playback/PlaybackControllerImpl'
+import { PlaybackControllerImpl } from '../playback/PlaybackControllerImpl'
+import type { PlaybackSourceImplDeps } from '../playback/PlaybackSourceImpl'
+import { PlaybackSourceImpl } from '../playback/PlaybackSourceImpl'
 import {
     createVinylTrackFactories,
     type VinylTrackFactoryDeps,
-} from '@/track/createVinylTrackFactories'
+} from '../track/createVinylTrackFactories'
 import type {
     TrackControllerImplDeps,
     TrackControllerImplOptions,
-} from '@/track/TrackController'
-import { TrackControllerImpl } from '@/track/TrackController'
-import { createTrackFactory } from '@/track/TrackFactory'
+} from '../track/TrackController'
+import { TrackControllerImpl } from '../track/TrackController'
+import { createTrackFactory } from '../track/TrackFactory'
 import type { VinylDeps } from './VinylDeps'
 import type { VinylPatchOptions } from './VinylPatchOptions'
 import { defaultPatchOptions } from './VinylPatchOptions'
-import { type QualitySelectorImplOptions } from '@/streaming/abr/QualitySelectorImpl'
-import { createDashFactories } from '@/track/dash/createDashFactories'
-import { createHlsFactories } from '@/track/hls/createHlsFactories'
-import { type DrmOptions } from '@/drm/DrmOptions'
-import { commonEmeFactory } from '@/drm/commonEme/CommonEmeFactory'
+import { type QualitySelectorImplOptions } from '../streaming/abr/QualitySelectorImpl'
+import { createDashFactories } from '../track/dash/createDashFactories'
+import { createHlsFactories } from '../track/hls/createHlsFactories'
+import { type DrmOptions } from '../drm/DrmOptions'
+import { commonEmeFactory } from '../drm/commonEme/CommonEmeFactory'
 import {
     DrmControllerImpl,
     type DrmControllerImplDeps,
-} from '@/drm/DrmControllerImpl'
-import { defaultDrmKeySystemResolver } from '@/drm/DrmKeySystemResolver'
-import { LoudnessNormalizationControllerImpl } from '@/playback/loudness/LoudnessNormalizationControllerImpl'
+} from '../drm/DrmControllerImpl'
+import { defaultDrmKeySystemResolver } from '../drm/DrmKeySystemResolver'
+import { LoudnessNormalizationControllerImpl } from '../playback/loudness/LoudnessNormalizationControllerImpl'
 import {
     AutoResetControllerImpl,
     type AutoResetControllerImplDeps,
     type AutoResetControllerImplOptions,
-} from '@/track/AutoResetController'
+} from '../track/AutoResetController'
 import type { Dependencies, Factories } from '@amazon/vinyl-di'
 import { validateFactories } from '@amazon/vinyl-di'
-import type { ContentStreamingOptions } from '@/streaming/ContentStreamingOptions'
+import type { ContentStreamingOptions } from '../streaming/ContentStreamingOptions'
 import {
     defaultVinylOptions,
     type VinylOptions,
     vinylOptionsValidator,
-} from '@/vinyl/VinylOptions'
-import { playerConfigFactory } from '@/vinyl/playerConfigFactory'
+} from './VinylOptions'
+import { playerConfigFactory } from './playerConfigFactory'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 
 /**

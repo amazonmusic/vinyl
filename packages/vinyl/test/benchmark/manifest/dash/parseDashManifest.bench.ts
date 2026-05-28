@@ -6,7 +6,7 @@
 import { parseDashManifest } from '@amazon/vinyl-mpd-parser'
 import { benchmark } from '@amazon/vinyl-util/browserTestUtil'
 import { dash_segmentListMediaRange } from '@amazon/vinyl/vinylTestUtil'
-import { addBenchmarks, setupBenchmark } from '@/setup'
+import { addBenchmarks, setupBenchmark } from '../../setup'
 
 describe('parseDashManifest', () => {
     setupBenchmark()

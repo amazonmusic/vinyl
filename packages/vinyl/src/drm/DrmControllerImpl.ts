@@ -32,12 +32,12 @@ import {
     type DrmOptions,
     DrmRobustness,
     type InitDataTransformer,
-} from '@/drm/DrmOptions'
+} from './DrmOptions'
 import type {
     DrmController,
     DrmControllerEventMap,
     DrmKeySystemSupport,
-} from '@/drm/DrmController'
+} from './DrmController'
 import type {
     CommonEme,
     CommonMediaEncryptedEvent,
@@ -45,23 +45,23 @@ import type {
     CommonMediaKeys,
     CommonMediaKeySession,
     CommonMediaKeySystemAccess,
-} from '@/drm/commonEme/CommonEme'
-import { DrmError } from '@/drm/error/DrmError'
-import type { EncryptedInitData } from '@/drm/commonEme/EncryptedInitData'
-import { DrmKeySystem, isPlayReady } from '@/drm/DrmKeySystem'
-import type { DrmInitDataType } from '@/streaming/DrmInitDataType'
+} from './commonEme/CommonEme'
+import { DrmError } from './error/DrmError'
+import type { EncryptedInitData } from './commonEme/EncryptedInitData'
+import { DrmKeySystem, isPlayReady } from './DrmKeySystem'
+import type { DrmInitDataType } from '../streaming/DrmInitDataType'
 import type {
     ContentType,
     MediaFormatMetadata,
-} from '@/streaming/MediaQualityMetadata'
-import { unpackPlayReadyChallenge } from '@/drm/util/unpackPlayReadyChallenge'
+} from '../streaming/MediaQualityMetadata'
+import { unpackPlayReadyChallenge } from './util/unpackPlayReadyChallenge'
 import type {
     LicenseProvider,
     ServerCertificate,
-} from '@/drm/licenseProvider/LicenseProvider'
-import { defaultLicenseProvider } from '@/drm/licenseProvider/defaultLicenseProvider'
-import { extractContentId } from '@/drm/util/extractContentId'
-import { createFairPlaySessionInitData } from '@/drm/util/createFairPlaySessionInitData'
+} from './licenseProvider/LicenseProvider'
+import { defaultLicenseProvider } from './licenseProvider/defaultLicenseProvider'
+import { extractContentId } from './util/extractContentId'
+import { createFairPlaySessionInitData } from './util/createFairPlaySessionInitData'
 
 /**
  * The number of seconds a license request will be allowed before timing out.

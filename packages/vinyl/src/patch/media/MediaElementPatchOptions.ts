@@ -5,7 +5,7 @@
 
 import { lazy } from '@amazon/vinyl-util'
 import { requiresUnreliablePlaybackEventsPatch } from './patches/createUnreliablePlaybackEventsPatch'
-import { requiresPreventStallsPatch } from '@/patch/media/patches/createPreventStallsPatch'
+import { requiresPreventStallsPatch } from './patches/createPreventStallsPatch'
 
 export interface MediaElementPatchOptions {
     /**

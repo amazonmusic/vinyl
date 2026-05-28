@@ -1,7 +1,8 @@
 import { jsx } from '@amazon/vinyl-tsx'
-import { isDark$, toggleTheme } from '@/app'
-import { navigateTo, onNavigate } from '@/router/router'
-import { Icon, type IconName } from '@/components/icons'
+import { vinylVersion } from '@amazon/vinyl'
+import { isDark$, toggleTheme } from '../app'
+import { navigateTo, onNavigate } from '../router/router'
+import { Icon, type IconName } from './icons'
 
 export function Sidebar() {
     const overviewLink = <NavItem icon="dashboard" label="Overview" path="/" />
@@ -57,7 +58,10 @@ export function Sidebar() {
         <aside className="sidebar">
             <a className="logo" href="#!/">
                 <img src="./img/logo-64.png" alt="Amazon Vinyl" />
-                <span>Amazon Vinyl</span>
+                <span className="logoText">
+                    <span>Amazon Vinyl</span>
+                    <span className="versionTag">v{vinylVersion.str}</span>
+                </span>
             </a>
             <nav role="menu" aria-label="Main navigation">
                 {overviewLink}

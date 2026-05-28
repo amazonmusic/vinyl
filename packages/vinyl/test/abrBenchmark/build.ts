@@ -27,7 +27,7 @@ await build({
     outfile: path.join(outDir, 'abrBenchmark.js'),
     define: {
         ...commonVinylBuildOptions.define,
-        'process.env.VINYL_VERSION': '"0.0.0"',
+        'globalThis.__VINYL_VERSION__': '"0.0.0"',
     },
     absWorkingDir: packageDir,
 })

@@ -6,7 +6,7 @@
 import { MsCommonEme } from './MsCommonEme'
 import { StandardCommonEme } from './StandardCommonEme'
 import { WebKitCommonEme } from './WebKitCommonEme'
-import type { CommonEme } from '@/drm/commonEme/CommonEme'
+import type { CommonEme } from './CommonEme'
 import { globalRef } from '@amazon/vinyl-util'
 
 /**

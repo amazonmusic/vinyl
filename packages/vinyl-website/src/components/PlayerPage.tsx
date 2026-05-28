@@ -1,7 +1,7 @@
 import { jsx } from '@amazon/vinyl-tsx'
-import { loadContent, type Track, type TrackType } from '@/player'
+import { loadContent, type Track, type TrackType } from '../player'
 import { data } from '@amazon/vinyl-observable'
-import { Icon } from '@/components/icons'
+import { Icon } from './icons'
 
 const ASSETS_HOST = 'https://assets.dev.vinyl.music.amazon.dev'
 

@@ -37,7 +37,8 @@ export default tseslint.config(
             },
             sourceType: 'module',
             parserOptions: {
-                projectService: true,
+                project: ['./packages/*/tsconfig.lint.json'],
+                tsconfigRootDir: import.meta.dirname,
             },
         },
         settings: {

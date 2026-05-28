@@ -159,6 +159,7 @@ export function buildVinylPackage(options?: VinylPackageOptions) {
             },
             ...commonOptions,
             external: [],
+            conditions: ['development'],
             plugins: [compat],
             outfile: 'dist/test/jasmineHtml.js',
         })
@@ -173,6 +174,7 @@ export function buildVinylPackage(options?: VinylPackageOptions) {
             }),
             ...commonOptions,
             external: [], // Bundle everything together for integ
+            conditions: ['development'], // Resolve cross-package imports to source
             format: 'iife',
             outdir: 'dist/test/',
             plugins: [tsc, compat],

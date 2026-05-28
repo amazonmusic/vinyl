@@ -10,7 +10,7 @@ import {
     type Maybe,
     ReportableError,
 } from '@amazon/vinyl-util'
-import { mediaErrorToJson } from '@/playback/logging/mediaErrorToJson'
+import { mediaErrorToJson } from '../logging/mediaErrorToJson'
 
 /**
  * An error from the media element

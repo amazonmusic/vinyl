@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Maybe } from '@/util/type'
+import type { Maybe } from '../type'
 
 /**
  * Returns true if the given string is 'true' or '1'
