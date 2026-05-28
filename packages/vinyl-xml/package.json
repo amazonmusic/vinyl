@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-xml",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "description": "A SAX XML parser",
     "repository": {
         "type": "git",
@@ -69,12 +69,12 @@
         "watch:release": "tsx buildSrc/build.ts --watch --release"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^1.0.0",
-        "@amazon/vinyl-jasmine-wrapper": "^1.0.0"
+        "@amazon/vinyl-build-utils": "^1.1.0",
+        "@amazon/vinyl-jasmine-wrapper": "^1.1.0"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^1.0.0",
-        "@amazon/vinyl-validation": "^1.0.0"
+        "@amazon/vinyl-util": "^1.1.0",
+        "@amazon/vinyl-validation": "^1.1.0"
     },
     "browserslist": [
         "defaults, chrome 52, firefox 54, edge 15, safari 8"
