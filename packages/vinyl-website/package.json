@@ -13,7 +13,6 @@
         "start": "vite",
         "build": "vite build",
         "build:release": "npm run typedoc && vite build",
-        "postbuild:release": "mkdir -p ../../build/public/website && cp -r dist/* ../../build/public/website/",
         "preview": "vite preview",
         "typedoc": "typedoc",
         "clean": "rimraf --glob dist public/tsdocs .eslintcache \"**/*.tsbuildinfo\"",

@@ -18,6 +18,7 @@ jobs:
         permissions:
             contents: write
             id-token: write
+            pages: write
         steps:
             - uses: actions/checkout@v6
               with:
@@ -54,3 +55,11 @@ jobs:
 
             - name: Publish to npm
               run: npx lerna publish from-package --yes
+
+            - name: Upload Pages artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: packages/vinyl-website/dist
+
+            - name: Deploy to GitHub Pages
+              uses: actions/deploy-pages@v4
