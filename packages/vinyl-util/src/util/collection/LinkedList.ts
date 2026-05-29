@@ -322,7 +322,7 @@ export class LinkedList<T> implements Iterable<T> {
         start: LinkedNode<T> | null,
         end: LinkedNode<T> | null,
         next: (current: LinkedNode<T>) => LinkedNode<T> | null
-    ) {
+    ): IterableIterator<T> {
         let current: LinkedNode<T> | null = start
         return {
             [Symbol.iterator](): IterableIterator<T> {
