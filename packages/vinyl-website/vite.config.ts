@@ -4,6 +4,7 @@
  */
 
 import { defineConfig } from 'vite'
+import legacy from '@vitejs/plugin-legacy'
 import { resolve } from 'path'
 import { docsPlugin } from './buildSrc/docsPlugin'
 import { highlightPlugin } from './buildSrc/highlightPlugin'
@@ -36,7 +37,13 @@ export default defineConfig({
             pragmaFrag: 'Fragment',
         },
     },
-    plugins: [highlightPlugin(), docsPlugin(resolve(__dirname, '../..'))],
+    plugins: [
+        highlightPlugin(),
+        docsPlugin(resolve(__dirname, '../..')),
+        legacy({
+            targets: ['chrome >= 64', 'firefox >= 67', 'safari >= 11.1'],
+        }),
+    ],
     server: {
         port: 8080,
         fs: {

@@ -138,10 +138,3 @@ function DemoCard(props: { readonly track: Track }) {
         </div>
     )
 }
-
-function inferUrlBadge(url: string): string {
-    if (!url) return ''
-    if (url.endsWith('.mpd') || url.includes('.mpd?')) return 'dash'
-    if (url.endsWith('.m3u8') || url.includes('.m3u8?')) return 'hls'
-    return 'src'
-}

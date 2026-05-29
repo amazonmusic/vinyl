@@ -1,0 +1,46 @@
+name: Deploy GitHub Pages
+
+on:
+    workflow_dispatch:
+        inputs:
+            ref:
+                description: Branch, tag, or SHA to deploy
+                required: false
+                default: main
+
+concurrency:
+    group: pages
+    cancel-in-progress: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
+            pages: write
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  ref: ${{ inputs.ref }}
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: .tool-versions
+                  cache: npm
+
+            - run: npm ci
+
+            - run: npm run build:release -w @amazon/vinyl-website
+
+            - name: Upload Pages artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: packages/vinyl-website/dist
+
+            - id: deployment
+              name: Deploy to GitHub Pages
+              uses: actions/deploy-pages@v4
