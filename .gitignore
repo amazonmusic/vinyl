@@ -5,6 +5,7 @@
 .idea
 .env
 .eslintcache
+.stylelintcache
 .kiro
 .npmrc
 !/.npmrc

@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { ResizeObserver as ResizeObserverPolyfill } from '@juggle/resize-observer'
 ;(window as any).global = globalThis
+
+if (typeof ResizeObserver === 'undefined') {
+    ;(window as any).ResizeObserver = ResizeObserverPolyfill
+}
 
 if (
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition

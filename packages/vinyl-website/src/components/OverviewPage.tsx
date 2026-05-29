@@ -79,7 +79,9 @@ export function OverviewPage() {
                             className="hljs language-typescript"
                             innerHTML={highlightTs`import { createVinylPlayer } from '@amazon/vinyl'
 
-const media = new Audio()
+const media = document.createElement('video')
+media.width = 640
+media.height = 360
 media.controls = true
 document.body.appendChild(media)
 

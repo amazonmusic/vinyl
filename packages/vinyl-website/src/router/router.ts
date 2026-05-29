@@ -25,7 +25,6 @@ import {
     withAbort,
 } from '@amazon/vinyl-util'
 import { startViewTransition } from '../util/viewTransition'
-import { scrollToTop } from '../util/domUtil'
 
 type RouteParams = Record<string, string>
 export type RouteViewFactory<T extends RouteParams> = (
@@ -188,7 +187,7 @@ export class RouterImpl
     private restoreScrollPosition() {
         const path = window.location.href
         const y = this.scrollPositions.get(path) ?? 0
-        window.scrollTo({ top: y, behavior: 'auto' })
+        window.scrollTo(0, y)
     }
 
     private getWindowPath() {
@@ -239,7 +238,7 @@ export class RouterImpl
         }
         const doTransition = async () => {
             await this.refreshStage()
-            if (pushHistory) scrollToTop()
+            if (pushHistory) window.scrollTo(0, 0)
             else this.restoreScrollPosition()
         }
         if (isFirst) doTransition().catch(this.errorHandler)
