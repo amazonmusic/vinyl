@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createVinylPlayer, type MediaQualityMetadata } from '@amazon/vinyl'
+import { createVinylPlayer } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
@@ -18,7 +18,7 @@ export const playerState = {
     player,
     media,
     track$: data<Track | null>(null),
-    videoStreamingQuality$: data<MediaQualityMetadata | null>(null),
+    hasVideo$: data(false),
     paused$: data(true),
     currentTime$: data(0),
     currentTimePercent$: data(0),
@@ -29,6 +29,10 @@ export const playerState = {
     volume$: data(player.volume),
     muted$: data(player.muted),
 }
+
+media.addEventListener('loadedmetadata', () => {
+    playerState.hasVideo$.value = media.videoWidth > 0
+})
 
 player.on('play', () => {
     playerState.paused$.value = false
@@ -66,32 +70,51 @@ player.on('volumeChange', ({ current }) => {
 player.on('mutedChange', ({ current }) => {
     playerState.muted$.value = current
 })
-player.on('streamingQualityChange', () => {
-    playerState.videoStreamingQuality$.value =
-        player.getStreamingQuality('video')
-})
 
 export type TrackType = 'dash' | 'hls' | 'src'
 
 export interface Track {
     readonly url: string
-    readonly type?: TrackType
+    readonly type: TrackType
     readonly title?: string
     readonly description?: string
     readonly contentType?: 'video' | 'audio'
 }
 
-export function loadContent(options: Track) {
-    const type = options.type ?? inferType(options.url)
-    playerState.track$.value = options
-    player.load({ type, uri: options.url })
+export function loadContent(track: Track) {
+    playerState.track$.value = track
+    playerState.hasVideo$.value = track.contentType === 'video'
+    player.load({ type: track.type, uri: track.url })
     player.play().catch(() => {})
 }
 
-function inferType(url: string): TrackType {
+export async function createTrackFromUrl(url: string): Promise<Track | null> {
+    if (!url) return null
+    const type = inferTypeFromUrl(url) ?? (await probeType(url))
+    if (!type) return null
+    return { url, type }
+}
+
+function inferTypeFromUrl(url: string): TrackType | null {
     if (url.endsWith('.mpd') || url.includes('.mpd?')) return 'dash'
     if (url.endsWith('.m3u8') || url.includes('.m3u8?')) return 'hls'
-    return 'src'
+    if (/\.(mp3|mp4|m4a|m4v|aac|ogg|opus|wav|webm)(\?|$)/i.test(url))
+        return 'src'
+    return null
+}
+
+async function probeType(url: string): Promise<TrackType | null> {
+    try {
+        const res = await fetch(url, { method: 'HEAD' })
+        if (!res.ok) return null
+        const mime = (res.headers.get('content-type') ?? '').toLowerCase()
+        if (mime.includes('dash+xml')) return 'dash'
+        if (mime.includes('mpegurl')) return 'hls'
+        if (mime.startsWith('video/') || mime.startsWith('audio/')) return 'src'
+        return null
+    } catch {
+        return null
+    }
 }
 
 export function togglePlayPause() {
