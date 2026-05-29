@@ -30,9 +30,13 @@ export const playerState = {
     muted$: data(player.muted),
 }
 
-media.addEventListener('loadedmetadata', () => {
+// Safari's loadedmetadata fires before videoWidth is populated for HLS; the
+// `resize` event covers that case (and any later dimension change).
+const updateHasVideo = () => {
     playerState.hasVideo$.value = media.videoWidth > 0
-})
+}
+media.addEventListener('loadedmetadata', updateHasVideo)
+media.addEventListener('resize', updateHasVideo)
 
 player.on('play', () => {
     playerState.paused$.value = false
@@ -139,4 +143,5 @@ export function unloadTrack() {
     player.pause()
     player.unload()
     playerState.track$.value = null
+    playerState.hasVideo$.value = false
 }
