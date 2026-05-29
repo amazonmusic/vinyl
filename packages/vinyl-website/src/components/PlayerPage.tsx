@@ -1,7 +1,8 @@
 import { jsx } from '@amazon/vinyl-tsx'
-import { loadContent, type Track, type TrackType } from '../player'
+import { createTrackFromUrl, loadContent, type Track } from '../player'
 import { data } from '@amazon/vinyl-observable'
 import { Icon } from './icons'
+import { toastError } from './toast'
 
 const ASSETS_HOST = 'https://assets.dev.vinyl.music.amazon.dev'
 
@@ -38,12 +39,19 @@ const demoTracks: Track[] = [
 
 export function PlayerPage() {
     const url$ = data('')
-    const inferredType$ = url$.map(inferType)
-
     // Loads the currently typed URL.
     const loadUrl = () => {
         const url = url$.value.trim()
-        if (url) loadContent({ url })
+        if (!url) return
+        createTrackFromUrl(url)
+            .then((track) => {
+                if (!track) {
+                    toastError('Could not determine media type for URL')
+                    return
+                }
+                loadContent(track)
+            })
+            .catch(toastError)
     }
 
     return (
@@ -73,12 +81,6 @@ export function PlayerPage() {
                             if (e.key === 'Enter') loadUrl()
                         }}
                     />
-                    <span
-                        className="badge"
-                        visible={inferredType$.map((t) => t.length > 0)}
-                    >
-                        {inferredType$}
-                    </span>
                     <button className="btn btnPrimary" onclick={loadUrl}>
                         <Icon name="play_arrow" />
                         Play
@@ -132,12 +134,12 @@ function DemoCard(props: { readonly track: Track }) {
                 <div className="demoCardTitle">{track.title ?? track.url}</div>
                 <div className="demoCardDesc">{track.description ?? ''}</div>
             </div>
-            <span className="badge">{track.type ?? 'src'}</span>
+            <span className="badge">{track.type}</span>
         </div>
     )
 }
 
-function inferType(url: string): TrackType | '' {
+function inferUrlBadge(url: string): string {
     if (!url) return ''
     if (url.endsWith('.mpd') || url.includes('.mpd?')) return 'dash'
     if (url.endsWith('.m3u8') || url.includes('.m3u8?')) return 'hls'

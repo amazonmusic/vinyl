@@ -32,10 +32,8 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         track$,
         volume$,
         muted$,
-        videoStreamingQuality$,
+        hasVideo$,
     } = playerState
-
-    const hasVideo$ = videoStreamingQuality$.map((v) => v != null)
 
     const elapsed$ = currentTime$.map(formatTime)
     const remaining$ = currentTime$.map((t) => {
