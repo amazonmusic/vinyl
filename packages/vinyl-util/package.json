@@ -67,16 +67,16 @@
     },
     "exports": {
         ".": {
+            "development": "./src/index.ts",
             "types@>=5.4": "./dist/types/current/index.d.ts",
             "types@>=4.7": "./dist/types/ts4.7/index.d.ts",
-            "development": "./src/index.ts",
             "require": "./dist/index.cjs",
             "import": "./dist/index.js"
         },
         "./testUtil": {
+            "development": "./test/testUtil/index.ts",
             "types@>=5.4": "./dist/testUtil/types/current/index.d.ts",
             "types@>=4.7": "./dist/testUtil/types/ts4.7/index.d.ts",
-            "development": "./test/testUtil/index.ts",
             "import": "./dist/testUtil/index.js"
         },
         "./polyfill": {
@@ -84,9 +84,9 @@
             "import": "./dist/polyfill/index.js"
         },
         "./browserTestUtil": {
+            "development": "./test/browserTestUtil/index.ts",
             "types@>=5.4": "./dist/browserTestUtil/types/current/index.d.ts",
             "types@>=4.7": "./dist/browserTestUtil/types/ts4.7/index.d.ts",
-            "development": "./test/browserTestUtil/index.ts",
             "import": "./dist/browserTestUtil/index.js"
         }
     },

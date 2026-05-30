@@ -397,3 +397,36 @@ player.on('playbackQualityChange', (event) => {
     console.log('Playback quality changed:', event.previous, '→', event.current)
 })
 ```
+
+## Adaptive Bitrate Configuration
+
+Adaptive bitrate behavior is configured through `player.configure({ abr })` and
+can be changed at any time; the timeline is re-evaluated on the next quality
+selection.
+
+### Capping Bandwidth
+
+Use `abr.maxBandwidth` to cap the maximum per-second bandwidth (in bits per
+second) of any selectable quality. This is a soft cap: if no qualities fit
+within the limit, the lowest-bandwidth quality is selected so playback remains
+possible. Setting `maxBandwidth` to `0` therefore pins playback to the lowest
+available quality.
+
+`maxBandwidth` has no effect when `strategy` is `AbrStrategy.LOWEST` or
+`AbrStrategy.HIGHEST`, since those strategies pin selection regardless of
+bandwidth.
+
+```typescript
+// Limit selectable qualities to 1.5 Mbps or less.
+player.configure({
+    abr: {
+        maxBandwidth: 1_500_000,
+    },
+})
+
+// Pin to the lowest available quality.
+player.configure({ abr: { maxBandwidth: 0 } })
+
+// Remove the cap.
+player.configure({ abr: { maxBandwidth: null } })
+```

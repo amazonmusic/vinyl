@@ -12,6 +12,7 @@ import {
     getNetworkMetrics,
     type LogTarget,
     lerp,
+    type Maybe,
 } from '@amazon/vinyl-util'
 import {
     boolean,
@@ -77,6 +78,21 @@ export interface QualitySelectorImplOptions {
      * Default: false
      */
     readonly restrictDecoderChangeOnAudioAbrUp?: boolean
+
+    /**
+     * Maximum bandwidth in bits per second a quality may use to be selectable.
+     *
+     * Soft cap: if no qualities fit within the limit (including when set to 0),
+     * the quality with the lowest bandwidth is selected so playback is still
+     * possible.
+     *
+     * Has no effect when {@link strategy} is {@link AbrStrategy.LOWEST} or
+     * {@link AbrStrategy.HIGHEST}, since those strategies pin the selection
+     * regardless of bandwidth.
+     *
+     * Default: null (no limit).
+     */
+    readonly maxBandwidth?: Maybe<number>
 }
 
 export enum AbrStrategy {
@@ -112,6 +128,7 @@ export const qualitySelectorImplOptionsValidator: ObjectSchema<QualitySelectorIm
         bandwidthMultiplierLow: number().optional(),
         bandwidthMultiplierHigh: number().optional(),
         restrictDecoderChangeOnAudioAbrUp: boolean().optional(),
+        maxBandwidth: number().maybe().optional(),
     })
 
 export const defaultQualitySelectorImplOptions = {
@@ -121,6 +138,7 @@ export const defaultQualitySelectorImplOptions = {
     bandwidthMultiplierLow: 0.4,
     bandwidthMultiplierHigh: 0.9,
     restrictDecoderChangeOnAudioAbrUp: false,
+    maxBandwidth: null,
 } as const satisfies QualitySelectorImplOptions
 
 export interface QualitySelectorImplDeps {
@@ -164,6 +182,7 @@ export class QualitySelectorImpl
             bandwidthMultiplierLow,
             bandwidthMultiplierHigh,
             restrictDecoderChangeOnAudioAbrUp,
+            maxBandwidth,
         } = this.options
         const previousQuality = prefetchState.previousQuality
         // previousIndex will be -1 if the previously playing quality is not within the current qualities list.
@@ -202,10 +221,15 @@ export class QualitySelectorImpl
         // Choose bandwidth based on pessimistic network information.
         // If the track is active, take the lesser of the latest recorded bandwidth stat and the weighted
         // average to allow for fast ABR-down in variable conditions.
-        const bandwidth =
+        let bandwidth =
             (prefetchState.active
                 ? Math.min(bandwidthEstimate.ewmaLow, bandwidthEstimate.latest)
                 : bandwidthEstimate.ewmaLow) * bandwidthMultiplier
+
+        // Apply the maxBandwidth cap as a soft upper bound on the bandwidth budget.
+        if (maxBandwidth != null && maxBandwidth < bandwidth) {
+            bandwidth = maxBandwidth
+        }
 
         let restrictDecoderId: string | null = null
         let restrictSwitchingGroupIds: readonly string[] | null = null
