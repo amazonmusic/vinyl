@@ -55,16 +55,16 @@
     },
     "exports": {
         ".": {
+            "development": "./src/index.ts",
             "types@>=5.4": "./dist/types/current/index.d.ts",
             "types@>=4.7": "./dist/types/ts4.7/index.d.ts",
-            "development": "./src/index.ts",
             "require": "./dist/index.cjs",
             "import": "./dist/index.js"
         },
         "./dashTestAssets": {
+            "development": "./test/dashTestAssets/index.ts",
             "types@>=5.4": "./dist/dashTestAssets/types/current/index.d.ts",
             "types@>=4.7": "./dist/dashTestAssets/types/ts4.7/index.d.ts",
-            "development": "./test/dashTestAssets/index.ts",
             "import": "./dist/dashTestAssets/index.js"
         }
     },
