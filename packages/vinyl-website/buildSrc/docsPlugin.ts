@@ -45,6 +45,7 @@ function slugFor(repoPath: string): string {
 
 function categoryFor(repoPath: string): string {
     if (repoPath === 'README.md') return 'Overview'
+    if (repoPath === 'packages/vinyl/docs/USAGE.md') return 'Overview'
     if (repoPath.startsWith('packages/vinyl/')) return 'Core'
     if (repoPath.startsWith('packages/vinyl-util/')) return 'Util'
     return 'Packages'
@@ -98,7 +99,7 @@ function rewriteLinks(
     const docDir = posix.dirname(docPath)
 
     return content.replace(
-        /\]\(([^)\s]+)(\s+"[^"]*")?\)/g,
+        /]\(([^)\s]+)(\s+"[^"]*")?\)/g,
         (full, href, title = '') => {
             if (
                 /^[a-z][a-z0-9+.-]*:\/\//i.test(href) ||
