@@ -1,9 +1,8 @@
 # Amazon Vinyl
 
+[![Website](https://img.shields.io/badge/website-amazonmusic.github.io%2Fvinyl-blue)](https://amazonmusic.github.io/vinyl)
 [![CI](https://github.com/amazonmusic/vinyl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/amazonmusic/vinyl/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/amazonmusic/vinyl/branch/main/graph/badge.svg)](https://codecov.io/gh/amazonmusic/vinyl)
-
-**Website:** [amazonmusic.github.io/vinyl](https://amazonmusic.github.io/vinyl)
 
 Amazon Vinyl is an HTML5 playback engine for Dash and HLS streaming. It features
 high stability, performance, bundle size, compatibility, and standards
