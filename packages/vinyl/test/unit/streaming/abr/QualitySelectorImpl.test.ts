@@ -733,6 +733,91 @@ describe('QualitySelectorImpl', () => {
         })
     })
 
+    describe('maxBandwidth', () => {
+        const qualities: readonly MediaQualityMetadata[] = [
+            {
+                ...createEmptyMediaQualityMetadata(),
+                bandwidth: 1000,
+                bandwidthTotal: 1000,
+                qualityId: '0',
+            },
+            {
+                ...createEmptyMediaQualityMetadata(),
+                bandwidth: 500,
+                bandwidthTotal: 500,
+                qualityId: '1',
+            },
+            {
+                ...createEmptyMediaQualityMetadata(),
+                bandwidth: 100,
+                bandwidthTotal: 100,
+                qualityId: '2',
+            },
+        ] as const
+
+        const prefetchState: PrefetchState = {
+            fetchedTime: 0,
+            previousQuality: null,
+            active: false,
+        }
+
+        beforeEach(() => {
+            // Plenty of bandwidth for the highest quality.
+            metrics.estimatedDownlinkBandwidth.ewmaLow = 5000
+        })
+
+        it('caps the selectable quality to the configured bandwidth', () => {
+            options.value = { ...options.value, maxBandwidth: 500 }
+            // Highest quality at or below the cap is index 1 (500).
+            expect(selector.selectQuality(qualities, prefetchState)).toEqual(1)
+        })
+
+        it('falls back to the lowest quality when all exceed the cap', () => {
+            options.value = { ...options.value, maxBandwidth: 50 }
+            // No quality fits — selectQuality falls back to the last (lowest) entry.
+            expect(selector.selectQuality(qualities, prefetchState)).toEqual(2)
+        })
+
+        it('pins to the lowest quality when set to 0', () => {
+            options.value = { ...options.value, maxBandwidth: 0 }
+            expect(selector.selectQuality(qualities, prefetchState)).toEqual(2)
+        })
+
+        it('treats null as no cap', () => {
+            options.value = { ...options.value, maxBandwidth: null }
+            expect(selector.selectQuality(qualities, prefetchState)).toEqual(0)
+        })
+
+        it('does not raise the bandwidth budget above the network estimate', () => {
+            // Network estimate is well below the cap; cap should not raise it.
+            metrics.estimatedDownlinkBandwidth.ewmaLow = 600
+            options.value = { ...options.value, maxBandwidth: 100_000 }
+            expect(selector.selectQuality(qualities, prefetchState)).toEqual(1)
+        })
+
+        it('has no effect when strategy is LOWEST', () => {
+            options.value = {
+                ...options.value,
+                strategy: AbrStrategy.LOWEST,
+                maxBandwidth: 100_000,
+            }
+            // LOWEST always returns the last index, regardless of the cap.
+            expect(selector.selectQuality(qualities, prefetchState)).toEqual(
+                qualities.length - 1
+            )
+        })
+
+        it('has no effect when strategy is HIGHEST', () => {
+            options.value = {
+                ...options.value,
+                strategy: AbrStrategy.HIGHEST,
+                maxBandwidth: 50,
+            }
+            // HIGHEST always returns 0, regardless of the cap.
+            expect(selector.selectQuality(qualities, prefetchState)).toEqual(0)
+        })
+    })
+
     describe('toString', () => {
         it('returns a string', () => {
             expect(selector.toString()).toContain('QualitySelectorImpl')
