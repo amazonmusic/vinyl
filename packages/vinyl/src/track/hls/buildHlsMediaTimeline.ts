@@ -175,17 +175,22 @@ export function buildHlsMediaTimeline(
         minBufferTime: DEFAULT_MIN_BUFFER_TIME,
         async getDuration() {
             if (cachedDuration != null) return cachedDuration
-            if (mainPlaylist.variants.length === 0) return null
-            try {
-                const playlist = await data.getMediaPlaylist(
-                    mainPlaylist.variants[0].uri
-                )
-                let total = 0
-                for (const seg of playlist.segments) total += seg.duration
-                cachedDuration = total > 0 ? total : null
-            } catch {
-                return null
+            if (mainPlaylist.variants.length === 0) {
+                throw new Error('Unable to determine HLS duration: no variants')
             }
+            const playlist = await data.getMediaPlaylist(
+                mainPlaylist.variants[0].uri
+            )
+            // Live playlists (no EXT-X-ENDLIST) have unbounded duration.
+            if (!playlist.ended) return Infinity
+            if (playlist.segments.length === 0) {
+                throw new Error(
+                    'Unable to determine HLS duration: no segments in media playlist'
+                )
+            }
+            let total = 0
+            for (const seg of playlist.segments) total += seg.duration
+            cachedDuration = total
             return cachedDuration
         },
     }

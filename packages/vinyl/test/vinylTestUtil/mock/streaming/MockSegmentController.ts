@@ -20,8 +20,6 @@ export class MockSegmentController
 {
     error: Error | null = null
 
-    getDuration = spyFactory('getDuration')
-
     configure = spyFactory('configure')
 
     fetchedRanges = emptyRanges

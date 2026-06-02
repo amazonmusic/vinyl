@@ -28,6 +28,7 @@ describe('getMediaPeriodAtTime', () => {
     const timeline: MediaTimeline = {
         periods: [period1, period2, period3],
         minBufferTime: 2,
+        getDuration: () => Promise.resolve(30),
     }
 
     it('returns the first period for time 0', () => {
@@ -55,7 +56,11 @@ describe('getMediaPeriodAtTime', () => {
     })
 
     it('returns null for empty timeline', () => {
-        const empty: MediaTimeline = { periods: [], minBufferTime: 0 }
+        const empty: MediaTimeline = {
+            periods: [],
+            minBufferTime: 0,
+            getDuration: () => Promise.resolve(0),
+        }
         expect(getMediaPeriodAtTime(empty, 5)).toBeNull()
     })
 })

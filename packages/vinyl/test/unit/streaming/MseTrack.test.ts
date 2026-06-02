@@ -629,6 +629,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
             await flushPromises()
@@ -651,6 +652,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
             const spy = createEventSpy(track, 'qualitiesChange')
@@ -686,6 +688,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                getDuration: () => Promise.resolve(Infinity),
             }
             setTimeline(timeline)
             track = createTrack()
@@ -721,6 +724,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
             await flushPromises()

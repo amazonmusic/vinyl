@@ -24,9 +24,13 @@ describe('buildHlsMediaTimeline', () => {
         }
     }
 
-    function createMediaPlaylist(durations: number[]): MediaPlaylist {
+    function createMediaPlaylist(
+        durations: number[],
+        ended = true
+    ): MediaPlaylist {
         return {
-            targetDuration: Math.max(...durations),
+            targetDuration: durations.length ? Math.max(...durations) : 0,
+            ended,
             segments: durations.map((d, i) => ({
                 duration: d,
                 uri: `seg${i}.m4s`,
@@ -77,7 +81,16 @@ describe('buildHlsMediaTimeline', () => {
         const data = createManifestData([variant], playlist)
 
         const timeline = buildHlsMediaTimeline(deps, data)
-        expect(await timeline.getDuration!()).toBe(12)
+        expect(await timeline.getDuration()).toBe(12)
+    })
+
+    it('returns Infinity for live playlists (no EXT-X-ENDLIST)', async () => {
+        const variant = createVariant('v1.m3u8', 128000)
+        const playlist = createMediaPlaylist([4, 4], false)
+        const data = createManifestData([variant], playlist)
+
+        const timeline = buildHlsMediaTimeline(deps, data)
+        expect(await timeline.getDuration()).toBe(Infinity)
     })
 
     it('creates one quality per variant', () => {
@@ -256,7 +269,7 @@ describe('buildHlsMediaTimeline', () => {
         expect(segment!.quality.codecs).toBeNull()
     })
 
-    it('getDuration returns null when getMediaPlaylist fails', async () => {
+    it('getDuration rejects when getMediaPlaylist fails', async () => {
         const variant = createVariant('v1.m3u8', 128000)
         const manifestData: HlsManifestData = {
             mainPlaylist: {
@@ -267,7 +280,7 @@ describe('buildHlsMediaTimeline', () => {
             getMediaPlaylist: () => Promise.reject(new Error('disposed')),
         }
         const timeline = buildHlsMediaTimeline(deps, manifestData)
-        expect(await timeline.getDuration!()).toBeNull()
+        await expectAsync(timeline.getDuration()).toBeRejected()
     })
 
     it('getDuration caches the result', async () => {
@@ -286,17 +299,19 @@ describe('buildHlsMediaTimeline', () => {
             },
         }
         const timeline = buildHlsMediaTimeline(deps, manifestData)
-        expect(await timeline.getDuration!()).toBe(10)
-        expect(await timeline.getDuration!()).toBe(10)
+        expect(await timeline.getDuration()).toBe(10)
+        expect(await timeline.getDuration()).toBe(10)
         expect(calls).toBe(1)
     })
 
-    it('getDuration returns null for empty segments', async () => {
+    it('getDuration throws for empty segments in a complete playlist', async () => {
         const variant = createVariant('v1.m3u8', 128000)
         const playlist = createMediaPlaylist([])
         const manifestData = createManifestData([variant], playlist)
         const timeline = buildHlsMediaTimeline(deps, manifestData)
-        expect(await timeline.getDuration!()).toBeNull()
+        await expectAsync(timeline.getDuration()).toBeRejectedWithError(
+            /no segments/i
+        )
     })
 
     it('passes byteRange from map to createSegmentDataProvider as mediaRange', async () => {
@@ -350,9 +365,11 @@ describe('buildHlsMediaTimeline', () => {
         fetchSpy.and.callThrough()
     })
 
-    it('getDuration returns null when no variants', async () => {
+    it('getDuration throws when no variants', async () => {
         const manifestData = createManifestData([], createMediaPlaylist([]))
         const timeline = buildHlsMediaTimeline(deps, manifestData)
-        expect(await timeline.getDuration!()).toBeNull()
+        await expectAsync(timeline.getDuration()).toBeRejectedWithError(
+            /no variants/i
+        )
     })
 })

@@ -68,6 +68,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
             createDeps(timeline)
@@ -100,6 +101,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
             createDeps(timeline)
@@ -140,6 +142,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
             createDeps(timeline)
@@ -173,6 +176,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
             createDeps(timeline, 'en')
@@ -204,6 +208,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const options = data({
             preferredAudioLanguage: 'en',
@@ -240,6 +245,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 5,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
             createDeps(timeline)

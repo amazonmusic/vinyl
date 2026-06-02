@@ -68,12 +68,6 @@ export interface ReadonlySegmentController extends ReadonlyEventHost<SegmentCont
     readonly streamingQuality: MediaQualityMetadata | null
 
     /**
-     * The duration of the media, in seconds.
-     * Returns null if duration cannot be determined.
-     */
-    getDuration(): Promise<number | null>
-
-    /**
      * Returns a Promise for a segment covering the given time, with quality chosen by
      * the configured `QualitySelector`. Resolves to `null` if no media exists at that
      * time. Negative `time` values are clamped to `0`.

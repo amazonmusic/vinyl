@@ -24,7 +24,11 @@ describe('createDashContentStreamFactories', () => {
     let playbackController: MockPlaybackController
     let qualitySelector: MockQualitySelector
 
-    const emptyTimeline: MediaTimeline = { periods: [], minBufferTime: 0 }
+    const emptyTimeline: MediaTimeline = {
+        periods: [],
+        minBufferTime: 0,
+        getDuration: () => Promise.resolve(Infinity),
+    }
 
     beforeEach(() => {
         mediaSourceController = new MockMediaSourceController()

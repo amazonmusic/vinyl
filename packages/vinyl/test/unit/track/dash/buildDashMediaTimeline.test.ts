@@ -82,7 +82,7 @@ describe('buildDashMediaTimeline', () => {
             baseUrl: 'https://example.com/',
         }
         const timeline = buildDashMediaTimeline(deps, data)
-        const duration = await timeline.getDuration!()
+        const duration = await timeline.getDuration()
         expect(duration).toEqual(jasmine.any(Number))
     })
 })

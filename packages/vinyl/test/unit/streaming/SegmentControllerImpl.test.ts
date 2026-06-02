@@ -132,6 +132,7 @@ describe('SegmentControllerImpl', () => {
                 },
             ],
             minBufferTime: 10,
+            getDuration: () => Promise.resolve(100),
         }
 
         const mockQualitySelector: QualitySelector = {
@@ -319,6 +320,7 @@ describe('SegmentControllerImpl', () => {
                         },
                     ],
                     minBufferTime: 10,
+                    getDuration: () => Promise.resolve(110),
                 }
                 timelineData.value = Promise.resolve(extendedTimeline)
 
@@ -447,6 +449,7 @@ describe('SegmentControllerImpl', () => {
                     },
                 ],
                 minBufferTime: 10,
+                getDuration: () => Promise.resolve(100),
             })
             // segmentController is for 'audio', but only 'video' qualities exist
             expect(await segmentController.getSegment(5)).toBeNull()
@@ -753,43 +756,6 @@ describe('SegmentControllerImpl', () => {
             })
             expect(segmentController.trackPrefetchPriority).toBe(3)
             expect(segmentController.startTime).toBe(4)
-        })
-    })
-
-    describe('duration', () => {
-        it('delegates to the media timeline', async () => {
-            expect(await segmentController.getDuration()).toBe(100)
-        })
-
-        it('returns null for empty timeline', async () => {
-            timelineData.value = Promise.resolve({
-                periods: [],
-                minBufferTime: 0,
-            })
-            expect(await segmentController.getDuration()).toBeNull()
-        })
-
-        it('returns null when last period has Infinity endTime', async () => {
-            timelineData.value = Promise.resolve({
-                periods: [
-                    {
-                        startTime: 0,
-                        endTime: Infinity,
-                        qualities: [],
-                    },
-                ],
-                minBufferTime: 0,
-            })
-            expect(await segmentController.getDuration()).toBeNull()
-        })
-
-        it('uses getDuration from timeline when provided', async () => {
-            timelineData.value = Promise.resolve({
-                periods: [],
-                minBufferTime: 0,
-                getDuration: () => Promise.resolve(42),
-            })
-            expect(await segmentController.getDuration()).toBe(42)
         })
     })
 

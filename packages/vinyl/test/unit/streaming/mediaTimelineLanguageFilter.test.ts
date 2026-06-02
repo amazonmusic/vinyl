@@ -61,6 +61,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
         expect(result.periods[0].qualities.length).toBe(2) // en audio + video
@@ -80,6 +81,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
         expect(result.periods[0].qualities.length).toBe(2) // en + null
@@ -95,6 +97,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 5,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
         expect(result.minBufferTime).toBe(5)
@@ -114,6 +117,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
         expect(
@@ -133,6 +137,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         // 'xx' doesn't match 'ja', so all kept
         const result = applyLanguageFilter(timeline, 'xx', 'audio')
@@ -160,6 +165,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         // 'en' matches period 1 but not period 2
         // Period 1: filtered to 'en' only
@@ -191,6 +197,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
         // Period 1: filtered to 'en'

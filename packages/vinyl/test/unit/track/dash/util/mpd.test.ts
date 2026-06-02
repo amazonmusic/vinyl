@@ -359,5 +359,41 @@ describe('mpd utils', () => {
                 expect(calculateDuration(manifest)).toBe(50)
             })
         })
+
+        describe('when MPD type is dynamic', () => {
+            it('returns Infinity for live presentations', () => {
+                // language=XML
+                const manifest = parseDashManifest(`<?xml version="1.0" ?>
+<MPD type="dynamic" minBufferTime="PT0.0S" profiles="urn:mpeg:dash:profile:isoff-live:2011" xmlns="urn:mpeg:dash:schema:mpd:2011">
+  <Period/>
+</MPD>`)
+                expect(calculateDuration(manifest)).toBe(Infinity)
+            })
+        })
+
+        describe('when there are no periods', () => {
+            it('throws', () => {
+                const manifest = clone(mockDashManifest)
+                delete (manifest.MPD as { mediaPresentationDuration?: number })
+                    .mediaPresentationDuration
+                ;(manifest.MPD as { Period: unknown }).Period = []
+                expect(() => calculateDuration(manifest)).toThrowError(
+                    /no periods/i
+                )
+            })
+        })
+
+        describe('when the last period has no determinable end', () => {
+            it('throws', () => {
+                // language=XML
+                const manifest = parseDashManifest(`<?xml version="1.0" ?>
+<MPD minBufferTime="PT0.0S" profiles="urn:mpeg:dash:profile:isoff-live:2011" xmlns="urn:mpeg:dash:schema:mpd:2011">
+  <Period/>
+</MPD>`)
+                expect(() => calculateDuration(manifest)).toThrowError(
+                    /Unable to determine/
+                )
+            })
+        })
     })
 })
