@@ -100,6 +100,7 @@ export class MseTrack extends TrackBase {
                     .then((contentTypes) => {
                         if (this.disposer.disposed) return
                         if (equalDeep(this.contentTypes, contentTypes)) return // no-op
+                        logDebug(this, 'content types:', contentTypes)
                         this.clearStreams()
                         for (const contentType of contentTypes) {
                             this.createStream(contentType)
