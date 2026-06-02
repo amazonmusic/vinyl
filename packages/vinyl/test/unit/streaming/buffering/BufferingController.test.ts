@@ -19,9 +19,7 @@ import {
     type ContentType,
     createEmptyMediaQualityMetadata,
     DEFAULT_MAX_APPEND_SIZE,
-    DURATION_PADDING,
     getSourceBufferQuota,
-    LIVE_DURATION,
     type MediaQualityMetadata,
     MIN_APPEND_SIZE,
     POLL_BUFFER_THROTTLE,
@@ -137,7 +135,6 @@ describe('BufferingControllerImpl', () => {
 
     beforeEach(() => {
         mediaSourceController = new MockMediaSourceController()
-        mediaSourceController.duration = Number.NaN
         playbackController = new MockPlaybackController()
         segmentController = new MockSegmentController()
         segmentController.getSegment.and.callFake((time) => {
@@ -675,58 +672,6 @@ describe('BufferingControllerImpl', () => {
             bufferingController.activate()
             await nextPollImmediate()
             expect(bufferingController.getBufferedTime()).toBe(10)
-        })
-    })
-
-    describe('duration', () => {
-        beforeEach(() => {
-            bufferingController = createBufferingController()
-            bufferingController.activate()
-        })
-
-        describe('when the media source is open and the segment controller is not updating', () => {
-            it('is set to the segment controller provided value', async () => {
-                segmentController.getDuration.and.resolveTo(33)
-                await open()
-                expect(mediaSourceController.duration).toEqual(
-                    33 + DURATION_PADDING
-                )
-            })
-
-            describe('when segment controller duration resolves to null', () => {
-                it('sets mediaSource duration to LIVE_DURATION', async () => {
-                    segmentController.getDuration.and.resolveTo(null)
-                    await open()
-                    expect(mediaSourceController.duration).toEqual(
-                        LIVE_DURATION
-                    )
-                })
-            })
-        })
-
-        describe('when segment controller emits a change event', () => {
-            it('refreshes duration', async () => {
-                segmentController.getDuration.and.resolveTo(42)
-                await open()
-                expect(mediaSourceController.duration).toEqual(
-                    42 + DURATION_PADDING
-                )
-                segmentController.getDuration.and.resolveTo(54)
-                segmentController.dispatch('change', {})
-                await nextPollImmediate()
-                expect(mediaSourceController.duration).toEqual(
-                    54 + DURATION_PADDING
-                )
-            })
-
-            describe('and mediaSource is not open', () => {
-                it('does nothing', () => {
-                    // Closed
-                    segmentController.getDuration.and.resolveTo(52)
-                    segmentController.dispatch('change', {})
-                    expect(mediaSourceController.duration).toBeNaN()
-                })
-            })
         })
     })
 

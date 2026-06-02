@@ -5,12 +5,14 @@
 
 import {
     type AnyRecord,
+    closeTo,
     createDisposer,
     type Disposable,
     DomEventHost,
     ErrorLevel,
     ErrorOrigin,
     EventHostImpl,
+    isSilentError,
     type Json,
     logDebug,
     type LogTarget,
@@ -20,9 +22,20 @@ import {
     toJson,
     toLowerCase,
 } from '@amazon/vinyl-util'
+import type { ObservableValue } from '@amazon/vinyl-observable'
 import type { ContentTypesValue } from '../ContentTypesValue'
 import type { BasicErrorEvent } from '../../event/BasicErrorEvent'
 import type { ContentType } from '../MediaQualityMetadata'
+import type { MediaTimeline } from '../MediaTimeline'
+import { LIVE_DURATION } from '../../playback/PlaybackController'
+import { nextSourceBufferIdle } from '../../util/media/sourceBuffer'
+
+/**
+ * Chrome 52 has decoding errors when duration is set to the mediaPresentationDuration.
+ * Adds a slight padding as a workaround.
+ * @private
+ */
+export const DURATION_PADDING = 0.1
 
 export interface SourceBufferRef extends Disposable {
     /**
@@ -48,7 +61,8 @@ export interface MediaSourceControllerEventMap {
     readonly sourceOpen: AnyRecord
 
     /**
-     * All source buffers have been created and data may be appended.
+     * All source buffers have been created, the media source duration has been set, and data
+     * may be appended.
      */
     readonly readyToAppend: AnyRecord
 
@@ -65,22 +79,12 @@ export interface ReadonlyMediaSourceController extends ReadonlyEventHost<MediaSo
     readonly readyState: ReadyState
 
     /**
-     * Gets the media source's duration.
-     */
-    readonly duration: number
-
-    /**
      * True if all source buffers have been created and data may be appended.
      */
     readonly readyToAppend: boolean
 }
 
 export interface MediaSourceController extends ReadonlyMediaSourceController {
-    /**
-     * Sets/gets the media source's duration.
-     */
-    duration: number
-
     /**
      * Constructs a new SourceBuffer with the given content type and mime type.
      */
@@ -111,6 +115,11 @@ export interface MediaSourceControllerImplDeps {
      * Provides the streams that must be created before appending.
      */
     readonly contentTypesValue: ContentTypesValue
+
+    /**
+     * The media timeline used to determine duration.
+     */
+    readonly mediaTimelineTransformed: ObservableValue<Promise<MediaTimeline>>
 }
 
 export class MediaSourceControllerImpl
@@ -121,13 +130,20 @@ export class MediaSourceControllerImpl
         return 'MediaSourceControllerImpl'
     }
 
-    private sourceBufferCount = 0
+    private readonly sourceBuffers = new Set<SourceBuffer>()
 
     private readonly mediaSource: MediaSource
     private readonly disposer = createDisposer()
     private contentTypes: ReadonlySet<ContentType> | null = null
+    private durationSet = false
 
-    constructor(deps: MediaSourceControllerImplDeps) {
+    /**
+     * Token for the in-flight duration update; used to discard stale results when
+     * the timeline changes or the source closes mid-fetch.
+     */
+    private durationToken = 0
+
+    constructor(private readonly deps: MediaSourceControllerImplDeps) {
         super()
         this.mediaSource = deps.mediaSourceFactory()
         this.initializeEvents()
@@ -139,21 +155,33 @@ export class MediaSourceControllerImpl
                         this.contentTypes = contentTypes
                         this.checkReady()
                     })
-                    .catch((error) => {
-                        this.dispatch('error', {
-                            target: this,
-                            error: error,
-                        })
-                    })
+                    .catch(this.errorHandler)
             })
         )
     }
+
+    private get sourceBufferCount(): number {
+        return this.sourceBuffers.size
+    }
+
+    private readonly errorHandler = (error: any) => {
+        if (isSilentError(error)) return
+        this.dispatch('error', {
+            target: this,
+            error,
+        })
+    }
+
+    /**
+     * Subscription to mediaTimelineTransformed; only attached while the media source is open
+     * so the timeline pipeline isn't forced to evaluate before the source has opened.
+     */
+    private timelineSub: (() => void) | null = null
 
     private initializeEvents(): void {
         const domEvents = new DomEventHost<MediaSourceEventMap>(
             this.mediaSource
         )
-        // Re-dispatch html media element events exposed on the playback controller as empty events.
         for (const key of [
             'sourceClose',
             'sourceOpen',
@@ -161,14 +189,43 @@ export class MediaSourceControllerImpl
         ] as const) {
             domEvents.on(toLowerCase(key), () => this.dispatch(key, {}))
         }
+        this.timelineSub = this.deps.mediaTimelineTransformed.onData(() => {
+            this.refreshDuration().catch(this.errorHandler)
+        })
+        this.on('sourceOpen', () => {
+            this.refreshDuration().catch(this.errorHandler)
+        })
+        this.on('sourceClose', () => {
+            this.durationSet = false
+            ++this.durationToken
+        })
     }
 
-    get duration(): number {
-        return this.mediaSource.duration
-    }
-
-    set duration(value: number) {
+    /**
+     * Sets the duration on the media source from the current media timeline.
+     * Live streams use LIVE_DURATION since not all browsers support +Infinity duration.
+     *
+     * MSE throws InvalidStateError if duration is set while any source buffer is updating,
+     * so we wait for all tracked source buffers to be idle first.
+     */
+    private async refreshDuration(): Promise<void> {
+        const timelinePromise = this.deps.mediaTimelineTransformed.value
+        const token = ++this.durationToken
+        const timeline = await timelinePromise
+        const duration = await timeline.getDuration()
+        const value =
+            duration === Infinity ? LIVE_DURATION : duration + DURATION_PADDING
+        await Promise.all(Array.from(this.sourceBuffers, nextSourceBufferIdle))
+        if (
+            token !== this.durationToken ||
+            this.mediaSource.readyState !== 'open' ||
+            closeTo(this.mediaSource.duration, value, 0.1)
+        )
+            return
+        logDebug(this, `setting duration: ${value}`)
         this.mediaSource.duration = value
+        this.durationSet = true
+        this.checkReady()
     }
 
     get readyState(): ReadyState {
@@ -196,7 +253,7 @@ export class MediaSourceControllerImpl
             throw new MediaSourceError('error creating source buffer', error)
         }
         sourceBuffer.mode = 'sequence'
-        ++this.sourceBufferCount
+        this.sourceBuffers.add(sourceBuffer)
         this.checkReady()
 
         const dispose = () => {
@@ -208,7 +265,7 @@ export class MediaSourceControllerImpl
             if (mediaSource.readyState !== 'closed') {
                 mediaSource.removeSourceBuffer(sourceBuffer)
             }
-            --this.sourceBufferCount
+            this.sourceBuffers.delete(sourceBuffer)
         }
 
         return {
@@ -218,7 +275,8 @@ export class MediaSourceControllerImpl
     }
 
     /**
-     * Emits a 'readyToAppend' event if all source buffers have been created.
+     * Emits a 'readyToAppend' event if all source buffers have been created and the duration
+     * has been applied to the media source.
      */
     private readonly checkReady = () => {
         if (this.readyToAppend) this.dispatch('readyToAppend', {})
@@ -234,11 +292,16 @@ export class MediaSourceControllerImpl
     }
 
     get readyToAppend(): boolean {
-        return this.contentTypes?.size === this.sourceBufferCount
+        return (
+            this.durationSet &&
+            this.contentTypes?.size === this.sourceBufferCount
+        )
     }
 
     dispose() {
         super.dispose()
+        this.timelineSub?.()
+        this.timelineSub = null
         this.disposer.dispose()
     }
 }

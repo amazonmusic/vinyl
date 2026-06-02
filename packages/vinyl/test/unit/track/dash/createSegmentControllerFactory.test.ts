@@ -15,7 +15,11 @@ import objectContaining = jasmine.objectContaining
 describe('createSegmentControllerFactory', () => {
     it('creates SegmentControllerImpl with merged dependencies', () => {
         const playbackController = new MockPlaybackController()
-        const emptyTimeline: MediaTimeline = { periods: [], minBufferTime: 0 }
+        const emptyTimeline: MediaTimeline = {
+            periods: [],
+            minBufferTime: 0,
+            getDuration: () => Promise.resolve(Infinity),
+        }
 
         const factory = createSegmentControllerFactory(
             { playbackController },

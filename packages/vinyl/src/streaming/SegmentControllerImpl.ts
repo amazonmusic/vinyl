@@ -182,15 +182,6 @@ export class SegmentControllerImpl
         return this._error
     }
 
-    async getDuration(): Promise<number | null> {
-        const timeline = await this.deps.mediaTimelineTransformed.value
-        if (timeline.getDuration) return timeline.getDuration()
-        const periods = timeline.periods
-        if (periods.length === 0) return null
-        const last = periods[periods.length - 1]
-        return last.endTime === Infinity ? null : last.endTime
-    }
-
     /**
      * Gets the period at the given time, using a cache for the last returned period.
      */

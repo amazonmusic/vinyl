@@ -39,6 +39,7 @@ describe('filterTimelineQualities', () => {
             },
         ],
         minBufferTime: 2,
+        getDuration: () => Promise.resolve(Infinity),
     }
 
     it('filters qualities by predicate', () => {
@@ -94,6 +95,7 @@ describe('filterTimelineQualitiesAsync', () => {
             },
         ],
         minBufferTime: 2,
+        getDuration: () => Promise.resolve(Infinity),
     }
 
     it('filters qualities by async predicate', async () => {

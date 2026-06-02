@@ -49,9 +49,10 @@ export interface MediaTimeline {
 
     /**
      * The total duration of the media, in seconds.
-     * Returns null if duration cannot be determined.
+     * Returns `Infinity` for live streams.
+     * Rejects when there are no segments to derive a duration from.
      */
-    getDuration?(): Promise<number | null>
+    getDuration(): Promise<number>
 }
 
 /**

@@ -22,7 +22,11 @@ import any = jasmine.any
 describe('createHlsContentStreamFactories', () => {
     let deps: HlsContentStreamTrackDeps
 
-    const emptyTimeline: MediaTimeline = { periods: [], minBufferTime: 0 }
+    const emptyTimeline: MediaTimeline = {
+        periods: [],
+        minBufferTime: 0,
+        getDuration: () => Promise.resolve(Infinity),
+    }
 
     beforeEach(() => {
         deps = {

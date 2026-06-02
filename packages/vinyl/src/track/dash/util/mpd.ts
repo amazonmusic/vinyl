@@ -179,11 +179,20 @@ export function flattenRepresentations(
 
 /**
  * Calculates the manifest duration, either from the mediaPresentationDuration or the last period end time.
- * @param manifest
+ * Returns `Infinity` for live (dynamic) presentations.
+ * Throws if duration cannot be determined.
  */
-export function calculateDuration(manifest: DashManifest): number | null {
+export function calculateDuration(manifest: DashManifest): number {
+    if (manifest.MPD.type === 'dynamic') return Infinity
     const mpdDuration = manifest.MPD.mediaPresentationDuration
     if (mpdDuration != null) return mpdDuration
-    // If mediaPresentationDuration is not present, take the end time of the last period.
-    return calculatePeriodEnd(last(manifest.MPD.Period)!)
+    const lastPeriod = last(manifest.MPD.Period)
+    if (!lastPeriod) {
+        throw new Error('Unable to determine manifest duration: no periods')
+    }
+    const end = calculatePeriodEnd(lastPeriod)
+    if (end == null) {
+        throw new Error('Unable to determine manifest duration')
+    }
+    return end
 }

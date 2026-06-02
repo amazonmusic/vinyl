@@ -26,19 +26,11 @@ import type { ReadonlyPlaybackController } from '../../playback/ReadonlyPlayback
 import type { SourceBufferController } from './SourceBufferController'
 import type { ReadonlySegmentController } from '../SegmentController'
 import type { SegmentReference } from '../SegmentReference'
-import { LIVE_DURATION } from '../../playback/PlaybackController'
 import type { BasicErrorEvent } from '../../event/BasicErrorEvent'
 import type { ChangeEvent } from '../../event/ChangeEvent'
 import type { ContentType, MediaQualityMetadata } from '../MediaQualityMetadata'
 import { type MediaSourceController } from './MediaSourceController'
 import { SEGMENT_START_AFFORDANCE } from '../SegmentController'
-
-/**
- * Chrome 52 has decoding errors when duration is set to the mediaPresentationDuration.
- * Adds a slight padding as a workaround.
- * @private
- */
-export const DURATION_PADDING = 0.1
 
 /**
  * The interval to throttle polling the buffer.
@@ -280,7 +272,6 @@ export class BufferingControllerImpl
 
         const onMediaSourceOpen = () => {
             logDebug(this, 'media source opened')
-            this.refreshDuration()
             this.pollBufferImmediate()
         }
         if (this.mediaSourceOpen) {
@@ -291,7 +282,6 @@ export class BufferingControllerImpl
         add(
             this.segmentController.on('change', () => {
                 this.reopen = true
-                this.refreshDuration()
                 this.pollBufferImmediate()
             })
         )
@@ -323,21 +313,6 @@ export class BufferingControllerImpl
      */
     get busy(): boolean {
         return this.queue.running > 0
-    }
-
-    /**
-     * Enqueues a duration update.
-     */
-    private refreshDuration() {
-        this.sourceBufferController!.enqueue(async () => {
-            if (!this.mediaSourceOpen) return // Cannot set duration when media source is not open.
-            const duration = await this.segmentController.getDuration()
-            // For live streams, set the duration to LIVE_DURATION; not all browsers support +Infinity duration.
-            const newDuration =
-                duration == null ? LIVE_DURATION : duration + DURATION_PADDING
-            logDebug(this, `setting duration: ${newDuration}`)
-            this.mediaSourceController.duration = newDuration
-        }).catch(this.handleError)
     }
 
     /**

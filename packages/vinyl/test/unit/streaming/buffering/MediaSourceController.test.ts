@@ -5,13 +5,18 @@
 
 import {
     type ContentType,
+    DURATION_PADDING,
+    LIVE_DURATION,
+    type MediaTimeline,
     MediaSourceControllerImpl,
     type MediaSourceControllerImplDeps,
     MediaSourceError,
 } from '@amazon/vinyl'
-import { Deferred, type ReadonlySet } from '@amazon/vinyl-util'
+import { AbortError, Deferred, type ReadonlySet } from '@amazon/vinyl-util'
 import {
     flushPromises,
+    implementEventFakes,
+    mockEvent,
     MockMediaSource,
     MockSourceBuffer,
 } from '@amazon/vinyl-util/browserTestUtil'
@@ -21,15 +26,36 @@ import objectContaining = jasmine.objectContaining
 import Spy = jasmine.Spy
 import { createEventSpy } from '@amazon/vinyl-util/testUtil'
 
+const VOD_DURATION = 60
+function createVodTimeline(duration: number = VOD_DURATION): MediaTimeline {
+    return {
+        periods: [],
+        minBufferTime: 0,
+        getDuration: () => Promise.resolve(duration),
+    }
+}
+const liveTimeline: MediaTimeline = {
+    periods: [],
+    minBufferTime: 0,
+    getDuration: () => Promise.resolve(Infinity),
+}
+
 describe('MediaSourceControllerImpl', () => {
     let mediaSourceFactory: Spy<() => MediaSource>
     let contentTypesValue: MutableValue<Promise<ReadonlySet<ContentType>>>
+    let mediaTimelineTransformed: MutableValue<Promise<MediaTimeline>>
     let mockMediaSource: MockMediaSource
     let deps: MediaSourceControllerImplDeps
     let controller: MediaSourceControllerImpl
 
+    function open(): void {
+        mockMediaSource.readyState = 'open'
+        mockMediaSource.dispatchEvent(mockEvent('sourceopen'))
+    }
+
     beforeEach(() => {
         mockMediaSource = new MockMediaSource()
+        implementEventFakes(mockMediaSource)
         mockMediaSource.addSourceBuffer.and.callFake(
             () => new MockSourceBuffer()
         )
@@ -39,10 +65,14 @@ describe('MediaSourceControllerImpl', () => {
         contentTypesValue = data<Promise<ReadonlySet<ContentType>>>(
             Promise.resolve(new Set(['audio']))
         )
+        mediaTimelineTransformed = data<Promise<MediaTimeline>>(
+            Promise.resolve(createVodTimeline())
+        )
 
         deps = {
             mediaSourceFactory,
             contentTypesValue,
+            mediaTimelineTransformed,
         }
 
         controller = new MediaSourceControllerImpl(deps)
@@ -66,14 +96,83 @@ describe('MediaSourceControllerImpl', () => {
     })
 
     describe('duration', () => {
-        it('gets duration from media source', () => {
-            mockMediaSource.duration = 123.45
-            expect(controller.duration).toBe(123.45)
+        it('sets media source duration after sourceopen', async () => {
+            open()
+            await flushPromises()
+            expect(mockMediaSource.duration).toBe(
+                VOD_DURATION + DURATION_PADDING
+            )
         })
 
-        it('sets duration on media source', () => {
-            controller.duration = 67.89
-            expect(mockMediaSource.duration).toBe(67.89)
+        it('uses LIVE_DURATION for live timelines', async () => {
+            mediaTimelineTransformed.value = Promise.resolve(liveTimeline)
+            open()
+            await flushPromises()
+            expect(mockMediaSource.duration).toBe(LIVE_DURATION)
+        })
+
+        it('does not set duration when media source is not open', async () => {
+            await flushPromises()
+            expect(mockMediaSource.duration).toBe(0)
+        })
+
+        it('refreshes duration when timeline changes', async () => {
+            open()
+            await flushPromises()
+            expect(mockMediaSource.duration).toBe(
+                VOD_DURATION + DURATION_PADDING
+            )
+            mediaTimelineTransformed.value = Promise.resolve(
+                createVodTimeline(120)
+            )
+            await flushPromises()
+            expect(mockMediaSource.duration).toBe(120 + DURATION_PADDING)
+        })
+
+        it('emits an error if getDuration rejects', async () => {
+            const errorSpy = createEventSpy(controller, 'error')
+            const error = new Error('expected')
+            mediaTimelineTransformed.value = Promise.resolve({
+                periods: [],
+                minBufferTime: 0,
+                getDuration: () => Promise.reject(error),
+            })
+            open()
+            await flushPromises()
+            expect(errorSpy).toHaveBeenCalledWith({
+                target: controller,
+                error,
+            })
+        })
+
+        it('does not emit silent (abort) errors', async () => {
+            const errorSpy = createEventSpy(controller, 'error')
+            mediaTimelineTransformed.value = Promise.resolve({
+                periods: [],
+                minBufferTime: 0,
+                getDuration: () => Promise.reject(new AbortError()),
+            })
+            open()
+            await flushPromises()
+            expect(errorSpy).not.toHaveBeenCalled()
+        })
+
+        it('discards a duration result if the source closed before it resolved', async () => {
+            const deferred = new Deferred<number>()
+            mediaTimelineTransformed.value = Promise.resolve({
+                periods: [],
+                minBufferTime: 0,
+                getDuration: () => deferred,
+            })
+            open()
+            await flushPromises()
+            // Close before the duration resolves; the late result should be ignored.
+            mockMediaSource.readyState = 'closed'
+            mockMediaSource.dispatchEvent(mockEvent('sourceclose'))
+            deferred.resolve(123)
+            await flushPromises()
+            expect(mockMediaSource.duration).toBe(0)
+            expect(controller.readyToAppend).toBeFalse()
         })
     })
 
@@ -86,8 +185,6 @@ describe('MediaSourceControllerImpl', () => {
         })
 
         it('creates source buffer with correct mime type', () => {
-            const controller = new MediaSourceControllerImpl(deps)
-
             const ref = controller.createSourceBuffer('audio', 'audio/mp4')
             expect(mockMediaSource.addSourceBuffer).toHaveBeenCalledWith(
                 'audio/mp4'
@@ -96,13 +193,11 @@ describe('MediaSourceControllerImpl', () => {
         })
 
         it('sets source buffer mode to sequence', () => {
-            const controller = new MediaSourceControllerImpl(deps)
             controller.createSourceBuffer('audio', 'audio/mp4')
             expect(mockSourceBuffer.mode).toBe('sequence')
         })
 
         it('emits error events when contentTypesValue rejects', async () => {
-            const controller = new MediaSourceControllerImpl(deps)
             const errorSpy = createEventSpy(controller, 'error')
             const error = new Error('expected error')
             contentTypesValue.value = Promise.reject(error)
@@ -114,8 +209,12 @@ describe('MediaSourceControllerImpl', () => {
         })
 
         describe('readyToAppend', () => {
-            it('is true when all streams have been created', async () => {
-                const controller = new MediaSourceControllerImpl(deps)
+            it('is true only after duration is set and all source buffers are created', async () => {
+                // Each createSourceBuffer must return a distinct SourceBuffer because
+                // the controller dedupes buffers by identity.
+                mockMediaSource.addSourceBuffer.and.callFake(
+                    () => new MockSourceBuffer()
+                )
                 const readyToAppendSpy = createEventSpy(
                     controller,
                     'readyToAppend'
@@ -123,7 +222,14 @@ describe('MediaSourceControllerImpl', () => {
                 expect(controller.readyToAppend).toBeFalse()
                 await flushPromises()
                 expect(readyToAppendSpy).not.toHaveBeenCalled()
+
+                // Source buffer alone is not enough — duration must be set.
                 controller.createSourceBuffer('audio', 'audio/mp4')
+                expect(controller.readyToAppend).toBeFalse()
+                expect(readyToAppendSpy).not.toHaveBeenCalled()
+
+                open()
+                await flushPromises()
                 expect(controller.readyToAppend).toBeTrue()
                 expect(readyToAppendSpy).toHaveBeenCalledTimes(1)
                 readyToAppendSpy.calls.reset()
@@ -143,8 +249,6 @@ describe('MediaSourceControllerImpl', () => {
         })
 
         it('throws MediaSourceError when addSourceBuffer fails', () => {
-            const controller = new MediaSourceControllerImpl(deps)
-
             const error = new Error('test error')
             mockMediaSource.addSourceBuffer.and.throwError(error)
 
@@ -155,7 +259,6 @@ describe('MediaSourceControllerImpl', () => {
 
         describe('SourceBufferRef disposal', () => {
             it('removes source buffer from media source', () => {
-                const controller = new MediaSourceControllerImpl(deps)
                 mockMediaSource.readyState = 'open'
 
                 const ref = controller.createSourceBuffer('audio', 'audio/mp4')
@@ -166,7 +269,6 @@ describe('MediaSourceControllerImpl', () => {
             })
 
             it('does not remove source buffer when media source is closed', () => {
-                const controller = new MediaSourceControllerImpl(deps)
                 mockMediaSource.readyState = 'open'
 
                 const ref = controller.createSourceBuffer('audio', 'audio/mp4')

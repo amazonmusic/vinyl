@@ -21,7 +21,11 @@ import { data } from '@amazon/vinyl-observable'
 
 import createSpy = jasmine.createSpy
 
-const emptyTimeline: MediaTimeline = { periods: [], minBufferTime: 0 }
+const emptyTimeline: MediaTimeline = {
+    periods: [],
+    minBufferTime: 0,
+    getDuration: () => Promise.resolve(Infinity),
+}
 
 const spyFactory = createSpyFactory<DashTrackDeps>()
 export function createMockDashDependencies() {

@@ -16,8 +16,6 @@ export class MockMediaSourceController
     extends MockEventHost<MediaSourceControllerEventMap>
     implements MediaSourceController
 {
-    duration = 0
-
     readyState: ReadyState = 'closed'
     createSourceBuffer = spyFactory('createSourceBuffer')
     endOfStream = spyFactory('endOfStream')
