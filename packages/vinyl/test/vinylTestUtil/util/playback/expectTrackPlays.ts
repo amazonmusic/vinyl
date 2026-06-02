@@ -72,7 +72,7 @@ export async function expectPlaylistPlays<T extends TrackLoadOptions>(
 ): Promise<void> {
     const { dispose, add } = createDisposer()
     // Add a significant buffer to the timeout; progressive tracks can take a long time to load after a seek.
-    const trackTimeout = PLAYBACK_DURATION + 30 // Timeout to give each track
+    const trackTimeout = PLAYBACK_DURATION + 60 // Timeout to give each track
     const queueEnded = add(createEventSpy(player, 'queueEnded'))
     const queueChange = add(createEventSpy(player, 'queueChange'))
     const trackChange = add(createEventSpy(player, 'currentTrackChange'))

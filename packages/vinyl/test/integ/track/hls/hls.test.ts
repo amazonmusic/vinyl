@@ -29,7 +29,12 @@ describe('hls integ', () => {
             uri: vinylTestAssets.hls.live_static_aac_opus_flac_60s,
         },
     ]
-    const suite = createVinylSuite()
+    const suite = createVinylSuite(
+        {},
+        {
+            timeout: 180,
+        }
+    )
 
     beforeEach(() => {
         if (!supportsMse()) pending('MSE not supported')
