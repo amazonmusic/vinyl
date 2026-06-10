@@ -44,7 +44,7 @@
         "@types/semver": "^7.5.8",
         "browserstack-local": "^1.5.5",
         "c8": "^10.1.3",
-        "concurrently": "^9.2.1",
+        "concurrently": "^10.0.3",
         "core-js": "^3.37.1",
         "dotenv": "^16.0.3",
         "esbuild": "^0.25.4",
