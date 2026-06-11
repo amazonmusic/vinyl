@@ -594,6 +594,7 @@ describe('DrmControllerImpl', () => {
                             {
                                 contentType: 'audio/mp4',
                                 encryptionScheme: 'cenc',
+                                robustness: DrmRobustness.SW_SECURE_CRYPTO,
                             },
                         ],
                     },
