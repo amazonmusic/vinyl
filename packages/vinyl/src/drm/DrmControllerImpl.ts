@@ -30,6 +30,7 @@ import { instanceOf, object, type ObjectSchema } from '@amazon/vinyl-validation'
 import {
     type DrmMediaKeySystemOptions,
     type DrmOptions,
+    DrmRobustness,
     type InitDataTransformer,
 } from './DrmOptions'
 import type {
@@ -409,10 +410,9 @@ export class DrmControllerImpl
                 drmInfo.contentType
             )
             const capability: MediaKeySystemMediaCapability = {
+                robustness:
+                    mediaOptions?.robustness ?? DrmRobustness.SW_SECURE_CRYPTO,
                 encryptionScheme: drmInfo.encryptionScheme,
-            }
-            if (mediaOptions?.robustness) {
-                capability.robustness = mediaOptions.robustness
             }
             if (drmInfo.mimeType) {
                 capability.contentType = drmInfo.mimeType
