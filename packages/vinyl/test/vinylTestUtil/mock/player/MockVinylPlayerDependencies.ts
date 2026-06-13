@@ -38,6 +38,7 @@ export function createMockVinylDependencies() {
         playbackController: new MockPlaybackController(),
         capabilities: new MockCapabilities(),
         drmController: new MockDrmController(),
+        media: createMockMedia(),
         createDashFactories: (_loadOptions) =>
             externalDependencies(createMockDashDependencies()),
         createHlsFactories: (_loadOptions) =>
@@ -48,4 +49,17 @@ export function createMockVinylDependencies() {
             'drmKeySystemResolver'
         ).and.returnValue([]),
     } as const satisfies VinylDeps & VinylTrackFactoryDeps & DashFactoryDeps
+}
+
+function createMockMedia(): HTMLMediaElement {
+    return {
+        addTextTrack(): TextTrack {
+            return {
+                cues: { length: 0 } as unknown as TextTrackCueList,
+                mode: 'disabled',
+                addCue() {},
+                removeCue() {},
+            } as unknown as TextTrack
+        },
+    } as unknown as HTMLMediaElement
 }

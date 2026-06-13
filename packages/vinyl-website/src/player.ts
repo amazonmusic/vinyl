@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createVinylPlayer } from '@amazon/vinyl'
+import { createVinylPlayer, type TextTrackInfo } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
@@ -28,6 +28,10 @@ export const playerState = {
     loading$: data(true),
     volume$: data(player.volume),
     muted$: data(player.muted),
+    textTracks$: data<readonly TextTrackInfo[]>([]),
+    activeTextTrack$: data<TextTrackInfo | null>(null),
+    captionsEnabled$: data(false),
+    preferredLanguage$: data<string | null>(null),
 }
 
 // Safari's loadedmetadata fires before videoWidth is populated for HLS; the
@@ -74,6 +78,40 @@ player.on('volumeChange', ({ current }) => {
 player.on('mutedChange', ({ current }) => {
     playerState.muted$.value = current
 })
+player.on('textTracksChange', ({ current }) => {
+    playerState.textTracks$.value = current
+    applyCaptionsPreference()
+})
+player.on('activeTextTrackChange', ({ current }) => {
+    playerState.activeTextTrack$.value = current
+})
+// Reloading the same track (or loading a cached track) may not emit a fresh
+// textTracksChange because the list reference is unchanged. Poll on every
+// currentTrackChange so the session's captions preference still applies.
+player.on('currentTrackChange', () => {
+    playerState.textTracks$.value = player.textTracks
+    playerState.activeTextTrack$.value = player.activeTextTrack
+    applyCaptionsPreference()
+})
+
+function applyCaptionsPreference() {
+    if (!playerState.captionsEnabled$.value) return
+    if (player.activeTextTrack) return // already on for this track
+    const target = pickPreferredTrack(playerState.textTracks$.value)
+    if (target) player.setActiveTextTrack(target.id)
+}
+
+function pickPreferredTrack(
+    tracks: readonly TextTrackInfo[]
+): TextTrackInfo | null {
+    if (tracks.length === 0) return null
+    const preferred = playerState.preferredLanguage$.value
+    if (preferred) {
+        const match = tracks.find((t) => t.language === preferred)
+        if (match) return match
+    }
+    return tracks.find((t) => t.default) ?? tracks[0]
+}
 
 export type TrackType = 'dash' | 'hls' | 'src'
 

@@ -63,6 +63,10 @@ describe('SourceTrackBase', () => {
         expectPrototype(() => createSourceTrack(), SourceTrackBase, TrackBase)
     })
 
+    it('exposes a null textTrackController by default', () => {
+        expect(track.textTrackController).toBeNull()
+    })
+
     describe('when src promise rejects', () => {
         it('emits an error event', async () => {
             const errorSpy = createEventSpy(track, 'error')

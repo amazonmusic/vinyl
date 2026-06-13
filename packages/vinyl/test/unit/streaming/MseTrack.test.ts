@@ -742,4 +742,27 @@ describe('MseTrack', () => {
             expect(spy).not.toHaveBeenCalled()
         })
     })
+
+    describe('textTrackController', () => {
+        it('returns null when no controller is provided', () => {
+            track = createTrack()
+            expect(track.textTrackController).toBeNull()
+        })
+
+        it('returns the dependency-provided controller', () => {
+            const controller = {
+                textTracks: [],
+                activeTextTrack: null,
+                setActiveTextTrack: () => undefined,
+                on: () => () => undefined,
+                hasAnyListeners: () => false,
+                hasListeners: () => false,
+                __eventMapType: {} as never,
+            }
+            ;(deps as unknown as Record<string, unknown>).textTrackController =
+                controller
+            track = createTrack()
+            expect(track.textTrackController).toBe(controller)
+        })
+    })
 })

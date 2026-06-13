@@ -38,6 +38,8 @@ import {
 } from './buildHlsMediaTimeline'
 import { createDefaultMediaTimelineTransformer } from '../../streaming/createDefaultMediaTimelineTransformer'
 import type { HlsManifestData } from './HlsManifestProvider'
+import { SidecarTextTrackController } from '../../text/SidecarTextTrackController'
+import { discoverHlsTextTracks } from '../../text/discoverHlsTextTracks'
 
 export interface HlsFactoryDeps {
     readonly options: ObservableValue<{
@@ -50,6 +52,11 @@ export interface HlsFactoryDeps {
     readonly requestInterceptor: RequestInterceptor
     readonly drmController: DrmController
     readonly capabilities: Capabilities
+    /**
+     * The HTML media element. Required to attach sidecar text tracks via
+     * `media.addTextTrack`.
+     */
+    readonly media: HTMLMediaElement
 }
 
 export type HlsInitOptions = {
@@ -110,6 +117,33 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                         return buildHlsMediaTimeline(deps, data)
                     }),
                 mediaTimelineTransformed: createDefaultMediaTimelineTransformer,
+                textTrackController: (deps: {
+                    readonly media: HTMLMediaElement
+                    readonly manifestTransformed: ObservableValue<
+                        Promise<HlsManifestData>
+                    >
+                }) => {
+                    const controller = new SidecarTextTrackController({
+                        media: deps.media,
+                        requestInit: loadOptions.requestInit ?? undefined,
+                    })
+                    deps.manifestTransformed.onData((manifestPromise) => {
+                        manifestPromise
+                            .then((data) => {
+                                controller.setTextTracks(
+                                    discoverHlsTextTracks(
+                                        data.mainPlaylist,
+                                        data.baseUrl
+                                    )
+                                )
+                            })
+                            .catch(() => {
+                                // Manifest errors are surfaced through the
+                                // manifest controller. Don't double-report.
+                            })
+                    })
+                    return controller
+                },
             } as const) satisfies Factories<HlsTrackDeps>
         }
     }
