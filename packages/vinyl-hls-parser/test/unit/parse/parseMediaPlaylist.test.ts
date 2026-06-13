@@ -454,6 +454,85 @@ segment.ts`
             'https://cdn.example.com/segment0.ts'
         )
     })
+
+    it('honors EXT-X-DEFINE:IMPORT to inherit a parent variable', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="prefix"',
+            '#EXT-X-TARGETDURATION:6',
+            '#EXTINF:6.0,',
+            '{$prefix}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {
+            prefix: 'https://cdn.example.com/',
+            unused: 'x',
+        })
+        expect(result.segments[0].uri).toBe(
+            'https://cdn.example.com/segment0.ts'
+        )
+    })
+
+    it('silently ignores EXT-X-DEFINE:IMPORT for unknown names', () => {
+        // When IMPORT references a name that the parent didn't define, we
+        // don't fail parsing — the URI is left as-is and the fetcher will
+        // surface the resulting request failure.
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="missing"',
+            '#EXTINF:6.0,',
+            '{$missing}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {})
+        expect(result.segments[0].uri).toBe('{$missing}segment0.ts')
+    })
+
+    it('substitutes a mix of IMPORT and local NAME/VALUE in the same playlist', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="prefix"',
+            '#EXT-X-DEFINE:NAME="suffix",VALUE=".vtt"',
+            '#EXTINF:6.0,',
+            '{$prefix}part0{$suffix}',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {
+            prefix: 'https://cdn.example.com/',
+        })
+        expect(result.segments[0].uri).toBe('https://cdn.example.com/part0.vtt')
+    })
+
+    it('honors EXT-X-DEFINE:NAME=/VALUE= declared locally', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:NAME="prefix",VALUE="https://cdn.example.com/"',
+            '#EXTINF:6.0,',
+            '{$prefix}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest)
+        expect(result.segments[0].uri).toBe(
+            'https://cdn.example.com/segment0.ts'
+        )
+    })
+
+    it('local NAME/VALUE overrides an imported value with the same name', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="prefix"',
+            '#EXT-X-DEFINE:NAME="prefix",VALUE="https://local.example.com/"',
+            '#EXTINF:6.0,',
+            '{$prefix}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {
+            prefix: 'https://parent.example.com/',
+        })
+        expect(result.segments[0].uri).toBe(
+            'https://local.example.com/segment0.ts'
+        )
+    })
 })
 
 describe('substituteVariables', () => {

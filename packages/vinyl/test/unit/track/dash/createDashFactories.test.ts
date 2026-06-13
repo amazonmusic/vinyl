@@ -16,6 +16,7 @@ import {
     createMockVinylDependencies,
     mockDashManifest,
 } from '@amazon/vinyl/vinylTestUtil'
+import { parseDashManifest } from '@amazon/vinyl-mpd-parser'
 import { createContainer } from '@amazon/vinyl-di'
 import {
     MockMediaSource,
@@ -104,5 +105,57 @@ describe('createDashFactories', () => {
         })
         const deps = createContainer(factories).dependencies
         expect(deps.contentStreamFactory('audio')).toEqual(any(Object))
+    })
+
+    it('creates a sidecar text track controller and populates from manifest', async () => {
+        const factoryCreator = createDashFactories(null)
+        const subtitleManifestXml = `<?xml version="1.0" encoding="UTF-8"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="static" profiles="urn:mpeg:dash:profile:isoff-on-demand:2011" mediaPresentationDuration="PT60S" minBufferTime="PT2S">
+  <Period>
+    <AdaptationSet contentType="audio" mimeType="audio/mp4" codecs="mp4a.40.2">
+      <Representation id="aud" bandwidth="128000"/>
+    </AdaptationSet>
+    <AdaptationSet contentType="text" mimeType="text/vtt" lang="en">
+      <Representation id="en-sub" bandwidth="100">
+        <BaseURL>subs/en.vtt</BaseURL>
+      </Representation>
+    </AdaptationSet>
+  </Period>
+</MPD>`
+        const manifest = parseDashManifest(subtitleManifestXml)
+        const provider = createSpy<DashManifestProvider>(
+            'subtitleProvider'
+        ).and.resolveTo({
+            manifest,
+            baseUrl: 'https://example.com/dash/',
+        })
+        const factories = factoryCreator(dashFactoryDeps)({
+            uri: 'test://manifest.mpd',
+            type: 'dash',
+            manifestProvider: provider,
+        })
+        const deps = createContainer(factories).dependencies
+        const ttc = deps.textTrackController
+        await deps.manifestTransformed.value
+        await new Promise((r) => setTimeout(r, 0))
+        expect(ttc).toBeDefined()
+        expect(ttc.textTracks.length).toBeGreaterThan(0)
+    })
+
+    it('text track controller swallows manifest fetch errors', async () => {
+        const factoryCreator = createDashFactories(null)
+        const provider = createSpy<DashManifestProvider>(
+            'failing'
+        ).and.rejectWith(new Error('manifest down'))
+        const factories = factoryCreator(dashFactoryDeps)({
+            uri: 'test://manifest.mpd',
+            type: 'dash',
+            manifestProvider: provider,
+        })
+        const deps = createContainer(factories).dependencies
+        const controller = deps.textTrackController
+        await deps.manifestTransformed.value.catch(() => undefined)
+        await new Promise((r) => setTimeout(r, 0))
+        expect(controller.textTracks).toEqual([])
     })
 })
