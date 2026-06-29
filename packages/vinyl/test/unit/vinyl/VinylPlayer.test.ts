@@ -779,6 +779,48 @@ describe('VinylPlayer', () => {
             expect(deps.playbackController.reset).toHaveBeenCalledOnceWith()
             expect(deps.trackController.reset).toHaveBeenCalledOnceWith()
         })
+
+        it('clears auto reset controller on reset', () => {
+            const error = new DrmError('test error')
+            player.dispatch('error', { target: player, error })
+
+            player.reset()
+
+            expect(deps.autoResetController.clear).toHaveBeenCalledOnceWith()
+        })
+
+        describe('resetPending', () => {
+            it('delegates to the auto reset controller', () => {
+                expect(player.resetPending).toBeFalse()
+                deps.autoResetController.resetPending = true
+                expect(player.resetPending).toBeTrue()
+            })
+        })
+
+        describe('resetPendingChange event', () => {
+            it('re-dispatches resetPendingChange events from the auto reset controller', () => {
+                const spy = createEventSpy(player, 'resetPendingChange')
+
+                deps.autoResetController.dispatch('resetPendingChange', {
+                    previous: false,
+                    current: true,
+                })
+                expect(spy).toHaveBeenCalledOnceWith({
+                    previous: false,
+                    current: true,
+                })
+
+                spy.calls.reset()
+                deps.autoResetController.dispatch('resetPendingChange', {
+                    previous: true,
+                    current: false,
+                })
+                expect(spy).toHaveBeenCalledOnceWith({
+                    previous: true,
+                    current: false,
+                })
+            })
+        })
     })
 
     describe('when drmController emits error event', () => {

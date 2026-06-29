@@ -8,19 +8,36 @@ import {
     type AutoResetControllerImplDeps,
     type AutoResetControllerImplOptions,
 } from '@amazon/vinyl'
-import {
-    ErrorOrigin,
-    ReportableError,
-    networkState,
-    DisposedError,
-} from '@amazon/vinyl-util'
+import { networkState, DisposedError, RequestError } from '@amazon/vinyl-util'
 import { MockPlaybackController } from '@amazon/vinyl/vinylTestUtil'
 import {
     createEventSpy,
+    emptyInternalError,
+    emptyResponseError,
     MockNetworkState,
     overrideGlobalInit,
 } from '@amazon/vinyl-util/testUtil'
 import { mockEvent, useMockTime } from '@amazon/vinyl-util/browserTestUtil'
+
+/**
+ * Creates a RequestError representing a transient network failure (no response received).
+ * These are the only errors that AutoResetController watches for retry opportunities.
+ */
+function createNetworkRequestError(): RequestError {
+    return new RequestError(null, emptyInternalError)
+}
+
+/**
+ * Creates a RequestError that received an HTTP response. These should be ignored by
+ * the AutoResetController, since a service that responded is unlikely to recover
+ * on its own.
+ */
+function createResponseRequestError(): RequestError {
+    return new RequestError(
+        new Response(null, { status: 500 }),
+        emptyResponseError
+    )
+}
 
 describe('AutoResetControllerImpl', () => {
     let deps: AutoResetControllerImplDeps
@@ -86,6 +103,11 @@ describe('AutoResetControllerImpl', () => {
                 jasmine.any(Function)
             )
         })
+
+        it('starts with resetPending false', () => {
+            controller = new AutoResetControllerImpl(deps)
+            expect(controller.resetPending).toBeFalse()
+        })
     })
 
     describe('setError', () => {
@@ -93,59 +115,45 @@ describe('AutoResetControllerImpl', () => {
             controller = new AutoResetControllerImpl(deps)
         })
 
-        it('ignores non-ReportableError', () => {
+        it('ignores non-RequestError', () => {
             const error = new Error('test error')
             controller.setError(error)
             expect(mockNetworkState.on).not.toHaveBeenCalled()
+            expect(controller.resetPending).toBeFalse()
         })
 
-        it('ignores ReportableError with non-SERVICE_INTERNAL origin', () => {
-            const error = new ReportableError(
-                'test',
-                ErrorOrigin.SERVICE_EXTERNAL
-            )
-            controller.setError(error)
+        it('ignores RequestError with a response (HTTP failure)', () => {
+            controller.setError(createResponseRequestError())
             expect(mockNetworkState.on).not.toHaveBeenCalled()
+            expect(controller.resetPending).toBeFalse()
         })
 
-        it('sets error and starts watching for SERVICE_INTERNAL ReportableError', () => {
-            const error = new ReportableError(
-                'test',
-                ErrorOrigin.SERVICE_INTERNAL
-            )
-            controller.setError(error)
+        it('sets error and starts watching for transient network RequestError', () => {
+            controller.setError(createNetworkRequestError())
             expect(mockNetworkState.on).toHaveBeenCalledWith(
                 'online',
                 jasmine.any(Function)
             )
+            expect(controller.resetPending).toBeTrue()
         })
 
         it('ignores subsequent errors when already in error state', () => {
-            const error1 = new ReportableError(
-                'test1',
-                ErrorOrigin.SERVICE_INTERNAL
-            )
-            const error2 = new ReportableError(
-                'test2',
-                ErrorOrigin.SERVICE_INTERNAL
-            )
-
-            controller.setError(error1)
+            controller.setError(createNetworkRequestError())
             mockNetworkState.on.calls.reset()
 
-            controller.setError(error2)
+            controller.setError(createNetworkRequestError())
             expect(mockNetworkState.on).not.toHaveBeenCalled()
         })
     })
 
     describe('reset behavior', () => {
         let resetSpy: jasmine.Spy
-        let error: ReportableError
+        let error: RequestError
 
         beforeEach(() => {
             controller = new AutoResetControllerImpl(deps)
             resetSpy = createEventSpy(controller, 'reset')
-            error = new ReportableError('test', ErrorOrigin.SERVICE_INTERNAL)
+            error = createNetworkRequestError()
         })
 
         it('emits reset event when network comes online', () => {
@@ -238,10 +246,10 @@ describe('AutoResetControllerImpl', () => {
 
     describe('retry interval behavior', () => {
         let resetSpy: jasmine.Spy
-        let error: ReportableError
+        let error: RequestError
 
         beforeEach(() => {
-            error = new ReportableError('test', ErrorOrigin.SERVICE_INTERNAL)
+            error = createNetworkRequestError()
         })
 
         it('retries at specified interval when online', async () => {
@@ -288,14 +296,137 @@ describe('AutoResetControllerImpl', () => {
                 expect(resetSpy).toHaveBeenCalledTimes(3)
             }
         })
+
+        it('clears resetPending when max retries are exhausted', async () => {
+            controller = new AutoResetControllerImpl(deps, {
+                retryInterval: 1,
+                maxRetries: 1,
+            })
+
+            controller.setError(error)
+            expect(controller.resetPending).toBeTrue()
+
+            // First retry succeeds (resets) and re-arms on next setError
+            await clock.tick(1)
+            controller.setError(error)
+            expect(controller.resetPending).toBeTrue()
+
+            // Second retry exhausts the budget — interval fires but no reset emitted,
+            // and resetPending should transition to false.
+            await clock.tick(1)
+            expect(controller.resetPending).toBeFalse()
+        })
     })
 
-    describe('clear', () => {
-        let error: ReportableError
+    describe('resetPending', () => {
+        let error: RequestError
 
         beforeEach(() => {
             controller = new AutoResetControllerImpl(deps)
-            error = new ReportableError('test', ErrorOrigin.SERVICE_INTERNAL)
+            error = createNetworkRequestError()
+        })
+
+        it('is false initially', () => {
+            expect(controller.resetPending).toBeFalse()
+        })
+
+        it('becomes true when an eligible error is set', () => {
+            controller.setError(error)
+            expect(controller.resetPending).toBeTrue()
+        })
+
+        it('remains false when a non-eligible error is set', () => {
+            controller.setError(new Error('not eligible'))
+            expect(controller.resetPending).toBeFalse()
+        })
+
+        it('becomes false after a reset is emitted', () => {
+            controller.setError(error)
+            playbackController.dispatch('play', {})
+            expect(controller.resetPending).toBeFalse()
+        })
+
+        it('becomes false when cleared', () => {
+            controller.setError(error)
+            controller.clear()
+            expect(controller.resetPending).toBeFalse()
+        })
+
+        it('is false when the controller is disabled', () => {
+            controller = new AutoResetControllerImpl(deps, { enabled: false })
+            controller.setError(error)
+            expect(controller.resetPending).toBeFalse()
+        })
+    })
+
+    describe('resetPendingChange event', () => {
+        let resetPendingChangeSpy: jasmine.Spy
+        let error: RequestError
+
+        beforeEach(() => {
+            controller = new AutoResetControllerImpl(deps)
+            resetPendingChangeSpy = createEventSpy(
+                controller,
+                'resetPendingChange'
+            )
+            error = createNetworkRequestError()
+        })
+
+        it('dispatches when resetPending becomes true', () => {
+            controller.setError(error)
+            expect(resetPendingChangeSpy).toHaveBeenCalledOnceWith({
+                previous: false,
+                current: true,
+            })
+        })
+
+        it('dispatches when resetPending becomes false via reset', () => {
+            controller.setError(error)
+            resetPendingChangeSpy.calls.reset()
+
+            playbackController.dispatch('play', {})
+            expect(resetPendingChangeSpy).toHaveBeenCalledOnceWith({
+                previous: true,
+                current: false,
+            })
+        })
+
+        it('dispatches when resetPending becomes false via clear', () => {
+            controller.setError(error)
+            resetPendingChangeSpy.calls.reset()
+
+            controller.clear()
+            expect(resetPendingChangeSpy).toHaveBeenCalledOnceWith({
+                previous: true,
+                current: false,
+            })
+        })
+
+        it('does not dispatch when setError is called with an in-progress error', () => {
+            controller.setError(error)
+            resetPendingChangeSpy.calls.reset()
+
+            controller.setError(error)
+            expect(resetPendingChangeSpy).not.toHaveBeenCalled()
+        })
+
+        it('does not dispatch when clear is called with no error', () => {
+            controller.clear()
+            expect(resetPendingChangeSpy).not.toHaveBeenCalled()
+        })
+
+        it('does not dispatch when an ineligible error is set', () => {
+            controller.setError(new Error('not eligible'))
+            expect(resetPendingChangeSpy).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('clear', () => {
+        let error: RequestError
+
+        beforeEach(() => {
+            controller = new AutoResetControllerImpl(deps)
+            error = createNetworkRequestError()
         })
 
         it('clears error state and stops watching', () => {
@@ -330,11 +461,7 @@ describe('AutoResetControllerImpl', () => {
     describe('dispose', () => {
         it('clears error state and disposes resources', () => {
             controller = new AutoResetControllerImpl(deps)
-            const error = new ReportableError(
-                'test',
-                ErrorOrigin.SERVICE_INTERNAL
-            )
-            controller.setError(error)
+            controller.setError(createNetworkRequestError())
 
             controller.dispose()
 
@@ -361,24 +488,16 @@ describe('AutoResetControllerImpl', () => {
     describe('disabled behavior', () => {
         it('does not watch for errors when disabled', () => {
             controller = new AutoResetControllerImpl(deps, { enabled: false })
-            const error = new ReportableError(
-                'test',
-                ErrorOrigin.SERVICE_INTERNAL
-            )
 
-            controller.setError(error)
+            controller.setError(createNetworkRequestError())
             expect(mockNetworkState.on).not.toHaveBeenCalled()
         })
 
         it('does not emit reset events when disabled', () => {
             controller = new AutoResetControllerImpl(deps, { enabled: false })
             const resetSpy = createEventSpy(controller, 'reset')
-            const error = new ReportableError(
-                'test',
-                ErrorOrigin.SERVICE_INTERNAL
-            )
 
-            controller.setError(error)
+            controller.setError(createNetworkRequestError())
             playbackController.dispatch('play', {})
 
             expect(resetSpy).not.toHaveBeenCalled()

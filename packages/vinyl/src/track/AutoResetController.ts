@@ -8,49 +8,74 @@ import {
     type Clearable,
     createDisposer,
     type Disposable,
-    ErrorOrigin,
     EventHostImpl,
     getNetworkState,
     logDebug,
     onAny,
     type ReadonlyEventHost,
-    ReportableError,
+    RequestError,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { PlaybackController } from '../playback/PlaybackController'
+import type { ChangeEvent } from '../event/ChangeEvent'
 
 export interface AutoResetControllerEventMap {
     /**
      * Notifies that playback errors should be reset and retried.
      */
     readonly reset: AnyRecord
+
+    /**
+     * Dispatched when {@link AutoResetController.resetPending} changes.
+     */
+    readonly resetPendingChange: ChangeEvent<boolean>
 }
 
 /**
- * Notifies when playback should be reset and retried.
+ * Notifies when playback should be reset and retried after a transient,
+ * potentially-recoverable error.
  *
- * The controller monitors for retry opportunities after an error is set:
- * - Immediately on network 'online' events
- * - After a timeout interval if online
+ * Once an eligible error is set, the controller watches for opportunities
+ * to emit a `reset` event:
+ * - Immediately when the network transitions back to online
+ * - After a timeout interval, if online and retries are not exhausted
  * - Immediately on user playback actions (play, pause, seeking, playing)
  *
- * Each error triggers a single timeout. If another error occurs after a reset,
- * setError() should be called again to schedule the next retry attempt.
+ * Each error triggers a single retry timeout. If another error occurs
+ * after a reset, {@link AutoResetController.setError} should be called again
+ * to schedule the next retry attempt.
  */
 export interface AutoResetController
     extends ReadonlyEventHost<AutoResetControllerEventMap>, Clearable {
     /**
-     * Sets the current playback error and begins monitoring for retry opportunities.
+     * Sets the current playback error and, if eligible, begins watching for
+     * retry opportunities.
      *
-     * Only SERVICE_INTERNAL ReportableErrors are monitored. Subsequent calls while
-     * an error is already set are ignored until the error is cleared via reset or clear().
+     * An error is eligible when it is a {@link RequestError} that did not
+     * receive an HTTP response (i.e. `response == null`), indicating a
+     * transient network failure such as connection loss or DNS failure.
+     * All other errors — including HTTP failures with a response (4xx/5xx),
+     * and non-RequestError errors — are ignored, since those are unlikely
+     * to recover on their own.
      *
-     * After a reset, if another error occurs, this method should be called again
-     * to schedule the next retry attempt.
+     * Subsequent calls while an error is already set are ignored until the
+     * error is cleared via a reset emission or {@link Clearable.clear}.
+     *
+     * After a reset, if another eligible error occurs, this method should
+     * be called again to schedule the next retry attempt.
      *
      * @param error The error to monitor for retry opportunities
      */
     setError(error: Error): void
+
+    /**
+     * True while an eligible error is being watched and a `reset` event
+     * may still be emitted. Becomes false once the error is cleared, a
+     * reset is emitted, or all retries are exhausted.
+     *
+     * Listen to `resetPendingChange` events for changes.
+     */
+    readonly resetPending: boolean
 }
 
 export interface AutoResetControllerImplDeps {
@@ -132,42 +157,52 @@ export class AutoResetControllerImpl
 
     setError(error: Error): void {
         if (!this.options.enabled || this._error) return
-        if (
-            error instanceof ReportableError &&
-            error.origin === ErrorOrigin.SERVICE_INTERNAL
-        ) {
+        if (error instanceof RequestError && error.response == null) {
             this._error = error
-            this.setWatching(true)
+            this.setResetPending(true)
         }
     }
 
-    private setWatching(value: boolean): void {
-        logDebug(this, 'setWatching', value)
+    get resetPending(): boolean {
+        return this.watchSub != null
+    }
+
+    private setResetPending(value: boolean): void {
+        if (this.resetPending === value) {
+            logDebug(this, 'setResetPending', value, 'no-op')
+            return
+        }
+        logDebug(this, 'setResetPending', value)
         this.watchSub?.()
         this.watchSub = null
-        if (!value) return
-        const networkState = getNetworkState()
-        const { add, dispose: watchSub } = createDisposer()
-        this.watchSub = watchSub
-        add(
-            networkState.on('online', () => {
-                logDebug(this, 'online, emitting reset')
-                this.reset()
-            })
-        )
-
-        const intervalId = setTimeout(() => {
-            if (this.currentRetry++ < this.options.maxRetries) {
-                if (networkState.onLine) {
-                    logDebug(this, 'interval, emitting reset')
+        if (value) {
+            const networkState = getNetworkState()
+            const { add, dispose: watchSub } = createDisposer()
+            this.watchSub = watchSub
+            add(
+                networkState.on('online', () => {
+                    logDebug(this, 'online, emitting reset')
                     this.reset()
+                })
+            )
+
+            const intervalId = setTimeout(() => {
+                if (this.currentRetry++ < this.options.maxRetries) {
+                    if (networkState.onLine) {
+                        logDebug(this, 'interval, emitting reset')
+                        this.reset()
+                    }
+                } else {
+                    logDebug(this, 'max retries exhausted, pausing playback')
+                    this.setResetPending(false)
                 }
-            } else {
-                logDebug(this, 'max retries exhausted, pausing playback')
-                this.setWatching(false)
-            }
-        }, this.options.retryInterval * 1000)
-        add(() => clearTimeout(intervalId))
+            }, this.options.retryInterval * 1000)
+            add(() => clearTimeout(intervalId))
+        }
+        this.dispatch('resetPendingChange', {
+            previous: !value,
+            current: value,
+        })
     }
 
     private reset(): void {
@@ -179,7 +214,7 @@ export class AutoResetControllerImpl
     clear() {
         if (!this._error) return
         this._error = null
-        this.setWatching(false)
+        this.setResetPending(false)
     }
 
     get disposed(): boolean {
