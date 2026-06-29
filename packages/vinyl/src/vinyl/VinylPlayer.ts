@@ -67,6 +67,8 @@ import type {
     MutableValue,
 } from '@amazon/vinyl-observable'
 import type { VinylOptions } from './VinylOptions'
+import type { AutoResetController } from '../track/AutoResetController'
+import type { ChangeEvent } from '../event/ChangeEvent'
 
 /**
  * Events the Vinyl Player emits.
@@ -77,7 +79,21 @@ export interface VinylPlayerEventMap<
     extends
         PlaybackControllerEventMap,
         TrackControllerEventMap<TrackLoadOptionsType>,
-        StreamingEventMap {}
+        StreamingEventMap {
+    /**
+     * Dispatched when {@link VinylPlayer.resetPending} changes.
+     *
+     * `current` is true when the player has hit a transient, potentially
+     * recoverable error (e.g. a network outage) and an automatic reset
+     * attempt is scheduled. `current` is false once the pending reset is
+     * emitted, the error is cleared, or all retries are exhausted.
+     *
+     * If `resetPending` becomes false while {@link VinylPlayer.error} is
+     * still non-null, all automatic reset attempts have been exhausted
+     * and playback will not recover without user action.
+     */
+    readonly resetPendingChange: ChangeEvent<boolean>
+}
 
 /**
  * A Vinyl Media Player.
@@ -112,6 +128,10 @@ export class VinylPlayer<
 
     private get trackController(): TrackController<TrackLoadOptionsType> {
         return this.deps.trackController
+    }
+
+    private get autoResetController(): AutoResetController {
+        return this.deps.autoResetController
     }
 
     /**
@@ -237,11 +257,15 @@ export class VinylPlayer<
         // On an error, notify the auto reset controller which will
         // monitor network changes and periodically request a reset.
         const { add } = this.disposer
-        const { autoResetController } = this.deps
         this.on('error', (event) => {
-            autoResetController.setError(event.error)
+            this.autoResetController.setError(event.error)
         })
-        add(autoResetController.on('reset', () => this.reset()))
+        add(this.autoResetController.on('reset', () => this.reset()))
+        add(
+            this.autoResetController.on('resetPendingChange', (event) =>
+                this.dispatch('resetPendingChange', event)
+            )
+        )
     }
 
     private initializePreferredLanguageHandling() {
@@ -329,6 +353,18 @@ export class VinylPlayer<
      */
     get error(): Error | null {
         return this._error
+    }
+
+    /**
+     * True when an error has interrupted playback and an automatic reset
+     * is scheduled. This distinguishes transient, potentially recoverable
+     * errors (such as a brief network outage) from terminal errors that
+     * will not trigger a reset on their own.
+     *
+     * Listen to `resetPendingChange` events for changes.
+     */
+    get resetPending(): boolean {
+        return this.autoResetController.resetPending
     }
 
     get hasMetadata(): boolean {
@@ -429,6 +465,7 @@ export class VinylPlayer<
         this.drmController.reset()
         this.playbackController.reset()
         this.trackController.reset()
+        this.autoResetController.clear()
         this.dispatch('reset', {})
     }
 

@@ -17,4 +17,5 @@ export class MockAutoResetController
 {
     setError = spyFactory('setError')
     clear = spyFactory('clear')
+    resetPending = false
 }
