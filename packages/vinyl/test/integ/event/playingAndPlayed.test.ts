@@ -97,8 +97,8 @@ describe('integ playing and played events', () => {
                 await play()
                 playedSpy.calls.reset()
                 playingSpy.calls.reset()
-                const nextPlayed = playedSpy.next()
-                const nextPlaying = playingSpy.next()
+                const nextPlayed = playedSpy.next(15)
+                const nextPlaying = playingSpy.next(15)
                 await player.seekTo(20)
                 await expectAsync(nextPlayed).toBeResolvedTo({
                     started: any(Number),
