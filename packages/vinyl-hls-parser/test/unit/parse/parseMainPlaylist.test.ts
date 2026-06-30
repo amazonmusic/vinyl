@@ -226,4 +226,36 @@ low/index.m3u8`
         const result = parseMainPlaylist(manifest)
         expect(result.defines).toEqual({})
     })
+
+    it('substitutes #EXT-X-DEFINE variables in variant URIs', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:NAME="prefix",VALUE="https://cdn.example.com/"',
+            '#EXT-X-DEFINE:NAME="sid",VALUE="abc-123"',
+            '#EXT-X-STREAM-INF:BANDWIDTH=500000',
+            '{$prefix}low.m3u8?sid={$sid}',
+        ].join('\n')
+        const result = parseMainPlaylist(manifest)
+        expect(result.variants[0].uri).toBe(
+            'https://cdn.example.com/low.m3u8?sid=abc-123'
+        )
+    })
+
+    it('substitutes #EXT-X-DEFINE variables in EXT-X-MEDIA URIs', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:NAME="prefix",VALUE="https://cdn.example.com/"',
+            '#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID="aac",NAME="EN",DEFAULT=YES,URI="{$prefix}audio_en.m3u8"',
+            '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="EN",URI="{$prefix}captions_en.m3u8"',
+            '#EXT-X-STREAM-INF:BANDWIDTH=500000',
+            'low.m3u8',
+        ].join('\n')
+        const result = parseMainPlaylist(manifest)
+        expect(result.alternativeRenditions[0].uri).toBe(
+            'https://cdn.example.com/audio_en.m3u8'
+        )
+        expect(result.alternativeRenditions[1].uri).toBe(
+            'https://cdn.example.com/captions_en.m3u8'
+        )
+    })
 })

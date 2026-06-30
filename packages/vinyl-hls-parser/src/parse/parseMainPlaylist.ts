@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { StringReader, ValidationError } from '@amazon/vinyl-util'
+import { StringReader, substitute, ValidationError } from '@amazon/vinyl-util'
 import type { AlternativeRendition } from '../types/AlternativeRendition'
 import { renditionTypeValidator } from '../types/AlternativeRendition'
 import type { MainPlaylist } from '../types/MainPlaylist'
 import type { SessionData } from '../types/SessionData'
 import type { VariantStream } from '../types/VariantStream'
+import { HLS_VARIABLE_PATTERN } from './parseMediaPlaylist'
 import { parseAttributes } from './parseAttributes'
 import { readLine, skipWhitespaceLine, addIfPresent } from './parseUtil'
 
@@ -64,7 +65,7 @@ export function parseMainPlaylist(text: string): MainPlaylist {
                 addIfPresent(
                     {
                         bandwidth: Number(attrs['BANDWIDTH']),
-                        uri,
+                        uri: substituteHlsVariables(uri, defines),
                         ...(attrs['FRAME-RATE'] && {
                             frameRate: Number(attrs['FRAME-RATE']),
                         }),
@@ -88,6 +89,10 @@ export function parseMainPlaylist(text: string): MainPlaylist {
 
             const type = attrs['TYPE']
             renditionTypeValidator.assert(type)
+
+            if (attrs['URI']) {
+                attrs['URI'] = substituteHlsVariables(attrs['URI'], defines)
+            }
 
             alternativeRenditions.push(
                 addIfPresent(
@@ -139,6 +144,19 @@ export function parseMainPlaylist(text: string): MainPlaylist {
     }
 
     return { variants, alternativeRenditions, sessionData, defines }
+}
+
+/**
+ * Applies EXT-X-DEFINE variable substitution (per RFC 8216 §4.2) to a manifest
+ * value, replacing `{$NAME}` tokens with the values declared earlier in the
+ * playlist. Returns the input unchanged when no variables have been declared.
+ */
+function substituteHlsVariables(
+    value: string,
+    variables: Readonly<Record<string, string>>
+): string {
+    if (!value || Object.keys(variables).length === 0) return value
+    return substitute(value, variables, HLS_VARIABLE_PATTERN)
 }
 
 /**
