@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { onCanPlayThrough, onPlaying, onTimeUpdate } from './eventPromises'
+import { onPlaying, onTimeUpdate } from './eventPromises'
 import { assertFrequency } from '../../media/FrequencyAnalyzer'
 import type { ReadonlyPlaybackController } from '@amazon/vinyl'
 import { sleep } from '@amazon/vinyl-util'
@@ -27,7 +27,6 @@ export async function expectTrackPlaysUntil(
     timeout = 10
 ) {
     await onPlaying(player)
-    await onCanPlayThrough(player)
     // Safari does not always have an updated currentTime after a seeked event. Await the next time update before
     // asserting currentTime values.
     await onTimeUpdate(player)
