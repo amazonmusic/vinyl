@@ -26,7 +26,7 @@
         "test:coverage": "lerna run test:coverage --parallel",
         "pretest:browserstack": "lerna run build:release",
         "test:browserstack": "npm run test:browserstack -ws --if-present",
-        "release": "lerna run lint --concurrency 8 && lerna run test:coverage --concurrency 8 && lerna run analyzeExports --concurrency 8 && npm run prettier:check",
+        "release": "nx run-many -t lint test:coverage build:release analyzeExports --parallel=8 && npm run prettier:check",
         "start": "npm run start -w @amazon/vinyl-website",
         "watch": "lerna run watch --parallel --scope @amazon/*",
         "prepare": "husky"
