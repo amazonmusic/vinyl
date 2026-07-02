@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-website",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "description": "Documentation, demos and tutorials for the Amazon Vinyl player",
     "private": true,
     "repository": {
@@ -43,10 +43,10 @@
         "vite": "^8.0.16"
     },
     "dependencies": {
-        "@amazon/vinyl": "^1.1.1",
-        "@amazon/vinyl-observable": "^1.1.1",
-        "@amazon/vinyl-tsx": "^1.1.1",
-        "@amazon/vinyl-util": "^1.1.1",
+        "@amazon/vinyl": "^1.2.0",
+        "@amazon/vinyl-observable": "^1.2.0",
+        "@amazon/vinyl-tsx": "^1.2.0",
+        "@amazon/vinyl-util": "^1.2.0",
         "@juggle/resize-observer": "^3.4.0"
     },
     "browserslist": [

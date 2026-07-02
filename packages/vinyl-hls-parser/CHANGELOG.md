@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0]() (2026-07-02)
+
+### Features
+
+- **hls-parser:** substitute EXT-X-DEFINE variables in multivariant URIs
+  ([1172183](https://github.com/amazonmusic/vinyl/commits/1172183293a9d31f9a598b01c0a44bcb92efe4eb))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [1.1.1]() (2026-05-28)
 
 **Note:** Version bump only for package @amazon/vinyl-hls-parser
