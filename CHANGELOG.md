@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.0]() (2026-07-02)
+
+### Features
+
+- **abr:** add maxBandwidth restriction to ABR options
+  ([ffd1831](https://github.com/amazonmusic/vinyl/commits/ffd183118a6b0db010435d05ddd850ae64fc5e79))
+- **hls-parser:** substitute EXT-X-DEFINE variables in multivariant URIs
+  ([1172183](https://github.com/amazonmusic/vinyl/commits/1172183293a9d31f9a598b01c0a44bcb92efe4eb))
+- **vinyl:** expose resetPending state on VinylPlayer
+  ([100dc4a](https://github.com/amazonmusic/vinyl/commits/100dc4a1be28426d0fb1773245e2700a93b78880))
+
+### Bug Fixes
+
+- **website:** drive video visibility from track, not streaming quality
+  ([595fbec](https://github.com/amazonmusic/vinyl/commits/595fbec1eee1288b422b2dadcece6dbf60499190))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [1.1.1]() (2026-05-28)
 
 **Note:** Version bump only for package @amazon/vinyl-composite
