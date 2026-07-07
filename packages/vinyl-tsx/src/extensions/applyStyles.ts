@@ -3,7 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AllowBindable } from '../jsx'
 import { onConnect } from './connectedObserver'
 import { toKebabCase } from '@amazon/vinyl-util'
 import {
@@ -14,9 +13,15 @@ import type { Maybe } from '@amazon/vinyl-util'
 
 /**
  * The shape accepted by the `style` jsx prop. Allows the typed CSSStyleDeclaration
- * fields plus any CSS custom property key (must start with `--`).
+ * fields plus any CSS custom property key (must start with `--`). Null / undefined
+ * clear the CSS property (via setProperty(name, null)), so values are Maybe-wrapped
+ * here even though bindable IDL props reject null.
  */
-export type StyleProp = AllowBindable<Partial<CSSStyleDeclaration>> & {
+export type StyleProp = {
+    [K in keyof Partial<CSSStyleDeclaration>]: MaybeObservableValue<
+        Maybe<CSSStyleDeclaration[K]>
+    >
+} & {
     readonly [customProperty: `--${string}`]: MaybeObservableValue<
         Maybe<string>
     >

@@ -65,27 +65,90 @@ describe('jsx', () => {
             expect(el.title).toBe('updated')
         })
 
-        it('removes attribute when observable value becomes null', () => {
+        it('clears nullable IDL props when observable emits null', () => {
+            // onclick is typed as ((...) => any) | null in lib.dom, so null is
+            // a valid runtime value. Regression guard: previously the null
+            // branch coerced through '' and silently poisoned the handler slot
+            // with a string so the event never fired.
             initializeConnectedObserver()
-            const title = data<string | null>('initial')
-            const el = jsx('div', { title }) as MockHTMLDivElement
+            const handler = () => {}
+            const onclick = data<typeof handler | null>(handler)
+            const el = jsx('div', { onclick }) as MockHTMLDivElement
 
             dom.simulateConnect(dom.document, el)
-            el.removeAttribute.calls.reset()
-            title.value = null
-            expect(el.title).toBe('')
-            expect(el.removeAttribute).toHaveBeenCalledWith('title')
+            expect(el.onclick).toBe(handler)
+            onclick.value = null
+            expect(el.onclick).toBeNull()
         })
 
-        it('maps className to class attribute when removing', () => {
+        it('does not call removeAttribute when clearing IDL props', () => {
+            // Reflection on the property clears the attribute; a redundant
+            // removeAttribute would signal the old dual-clear path is back.
             initializeConnectedObserver()
-            const className = data<string | null>('active')
-            const el = jsx('div', { className }) as MockHTMLDivElement
+            const onclick = data<(() => void) | null>(() => {})
+            const el = jsx('div', { onclick }) as MockHTMLDivElement
 
             dom.simulateConnect(dom.document, el)
             el.removeAttribute.calls.reset()
-            className.value = null
-            expect(el.removeAttribute).toHaveBeenCalledWith('class')
+            onclick.value = null
+            expect(el.removeAttribute).not.toHaveBeenCalled()
+        })
+
+        // aria/role/data props are DOM attributes with no IDL property — writing
+        // `el[k] = v` produces an inert expando. Verify setProp routes them via
+        // setAttribute so the a11y tree / attribute selectors actually see them.
+        it('routes aria-* props through setAttribute', () => {
+            const el = jsx('div', {
+                'aria-label': 'Play track',
+            } as any) as MockHTMLDivElement
+            expect(el.setAttribute).toHaveBeenCalledWith(
+                'aria-label',
+                'Play track'
+            )
+        })
+
+        it('routes role through setAttribute', () => {
+            const el = jsx('div', {
+                role: 'button',
+            } as any) as MockHTMLDivElement
+            expect(el.setAttribute).toHaveBeenCalledWith('role', 'button')
+        })
+
+        it('routes data-* props through setAttribute', () => {
+            const el = jsx('div', {
+                'data-testid': 'card',
+            } as any) as MockHTMLDivElement
+            expect(el.setAttribute).toHaveBeenCalledWith('data-testid', 'card')
+        })
+
+        it('coerces non-string aria values to string attributes', () => {
+            const el = jsx('div', {
+                'aria-expanded': true,
+            } as any) as MockHTMLDivElement
+            expect(el.setAttribute).toHaveBeenCalledWith(
+                'aria-expanded',
+                'true'
+            )
+        })
+
+        it('removes aria attribute when observable value becomes null', () => {
+            initializeConnectedObserver()
+            const label = data<string | null>('a')
+            const el = jsx('div', {
+                'aria-label': label,
+            } as any) as MockHTMLDivElement
+
+            dom.simulateConnect(dom.document, el)
+            el.removeAttribute.calls.reset()
+            label.value = null
+            expect(el.removeAttribute).toHaveBeenCalledWith('aria-label')
+        })
+
+        it('keeps camelCase IDL properties on the property path', () => {
+            // tabIndex is a real IDL property — regressing this to setAttribute
+            // would break code that reads `el.tabIndex` synchronously.
+            const el = jsx('div', { tabIndex: 3 }) as MockHTMLDivElement
+            expect((el as any).tabIndex).toBe(3)
         })
 
         it('delegates hook extension properties', () => {

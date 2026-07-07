@@ -16,51 +16,29 @@ import { applyVisibility } from './extensions/applyVisibility'
 import { applyClassList } from './extensions/applyClassList'
 import type { HookExtension } from './extensions/HookExtension'
 import { passiveEventHandlers } from './extensions/applyPassiveHandler'
-import type { AnyRecord, Maybe } from '@amazon/vinyl-util'
+import type { AnyRecord } from '@amazon/vinyl-util'
 
 /**
- * Maps JS property names to their corresponding HTML attribute names where they differ.
- * Extensible — add entries for custom elements or non-standard properties.
+ * Names like `aria-label` / `role` / `data-*` / any hyphenated prop are DOM
+ * attributes with no matching IDL property — assigning them via `element[k]`
+ * creates an inert expando and the a11y tree / CSS attribute selectors never
+ * see the value. Route those through setAttribute so JSX like
+ * `<div aria-label="foo" />` actually reaches the DOM.
  */
-export const propToAttr: Record<string, string> = {
-    acceptCharset: 'accept-charset',
-    accessKey: 'accesskey',
-    className: 'class',
-    colSpan: 'colspan',
-    contentEditable: 'contenteditable',
-    crossOrigin: 'crossorigin',
-    dateTime: 'datetime',
-    dirName: 'dirname',
-    encType: 'enctype',
-    formAction: 'formaction',
-    formEnctype: 'formenctype',
-    formMethod: 'formmethod',
-    formNoValidate: 'formnovalidate',
-    formTarget: 'formtarget',
-    htmlFor: 'for',
-    httpEquiv: 'http-equiv',
-    inputMode: 'inputmode',
-    maxLength: 'maxlength',
-    minLength: 'minlength',
-    noModule: 'nomodule',
-    noValidate: 'novalidate',
-    readOnly: 'readonly',
-    referrerPolicy: 'referrerpolicy',
-    rowSpan: 'rowspan',
-    tabIndex: 'tabindex',
-    useMap: 'usemap',
+function isAttributeOnlyName(k: string): boolean {
+    return k === 'role' || k.indexOf('-') >= 0
 }
 
 /**
- * Sets a property on an element. When value is non-null, assigns directly via
- * property. When null, resets the property to '' and removes the HTML attribute
- * using the mapped name from {@link propToAttr}.
+ * Sets a property on an element. Hyphenated / aria / role / data names are
+ * assigned as HTML attributes; everything else stays on the property path so
+ * camelCase IDL props (className, tabIndex, onClick, …) keep their existing
+ * fast-path semantics.
  */
 function setProp(element: HTMLElement, k: string, value: unknown): void {
-    if (value == null) {
-        ;(element as any)[k] = ''
-        const attr = propToAttr[k] ?? k
-        element.removeAttribute(attr)
+    if (isAttributeOnlyName(k)) {
+        if (value == null) element.removeAttribute(k)
+        else element.setAttribute(k, String(value))
     } else {
         ;(element as any)[k] = value
     }
@@ -80,7 +58,7 @@ export const hookExtensions = {
 } as const satisfies Record<keyof any, HookExtension<any>>
 
 export type AllowBindable<T> = {
-    [K in keyof T]: MaybeObservableValue<Maybe<T[K]>>
+    [K in keyof T]: MaybeObservableValue<T[K]>
 }
 
 /**
