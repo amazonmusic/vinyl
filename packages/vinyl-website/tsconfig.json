@@ -4,7 +4,7 @@
         "module": "ESNext",
         "moduleResolution": "bundler",
         "customConditions": ["development"],
-        "jsx": "react",
+        "jsx": "preserve",
         "jsxFactory": "jsx",
         "jsxFragmentFactory": "Fragment",
         "strict": true,

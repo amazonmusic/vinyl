@@ -3,7 +3,10 @@
     "include": ["./**/*"],
     "compilerOptions": {
         "outDir": "../../dist/unit/types/current",
-        "noEmit": true
+        "noEmit": true,
+        "jsx": "preserve",
+        "jsxFactory": "jsx",
+        "jsxFragmentFactory": "Fragment"
     },
     "references": [
         {

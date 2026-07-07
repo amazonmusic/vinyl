@@ -1,7 +1,10 @@
 {
     "extends": "../../tsconfig.test.json",
     "compilerOptions": {
-        "noEmit": true
+        "noEmit": true,
+        "jsx": "preserve",
+        "jsxFactory": "jsx",
+        "jsxFragmentFactory": "Fragment"
     },
     "include": ["src/**/*", "test/**/*", "buildSrc/**/*", "buildScripts/**/*"]
 }
