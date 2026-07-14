@@ -1,4 +1,4 @@
 /** Auto-generated from build scripts */
-import './setup'
-import './cacheManager/CacheManager.test'
 import './cacheManager/CacheControl.test'
+import './cacheManager/CacheManager.test'
+import './setup'

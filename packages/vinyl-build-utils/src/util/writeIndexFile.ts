@@ -40,9 +40,6 @@ export function writeIndexFile(
         ignore: ['**/index.ts', '**/@types/**'],
     })
 
-    // Preserving the historical default-comparator sort to keep generated
-    // index-file ordering identical; see indexFiles:write.
-    // oxlint-disable-next-line typescript/require-array-sort-compare
     const relativePaths = allSrcFiles
         .map((srcFile) => {
             const importPath = path.relative(out, srcFile)
@@ -53,7 +50,7 @@ export function writeIndexFile(
                 path: `./${importPath.substring(0, importPath.length - 3)}`,
             }
         })
-        .sort()
+        .sort((a, b) => a.path.localeCompare(b.path))
 
     const outFile = path.join(out, 'index.ts')
 
