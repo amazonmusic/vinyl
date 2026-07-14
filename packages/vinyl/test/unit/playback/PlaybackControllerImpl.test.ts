@@ -801,7 +801,6 @@ describe('PlaybackController', () => {
                             readonly total: number
                         ) {
                             super()
-                            this.type = type
                         }
                     }
 

@@ -13,8 +13,7 @@
         "forceConsistentCasingInFileNames": true,
         "resolveJsonModule": true,
         "isolatedModules": true,
-        "noEmit": true,
-        "baseUrl": "."
+        "noEmit": true
     },
     "include": ["src", "buildSrc", "vite.config.ts"]
 }

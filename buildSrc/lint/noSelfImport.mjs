@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2024. Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 // Disallows incorrectly importing the self containing module.
@@ -7,13 +8,12 @@
 import path from 'node:path'
 import fs from 'node:fs'
 
+/** @type {import('oxlint').Rule} */
 export default {
     meta: {
         type: 'problem',
         docs: {
             description: 'disallow importing self project',
-            category: 'Static analysis',
-            recommended: true,
         },
         schema: [],
     },
@@ -21,7 +21,8 @@ export default {
     create(context) {
         // This solution is not very general, it's a naive approach that relies on the containing tsconfig.json
         // directory has the same name as the final module.
-        const tsConfigDir = getTsConfigDir(context.getFilename())
+        const tsConfigDir = getTsConfigDir(context.filename)
+        if (tsConfigDir === null) return {}
         let projectDir = path.basename(tsConfigDir)
         if (projectDir === 'src')
             // Move up one more directory.
@@ -29,6 +30,7 @@ export default {
 
         return {
             ImportDeclaration(node) {
+                if (typeof node.source.value !== 'string') return
                 if (!node.source.value.startsWith('@')) return
                 const importDir = path.basename(node.source.value)
                 if (importDir === projectDir) {

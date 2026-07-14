@@ -4,7 +4,6 @@
 .DS_Store
 .idea
 .env
-.eslintcache
 .stylelintcache
 .kiro
 .npmrc

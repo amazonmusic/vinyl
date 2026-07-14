@@ -53,21 +53,21 @@
     "scripts": {
         "analyzeExports": "tsx buildSrc/analyzeExports.ts",
         "analyzeExports:write": "tsx buildSrc/analyzeExports.ts --write",
-        "clean": "rimraf --glob dist .eslintcache \"**/*.tsbuildinfo\"",
+        "clean": "rimraf --glob dist \"**/*.tsbuildinfo\"",
         "indexFiles:check": "tsx buildSrc/writeIndexFiles.ts --check",
         "indexFiles:write": "tsx buildSrc/writeIndexFiles.ts",
         "build": "tsx buildSrc/build.ts",
         "build:release": "tsx buildSrc/build.ts --release && tsc --project test/unit",
         "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
         "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
-        "eslint:check": "eslint . --cache --max-warnings=0",
-        "eslint:write": "eslint . --cache --fix",
-        "lint": "npm run indexFiles:check && npm run eslint:check && npm run prettier:check",
-        "lint:write": "npm run indexFiles:write && npm run eslint:write && npm run prettier:write",
+        "lint": "npm run indexFiles:check && npm run oxlint:check && npm run prettier:check",
+        "lint:write": "npm run indexFiles:write && npm run oxlint:write && npm run prettier:write",
         "test": "tsx ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
         "test:coverage": "c8 npm run test",
         "watch": "tsx buildSrc/build.ts --watch",
-        "watch:release": "tsx buildSrc/build.ts --watch --release"
+        "watch:release": "tsx buildSrc/build.ts --watch --release",
+        "oxlint:check": "oxlint --type-aware --deny-warnings",
+        "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
         "@amazon/vinyl-build-utils": "^1.2.0",

@@ -14,17 +14,17 @@
         "dist/*"
     ],
     "scripts": {
-        "clean": "rimraf --glob dist .eslintcache \"**/*.tsbuildinfo\"",
+        "clean": "rimraf --glob dist \"**/*.tsbuildinfo\"",
         "build": "tsc",
         "build:release": "npm run build",
         "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
         "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
-        "eslint:check": "eslint . --cache --max-warnings=0",
-        "eslint:write": "eslint . --cache --fix",
-        "lint": "npm run eslint:check && npm run prettier:check",
-        "lint:write": "npm run eslint:write && npm run prettier:write",
+        "lint": "npm run oxlint:check && npm run prettier:check",
+        "lint:write": "npm run oxlint:write && npm run prettier:write",
         "test": "echo done",
-        "test:coverage": "echo done"
+        "test:coverage": "echo done",
+        "oxlint:check": "oxlint --type-aware --deny-warnings",
+        "oxlint:write": "oxlint --type-aware --fix"
     },
     "main": "./dist/index.cjs",
     "exports": {
