@@ -1,5 +1,5 @@
 /** Auto-generated from build scripts */
-import './setup'
-import './di/validation.test'
-import './di/di.test'
 import './di/CyclicDependencyError.test'
+import './di/di.test'
+import './di/validation.test'
+import './setup'
