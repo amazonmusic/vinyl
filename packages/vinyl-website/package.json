@@ -16,15 +16,15 @@
         "prepreview": "npm run build",
         "preview": "vite preview",
         "typedoc": "typedoc",
-        "clean": "rimraf --glob dist public/tsdocs .eslintcache \"**/*.tsbuildinfo\"",
+        "clean": "rimraf --glob dist public/tsdocs \"**/*.tsbuildinfo\"",
         "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
         "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
-        "eslint:check": "eslint . --cache --max-warnings=0",
-        "eslint:write": "eslint . --cache --fix",
         "stylelint": "npm run build && stylelint \"dist/assets/*.css\"",
-        "lint": "npm run eslint:check && npm run prettier:check",
-        "lint:write": "npm run eslint:write && npm run prettier:write",
-        "test": ""
+        "lint": "npm run oxlint:check && npm run prettier:check",
+        "lint:write": "npm run oxlint:write && npm run prettier:write",
+        "test": "",
+        "oxlint:check": "oxlint --type-aware --deny-warnings",
+        "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
         "@vitejs/plugin-legacy": "^8.0.2",

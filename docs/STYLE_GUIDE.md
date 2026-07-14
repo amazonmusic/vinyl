@@ -8,10 +8,13 @@ style guide. https://google.github.io/styleguide/tsguide.html
 This document serves an extension of that guide, and to call out some best
 practices relevant to this project.
 
-## ES Lint
+## Linting
 
-Linting rules are based off of the ES and TS recommended rules with some
-opinionated adjustments. This section attempts to justify these preferences.
+Linting is performed by [oxlint](https://oxc.rs/docs/guide/usage/linter), the
+Rust-based linter, configured in `.oxlintrc.json`. Type-aware rules are enabled
+via `oxlint-tsgolint`. Rules are based off of the ES and TS recommended rules
+(equivalent to typescript-eslint's `strict-type-checked`) with some opinionated
+adjustments. This section attempts to justify these preferences.
 
 `no-explicit-any: off`
 
@@ -40,20 +43,20 @@ slight runtime overhead.
 Empty functions are a common practice when implementing interfaces but have no
 operations.
 
-To run eslint fixes, in the terminal run: `eslint . --fix`
+To run lint fixes, in the terminal run: `oxlint --type-aware --fix`
 
 ## Prettier
 
 In order to prevent bike-shedding, prettier is used for code formatting rules.
 The separation of linting and formatting rules is recommended for several
-reasons. First, ESLint's linting rules are executed one at a time, making them
+reasons. First, linting rules are executed one at a time, making them
 considerably slower than formatting rules. Secondly, showing IDE errors for
 formatting rules creates noise that distracts from development. Finally, all
 formatting rules have automatic fixes.
 
 To run prettier fixes, in the terminal run: `prettier . --write`
 
-To run both prettier and eslint auto-fix commands, run: `bb lint:write`
+To run both prettier and oxlint auto-fix commands, run: `bb lint:write`
 
 ## Best Practices
 

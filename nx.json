@@ -4,7 +4,7 @@
         "lintConfig": [
             "default",
             "{workspaceRoot}/buildSrc/lint/**/*",
-            "{workspaceRoot}/eslint.config.js",
+            "{workspaceRoot}/.oxlintrc.json",
             "{workspaceRoot}/.prettierignore",
             "{workspaceRoot}/.prettierrc.json"
         ]

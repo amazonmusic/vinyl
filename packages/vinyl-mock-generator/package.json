@@ -17,14 +17,14 @@
         "build": "tsc -p ./src/tsconfig.json",
         "build:release": "tsc -p ./src/tsconfig.json",
         "build:watch": "tsc -p ./src/tsconfig.json -w",
-        "clean": "rimraf --glob dist .eslintcache \"**/*.tsbuildinfo\"",
-        "eslint:check": "eslint . --cache --max-warnings=0",
-        "eslint:write": "eslint . --cache --fix",
-        "lint": "npm run eslint:check && npm run prettier:check",
-        "lint:write": "npm run eslint:write && npm run prettier:write",
+        "clean": "rimraf --glob dist \"**/*.tsbuildinfo\"",
+        "lint": "npm run oxlint:check && npm run prettier:check",
+        "lint:write": "npm run oxlint:write && npm run prettier:write",
         "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
         "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
-        "release": "npm run lint && npm run build:release"
+        "release": "npm run lint && npm run build:release",
+        "oxlint:check": "oxlint --type-aware --deny-warnings",
+        "oxlint:write": "oxlint --type-aware --fix"
     },
     "module": "./dist/index.js",
     "exports": {

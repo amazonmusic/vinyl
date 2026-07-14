@@ -24,7 +24,7 @@ describe('jsxMarkup', () => {
             // @ts-expect-error Expected number
             const _d9 = <div tabIndex="1" />
             // @ts-expect-error Expected number
-            const _d9 = <div tabIndex={data('1')} />
+            const _d9b = <div tabIndex={data('1')} />
             const _d10 = <div tabIndex={data(1)} />
             const _d11 = <div tabIndex={1} />
         })
