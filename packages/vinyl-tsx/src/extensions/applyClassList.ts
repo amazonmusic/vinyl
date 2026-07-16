@@ -8,25 +8,29 @@ import {
     type ObservableValue,
 } from '@amazon/vinyl-observable'
 import { onConnect } from './connectedObserver'
-import type { Maybe, Unsubscribe } from '@amazon/vinyl-util'
+import {
+    createDisposer,
+    noop,
+    type Maybe,
+    type Unsubscribe,
+} from '@amazon/vinyl-util'
 
 export function applyClassList(
     element: HTMLElement,
     classList: readonly (Maybe<string> | ObservableValue<Maybe<string>>)[]
-): void {
+): Unsubscribe {
     const tokens = classList.filter((s) => typeof s === 'string')
     element.classList.add(...tokens)
     if (tokens.length < classList.length) {
-        onConnect(element, () => {
-            const subs: Unsubscribe[] = []
+        return onConnect(element, () => {
+            const { add, dispose } = createDisposer()
             for (const dP of classList.filter(isObservableValue)) {
-                subs.push(bindClass(element, dP))
+                add(bindClass(element, dP))
             }
-            return () => {
-                subs.forEach((sub) => sub())
-            }
+            return dispose
         })
     }
+    return noop
 }
 
 function bindClass(
