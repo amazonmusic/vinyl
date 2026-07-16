@@ -128,7 +128,7 @@ export function jsx(type: any, props: any, ...children: any) {
         )
         return element
     } else {
-        return type(props, children)
+        return type(props ?? {}, children)
     }
 }
 
