@@ -185,6 +185,17 @@ describe('jsx', () => {
 
             expect(jsx(factory, {})).toBe(result)
         })
+
+        it('defaults null props to an empty object', () => {
+            const factory = createSpy<
+                (
+                    props: Record<string, unknown>,
+                    children: unknown[]
+                ) => HTMLElement
+            >('factory').and.returnValue(dom.createElement('div'))
+            jsx(factory, null as unknown as Record<string, unknown>)
+            expect(factory).toHaveBeenCalledWith({}, [])
+        })
     })
 
     describe('Fragment', () => {
