@@ -32,6 +32,7 @@ import type {
 } from '../streaming/MediaQualityMetadata'
 import { type DrmOptions, drmOptionsValidator } from '../drm/DrmOptions'
 import type { TextTrackController } from '../text/TextTrack'
+import type { AdController } from '../ad/AdBreak'
 
 /**
  * Dependencies for TrackBase.
@@ -118,6 +119,14 @@ export abstract class TrackBase<
      * (e.g. {@link MseTrack}) override this getter.
      */
     get textTrackController(): TextTrackController | null {
+        return null
+    }
+
+    /**
+     * Default ad controller is null. Tracks that surface ad breaks
+     * (e.g. {@link MseTrack}) override this getter.
+     */
+    get adController(): AdController | null {
         return null
     }
 

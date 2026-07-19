@@ -34,7 +34,12 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         volume$,
         muted$,
         hasVideo$,
+        activeAdBreak$,
+        adRemaining$,
     } = playerState
+
+    const adActive$ = activeAdBreak$.map((b) => b != null)
+    const adRemainingLabel$ = adRemaining$.map(formatTime)
 
     const elapsed$ = currentTime$.map(formatTime)
     const remaining$ = currentTime$.map((t) => {
@@ -97,6 +102,10 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         >
             <div className="transportVideo" visible={showVideo$}>
                 {media}
+                <div className="adOverlay" visible={adActive$}>
+                    <span className="adBadge">Ad</span>
+                    <span className="adRemaining">{adRemainingLabel$}</span>
+                </div>
             </div>
             <div className="transportControlsRow">
                 <div className="transportControls">

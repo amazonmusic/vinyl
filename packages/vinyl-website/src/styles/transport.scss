@@ -11,6 +11,7 @@
 }
 
 .transportVideo {
+    position: relative;
     background: black;
     display: flex;
     justify-content: center;
@@ -29,6 +30,36 @@
             line-height: 1.3;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
         }
+    }
+}
+
+.adOverlay {
+    position: absolute;
+    top: var(--space-sm);
+    left: var(--space-sm);
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: 2px var(--space-sm);
+    border-radius: var(--radius-sm, 4px);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    pointer-events: none;
+
+    .adBadge {
+        padding: 0 4px;
+        border-radius: 2px;
+        background: #f5c518;
+        color: black;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .adRemaining {
+        font-variant-numeric: tabular-nums;
     }
 }
 

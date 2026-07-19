@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createVinylPlayer, type TextTrackInfo } from '@amazon/vinyl'
+import {
+    createVinylPlayer,
+    type AdBreakInfo,
+    type TextTrackInfo,
+} from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
@@ -32,6 +36,8 @@ export const playerState = {
     activeTextTrack$: data<TextTrackInfo | null>(null),
     captionsEnabled$: data(false),
     preferredLanguage$: data<string | null>(null),
+    activeAdBreak$: data<AdBreakInfo | null>(null),
+    adRemaining$: data(0),
 }
 
 // Safari's loadedmetadata fires before videoWidth is populated for HLS; the
@@ -52,6 +58,7 @@ player.on('pause', () => {
 player.on('timeUpdate', () => {
     playerState.currentTime$.value = player.currentTime
     playerState.currentTimePercent$.value = player.currentTimePercent
+    updateAdRemaining()
 })
 player.on('durationChange', ({ current }) => {
     playerState.duration$.value = current
@@ -91,8 +98,30 @@ player.on('activeTextTrackChange', ({ current }) => {
 player.on('currentTrackChange', () => {
     playerState.textTracks$.value = player.textTracks
     playerState.activeTextTrack$.value = player.activeTextTrack
+    playerState.activeAdBreak$.value = player.activeAdBreak
+    updateAdRemaining()
     applyCaptionsPreference()
 })
+
+player.on('adBreakChange', (event) => {
+    playerState.activeAdBreak$.value = event.current
+    if (event.current) {
+        updateAdRemaining()
+    } else {
+        playerState.adRemaining$.value = 0
+    }
+})
+
+// Recomputes the seconds remaining in the active ad break from the playhead.
+function updateAdRemaining() {
+    const adBreak = playerState.activeAdBreak$.value
+    if (!adBreak || adBreak.duration == null) {
+        playerState.adRemaining$.value = 0
+        return
+    }
+    const end = adBreak.startTime + adBreak.duration
+    playerState.adRemaining$.value = Math.max(0, end - player.currentTime)
+}
 
 function applyCaptionsPreference() {
     if (!playerState.captionsEnabled$.value) return

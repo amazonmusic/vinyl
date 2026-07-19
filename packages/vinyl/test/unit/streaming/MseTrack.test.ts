@@ -765,4 +765,48 @@ describe('MseTrack', () => {
             expect(track.textTrackController).toBe(controller)
         })
     })
+
+    describe('adController', () => {
+        function makeAdController() {
+            return {
+                adBreaks: [],
+                activeAdBreak: null,
+                setAdBreaks: () => undefined,
+                updateTime: jasmine.createSpy('updateTime'),
+                on: () => () => undefined,
+                hasAnyListeners: () => false,
+                hasListeners: () => false,
+                __eventMapType: {} as never,
+            }
+        }
+
+        it('returns null when no controller is provided', () => {
+            track = createTrack()
+            expect(track.adController).toBeNull()
+        })
+
+        it('returns the dependency-provided controller', () => {
+            const controller = makeAdController()
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            expect(track.adController).toBe(controller)
+        })
+
+        it('feeds the playhead to the ad controller on timeUpdate', async () => {
+            const controller = makeAdController()
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            deps.playbackController.currentTime = 12
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 0,
+                current: 12,
+            })
+            expect(controller.updateTime).toHaveBeenCalledWith(12)
+        })
+    })
 })

@@ -1,4 +1,6 @@
 /** Auto-generated from build scripts */
+import './ad/AdControllerImpl.test'
+import './ad/discoverHlsInterstitials.test'
 import './client/CapabilitiesImpl.test'
 export * from './client/userAgent/userAgentExpectations'
 import './drm/CencEncryptionScheme.test'
@@ -109,5 +111,6 @@ import './util/media/sourceBuffer.test'
 import './vinyl/createVinylFactories.test'
 import './vinyl/playerConfigFactory.test'
 import './vinyl/VinylPlayer.test'
+import './vinyl/VinylPlayerAdBreaks.test'
 import './vinyl/VinylPlayerTextTracks.test'
 import './vinylTestUtil/util/playback/createEventSpy.test'
