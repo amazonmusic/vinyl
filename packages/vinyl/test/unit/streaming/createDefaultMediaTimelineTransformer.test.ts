@@ -42,13 +42,14 @@ describe('createDefaultMediaTimelineTransformer', () => {
 
     function createDeps(
         timeline: MediaTimeline,
-        preferredAudioLanguage: string | null = null
+        preferredAudioLanguage: string | null = null,
+        codecOverrides: Record<string, 'allow' | 'deny'> = {}
     ): DefaultMediaTimelineTransformerDeps {
         return {
             capabilities,
             drmController,
             mediaTimeline: data(Promise.resolve(timeline)),
-            options: data({ preferredAudioLanguage }),
+            options: data({ preferredAudioLanguage, codecOverrides }),
         }
     }
 
@@ -108,6 +109,68 @@ describe('createDefaultMediaTimelineTransformer', () => {
         ).value
         expect(result.periods[0].qualities.length).toBe(1)
         expect(result.periods[0].qualities[0].metadata.qualityId).toBe('aac')
+    })
+
+    it('denies a codec via codecOverrides even when the browser supports it', async () => {
+        capabilities.canPlayTypeMse.and.returnValue(true)
+        const timeline: MediaTimeline = {
+            periods: [
+                {
+                    startTime: 0,
+                    endTime: 100,
+                    qualities: [
+                        createQuality({
+                            contentType: 'video',
+                            mimeType: 'video/mp4; codecs="hvc1.1"',
+                            qualityId: 'hevc',
+                        }),
+                        createQuality({
+                            contentType: 'video',
+                            mimeType: 'video/mp4; codecs="avc1.64001f"',
+                            qualityId: 'avc',
+                        }),
+                    ],
+                },
+            ],
+            minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
+        }
+        const result = await createDefaultMediaTimelineTransformer(
+            createDeps(timeline, null, { hvc1: 'deny' })
+        ).value
+        expect(
+            result.periods[0].qualities.map((q) => q.metadata.qualityId)
+        ).toEqual(['avc'])
+    })
+
+    it('allows a codec via codecOverrides even when the browser reports it unsupported', async () => {
+        // Browser rejects everything; the override forces the codec through.
+        capabilities.canPlayTypeMse.and.returnValue(false)
+        const timeline: MediaTimeline = {
+            periods: [
+                {
+                    startTime: 0,
+                    endTime: 100,
+                    qualities: [
+                        createQuality({
+                            contentType: 'video',
+                            mimeType: 'video/mp4; codecs="hvc1.1"',
+                            qualityId: 'hevc',
+                        }),
+                    ],
+                },
+            ],
+            minBufferTime: 2,
+            getDuration: () => Promise.resolve(Infinity),
+        }
+        const result = await createDefaultMediaTimelineTransformer(
+            createDeps(timeline, null, { hvc1: 'allow' })
+        ).value
+        expect(
+            result.periods[0].qualities.map((q) => q.metadata.qualityId)
+        ).toEqual(['hevc'])
+        // The override supersedes the browser check, which is not consulted.
+        expect(capabilities.canPlayTypeMse).not.toHaveBeenCalled()
     })
 
     it('filters out unsupported key systems', async () => {

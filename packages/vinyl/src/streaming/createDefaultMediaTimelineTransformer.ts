@@ -26,6 +26,8 @@ import {
     throwSamplingRatesUnsupported,
 } from '../track/filters/sampleRateFilter'
 import { throwLanguagesUnsupported } from '../track/filters/languageFilter'
+import type { CodecOverrides } from '../util/media/codecOverrides'
+import { resolveCodecOverride } from '../util/media/codecOverrides'
 
 export interface DefaultMediaTimelineTransformerDeps {
     readonly capabilities: Capabilities
@@ -33,6 +35,7 @@ export interface DefaultMediaTimelineTransformerDeps {
     readonly mediaTimeline: ObservableValue<Promise<MediaTimeline>>
     readonly options: ObservableValue<{
         readonly preferredAudioLanguage: string | null
+        readonly codecOverrides?: CodecOverrides
     }>
 }
 
@@ -43,11 +46,32 @@ export interface DefaultMediaTimelineTransformerDeps {
 export function createDefaultMediaTimelineTransformer(
     deps: DefaultMediaTimelineTransformerDeps
 ): ObservableValue<Promise<MediaTimeline>> {
+    /**
+     * Applies explicit codec overrides on top of browser support detection.
+     * An `'allow'`/`'deny'` override for a quality's codec supersedes
+     * {@link canPlayMimeType}; otherwise the browser's support check is used.
+     */
+    function canPlayWithOverrides(
+        quality: Parameters<typeof canPlayMimeType>[1],
+        codecOverrides: CodecOverrides | undefined
+    ): boolean {
+        if (quality.mimeType) {
+            const override = resolveCodecOverride(
+                quality.mimeType,
+                codecOverrides
+            )
+            if (override === 'allow') return true
+            if (override === 'deny') return false
+        }
+        return canPlayMimeType(deps, quality)
+    }
+
     async function transformTimeline(
         timeline: MediaTimeline
     ): Promise<MediaTimeline> {
+        const codecOverrides = deps.options.value.codecOverrides
         let t = filterTimelineQualities(
-            (quality) => canPlayMimeType(deps, quality),
+            (quality) => canPlayWithOverrides(quality, codecOverrides),
             throwMimeTypesUnsupported,
             timeline
         )
@@ -76,6 +100,7 @@ export function createDefaultMediaTimelineTransformer(
     return combineData({
         timeline: deps.mediaTimeline,
         preferredAudioLanguage: deps.options.pick('preferredAudioLanguage'),
+        codecOverrides: deps.options.pick('codecOverrides'),
     }).map(async ({ timeline }) => {
         return transformTimeline(await timeline)
     })
