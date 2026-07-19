@@ -41,6 +41,7 @@ import {
     type MediaPeriod,
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
+import type { AdController } from '../../ad/AdBreak'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -56,6 +57,13 @@ export type MseTrackDeps = TrackBaseDeps & {
      * disposed when the track itself is disposed.
      */
     readonly textTrackController?: TextTrackController | null
+
+    /**
+     * Optional ad controller for this track. When provided, it is exposed via
+     * {@link MseTrack.adController}, fed playhead updates while the track is
+     * active, and disposed when the track itself is disposed.
+     */
+    readonly adController?: AdController | null
 }
 
 type FunctionKeys<T> = {
@@ -74,6 +82,10 @@ export class MseTrack extends TrackBase {
 
     override get textTrackController(): TextTrackController | null {
         return this.deps.textTrackController ?? null
+    }
+
+    override get adController(): AdController | null {
+        return this.deps.adController ?? null
     }
 
     private readonly streams: ContentStream[] = []
@@ -329,6 +341,8 @@ export class MseTrack extends TrackBase {
             'timeUpdate',
             () => {
                 const time = this.deps.playbackController.currentTime
+                // Drive ad-break enter/exit detection off the playhead.
+                this.deps.adController?.updateTime(time)
                 const cached = this._cachedPeriod
                 if (
                     cached &&

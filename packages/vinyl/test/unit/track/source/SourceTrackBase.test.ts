@@ -67,6 +67,10 @@ describe('SourceTrackBase', () => {
         expect(track.textTrackController).toBeNull()
     })
 
+    it('exposes a null adController by default', () => {
+        expect(track.adController).toBeNull()
+    })
+
     describe('when src promise rejects', () => {
         it('emits an error event', async () => {
             const errorSpy = createEventSpy(track, 'error')
