@@ -454,6 +454,223 @@ segment.ts`
             'https://cdn.example.com/segment0.ts'
         )
     })
+
+    it('honors EXT-X-DEFINE:IMPORT to inherit a parent variable', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="prefix"',
+            '#EXT-X-TARGETDURATION:6',
+            '#EXTINF:6.0,',
+            '{$prefix}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {
+            prefix: 'https://cdn.example.com/',
+            unused: 'x',
+        })
+        expect(result.segments[0].uri).toBe(
+            'https://cdn.example.com/segment0.ts'
+        )
+    })
+
+    it('silently ignores EXT-X-DEFINE:IMPORT for unknown names', () => {
+        // When IMPORT references a name that the parent didn't define, we
+        // don't fail parsing — the URI is left as-is and the fetcher will
+        // surface the resulting request failure.
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="missing"',
+            '#EXTINF:6.0,',
+            '{$missing}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {})
+        expect(result.segments[0].uri).toBe('{$missing}segment0.ts')
+    })
+
+    it('substitutes a mix of IMPORT and local NAME/VALUE in the same playlist', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="prefix"',
+            '#EXT-X-DEFINE:NAME="suffix",VALUE=".vtt"',
+            '#EXTINF:6.0,',
+            '{$prefix}part0{$suffix}',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {
+            prefix: 'https://cdn.example.com/',
+        })
+        expect(result.segments[0].uri).toBe('https://cdn.example.com/part0.vtt')
+    })
+
+    it('honors EXT-X-DEFINE:NAME=/VALUE= declared locally', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:NAME="prefix",VALUE="https://cdn.example.com/"',
+            '#EXTINF:6.0,',
+            '{$prefix}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest)
+        expect(result.segments[0].uri).toBe(
+            'https://cdn.example.com/segment0.ts'
+        )
+    })
+
+    it('local NAME/VALUE overrides an imported value with the same name', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:IMPORT="prefix"',
+            '#EXT-X-DEFINE:NAME="prefix",VALUE="https://local.example.com/"',
+            '#EXTINF:6.0,',
+            '{$prefix}segment0.ts',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, {
+            prefix: 'https://parent.example.com/',
+        })
+        expect(result.segments[0].uri).toBe(
+            'https://local.example.com/segment0.ts'
+        )
+    })
+
+    describe('EXT-X-DATERANGE', () => {
+        it('defaults dateRanges to an empty array when absent', () => {
+            const result = parseMediaPlaylist('#EXTM3U\n#EXTINF:9,\nseg.ts')
+            expect(result.dateRanges).toEqual([])
+        })
+
+        it('parses id, class, start/end date, and duration', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:ID="splice-1",CLASS="com.apple.hls.interstitial",START-DATE="2024-01-01T00:00:10.000Z",END-DATE="2024-01-01T00:00:25.000Z",DURATION=15.0',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            expect(result.dateRanges.length).toBe(1)
+            const dr = result.dateRanges[0]
+            expect(dr.id).toBe('splice-1')
+            expect(dr.classId).toBe('com.apple.hls.interstitial')
+            expect(dr.startDate).toBe('2024-01-01T00:00:10.000Z')
+            expect(dr.endDate).toBe('2024-01-01T00:00:25.000Z')
+            expect(dr.duration).toBe(15)
+        })
+
+        it('collects X- client attributes into clientAttributes', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:ID="ad1",CLASS="com.apple.hls.interstitial",START-DATE="2024-01-01T00:00:00Z",X-ASSET-URI="https://ads.example.com/ad.m3u8",X-RESUME-OFFSET=0,X-SNAP="IN,OUT"',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            const dr = result.dateRanges[0]
+            expect(dr.clientAttributes['X-ASSET-URI']).toBe(
+                'https://ads.example.com/ad.m3u8'
+            )
+            expect(dr.clientAttributes['X-RESUME-OFFSET']).toBe('0')
+            expect(dr.clientAttributes['X-SNAP']).toBe('IN,OUT')
+        })
+
+        it('excludes reserved attributes from clientAttributes', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:ID="ad1",START-DATE="2024-01-01T00:00:00Z",DURATION=10,X-FOO="bar"',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            const attrs = result.dateRanges[0].clientAttributes
+            expect(attrs['ID']).toBeUndefined()
+            expect(attrs['START-DATE']).toBeUndefined()
+            expect(attrs['DURATION']).toBeUndefined()
+            expect(attrs['X-FOO']).toBe('bar')
+        })
+
+        it('parses PLANNED-DURATION', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:ID="ad1",START-DATE="2024-01-01T00:00:00Z",PLANNED-DURATION=30.5',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            expect(result.dateRanges[0].plannedDuration).toBe(30.5)
+        })
+
+        it('parses END-ON-NEXT ranges without START-DATE', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:ID="live-1",CLASS="com.apple.hls.interstitial",END-ON-NEXT=YES',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            expect(result.dateRanges.length).toBe(1)
+            expect(result.dateRanges[0].endOnNext).toBe(true)
+            expect(result.dateRanges[0].startDate).toBe('')
+        })
+
+        it('skips a DATERANGE missing ID', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:START-DATE="2024-01-01T00:00:00Z"',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            expect(result.dateRanges.length).toBe(0)
+        })
+
+        it('skips a DATERANGE missing START-DATE when not END-ON-NEXT', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:ID="x"',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            expect(result.dateRanges.length).toBe(0)
+        })
+
+        it('substitutes EXT-X-DEFINE variables in X- attributes', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DEFINE:NAME="adhost",VALUE="https://ads.example.com"',
+                '#EXT-X-DATERANGE:ID="ad1",START-DATE="2024-01-01T00:00:00Z",X-ASSET-URI="{$adhost}/ad.m3u8"',
+                '#EXTINF:9,',
+                'seg.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            expect(result.dateRanges[0].clientAttributes['X-ASSET-URI']).toBe(
+                'https://ads.example.com/ad.m3u8'
+            )
+        })
+
+        it('preserves multiple date ranges in playlist order', () => {
+            const manifest = [
+                '#EXTM3U',
+                '#EXT-X-DATERANGE:ID="a",START-DATE="2024-01-01T00:00:00Z"',
+                '#EXTINF:9,',
+                'seg0.ts',
+                '#EXT-X-DATERANGE:ID="b",START-DATE="2024-01-01T00:00:30Z"',
+                '#EXTINF:9,',
+                'seg1.ts',
+            ].join('\n')
+
+            const result = parseMediaPlaylist(manifest)
+            expect(result.dateRanges.map((d) => d.id)).toEqual(['a', 'b'])
+        })
+    })
 })
 
 describe('substituteVariables', () => {
