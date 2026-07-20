@@ -188,6 +188,9 @@ describe('VinylPlayer', () => {
         player.unload()
         expect(trackController.unload).toHaveBeenCalledOnceWith()
 
+        player.reloadCurrentTrack()
+        expect(trackController.reloadCurrentTrack).toHaveBeenCalledOnceWith()
+
         trackController.hasNext.and.returnValue(true)
         expect(player.hasNext()).toBeTrue()
 
@@ -254,6 +257,22 @@ describe('VinylPlayer', () => {
             previous: mockTrackB,
             current: null,
         })
+    })
+
+    it('reloads the current track on a codecUnsupported event', () => {
+        const trackController = deps.trackController
+        const mockTrack = new MockTrack()
+        // Make the track the current one so its streaming events are
+        // redispatched onto the player.
+        trackController.dispatch('currentTrackChange', {
+            previous: null,
+            current: mockTrack,
+        })
+        mockTrack.dispatch('codecUnsupported', {
+            mimeType: 'video/mp4; codecs="hvc1.1"',
+            contentType: 'video',
+        })
+        expect(trackController.reloadCurrentTrack).toHaveBeenCalledOnceWith()
     })
 
     describe('currentTrack', () => {

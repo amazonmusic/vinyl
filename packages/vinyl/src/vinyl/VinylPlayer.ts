@@ -197,6 +197,20 @@ export class VinylPlayer<
         this.on('error', (event) => {
             this._error = event.error
         })
+
+        // A codec decode/append failure poisons the media pipeline; the track
+        // must be rebuilt (not merely reset) to recover. The failing codec has
+        // already been denylisted, so the reload selects a codec that decodes.
+        add(
+            this.on('codecUnsupported', (event) => {
+                logInfo(
+                    this,
+                    'codec unsupported, reloading track:',
+                    event.mimeType
+                )
+                this.trackController.reloadCurrentTrack()
+            })
+        )
     }
 
     /**
@@ -525,6 +539,10 @@ export class VinylPlayer<
 
     unload(): void {
         this.trackController.unload()
+    }
+
+    reloadCurrentTrack(): void {
+        this.trackController.reloadCurrentTrack()
     }
 
     hasNext(): boolean {

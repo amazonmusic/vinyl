@@ -220,6 +220,7 @@ export class MseTrack extends TrackBase {
             'streamingQualityChange',
             'bufferingQualityChange',
             'playbackQualityChange',
+            'codecUnsupported',
         ])
         stream.on('bufferingEnded', () => {
             if (this.bufferingEnded) {
