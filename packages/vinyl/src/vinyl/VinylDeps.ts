@@ -52,10 +52,4 @@ export interface VinylDeps<
      * Notifies when playback can automatically reset after a failure.
      */
     readonly autoResetController: AutoResetController
-
-    /**
-     * The HTML media element. Used by track factories to attach sidecar text
-     * tracks via `addTextTrack`.
-     */
-    readonly media: HTMLMediaElement
 }
