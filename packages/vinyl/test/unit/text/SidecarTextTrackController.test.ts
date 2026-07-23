@@ -5,7 +5,21 @@
 
 import { SidecarTextTrackController, type TextTrackInfo } from '@amazon/vinyl'
 import { requesterWithRetryRef } from '@amazon/vinyl-util'
+import { flushPromises } from '@amazon/vinyl-util/browserTestUtil'
 import { MockRequester } from '@amazon/vinyl-util/testUtil'
+
+/**
+ * Flushes the microtask/macrotask queue repeatedly until `predicate` holds or
+ * the attempt budget is exhausted. A single {@link flushPromises} is one
+ * macrotask, which is enough in Node but not always in a real browser: loading
+ * a sidecar VTT chains `fetch -> Response.text() -> parse -> onCues`, and the
+ * streamed body read can span several macrotasks. Polling avoids a flaky
+ * fixed-tick wait while still failing fast when the condition never becomes
+ * true.
+ */
+async function flushUntil(predicate: () => boolean): Promise<void> {
+    for (let i = 0; i < 100 && !predicate(); i++) await flushPromises()
+}
 
 interface FakeTextTrack {
     kind: string
@@ -126,8 +140,8 @@ describe('SidecarTextTrackController', () => {
         controller.setActiveTextTrack(t.id)
         expect(controller.activeTextTrack).toBe(t)
         expect(activeChange).toHaveBeenCalledTimes(1)
-        // Wait a microtask for the load promise to resolve.
-        await new Promise((r) => setTimeout(r, 0))
+        // Wait for the load chain (fetch -> text -> parse -> onCues) to resolve.
+        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
         expect(media.addTextTrack).toHaveBeenCalledWith(
             'subtitles',
             'English',
@@ -142,7 +156,7 @@ describe('SidecarTextTrackController', () => {
         const t = makeTrack()
         controller.setTextTracks([t])
         controller.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
         const cue = media.lastTrack?.cues[0] as unknown as { id: string }
         expect(cue.id).toBe('idA')
     })
@@ -172,7 +186,8 @@ b.vtt
         const t = makeTrack({ uri: 'https://x.test/sub.m3u8' })
         controller.setTextTracks([t])
         controller.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 20))
+        // Two segments + dedup: wait until all three distinct cues have loaded.
+        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) >= 3)
         const texts = (media.lastTrack?.cues ?? []).map(
             (c) => (c as unknown as { text: string }).text
         )
@@ -224,7 +239,7 @@ b.vtt
         const t = makeTrack()
         controller.setTextTracks([t])
         controller.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushUntil(() => onError.calls.count() > 0)
         expect(onError).toHaveBeenCalledTimes(1)
         const arg = onError.calls.mostRecent().args[0]
         expect(arg.track).toBe(t)
@@ -238,7 +253,7 @@ b.vtt
         const t = makeTrack()
         controller.setTextTracks([t])
         controller.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushUntil(() => onError.calls.count() > 0)
         const arg = onError.calls.mostRecent().args[0]
         expect(arg.error.message).toBe('plain')
     })
@@ -260,7 +275,7 @@ b.vtt
         resolveFetch(
             new Response(`WEBVTT\n\n00:00:00.500 --> 00:00:01.500\npost`)
         )
-        await new Promise((r) => setTimeout(r, 0))
+        await flushPromises()
         expect(media.lastTrack?.cues.length ?? 0).toBe(0)
     })
 
@@ -285,7 +300,7 @@ b.vtt
         // Now cancel by clearing.
         controller.setActiveTextTrack(null)
         rejectFirst(new Error('would-be error'))
-        await new Promise((r) => setTimeout(r, 0))
+        await flushPromises()
         expect(onError).not.toHaveBeenCalled()
     })
 
@@ -309,14 +324,19 @@ b.vtt
         })
         controller.setTextTracks([a, b])
         controller.setActiveTextTrack('a')
-        await new Promise((r) => setTimeout(r, 0))
+        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
         const firstTrack = media.lastTrack
         expect(firstTrack?.cues.length).toBe(1)
         controller.setActiveTextTrack('b')
-        // First track should be cleared.
+        // First track should be cleared synchronously on switch.
         expect(firstTrack?.cues.length).toBe(0)
         expect(firstTrack?.mode).toBe('disabled')
-        await new Promise((r) => setTimeout(r, 0))
+        // The second track loads its own cue.
+        await flushUntil(
+            () =>
+                media.lastTrack !== firstTrack &&
+                (media.lastTrack?.cues.length ?? 0) > 0
+        )
         expect(media.lastTrack?.cues.length).toBe(1)
     })
 
@@ -326,7 +346,7 @@ b.vtt
         const t = makeTrack()
         controller.setTextTracks([t])
         controller.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushPromises()
         expect(media.lastTrack?.cues.length).toBe(0)
     })
 
@@ -336,7 +356,7 @@ b.vtt
         respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nx`)
         headless.setTextTracks([t])
         headless.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushPromises()
         expect(headless.activeTextTrack).toBe(t)
         headless.dispose()
     })
@@ -350,7 +370,7 @@ b.vtt
         const t = makeTrack()
         customController.setTextTracks([t])
         customController.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushPromises()
         expect(requester.request).toHaveBeenCalledWith(
             t.uri,
             jasmine.objectContaining({ credentials: 'include' }),
@@ -388,7 +408,7 @@ d.vtt
         const t = makeTrack({ uri: 'https://x.test/sub.m3u8' })
         controller.setTextTracks([t])
         controller.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushUntil(() => fetched.length > 0)
         expect(fetched[0]).toBe('c.vtt')
     })
 
@@ -411,7 +431,7 @@ d.vtt
         resolveResponse(
             new Response(`WEBVTT\n\n00:00:00.500 --> 00:00:01.500\npost`)
         )
-        await new Promise((r) => setTimeout(r, 0))
+        await flushPromises()
         expect(media.lastTrack?.mode).toBe('disabled')
         expect(media.lastTrack?.cues.length).toBe(0)
         expect(controller.activeTextTrack).toBeNull()
@@ -423,7 +443,7 @@ d.vtt
         const t = makeTrack({ language: null })
         controller.setTextTracks([t])
         controller.setActiveTextTrack(t.id)
-        await new Promise((r) => setTimeout(r, 0))
+        await flushPromises()
         expect(media.addTextTrack).toHaveBeenCalledWith(
             'subtitles',
             'English',

@@ -72,16 +72,19 @@ describe('text track integ', () => {
         suite.player.setActiveTextTrack(target.id)
         // Wait for the sidecar VTT to be fetched and applied.
         const deadline = Date.now() + 10_000
-        while (Date.now() < deadline) {
+        let found = false
+        while (!found && Date.now() < deadline) {
             const dom = mediaRef.value.textTracks
-            const found = Array.from(
-                { length: dom.length },
-                (_, i) => dom[i]
-            ).some((t) => t.label === target.label && (t.cues?.length ?? 0) > 0)
-            if (found) return
-            await new Promise((r) => setTimeout(r, 50))
+            found = Array.from({ length: dom.length }, (_, i) => dom[i]).some(
+                (t) => t.label === target.label && (t.cues?.length ?? 0) > 0
+            )
+            if (!found) await new Promise((r) => setTimeout(r, 50))
         }
-        fail(`No cues found on the active text track (${target.label})`)
+        expect(found)
+            .withContext(
+                `No cues found on the active text track (${target.label})`
+            )
+            .toBeTrue()
     })
 
     it('HLS discovers sidecar text tracks', async () => {
@@ -125,15 +128,16 @@ describe('text track integ', () => {
         expect(target.variables).toBeDefined()
         suite.player.setActiveTextTrack(target.id)
         const deadline = Date.now() + 15_000
-        while (Date.now() < deadline) {
+        let found = false
+        while (!found && Date.now() < deadline) {
             const dom = mediaRef.value.textTracks
-            const found = Array.from(
-                { length: dom.length },
-                (_, i) => dom[i]
-            ).some((t) => t.label === target.label && (t.cues?.length ?? 0) > 0)
-            if (found) return
-            await new Promise((r) => setTimeout(r, 100))
+            found = Array.from({ length: dom.length }, (_, i) => dom[i]).some(
+                (t) => t.label === target.label && (t.cues?.length ?? 0) > 0
+            )
+            if (!found) await new Promise((r) => setTimeout(r, 100))
         }
-        fail(`No cues loaded for ${target.label}`)
+        expect(found)
+            .withContext(`No cues loaded for ${target.label}`)
+            .toBeTrue()
     })
 })
