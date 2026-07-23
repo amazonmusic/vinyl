@@ -5,7 +5,7 @@
 
 import type { DashManifestData } from './DashManifestProvider'
 import type { DashMediaQualityMetadataResolver } from './DashMediaQualityMetadataResolver'
-import { flattenRepresentations } from './util/mpd'
+import { flattenMediaRepresentations } from './util/mpd'
 import type { ContentType } from '../../streaming/MediaQualityMetadata'
 import type { ContentTypesValue } from '../../streaming/ContentTypesValue'
 import type { ObservableValue } from '@amazon/vinyl-observable'
@@ -41,7 +41,7 @@ function getContentTypes(
     const contentTypes = new Set<ContentType>()
     for (const period of manifest.MPD.Period) {
         if (!period.AdaptationSet) continue
-        const mediaMetadata = flattenRepresentations(period).map(
+        const mediaMetadata = flattenMediaRepresentations(period).map(
             deps.mediaQualityMetadataResolver
         )
         for (const { contentType } of mediaMetadata) {
