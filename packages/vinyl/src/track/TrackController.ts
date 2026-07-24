@@ -182,6 +182,15 @@ export interface TrackController<
      * Resets the current track's error state.
      */
     reset(): void
+
+    /**
+     * Disposes and re-creates the current track from scratch, then reactivates
+     * it, preserving the current playback position. Unlike {@link reset}, this
+     * rebuilds the underlying MediaSource, which is required to recover from
+     * failures that poison the media pipeline (e.g. a decode/append failure).
+     * No-op when there is no current track.
+     */
+    reloadCurrentTrack(): void
 }
 
 export interface TrackControllerImplDeps<
@@ -575,6 +584,34 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
     reset() {
         this._currentTrack?.reset()
+    }
+
+    reloadCurrentTrack() {
+        const loadOptions = this._current
+        if (!loadOptions || !this._currentTrack) {
+            logDebug(this, 'reloadCurrentTrack no-op')
+            return
+        }
+        logDebug(this, 'reloadCurrentTrack', loadOptions.uri)
+        // Preserve the playhead and play state across the rebuild.
+        const resumeTime = this.deps.playbackController.currentTime
+        const wasPlaying = !this.deps.playbackController.paused
+        // Deactivate, evict, and dispose the poisoned track so a fresh one
+        // (with a new MediaSource) is created on reactivation.
+        const stale = this._currentTrack
+        this.setCurrentTrack(null, null)
+        this.trackCache.delete(loadOptions.uri)
+        stale.dispose()
+        // Recreate and reactivate from the retained load options.
+        this.activateCurrent()
+        if (resumeTime > 0) {
+            this.deps.playbackController.seekTo(resumeTime).catch(() => {})
+        }
+        // Reactivation attaches a fresh MediaSource but does not resume
+        // playback; restore the prior play state.
+        if (wasPlaying) {
+            this.deps.playbackController.play().catch(() => {})
+        }
     }
 
     dispose() {

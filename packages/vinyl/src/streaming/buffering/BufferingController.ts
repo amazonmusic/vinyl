@@ -29,8 +29,11 @@ import type { SegmentReference } from '../SegmentReference'
 import type { BasicErrorEvent } from '../../event/BasicErrorEvent'
 import type { ChangeEvent } from '../../event/ChangeEvent'
 import type { ContentType, MediaQualityMetadata } from '../MediaQualityMetadata'
+import type { CodecUnsupportedEvent } from '../StreamingEventMap'
 import { type MediaSourceController } from './MediaSourceController'
 import { SEGMENT_START_AFFORDANCE } from '../SegmentController'
+import { SourceBufferError } from './error/SourceBufferError'
+import { denylistCodecsFromMimeType } from './codecDenylist'
 
 /**
  * The interval to throttle polling the buffer.
@@ -76,6 +79,13 @@ export interface BufferingControllerEventMap {
      * The last segment has finished appending.
      */
     readonly bufferingEnded: AnyRecord
+
+    /**
+     * A codec the browser reported as supported failed to decode on append and
+     * has been denylisted. Dispatched instead of `error` so the media can be
+     * reloaded and fall back to a codec that decodes.
+     */
+    readonly codecUnsupported: CodecUnsupportedEvent
 }
 
 export interface BufferingController
@@ -586,6 +596,11 @@ export class BufferingControllerImpl
                 }
             }
         }
+        if (this.tryCodecFallback(error)) {
+            // The failing codec was denylisted and playback will retry with a
+            // different quality; do not enter an error state.
+            return
+        }
         if (!isSilentError(error)) {
             // Set this controller to an error state. If in an error state, buffering will
             // not continue.
@@ -595,6 +610,40 @@ export class BufferingControllerImpl
                 error,
             })
         }
+    }
+
+    /**
+     * Attempts to recover from a SourceBuffer decode/append failure caused by a
+     * codec the browser reported as supported but cannot actually decode.
+     *
+     * Denylists the failing quality's codec so subsequent quality selection
+     * avoids it, then clears and retries. Returns true when a fallback was
+     * initiated (the caller should not enter an error state), false otherwise.
+     *
+     * Guards against loops: recovery only proceeds when the codec was newly
+     * denylisted. A repeat failure for an already-denylisted codec (e.g. a
+     * single-codec stream with no alternative) returns false and falls through
+     * to the normal error path, so playback errors out rather than looping.
+     */
+    private tryCodecFallback(error: Error): boolean {
+        if (!(error instanceof SourceBufferError)) return false
+        const quality = this.bufferingQuality
+        const mimeType = quality?.mimeType
+        const contentType = quality?.contentType
+        if (!mimeType || !contentType) return false
+        // denylistCodecsFromMimeType returns false if all codecs were already
+        // denylisted, which bounds recovery to one attempt per codec.
+        if (!denylistCodecsFromMimeType(mimeType)) return false
+        logWarn(
+            this,
+            'SourceBuffer append failed; denylisting codec and requesting reload:',
+            mimeType
+        )
+        // A decode failure poisons the MediaSource, so in-place recovery is not
+        // possible. Signal a recoverable codec failure; the player reloads the
+        // track, and the denylist steers selection to a codec that decodes.
+        this.dispatch('codecUnsupported', { mimeType, contentType })
+        return true
     }
 
     /**

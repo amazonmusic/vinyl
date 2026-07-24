@@ -139,6 +139,7 @@ export class ContentStreamImpl
             'playbackQualityChange',
             'bufferingEnded',
             'error',
+            'codecUnsupported',
         ])
     }
 

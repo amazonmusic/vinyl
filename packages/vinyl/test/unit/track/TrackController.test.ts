@@ -1040,6 +1040,60 @@ describe('TrackControllerImpl', () => {
         })
     })
 
+    describe('reloadCurrentTrack', () => {
+        beforeEach(() => {
+            deps.playbackController.seekTo.and.resolveTo(void 0)
+        })
+
+        it('disposes the current track and creates a fresh one', () => {
+            const loadOptions = createLoadOptionsList(1)
+            trackController.load(...loadOptions)
+            const stale = trackController.currentTrack as MockTrack
+
+            trackController.reloadCurrentTrack()
+
+            expect(stale.dispose).toHaveBeenCalled()
+            const fresh = trackController.currentTrack as MockTrack
+            expect(fresh).not.toBe(stale)
+            expect(fresh.uri).toBe(loadOptions[0].uri)
+            expect(fresh.activate).toHaveBeenCalled()
+        })
+
+        it('restores the playhead position', () => {
+            trackController.load(...createLoadOptionsList(1))
+            deps.playbackController.currentTime = 42
+
+            trackController.reloadCurrentTrack()
+
+            expect(deps.playbackController.seekTo).toHaveBeenCalledWith(42)
+        })
+
+        it('resumes playback when it was playing', () => {
+            trackController.load(...createLoadOptionsList(1))
+            deps.playbackController.paused = false
+            deps.playbackController.play.calls.reset()
+
+            trackController.reloadCurrentTrack()
+
+            expect(deps.playbackController.play).toHaveBeenCalled()
+        })
+
+        it('does not resume playback when it was paused', () => {
+            trackController.load(...createLoadOptionsList(1))
+            deps.playbackController.paused = true
+            deps.playbackController.play.calls.reset()
+
+            trackController.reloadCurrentTrack()
+
+            expect(deps.playbackController.play).not.toHaveBeenCalled()
+        })
+
+        it('does nothing when there is no current track', () => {
+            expect(() => trackController.reloadCurrentTrack()).not.toThrow()
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
+        })
+    })
+
     describe('dispose', () => {
         afterEach(() => {
             disposed = true

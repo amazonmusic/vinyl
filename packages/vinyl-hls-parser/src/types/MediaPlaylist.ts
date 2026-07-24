@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import type { DateRange } from './DateRange'
 import type { HlsSegment } from './HlsSegment'
 
 /**
@@ -30,6 +31,13 @@ export interface MediaPlaylist {
 
     /** The ordered list of media segments in this playlist. */
     readonly segments: readonly HlsSegment[]
+
+    /**
+     * The Date Ranges declared in this playlist (EXT-X-DATERANGE), in the order
+     * they appear. HLS Interstitials (SGAI ad breaks) are carried as Date Ranges
+     * whose classId is `com.apple.hls.interstitial`.
+     */
+    readonly dateRanges: readonly DateRange[]
 }
 
 /** The mutability type of Media Playlist. */

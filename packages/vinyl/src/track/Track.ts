@@ -20,6 +20,7 @@ import type {
     ReadonlyTextTrackController,
     TextTrackController,
 } from '../text/TextTrack'
+import type { AdController, ReadonlyAdController } from '../ad/AdBreak'
 
 /**
  * All events a track may emit.
@@ -166,6 +167,12 @@ export interface ReadonlyTrack extends ReadonlyStreamingState, LogTarget {
      * if the track type does not surface text tracks.
      */
     readonly textTrackController: ReadonlyTextTrackController | null
+
+    /**
+     * Controller for ad breaks (e.g. HLS Interstitials) discovered for this
+     * track, or null if the track type does not surface ads.
+     */
+    readonly adController: ReadonlyAdController | null
 }
 
 /**
@@ -178,6 +185,12 @@ export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
      * selecting the active text track.
      */
     readonly textTrackController: TextTrackController | null
+
+    /**
+     * Mutable view of {@link ReadonlyTrack.adController} that allows feeding
+     * playhead updates and replacing the discovered ad breaks.
+     */
+    readonly adController: AdController | null
     /**
      * Provides configuration to the track and begins preloading (if applicable).
      *
