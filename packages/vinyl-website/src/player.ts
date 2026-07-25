@@ -6,6 +6,7 @@
 import {
     createVinylPlayer,
     type AdBreakInfo,
+    type SeekRange,
     type TextTrackInfo,
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
@@ -37,7 +38,9 @@ export const playerState = {
     captionsEnabled$: data(false),
     preferredLanguage$: data<string | null>(null),
     activeAdBreak$: data<AdBreakInfo | null>(null),
+    adBreaks$: data<readonly AdBreakInfo[]>([]),
     adRemaining$: data(0),
+    seekRange$: data<SeekRange | null>(null),
 }
 
 // Safari's loadedmetadata fires before videoWidth is populated for HLS; the
@@ -110,6 +113,12 @@ player.on('adBreakChange', (event) => {
     } else {
         playerState.adRemaining$.value = 0
     }
+})
+player.on('adBreaksChange', ({ current }) => {
+    playerState.adBreaks$.value = current
+})
+player.on('seekRangeChange', ({ current }) => {
+    playerState.seekRange$.value = current
 })
 
 // Recomputes the seconds remaining in the active ad break from the playhead.
@@ -204,6 +213,10 @@ export function seekToPercent(pct: number) {
     if (player.duration > 0) {
         player.seekTo(pct * player.duration).catch(() => {})
     }
+}
+
+export function skipAd() {
+    player.skipAd()
 }
 
 export function unloadTrack() {

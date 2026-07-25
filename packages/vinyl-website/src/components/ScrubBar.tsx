@@ -3,11 +3,14 @@ import type { ObservableValue } from '@amazon/vinyl-observable'
 import { combineData, data } from '@amazon/vinyl-observable'
 import { clamp, createDisposer, type Unsubscribe } from '@amazon/vinyl-util'
 import { windowEvents } from '../util/interaction'
+import type { AdBreakInfo, SeekRange } from '@amazon/vinyl'
 
 export interface ScrubBarProps {
     readonly currentTimePercent$: ObservableValue<number>
     readonly fetchedTimePercent$: ObservableValue<number>
     readonly seeking$: ObservableValue<boolean>
+    readonly adBreaks$: ObservableValue<readonly AdBreakInfo[]>
+    readonly seekRange$: ObservableValue<SeekRange | null>
     readonly onSeekStart?: (percent: number) => void
     readonly onSeek: (percent: number) => void
 }
@@ -25,6 +28,18 @@ export function ScrubBar(props: ScrubBarProps) {
         return toPercentCss(
             scrubbing || seeking ? scrubPercent : currentTimePercent
         )
+    })
+
+    const adMarkers$ = combineData({
+        adBreaks: props.adBreaks$,
+        seekRange: props.seekRange$,
+    }).map(({ adBreaks, seekRange }) => {
+        if (!seekRange || seekRange.end <= 0) return []
+        const duration = seekRange.end - seekRange.start
+        return adBreaks.map((b) => ({
+            left: toPercentCss((b.startTime - seekRange.start) / duration),
+            width: toPercentCss((b.duration ?? 0) / duration),
+        }))
     })
 
     const bar = (
@@ -48,6 +63,17 @@ export function ScrubBar(props: ScrubBarProps) {
                     style={{
                         width: props.fetchedTimePercent$.map(toPercentCss),
                     }}
+                />
+                <div
+                    className="progressBarAdMarkers"
+                    children={adMarkers$.map((markers) =>
+                        markers.map((m) => (
+                            <div
+                                className="progressBarAdMarker"
+                                style={{ left: m.left, width: m.width }}
+                            />
+                        ))
+                    )}
                 />
                 <div
                     className="progressFill"
