@@ -938,6 +938,67 @@ describe('MseTrack', () => {
         })
     })
 
+    describe('setCurrentAdTrack', () => {
+        function createMockAdTrack() {
+            return {
+                activate: jasmine.createSpy('activate'),
+                deactivate: jasmine.createSpy('deactivate'),
+            } as any
+        }
+
+        it('activates the ad track and deactivates outer streams', async () => {
+            track = createTrack()
+            await awaitContentTypes()
+            track.activate({})
+            const adTrack = createMockAdTrack()
+            track.setCurrentAdTrack(adTrack)
+            expect(adTrack.activate).toHaveBeenCalledOnceWith({})
+            expect(deps.playbackSource.src).toBeNull()
+        })
+
+        it('deactivates the ad track when set to null', async () => {
+            track = createTrack()
+            await awaitContentTypes()
+            track.activate({})
+            const adTrack = createMockAdTrack()
+            track.setCurrentAdTrack(adTrack)
+            track.setCurrentAdTrack(null)
+            expect(adTrack.deactivate).toHaveBeenCalledOnceWith()
+        })
+
+        it('resumes the outer track when ad track set to null', async () => {
+            track = createTrack()
+            await awaitContentTypes()
+            track.activate({})
+            const adTrack = createMockAdTrack()
+            track.setCurrentAdTrack(adTrack)
+            track.setCurrentAdTrack(null)
+            // Outer track should have re-set the src
+            expect(deps.playbackSource.src).not.toBeNull()
+        })
+
+        it('deactivates ad track when outer track is deactivated', async () => {
+            track = createTrack()
+            await awaitContentTypes()
+            track.activate({})
+            const adTrack = createMockAdTrack()
+            track.setCurrentAdTrack(adTrack)
+            track.deactivate()
+            expect(adTrack.deactivate).toHaveBeenCalled()
+            expect(track.currentAdTrack).toBeNull()
+        })
+
+        it('no-ops when setting the same ad track', async () => {
+            track = createTrack()
+            await awaitContentTypes()
+            track.activate({})
+            const adTrack = createMockAdTrack()
+            track.setCurrentAdTrack(adTrack)
+            track.setCurrentAdTrack(adTrack)
+            expect(adTrack.activate).toHaveBeenCalledTimes(1)
+        })
+    })
+
     describe('seekRange', () => {
         function setTimeline(timeline: MediaTimeline) {
             ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))

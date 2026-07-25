@@ -106,6 +106,10 @@ export class MseTrack extends TrackBase {
         return this._seekRange
     }
 
+    get currentAdTrack(): Track | null {
+        return this._currentAdTrack
+    }
+
     private readonly streams: ContentStream[] = []
     private readonly disposeAbort = new Abort()
     private lastPreloadOptions: ContentStreamPreloadOptions | null = null
@@ -123,6 +127,7 @@ export class MseTrack extends TrackBase {
     private _cachedPeriod: MediaPeriod | null = null
     private _seekRange: SeekRange | null = null
     private readonly _preloadedAdIds = new Set<string>()
+    private _currentAdTrack: Track | null = null
 
     constructor(
         uri: TrackUri,
@@ -420,6 +425,10 @@ export class MseTrack extends TrackBase {
     }
 
     onDeactivated(): void {
+        if (this._currentAdTrack) {
+            this._currentAdTrack.deactivate()
+            this._currentAdTrack = null
+        }
         this.activateOptions = null
         this.timeUpdateSub?.()
         this.timeUpdateSub = null
@@ -427,6 +436,34 @@ export class MseTrack extends TrackBase {
 
         this.deps.playbackSource.src = null
         this.deps.playbackSource.load()
+    }
+
+    /**
+     * Switches playback to or from an ad track. When a non-null ad track is
+     * provided, the outer MseTrack's streams are deactivated (without marking
+     * the track as inactive in the TrackController) and the ad track is
+     * activated. When null is provided, the ad track is deactivated and the
+     * outer track resumes.
+     */
+    setCurrentAdTrack(adTrack: Track | null): void {
+        if (adTrack === this._currentAdTrack) return
+        if (this._currentAdTrack) {
+            this._currentAdTrack.deactivate()
+            this._currentAdTrack = null
+        }
+        if (adTrack) {
+            this._currentAdTrack = adTrack
+            // Deactivate outer track's streams without full deactivate.
+            this.timeUpdateSub?.()
+            this.timeUpdateSub = null
+            this.callOnStreams('deactivate')
+            this.deps.playbackSource.src = null
+            // Activate the ad sub-track.
+            adTrack.activate({})
+        } else if (this.activateOptions) {
+            // Resume outer track.
+            this.onActivated(this.activateOptions)
+        }
     }
 
     getStreamingQuality(contentType: ContentType): MediaQualityMetadata | null {
