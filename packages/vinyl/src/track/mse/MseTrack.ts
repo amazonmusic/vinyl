@@ -43,6 +43,7 @@ import {
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
 import type { AdController } from '../../ad/AdBreak'
+import type { TrackFactory, TrackLoadOptions } from '../TrackFactory'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -65,6 +66,13 @@ export type MseTrackDeps = TrackBaseDeps & {
      * active, and disposed when the track itself is disposed.
      */
     readonly adController?: AdController | null
+
+    /**
+     * Optional track factory for creating ad sub-tracks. When provided,
+     * enables ad playback by allowing the track to create child tracks from
+     * ad asset URIs.
+     */
+    readonly trackFactory?: TrackFactory<TrackLoadOptions> | null
 }
 
 type FunctionKeys<T> = {
