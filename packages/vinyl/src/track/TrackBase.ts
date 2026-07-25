@@ -25,6 +25,7 @@ import type {
     TrackTypeId,
     TrackUri,
 } from './Track'
+import type { SeekRange } from './SeekRange'
 import { type DrmController } from '../drm/DrmController'
 import type {
     ContentType,
@@ -127,6 +128,14 @@ export abstract class TrackBase<
      * (e.g. {@link MseTrack}) override this getter.
      */
     get adController(): AdController | null {
+        return null
+    }
+
+    /**
+     * Default seek range is null. Tracks that resolve a media timeline
+     * (e.g. {@link MseTrack}) override this getter.
+     */
+    get seekRange(): SeekRange | null {
         return null
     }
 

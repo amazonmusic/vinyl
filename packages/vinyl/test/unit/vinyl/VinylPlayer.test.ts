@@ -859,6 +859,23 @@ describe('VinylPlayer', () => {
         })
     })
 
+    describe('seekRange', () => {
+        it('returns null when no track is loaded', () => {
+            const player = createVinylPlayer(mockOptions, depFactories)
+            expect(player.seekRange).toBeNull()
+            player.dispose()
+        })
+
+        it('delegates to the current track seekRange', () => {
+            const player = createVinylPlayer(mockOptions, depFactories)
+            const track = new MockTrack()
+            track.seekRange = { start: 0, end: 120 }
+            deps.trackController.currentTrack = track
+            expect(player.seekRange).toEqual({ start: 0, end: 120 })
+            player.dispose()
+        })
+    })
+
     describe('disposed', () => {
         it('returns true if the player is disposed', () => {
             const player = createVinylPlayer(mockOptions, depFactories)

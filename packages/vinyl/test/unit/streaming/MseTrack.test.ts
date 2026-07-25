@@ -809,4 +809,125 @@ describe('MseTrack', () => {
             expect(controller.updateTime).toHaveBeenCalledWith(12)
         })
     })
+
+    describe('seekRange', () => {
+        function setTimeline(timeline: MediaTimeline) {
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+        }
+
+        it('is null initially', () => {
+            track = createTrack()
+            expect(track.seekRange).toBeNull()
+        })
+
+        it('resolves from the media timeline duration', async () => {
+            setTimeline({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 120,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                getDuration: () => Promise.resolve(120),
+            })
+            track = createTrack()
+            await flushPromises()
+            expect(track.seekRange).toEqual({ start: 0, end: 120 })
+        })
+
+        it('dispatches seekRangeChange when the range resolves', async () => {
+            setTimeline({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 60,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                getDuration: () => Promise.resolve(60),
+            })
+            track = createTrack()
+            const spy = createEventSpy(track, 'seekRangeChange')
+            await flushPromises()
+            expect(spy).toHaveBeenCalledWith(
+                jasmine.objectContaining({
+                    previous: null,
+                    current: { start: 0, end: 60 },
+                })
+            )
+        })
+
+        it('returns Infinity end for live streams', async () => {
+            setTimeline({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: Infinity,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                getDuration: () => Promise.resolve(Infinity),
+            })
+            track = createTrack()
+            await flushPromises()
+            expect(track.seekRange).toEqual({ start: 0, end: Infinity })
+        })
+
+        it('does not dispatch when range is unchanged', async () => {
+            const timeline: MediaTimeline = {
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 60,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                getDuration: () => Promise.resolve(60),
+            }
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+            track = createTrack()
+            await flushPromises()
+            expect(track.seekRange).toEqual({ start: 0, end: 60 })
+
+            const spy = createEventSpy(track, 'seekRangeChange')
+            // Re-emit the same timeline
+            ;(deps as any).mediaTimeline.value = Promise.resolve(timeline)
+            await flushPromises()
+            expect(spy).not.toHaveBeenCalled()
+        })
+
+        it('does not update seekRange if disposed during getDuration', async () => {
+            let resolveDuration!: (v: number) => void
+            const timeline: MediaTimeline = {
+                periods: [{ startTime: 0, endTime: 60, qualities: [] }],
+                minBufferTime: 2,
+                getDuration: () =>
+                    new Promise((r) => {
+                        resolveDuration = r
+                    }),
+            }
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+            track = createTrack()
+            await flushPromises()
+            // Dispose before getDuration resolves
+            track.dispose()
+            resolveDuration(60)
+            await flushPromises()
+            expect(track.seekRange).toBeNull()
+        })
+    })
 })

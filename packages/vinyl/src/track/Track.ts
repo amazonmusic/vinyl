@@ -21,6 +21,9 @@ import type {
     TextTrackController,
 } from '../text/TextTrack'
 import type { AdController, ReadonlyAdController } from '../ad/AdBreak'
+import type { SeekRange } from './SeekRange'
+
+export type { SeekRange } from './SeekRange'
 
 /**
  * All events a track may emit.
@@ -173,6 +176,13 @@ export interface ReadonlyTrack extends ReadonlyStreamingState, LogTarget {
      * track, or null if the track type does not surface ads.
      */
     readonly adController: ReadonlyAdController | null
+
+    /**
+     * The seekable range on the media timeline, or null when not yet known
+     * (e.g. before the manifest is loaded). Based on the media timeline, not
+     * the element's native seekable ranges.
+     */
+    readonly seekRange: SeekRange | null
 }
 
 /**

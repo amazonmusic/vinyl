@@ -33,6 +33,7 @@ import {
 } from '../playback/ReadonlyPlaybackController'
 import type { VinylTrackLoadOptions } from '../track/createVinylTrackFactories'
 import { type ReadonlyTrack, type TrackUri } from '../track/Track'
+import type { SeekRange } from '../track/SeekRange'
 import {
     ALL_TRACK_CONTROLLER_EVENTS,
     type TrackController,
@@ -487,6 +488,14 @@ export class VinylPlayer<
 
     get seekable(): ReadonlyRanges {
         return this.playbackController.seekable
+    }
+
+    /**
+     * The seekable range on the media timeline for the current track, or null
+     * when no track is loaded or the timeline is not yet resolved.
+     */
+    get seekRange(): SeekRange | null {
+        return this.currentTrack?.seekRange ?? null
     }
 
     get seeking(): boolean {
