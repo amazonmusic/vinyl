@@ -183,4 +183,50 @@ describe('hls ad interstitials integ', () => {
         }
         expect(player.activeAdBreak?.id).toBe(AD_ID)
     })
+
+    it('skipAd clears the active ad break', async () => {
+        await loadAndAwaitAdBreaks()
+        if (suite.player.adBreaks.length === 0) {
+            pending('no ad breaks discovered')
+        }
+        const player = suite.player
+        await player.seekTo(MIDROLL_TIME + 1, 0.5)
+        await player.play()
+        const deadline = Date.now() + 15_000
+        while (player.activeAdBreak == null && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 50))
+        }
+        expect(player.activeAdBreak).not.toBeNull()
+        player.skipAd()
+        expect(player.activeAdBreak).toBeNull()
+    })
+
+    it('skipAdBreak clears the active ad break', async () => {
+        await loadAndAwaitAdBreaks()
+        if (suite.player.adBreaks.length === 0) {
+            pending('no ad breaks discovered')
+        }
+        const player = suite.player
+        await player.seekTo(MIDROLL_TIME + 1, 0.5)
+        await player.play()
+        const deadline = Date.now() + 15_000
+        while (player.activeAdBreak == null && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 50))
+        }
+        expect(player.activeAdBreak).not.toBeNull()
+        player.skipAdBreak()
+        expect(player.activeAdBreak).toBeNull()
+    })
+
+    it('exposes seekRange once the timeline resolves', async () => {
+        await loadAndAwaitAdBreaks()
+        const player = suite.player
+        const deadline = Date.now() + 15_000
+        while (player.seekRange == null && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 50))
+        }
+        expect(player.seekRange).not.toBeNull()
+        expect(player.seekRange!.start).toBeGreaterThanOrEqual(0)
+        expect(player.seekRange!.end).toBeGreaterThan(0)
+    })
 })
