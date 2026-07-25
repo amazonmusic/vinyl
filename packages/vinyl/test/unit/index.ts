@@ -1,6 +1,7 @@
 /** Auto-generated from build scripts */
 import './ad/AdControllerImpl.test'
 import './ad/discoverHlsInterstitials.test'
+import './ad/inferTrackType.test'
 import './client/CapabilitiesImpl.test'
 export * from './client/userAgent/userAgentExpectations'
 import './drm/CencEncryptionScheme.test'

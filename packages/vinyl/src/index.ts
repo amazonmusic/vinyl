@@ -2,6 +2,7 @@
 export * from './ad/AdBreak'
 export * from './ad/AdControllerImpl'
 export * from './ad/discoverHlsInterstitials'
+export * from './ad/inferTrackType'
 export * from './client/Capabilities'
 export * from './client/CapabilitiesImpl'
 export * from './client/Client'
