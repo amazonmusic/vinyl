@@ -150,4 +150,17 @@ export interface AdController extends ReadonlyAdController {
      * `adBreakChange` as the playhead crosses break boundaries.
      */
     updateTime(currentTime: number): void
+
+    /**
+     * Skips the currently playing ad. If there are more ads in the break,
+     * the next ad begins. If it's the last ad, the break ends.
+     * No-op when no ad break is active.
+     */
+    skipAd(): void
+
+    /**
+     * Skips the entire active ad break, advancing past all remaining ads.
+     * No-op when no ad break is active.
+     */
+    skipAdBreak(): void
 }

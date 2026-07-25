@@ -32,7 +32,7 @@ import {
     type PlaybackReadyState,
 } from '../playback/ReadonlyPlaybackController'
 import type { VinylTrackLoadOptions } from '../track/createVinylTrackFactories'
-import { type ReadonlyTrack, type TrackUri } from '../track/Track'
+import { type ReadonlyTrack, type Track, type TrackUri } from '../track/Track'
 import type { SeekRange } from '../track/SeekRange'
 import {
     ALL_TRACK_CONTROLLER_EVENTS,
@@ -786,6 +786,30 @@ export class VinylPlayer<
      */
     get activeAdBreak(): AdBreakInfo | null {
         return this.currentTrack?.adController?.activeAdBreak ?? null
+    }
+
+    /**
+     * Skips the currently playing ad. If there are more ads in the break,
+     * the next ad begins; otherwise the break ends and content resumes.
+     * No-op when no ad break is active.
+     */
+    skipAd(): void {
+        const controller = (
+            this.trackController.currentTrack as Track<any> | null
+        )?.adController
+        controller?.skipAd()
+    }
+
+    /**
+     * Skips the entire active ad break, advancing past all remaining ads
+     * and resuming content playback.
+     * No-op when no ad break is active.
+     */
+    skipAdBreak(): void {
+        const controller = (
+            this.trackController.currentTrack as Track<any> | null
+        )?.adController
+        controller?.skipAdBreak()
     }
 
     private emitAdBreaksChangeEventsFor(

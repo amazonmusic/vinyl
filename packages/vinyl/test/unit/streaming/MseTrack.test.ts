@@ -774,6 +774,8 @@ describe('MseTrack', () => {
                 setAdBreaks: () => undefined,
                 updateTime: jasmine.createSpy('updateTime'),
                 getAdTrack: () => null,
+                skipAd: () => undefined,
+                skipAdBreak: () => undefined,
                 on: () => () => undefined,
                 hasAnyListeners: () => false,
                 hasListeners: () => false,

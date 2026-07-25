@@ -157,6 +157,50 @@ describe('AdControllerImpl', () => {
         expect(events).toEqual([{ previous: 'b1', current: null }])
     })
 
+    describe('skipAd', () => {
+        it('is a no-op when no break is active', () => {
+            const c = new AdControllerImpl()
+            c.setAdBreaks([makeBreak()])
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakChange', spy)
+            c.skipAd()
+            expect(spy).not.toHaveBeenCalled()
+        })
+
+        it('emits adBreakChange to null when a break is active', () => {
+            const c = new AdControllerImpl()
+            c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            c.updateTime(5)
+            const events: any[] = []
+            c.on('adBreakChange', (e) => events.push(e))
+            c.skipAd()
+            expect(events.length).toBe(1)
+            expect(events[0].current).toBeNull()
+            expect(c.activeAdBreak).toBeNull()
+        })
+    })
+
+    describe('skipAdBreak', () => {
+        it('is a no-op when no break is active', () => {
+            const c = new AdControllerImpl()
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakChange', spy)
+            c.skipAdBreak()
+            expect(spy).not.toHaveBeenCalled()
+        })
+
+        it('emits adBreakChange to null when a break is active', () => {
+            const c = new AdControllerImpl()
+            c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            c.updateTime(5)
+            const events: any[] = []
+            c.on('adBreakChange', (e) => events.push(e))
+            c.skipAdBreak()
+            expect(events.length).toBe(1)
+            expect(events[0].current).toBeNull()
+        })
+    })
+
     describe('ad tracks', () => {
         function mockTrackFactory() {
             const tracks: any[] = []

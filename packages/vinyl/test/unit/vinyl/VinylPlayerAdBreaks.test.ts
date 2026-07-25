@@ -142,4 +142,31 @@ describe('VinylPlayer ad break API', () => {
         a.controller.setAdBreaks([makeBreak({ id: 'stale' })])
         expect(spy).not.toHaveBeenCalled()
     })
+
+    it('skipAd delegates to the ad controller', () => {
+        const { track, controller } = makeTrackWithController()
+        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        activate(track)
+        controller.updateTime(5)
+        expect(player.activeAdBreak).not.toBeNull()
+        player.skipAd()
+        expect(player.activeAdBreak).toBeNull()
+    })
+
+    it('skipAdBreak delegates to the ad controller', () => {
+        const { track, controller } = makeTrackWithController()
+        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        activate(track)
+        controller.updateTime(5)
+        player.skipAdBreak()
+        expect(player.activeAdBreak).toBeNull()
+    })
+
+    it('skipAd is a no-op without a current track', () => {
+        expect(() => player.skipAd()).not.toThrow()
+    })
+
+    it('skipAdBreak is a no-op without a current track', () => {
+        expect(() => player.skipAdBreak()).not.toThrow()
+    })
 })
