@@ -19,7 +19,12 @@ import {
     redispatchEvents,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
-import type { TrackPreloadOptions, TrackTypeId, TrackUri } from '../Track'
+import type {
+    Track,
+    TrackPreloadOptions,
+    TrackTypeId,
+    TrackUri,
+} from '../Track'
 import type { SeekRange } from '../SeekRange'
 import type {
     ContentType,
@@ -117,6 +122,7 @@ export class MseTrack extends TrackBase {
     private timeUpdateSub: Unsubscribe | null = null
     private _cachedPeriod: MediaPeriod | null = null
     private _seekRange: SeekRange | null = null
+    private readonly _preloadedAdIds = new Set<string>()
 
     constructor(
         uri: TrackUri,
@@ -130,6 +136,14 @@ export class MseTrack extends TrackBase {
         const { add } = this.disposer
         add(depsContainer)
         this.deps = deps
+
+        if (deps.adController) {
+            add(
+                deps.adController.on('adBreaksChange', () => {
+                    this._preloadedAdIds.clear()
+                })
+            )
+        }
 
         add(
             deps.contentTypesValue.onData((contentTypesPromise) => {
@@ -390,6 +404,7 @@ export class MseTrack extends TrackBase {
                 const time = this.deps.playbackController.currentTime
                 // Drive ad-break enter/exit detection off the playhead.
                 this.deps.adController?.updateTime(time)
+                this.preloadUpcomingAds(time)
                 const cached = this._cachedPeriod
                 if (
                     cached &&
@@ -451,6 +466,26 @@ export class MseTrack extends TrackBase {
 
     get bufferingEnded(): boolean {
         return this.streams.every((stream) => stream.bufferingEnded)
+    }
+
+    private static readonly AD_PRELOAD_SECONDS = 20
+
+    private preloadUpcomingAds(time: number): void {
+        const adController = this.deps.adController as
+            | (AdController & { getAdTrack?(adId: string): Track | null })
+            | null
+        if (!adController?.getAdTrack) return
+        for (const adBreak of adController.adBreaks) {
+            if (time < adBreak.startTime - MseTrack.AD_PRELOAD_SECONDS) continue
+            if (time > adBreak.startTime) continue
+            for (const ad of adBreak.ads) {
+                if (this._preloadedAdIds.has(ad.id)) continue
+                const track = adController.getAdTrack(ad.id)
+                if (!track) continue
+                this._preloadedAdIds.add(ad.id)
+                track.preload({ prefetchPriority: 0 }, {})
+            }
+        }
     }
 
     dispose(): void {

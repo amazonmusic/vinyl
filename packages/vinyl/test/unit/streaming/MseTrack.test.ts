@@ -809,6 +809,133 @@ describe('MseTrack', () => {
             })
             expect(controller.updateTime).toHaveBeenCalledWith(12)
         })
+
+        it('preloads ad tracks within 20s of start time', async () => {
+            const mockAdTrack = {
+                preload: jasmine.createSpy('preload'),
+            }
+            const controller = {
+                ...makeAdController(),
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 30,
+                        duration: 10,
+                        placement: 'midroll' as const,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 30,
+                                duration: 10,
+                                uri: 'ad.m3u8',
+                            },
+                            {
+                                id: 'a2',
+                                startTime: 30,
+                                duration: 5,
+                                uri: null,
+                            },
+                        ],
+                    },
+                ],
+                getAdTrack: (id: string) =>
+                    id === 'a1' ? (mockAdTrack as any) : null,
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            // At time 5, ad is more than 20s away
+            deps.playbackController.currentTime = 5
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 0,
+                current: 5,
+            })
+            expect(mockAdTrack.preload).not.toHaveBeenCalled()
+
+            // At time 11, ad is within 20s (30 - 11 = 19)
+            deps.playbackController.currentTime = 11
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 5,
+                current: 11,
+            })
+            expect(mockAdTrack.preload).toHaveBeenCalledTimes(1)
+
+            // Should not preload again
+            deps.playbackController.currentTime = 15
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 11,
+                current: 15,
+            })
+            expect(mockAdTrack.preload).toHaveBeenCalledTimes(1)
+
+            // Past the ad start time — should not preload
+            deps.playbackController.currentTime = 35
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 15,
+                current: 35,
+            })
+            expect(mockAdTrack.preload).toHaveBeenCalledTimes(1)
+        })
+
+        it('resets preloaded set on adBreaksChange', async () => {
+            const mockAdTrack = {
+                preload: jasmine.createSpy('preload'),
+            }
+            const controller = {
+                ...makeAdController(),
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 30,
+                        duration: 10,
+                        placement: 'midroll' as const,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 30,
+                                duration: 10,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    },
+                ],
+                getAdTrack: () => mockAdTrack as any,
+                on: jasmine
+                    .createSpy('on')
+                    .and.callFake((_event: string, cb: () => void) => {
+                        // Store the callback so we can call it
+                        ;(controller as any)._adBreaksChangeCb = cb
+                        return () => {}
+                    }),
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            // Preload triggered
+            deps.playbackController.currentTime = 15
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 0,
+                current: 15,
+            })
+            expect(mockAdTrack.preload).toHaveBeenCalledTimes(1)
+
+            // Fire adBreaksChange to reset preloaded set
+            ;(controller as any)._adBreaksChangeCb()
+
+            // Same ad should preload again
+            deps.playbackController.currentTime = 16
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 15,
+                current: 16,
+            })
+            expect(mockAdTrack.preload).toHaveBeenCalledTimes(2)
+        })
     })
 
     describe('seekRange', () => {
