@@ -128,6 +128,7 @@ export class MseTrack extends TrackBase {
     private _seekRange: SeekRange | null = null
     private readonly _preloadedAdIds = new Set<string>()
     private _currentAdTrack: Track | null = null
+    private _adResumeTime: number = 0
 
     constructor(
         uri: TrackUri,
@@ -452,6 +453,7 @@ export class MseTrack extends TrackBase {
             this._currentAdTrack = null
         }
         if (adTrack) {
+            this._adResumeTime = this.deps.playbackController.currentTime
             this._currentAdTrack = adTrack
             // Deactivate outer track's streams without full deactivate.
             this.timeUpdateSub?.()
@@ -461,8 +463,11 @@ export class MseTrack extends TrackBase {
             // Activate the ad sub-track.
             adTrack.activate({})
         } else if (this.activateOptions) {
-            // Resume outer track.
+            // Resume outer track at the saved position.
             this.onActivated(this.activateOptions)
+            this.deps.playbackController
+                .seekTo(this._adResumeTime)
+                .catch(() => {})
         }
     }
 

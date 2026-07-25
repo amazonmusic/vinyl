@@ -968,15 +968,18 @@ describe('MseTrack', () => {
             expect(adTrack.deactivate).toHaveBeenCalledOnceWith()
         })
 
-        it('resumes the outer track when ad track set to null', async () => {
+        it('resumes the outer track at the saved position', async () => {
             track = createTrack()
             await awaitContentTypes()
             track.activate({})
+            deps.playbackController.currentTime = 42
             const adTrack = createMockAdTrack()
             track.setCurrentAdTrack(adTrack)
             track.setCurrentAdTrack(null)
             // Outer track should have re-set the src
             expect(deps.playbackSource.src).not.toBeNull()
+            // Should seek to the saved resume time
+            expect(deps.playbackController.seekTo).toHaveBeenCalledWith(42)
         })
 
         it('deactivates ad track when outer track is deactivated', async () => {
