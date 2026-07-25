@@ -5,6 +5,13 @@
 
 import { equalDeep, EventHostImpl } from '@amazon/vinyl-util'
 import type { AdBreakInfo, AdController, AdEventMap } from './AdBreak'
+import type { Track } from '../track/Track'
+import type { TrackFactory, TrackLoadOptions } from '../track/TrackFactory'
+import { inferTrackType } from './inferTrackType'
+
+export interface AdControllerImplOptions {
+    readonly trackFactory?: TrackFactory<TrackLoadOptions> | null
+}
 
 /**
  * Provider-agnostic {@link AdController}. Holds the discovered ad breaks and
@@ -30,6 +37,20 @@ export class AdControllerImpl
 
     private _adBreaks: readonly AdBreakInfo[] = []
     private _active: AdBreakInfo | null = null
+    private readonly _trackFactory: TrackFactory<TrackLoadOptions> | null
+    private readonly _adTracks = new Map<string, Track>()
+
+    constructor(options?: AdControllerImplOptions) {
+        super()
+        this._trackFactory = options?.trackFactory ?? null
+    }
+
+    /**
+     * Returns the ad track for the given ad id, or null if no track was created.
+     */
+    getAdTrack(adId: string): Track | null {
+        return this._adTracks.get(adId) ?? null
+    }
 
     get adBreaks(): readonly AdBreakInfo[] {
         return this._adBreaks
@@ -46,6 +67,11 @@ export class AdControllerImpl
         // so region lookups can assume monotonic starts.
         const sorted = [...adBreaks].sort((a, b) => a.startTime - b.startTime)
         this._adBreaks = sorted
+
+        // Dispose previous ad tracks and create new ones.
+        this.disposeAdTracks()
+        this.createAdTracks(sorted)
+
         this.dispatch('adBreaksChange', { previous, current: sorted })
 
         // If the previously active break is gone, treat it as a change to null.
@@ -72,6 +98,7 @@ export class AdControllerImpl
         const active = this._active
         this._active = null
         this._adBreaks = []
+        this.disposeAdTracks()
         if (active) {
             this.dispatch('adBreakChange', { previous: active, current: null })
         }
@@ -86,5 +113,28 @@ export class AdControllerImpl
             }
         }
         return null
+    }
+
+    private createAdTracks(adBreaks: readonly AdBreakInfo[]): void {
+        if (!this._trackFactory) return
+        for (const adBreak of adBreaks) {
+            for (const ad of adBreak.ads) {
+                if (!ad.uri) continue
+                const type = inferTrackType(ad.uri)
+                if (!type) continue
+                const track = this._trackFactory.createTrack({
+                    type,
+                    uri: ad.uri,
+                })
+                this._adTracks.set(ad.id, track)
+            }
+        }
+    }
+
+    private disposeAdTracks(): void {
+        for (const track of this._adTracks.values()) {
+            track.dispose()
+        }
+        this._adTracks.clear()
     }
 }

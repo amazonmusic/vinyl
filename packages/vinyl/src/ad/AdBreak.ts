@@ -5,6 +5,7 @@
 
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { ReadonlyEventHost } from '@amazon/vinyl-util'
+import type { Track } from '../track/Track'
 
 /**
  * Where an ad break is scheduled relative to the main content.
@@ -127,6 +128,13 @@ export interface ReadonlyAdController extends ReadonlyEventHost<AdEventMap> {
      * playhead is in primary content.
      */
     readonly activeAdBreak: AdBreakInfo | null
+
+    /**
+     * Returns the track created for the given ad id, or null if no track
+     * was created (e.g. no track factory was provided, or the URI was not
+     * resolvable to a known track type).
+     */
+    getAdTrack(adId: string): Track | null
 }
 
 /**

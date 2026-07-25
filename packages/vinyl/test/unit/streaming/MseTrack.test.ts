@@ -773,6 +773,7 @@ describe('MseTrack', () => {
                 activeAdBreak: null,
                 setAdBreaks: () => undefined,
                 updateTime: jasmine.createSpy('updateTime'),
+                getAdTrack: () => null,
                 on: () => () => undefined,
                 hasAnyListeners: () => false,
                 hasListeners: () => false,

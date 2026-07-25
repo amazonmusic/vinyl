@@ -156,4 +156,156 @@ describe('AdControllerImpl', () => {
         c.dispose()
         expect(events).toEqual([{ previous: 'b1', current: null }])
     })
+
+    describe('ad tracks', () => {
+        function mockTrackFactory() {
+            const tracks: any[] = []
+            return {
+                factory: {
+                    validate: () => {},
+                    createTrack: (opts: any) => {
+                        const track = {
+                            uri: opts.uri,
+                            type: opts.type,
+                            disposed: false,
+                            dispose() {
+                                this.disposed = true
+                            },
+                        }
+                        tracks.push(track)
+                        return track as any
+                    },
+                },
+                tracks,
+            }
+        }
+
+        it('returns null from getAdTrack when no trackFactory', () => {
+            const c = new AdControllerImpl()
+            c.setAdBreaks([
+                makeBreak({
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 15,
+                            uri: 'https://example.com/ad.m3u8',
+                        },
+                    ],
+                }),
+            ])
+            expect(c.getAdTrack('a1')).toBeNull()
+        })
+
+        it('creates tracks for ads with resolvable URIs', () => {
+            const { factory, tracks } = mockTrackFactory()
+            const c = new AdControllerImpl({ trackFactory: factory })
+            c.setAdBreaks([
+                makeBreak({
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 15,
+                            uri: 'https://example.com/ad.m3u8',
+                        },
+                    ],
+                }),
+            ])
+            expect(tracks.length).toBe(1)
+            expect(tracks[0].uri).toBe('https://example.com/ad.m3u8')
+            expect(tracks[0].type).toBe('hls')
+            expect(c.getAdTrack('a1')).toBe(tracks[0])
+        })
+
+        it('does not create tracks for ads with null URI', () => {
+            const { factory, tracks } = mockTrackFactory()
+            const c = new AdControllerImpl({ trackFactory: factory })
+            c.setAdBreaks([
+                makeBreak({
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 15,
+                            uri: null,
+                        },
+                    ],
+                }),
+            ])
+            expect(tracks.length).toBe(0)
+            expect(c.getAdTrack('a1')).toBeNull()
+        })
+
+        it('does not create tracks for unresolvable URIs', () => {
+            const { factory, tracks } = mockTrackFactory()
+            const c = new AdControllerImpl({ trackFactory: factory })
+            c.setAdBreaks([
+                makeBreak({
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 15,
+                            uri: 'https://example.com/unknown',
+                        },
+                    ],
+                }),
+            ])
+            expect(tracks.length).toBe(0)
+        })
+
+        it('disposes previous tracks on setAdBreaks', () => {
+            const { factory, tracks } = mockTrackFactory()
+            const c = new AdControllerImpl({ trackFactory: factory })
+            c.setAdBreaks([
+                makeBreak({
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 15,
+                            uri: 'https://example.com/ad1.m3u8',
+                        },
+                    ],
+                }),
+            ])
+            const firstTrack = tracks[0]
+            c.setAdBreaks([
+                makeBreak({
+                    id: 'b2',
+                    ads: [
+                        {
+                            id: 'a2',
+                            startTime: 20,
+                            duration: 10,
+                            uri: 'https://example.com/ad2.mpd',
+                        },
+                    ],
+                }),
+            ])
+            expect(firstTrack.disposed).toBeTrue()
+            expect(c.getAdTrack('a1')).toBeNull()
+            expect(c.getAdTrack('a2')).not.toBeNull()
+        })
+
+        it('disposes tracks on controller dispose', () => {
+            const { factory, tracks } = mockTrackFactory()
+            const c = new AdControllerImpl({ trackFactory: factory })
+            c.setAdBreaks([
+                makeBreak({
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 15,
+                            uri: 'https://example.com/ad.mp4',
+                        },
+                    ],
+                }),
+            ])
+            c.dispose()
+            expect(tracks[0].disposed).toBeTrue()
+        })
+    })
 })
