@@ -43,6 +43,11 @@ export function TransportBar(props: JsxElementProps<'div'>) {
 
     const adActive$ = activeAdBreak$.map((b) => b != null)
     const adRemainingLabel$ = adRemaining$.map(formatTime)
+    const canSkipAd$ = activeAdBreak$.map((b) => {
+        if (!b) return false
+        const restrict = b.metadata?.['X-RESTRICT'] ?? ''
+        return !restrict.includes('SKIP')
+    })
     const adLabel$ = activeAdBreak$.map((activeBreak) => {
         if (!activeBreak) return ''
         const breakAds = activeBreak.ads
@@ -121,7 +126,11 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                 <div className="adOverlay" visible={adActive$}>
                     <span className="adBadge">{adLabel$}</span>
                     <span className="adRemaining">{adRemainingLabel$}</span>
-                    <button className="adSkipBtn" onclick={skipAd}>
+                    <button
+                        className="adSkipBtn"
+                        visible={canSkipAd$}
+                        onclick={skipAd}
+                    >
                         Skip Ad
                     </button>
                 </div>

@@ -818,10 +818,10 @@ export class VinylPlayer<
     ): void {
         // Bridge the ad-break list difference at track boundaries, mirroring
         // how text-track lists are surfaced on switch.
-        const prevList =
-            previous?.adController?.adBreaks ?? ([] as readonly AdBreakInfo[])
-        const curList =
-            current?.adController?.adBreaks ?? ([] as readonly AdBreakInfo[])
+        const prevList: readonly AdBreakInfo[] =
+            previous?.adController?.adBreaks ?? []
+        const curList: readonly AdBreakInfo[] =
+            current?.adController?.adBreaks ?? []
         if (prevList !== curList) {
             this.dispatch('adBreaksChange', {
                 previous: prevList,
