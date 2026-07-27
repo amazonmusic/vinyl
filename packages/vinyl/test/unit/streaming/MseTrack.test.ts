@@ -817,6 +817,7 @@ describe('MseTrack', () => {
             const mockAdTrack = {
                 activate: jasmine.createSpy('activate'),
                 deactivate: jasmine.createSpy('deactivate'),
+                on: jasmine.createSpy('on').and.returnValue(() => undefined),
             }
             let adBreakChangeCb: any
             const controller = {
@@ -864,6 +865,7 @@ describe('MseTrack', () => {
             const mockAdTrack = {
                 activate: jasmine.createSpy('activate'),
                 deactivate: jasmine.createSpy('deactivate'),
+                on: jasmine.createSpy('on').and.returnValue(() => undefined),
             }
             let adBreakChangeCb: any
             const controller = {
@@ -1108,7 +1110,24 @@ describe('MseTrack', () => {
             return {
                 activate: jasmine.createSpy('activate'),
                 deactivate: jasmine.createSpy('deactivate'),
+                on: jasmine.createSpy('on').and.returnValue(() => undefined),
             } as any
+        }
+
+        function makeAdController() {
+            return {
+                adBreaks: [],
+                activeAdBreak: null,
+                setAdBreaks: () => undefined,
+                updateTime: jasmine.createSpy('updateTime'),
+                getAdTrack: () => null,
+                skipAd: jasmine.createSpy('skipAd'),
+                skipAdBreak: () => undefined,
+                on: () => () => undefined,
+                hasAnyListeners: () => false,
+                hasListeners: () => false,
+                __eventMapType: {} as never,
+            }
         }
 
         it('activates the ad track and deactivates outer streams', async () => {
@@ -1164,6 +1183,94 @@ describe('MseTrack', () => {
             track.setCurrentAdTrack(adTrack)
             track.setCurrentAdTrack(adTrack)
             expect(adTrack.activate).toHaveBeenCalledTimes(1)
+        })
+
+        it('skips ad when play is rejected', async () => {
+            deps.playbackController.play.and.rejectWith(
+                new Error('play rejected')
+            )
+            const adTrack = createMockAdTrack()
+            const controller = makeAdController()
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            track.setCurrentAdTrack(adTrack)
+            await flushPromises()
+            expect(controller.skipAd).toHaveBeenCalled()
+        })
+
+        it('skips ad and bubbles error when ad track emits error', async () => {
+            let errorCb: any
+            const adTrack = {
+                activate: jasmine.createSpy('activate'),
+                deactivate: jasmine.createSpy('deactivate'),
+                on: jasmine
+                    .createSpy('on')
+                    .and.callFake((event: string, cb: any) => {
+                        if (event === 'error') errorCb = cb
+                        return () => {}
+                    }),
+            } as any
+            const controller = makeAdController()
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            track.setCurrentAdTrack(adTrack)
+            const errorSpy = createEventSpy(track, 'error')
+            const adError = {
+                error: new Error('codec unsupported'),
+                target: adTrack,
+            }
+            errorCb(adError)
+            expect(errorSpy).toHaveBeenCalledWith(
+                jasmine.objectContaining({ error: adError.error })
+            )
+        })
+
+        it('skips ad after timeout when ad does not play', async () => {
+            jasmine.clock().install()
+            const adTrack = createMockAdTrack()
+            const controller = {
+                ...makeAdController(),
+                skipAd: jasmine.createSpy('skipAd'),
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            deps.playbackController.currentTime = 0
+            track.setCurrentAdTrack(adTrack)
+            jasmine.clock().tick(10_000)
+            expect(controller.skipAd).toHaveBeenCalled()
+            jasmine.clock().uninstall()
+        })
+
+        it('does not skip after timeout if ad has progressed', async () => {
+            jasmine.clock().install()
+            const adTrack = createMockAdTrack()
+            const controller = {
+                ...makeAdController(),
+                skipAd: jasmine.createSpy('skipAd'),
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            track.setCurrentAdTrack(adTrack)
+            deps.playbackController.currentTime = 3
+            jasmine.clock().tick(10_000)
+            expect(controller.skipAd).not.toHaveBeenCalled()
+            jasmine.clock().uninstall()
         })
     })
 

@@ -130,6 +130,8 @@ export class MseTrack extends TrackBase {
     private readonly _preloadedAdIds = new Set<string>()
     private _currentAdTrack: Track | null = null
     private _adResumeTime: number = 0
+    private _adErrorSub: Unsubscribe | null = null
+    private _adTimeoutId: ReturnType<typeof setTimeout> | null = null
 
     constructor(
         uri: TrackUri,
@@ -448,6 +450,7 @@ export class MseTrack extends TrackBase {
     }
 
     onDeactivated(): void {
+        this.clearAdSubscriptions()
         if (this._currentAdTrack) {
             this._currentAdTrack.deactivate()
             this._currentAdTrack = null
@@ -468,8 +471,11 @@ export class MseTrack extends TrackBase {
      * activated. When null is provided, the ad track is deactivated and the
      * outer track resumes.
      */
+    private static readonly AD_PLAYBACK_TIMEOUT_MS = 10_000
+
     setCurrentAdTrack(adTrack: Track | null): void {
         if (adTrack === this._currentAdTrack) return
+        this.clearAdSubscriptions()
         if (this._currentAdTrack) {
             this._currentAdTrack.deactivate()
             this._currentAdTrack = null
@@ -484,7 +490,27 @@ export class MseTrack extends TrackBase {
             this.deps.playbackSource.src = null
             // Activate the ad sub-track and resume playback.
             adTrack.activate({})
-            this.deps.playbackController.play().catch(() => {})
+            this.deps.playbackController.play().catch(() => {
+                logDebug(this, 'ad play rejected, skipping ad')
+                this.skipCurrentAd()
+            })
+            // If the ad track errors, skip it and resume content.
+            this._adErrorSub = adTrack.on('error', (event) => {
+                logDebug(this, 'ad track error, skipping:', event.error)
+                this.dispatch('error', event)
+                this.skipCurrentAd()
+            })
+            // If the ad doesn't start playing within a timeout, skip it.
+            this._adTimeoutId = setTimeout(() => {
+                this._adTimeoutId = null
+                if (
+                    this._currentAdTrack === adTrack &&
+                    this.deps.playbackController.currentTime === 0
+                ) {
+                    logDebug(this, 'ad playback timeout, skipping')
+                    this.skipCurrentAd()
+                }
+            }, MseTrack.AD_PLAYBACK_TIMEOUT_MS)
         } else if (this.activateOptions) {
             // Resume outer track at the saved position.
             this.onActivated(this.activateOptions)
@@ -492,6 +518,19 @@ export class MseTrack extends TrackBase {
                 .seekTo(this._adResumeTime)
                 .catch(() => {})
             this.deps.playbackController.play().catch(() => {})
+        }
+    }
+
+    private skipCurrentAd(): void {
+        this.deps.adController?.skipAd()
+    }
+
+    private clearAdSubscriptions(): void {
+        this._adErrorSub?.()
+        this._adErrorSub = null
+        if (this._adTimeoutId != null) {
+            clearTimeout(this._adTimeoutId)
+            this._adTimeoutId = null
         }
     }
 
@@ -556,6 +595,7 @@ export class MseTrack extends TrackBase {
 
     dispose(): void {
         logDebug(this, 'dispose')
+        this.clearAdSubscriptions()
         this.timeUpdateSub?.()
         this.timeUpdateSub = null
         this.clearStreams()
