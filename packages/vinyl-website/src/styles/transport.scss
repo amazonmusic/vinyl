@@ -61,6 +61,22 @@
     .adRemaining {
         font-variant-numeric: tabular-nums;
     }
+
+    .adSkipBtn {
+        pointer-events: auto;
+        margin-left: auto;
+        padding: 2px 8px;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        border-radius: 3px;
+        background: transparent;
+        color: white;
+        font-size: 0.75rem;
+        cursor: pointer;
+
+        &:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+    }
 }
 
 .transportControlsRow {
@@ -197,6 +213,23 @@
     background: var(--color-scrubbar-prefetched);
     border-radius: var(--radius-full);
     width: 0%;
+}
+
+.progressBarAdMarkers {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.progressBarAdMarker {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: #f5c518;
+    border-radius: var(--radius-full);
+    min-width: 3px;
 }
 
 .progressFill {

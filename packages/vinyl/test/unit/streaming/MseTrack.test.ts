@@ -812,6 +812,169 @@ describe('MseTrack', () => {
             expect(controller.updateTime).toHaveBeenCalledWith(12)
         })
 
+        it('switches to ad track on adBreakChange enter', async () => {
+            const mockAdTrack = {
+                activate: jasmine.createSpy('activate'),
+                deactivate: jasmine.createSpy('deactivate'),
+            }
+            let adBreakChangeCb: any
+            const controller = {
+                ...makeAdController(),
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 10,
+                        duration: 5,
+                        placement: 'midroll' as const,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 10,
+                                duration: 5,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    },
+                ],
+                getAdTrack: (id: string) =>
+                    id === 'a1' ? (mockAdTrack as any) : null,
+                on: jasmine
+                    .createSpy('on')
+                    .and.callFake((event: string, cb: any) => {
+                        if (event === 'adBreakChange') adBreakChangeCb = cb
+                        return () => {}
+                    }),
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            adBreakChangeCb({
+                previous: null,
+                current: controller.adBreaks[0],
+            })
+            expect(mockAdTrack.activate).toHaveBeenCalled()
+            expect(track.currentAdTrack).toBe(mockAdTrack as any)
+        })
+
+        it('clears ad track on adBreakChange exit', async () => {
+            const mockAdTrack = {
+                activate: jasmine.createSpy('activate'),
+                deactivate: jasmine.createSpy('deactivate'),
+            }
+            let adBreakChangeCb: any
+            const controller = {
+                ...makeAdController(),
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 10,
+                        duration: 5,
+                        placement: 'midroll' as const,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 10,
+                                duration: 5,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    },
+                ],
+                getAdTrack: (id: string) =>
+                    id === 'a1' ? (mockAdTrack as any) : null,
+                on: jasmine
+                    .createSpy('on')
+                    .and.callFake((event: string, cb: any) => {
+                        if (event === 'adBreakChange') adBreakChangeCb = cb
+                        return () => {}
+                    }),
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            // Enter the ad break
+            adBreakChangeCb({
+                previous: null,
+                current: controller.adBreaks[0],
+            })
+            expect(track.currentAdTrack).not.toBeNull()
+
+            // Exit the ad break
+            adBreakChangeCb({
+                previous: controller.adBreaks[0],
+                current: null,
+            })
+            expect(mockAdTrack.deactivate).toHaveBeenCalled()
+            expect(track.currentAdTrack).toBeNull()
+        })
+
+        it('does not switch when ad break has no ads', async () => {
+            let adBreakChangeCb: any
+            const controller = {
+                ...makeAdController(),
+                on: jasmine
+                    .createSpy('on')
+                    .and.callFake((event: string, cb: any) => {
+                        if (event === 'adBreakChange') adBreakChangeCb = cb
+                        return () => {}
+                    }),
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            adBreakChangeCb({
+                previous: null,
+                current: {
+                    id: 'b1',
+                    startTime: 10,
+                    duration: 5,
+                    placement: 'midroll',
+                    ads: [],
+                },
+            })
+            expect(track.currentAdTrack).toBeNull()
+        })
+
+        it('does not switch when getAdTrack returns null', async () => {
+            let adBreakChangeCb: any
+            const controller = {
+                ...makeAdController(),
+                getAdTrack: () => null,
+                on: jasmine
+                    .createSpy('on')
+                    .and.callFake((event: string, cb: any) => {
+                        if (event === 'adBreakChange') adBreakChangeCb = cb
+                        return () => {}
+                    }),
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            adBreakChangeCb({
+                previous: null,
+                current: {
+                    id: 'b1',
+                    startTime: 10,
+                    duration: 5,
+                    placement: 'midroll',
+                    ads: [{ id: 'a1', startTime: 10, duration: 5, uri: 'x' }],
+                },
+            })
+            expect(track.currentAdTrack).toBeNull()
+        })
+
         it('preloads ad tracks within 20s of start time', async () => {
             const mockAdTrack = {
                 preload: jasmine.createSpy('preload'),
@@ -907,9 +1070,8 @@ describe('MseTrack', () => {
                 getAdTrack: () => mockAdTrack as any,
                 on: jasmine
                     .createSpy('on')
-                    .and.callFake((_event: string, cb: () => void) => {
-                        // Store the callback so we can call it
-                        ;(controller as any)._adBreaksChangeCb = cb
+                    .and.callFake((event: string, cb: () => void) => {
+                        ;(controller as any)[`_${event}Cb`] = cb
                         return () => {}
                     }),
             }

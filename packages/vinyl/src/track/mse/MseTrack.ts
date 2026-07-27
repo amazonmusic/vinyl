@@ -47,7 +47,8 @@ import {
     type MediaPeriod,
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
-import type { AdController } from '../../ad/AdBreak'
+import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
+import type { ChangeEvent } from '../../event/ChangeEvent'
 import type { TrackFactory, TrackLoadOptions } from '../TrackFactory'
 
 export type MseTrackDeps = TrackBaseDeps & {
@@ -148,6 +149,27 @@ export class MseTrack extends TrackBase {
                 deps.adController.on('adBreaksChange', () => {
                     this._preloadedAdIds.clear()
                 })
+            )
+            add(
+                deps.adController.on(
+                    'adBreakChange',
+                    (event: ChangeEvent<AdBreakInfo | null>) => {
+                        if (event.current && event.current.ads.length > 0) {
+                            const ad = event.current.ads[0]
+                            const adCtrl = this.deps.adController as
+                                | (AdController & {
+                                      getAdTrack?(adId: string): Track | null
+                                  })
+                                | null
+                            const adTrack = adCtrl?.getAdTrack?.(ad.id)
+                            if (adTrack) {
+                                this.setCurrentAdTrack(adTrack)
+                            }
+                        } else if (this._currentAdTrack) {
+                            this.setCurrentAdTrack(null)
+                        }
+                    }
+                )
             )
         }
 
