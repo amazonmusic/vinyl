@@ -66,14 +66,21 @@ export function ScrubBar(props: ScrubBarProps) {
                 />
                 <div
                     className="progressBarAdMarkers"
-                    children={adMarkers$.map((markers) =>
-                        markers.map((m) => (
-                            <div
-                                className="progressBarAdMarker"
-                                style={{ left: m.left, width: m.width }}
-                            />
-                        ))
-                    )}
+                    onConnect={(el) => {
+                        return adMarkers$.onData((markers) => {
+                            el.replaceChildren(
+                                ...markers.map((m) => (
+                                    <div
+                                        className="progressBarAdMarker"
+                                        style={{
+                                            left: m.left,
+                                            width: m.width,
+                                        }}
+                                    />
+                                ))
+                            )
+                        })
+                    }}
                 />
                 <div
                     className="progressFill"
