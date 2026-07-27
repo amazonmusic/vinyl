@@ -34,12 +34,24 @@ export function ScrubBar(props: ScrubBarProps) {
         adBreaks: props.adBreaks$,
         seekRange: props.seekRange$,
     }).map(({ adBreaks, seekRange }) => {
-        if (!seekRange || seekRange.end <= 0) return []
+        if (!seekRange || seekRange.end <= 0 || !isFinite(seekRange.end))
+            return []
         const duration = seekRange.end - seekRange.start
-        return adBreaks.map((b) => ({
-            left: toPercentCss((b.startTime - seekRange.start) / duration),
-            width: toPercentCss((b.duration ?? 0) / duration),
-        }))
+        if (duration <= 0) return []
+        return adBreaks
+            .filter((b) => b.duration != null && b.duration > 0)
+            .map((b) => {
+                const leftPct = clamp(
+                    (b.startTime - seekRange.start) / duration,
+                    0,
+                    1
+                )
+                const widthPct = clamp(b.duration! / duration, 0, 1 - leftPct)
+                return {
+                    left: toPercentCss(leftPct),
+                    width: toPercentCss(widthPct),
+                }
+            })
     })
 
     const bar = (

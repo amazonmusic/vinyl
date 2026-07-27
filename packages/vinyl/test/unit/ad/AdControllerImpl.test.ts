@@ -178,6 +178,18 @@ describe('AdControllerImpl', () => {
             expect(events[0].current).toBeNull()
             expect(c.activeAdBreak).toBeNull()
         })
+
+        it('prevents re-entry after skip', () => {
+            const c = new AdControllerImpl()
+            c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            c.updateTime(5)
+            c.skipAd()
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakChange', spy)
+            c.updateTime(7)
+            expect(spy).not.toHaveBeenCalled()
+            expect(c.activeAdBreak).toBeNull()
+        })
     })
 
     describe('skipAdBreak', () => {

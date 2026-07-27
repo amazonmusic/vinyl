@@ -39,6 +39,7 @@ export class AdControllerImpl
     private _active: AdBreakInfo | null = null
     private readonly _trackFactory: TrackFactory<TrackLoadOptions> | null
     private readonly _adTracks = new Map<string, Track>()
+    private readonly _skippedBreakIds = new Set<string>()
 
     constructor(options?: AdControllerImplOptions) {
         super()
@@ -67,6 +68,7 @@ export class AdControllerImpl
         // so region lookups can assume monotonic starts.
         const sorted = [...adBreaks].sort((a, b) => a.startTime - b.startTime)
         this._adBreaks = sorted
+        this._skippedBreakIds.clear()
 
         // Dispose previous ad tracks and create new ones.
         this.disposeAdTracks()
@@ -93,6 +95,7 @@ export class AdControllerImpl
     skipAd(): void {
         if (!this._active) return
         const previous = this._active
+        this._skippedBreakIds.add(previous.id)
         this._active = null
         this.dispatch('adBreakChange', { previous, current: null })
     }
@@ -100,6 +103,7 @@ export class AdControllerImpl
     skipAdBreak(): void {
         if (!this._active) return
         const previous = this._active
+        this._skippedBreakIds.add(previous.id)
         this._active = null
         this.dispatch('adBreakChange', { previous, current: null })
     }
@@ -122,6 +126,7 @@ export class AdControllerImpl
     private breakContaining(time: number): AdBreakInfo | null {
         for (const b of this._adBreaks) {
             if (b.duration == null) continue
+            if (this._skippedBreakIds.has(b.id)) continue
             if (time >= b.startTime && time < b.startTime + b.duration) {
                 return b
             }

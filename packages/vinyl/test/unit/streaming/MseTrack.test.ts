@@ -65,6 +65,7 @@ describe('MseTrack', () => {
         deps.contentTypesValue.value = Promise.resolve(
             new Set(['audio', 'video'])
         )
+        deps.playbackController.play.and.resolveTo(void 0)
     })
 
     afterEach(() => {

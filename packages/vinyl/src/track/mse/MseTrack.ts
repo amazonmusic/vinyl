@@ -482,14 +482,16 @@ export class MseTrack extends TrackBase {
             this.timeUpdateSub = null
             this.callOnStreams('deactivate')
             this.deps.playbackSource.src = null
-            // Activate the ad sub-track.
+            // Activate the ad sub-track and resume playback.
             adTrack.activate({})
+            this.deps.playbackController.play().catch(() => {})
         } else if (this.activateOptions) {
             // Resume outer track at the saved position.
             this.onActivated(this.activateOptions)
             this.deps.playbackController
                 .seekTo(this._adResumeTime)
                 .catch(() => {})
+            this.deps.playbackController.play().catch(() => {})
         }
     }
 
