@@ -273,9 +273,7 @@ function parseDateRange(
     const clientAttributes: Record<string, string> = {}
     for (const [key, value] of Object.entries(attrs)) {
         if (DATERANGE_RESERVED_ATTRS.has(key)) continue
-        if (key.startsWith('X-')) {
-            clientAttributes[key] = substituteVars(value)
-        }
+        clientAttributes[key] = substituteVars(value)
     }
 
     return {

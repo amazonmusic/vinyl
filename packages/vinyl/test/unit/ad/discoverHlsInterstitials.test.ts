@@ -329,4 +329,80 @@ describe('discoverHlsInterstitials', () => {
         const breaks = discoverHlsInterstitials(playlist, BASE, 60)
         expect(breaks.map((b) => b.id)).toEqual(['early', 'late'])
     })
+
+    it('uses CUE=PRE to classify preroll and set startTime to 0', () => {
+        const playlist = makePlaylist({
+            segments: [
+                {
+                    duration: 6,
+                    uri: 's0.ts',
+                    programDateTime: '2024-01-01T00:00:00.000Z',
+                    sequenceNumber: 0,
+                    discontinuity: false,
+                },
+            ],
+            dateRanges: [
+                makeRange({
+                    id: 'pre',
+                    startDate: '2024-01-01T00:00:10.000Z',
+                    duration: 6,
+                    clientAttributes: { 'X-ASSET-URI': 'ad.m3u8', CUE: 'PRE' },
+                }),
+            ],
+        })
+        const breaks = discoverHlsInterstitials(playlist, BASE, 60)
+        expect(breaks[0].placement).toBe('preroll')
+        expect(breaks[0].startTime).toBe(0)
+    })
+
+    it('uses CUE=POST to classify postroll', () => {
+        const playlist = makePlaylist({
+            segments: [
+                {
+                    duration: 6,
+                    uri: 's0.ts',
+                    programDateTime: '2024-01-01T00:00:00.000Z',
+                    sequenceNumber: 0,
+                    discontinuity: false,
+                },
+            ],
+            dateRanges: [
+                makeRange({
+                    id: 'post',
+                    startDate: '2024-01-01T00:00:30.000Z',
+                    duration: 10,
+                    clientAttributes: { 'X-ASSET-URI': 'ad.m3u8', CUE: 'POST' },
+                }),
+            ],
+        })
+        const breaks = discoverHlsInterstitials(playlist, BASE, 60)
+        expect(breaks[0].placement).toBe('postroll')
+    })
+
+    it('uses X-PLAYOUT-LIMIT to cap duration', () => {
+        const playlist = makePlaylist({
+            segments: [
+                {
+                    duration: 6,
+                    uri: 's0.ts',
+                    programDateTime: '2024-01-01T00:00:00.000Z',
+                    sequenceNumber: 0,
+                    discontinuity: false,
+                },
+            ],
+            dateRanges: [
+                makeRange({
+                    id: 'limited',
+                    startDate: '2024-01-01T00:00:10.000Z',
+                    duration: 600,
+                    clientAttributes: {
+                        'X-ASSET-URI': 'ad.m3u8',
+                        'X-PLAYOUT-LIMIT': '10.0',
+                    },
+                }),
+            ],
+        })
+        const breaks = discoverHlsInterstitials(playlist, BASE)
+        expect(breaks[0].duration).toBe(10)
+    })
 })

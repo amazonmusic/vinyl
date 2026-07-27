@@ -5,7 +5,7 @@
 
 import type { DateRange, MediaPlaylist } from '@amazon/vinyl-hls-parser'
 import { HLS_INTERSTITIAL_CLASS } from '@amazon/vinyl-hls-parser'
-import { resolveUrl } from '@amazon/vinyl-util'
+import { resolveUrl, type Maybe } from '@amazon/vinyl-util'
 import type { AdBreakInfo, AdBreakPlacement, AdInfo } from './AdBreak'
 
 /**
@@ -47,16 +47,20 @@ export function discoverHlsInterstitials(
         if (startTime == null) continue
 
         const duration = resolveDuration(range)
+        const cue = range.clientAttributes['CUE'] ?? ''
         const placement = classifyPlacement(
             startTime,
             duration,
-            contentDuration
+            contentDuration,
+            cue
         )
-        const ads = resolveAds(range, startTime, duration, baseUrl)
+        const effectiveStartTime =
+            cue === 'PRE' ? 0 : placement === 'preroll' ? 0 : startTime
+        const ads = resolveAds(range, effectiveStartTime, duration, baseUrl)
 
         breaks.push({
             id: range.id,
-            startTime,
+            startTime: effectiveStartTime,
             duration,
             placement,
             ads,
@@ -122,10 +126,17 @@ function resolveStartTime(
 }
 
 /**
- * Determines a break's duration in seconds: DURATION when present, else the
- * span between END-DATE and START-DATE, else PLANNED-DURATION, else null.
+ * Determines a break's duration in seconds. Uses X-PLAYOUT-LIMIT when present
+ * (caps actual playback time), else DURATION, else END-DATE span, else
+ * PLANNED-DURATION, else null.
  */
 function resolveDuration(range: DateRange): number | null {
+    const playoutLimit = parseFloat(
+        range.clientAttributes['X-PLAYOUT-LIMIT'] ?? ''
+    )
+    if (Number.isFinite(playoutLimit) && playoutLimit > 0) {
+        return playoutLimit
+    }
     if (range.duration != null && !Number.isNaN(range.duration)) {
         return range.duration
     }
@@ -145,8 +156,11 @@ function resolveDuration(range: DateRange): number | null {
 function classifyPlacement(
     startTime: number,
     duration: number | null,
-    contentDuration?: number | null
+    contentDuration: Maybe<number>,
+    cue: string
 ): AdBreakPlacement {
+    if (cue === 'PRE') return 'preroll'
+    if (cue === 'POST') return 'postroll'
     if (startTime <= ROLL_EPSILON) return 'preroll'
     if (
         contentDuration != null &&
