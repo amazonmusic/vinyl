@@ -794,10 +794,10 @@ export class VinylPlayer<
      * No-op when no ad break is active.
      */
     skipAd(): void {
-        const controller = (
-            this.trackController.currentTrack as Track<any> | null
-        )?.adController
-        controller?.skipAd()
+        const track = this.trackController.currentTrack as
+            | (Track<any> & { advanceOrSkipAd?(): void })
+            | null
+        track?.advanceOrSkipAd?.()
     }
 
     /**

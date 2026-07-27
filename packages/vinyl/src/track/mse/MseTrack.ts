@@ -482,7 +482,7 @@ export class MseTrack extends TrackBase {
             this.timeUpdateSub = null
             this.callOnStreams('deactivate')
             this.deps.playbackSource.src = null
-            // Activate the ad sub-track and resume playback.
+            // Activate the ad sub-track and always play (ads should auto-play).
             adTrack.activate({})
             this.deps.playbackController.play().catch(() => {
                 logDebug(this, 'ad play rejected, skipping ad')
@@ -520,7 +520,11 @@ export class MseTrack extends TrackBase {
         }
     }
 
-    private advanceOrSkipAd(): void {
+    /**
+     * Advances to the next ad in the active break, or skips the break if
+     * this was the last ad.
+     */
+    advanceOrSkipAd(): void {
         const activeBreak = this.deps.adController?.activeAdBreak
         if (activeBreak && this._activeAdIndex + 1 < activeBreak.ads.length) {
             this._activeAdIndex++

@@ -40,6 +40,7 @@ export class AdControllerImpl
     private readonly _trackFactory: TrackFactory<TrackLoadOptions> | null
     private readonly _adTracks = new Map<string, Track>()
     private readonly _skippedBreakIds = new Set<string>()
+    private _lastTime: number = 0
 
     constructor(options?: AdControllerImplOptions) {
         super()
@@ -85,6 +86,7 @@ export class AdControllerImpl
     }
 
     updateTime(currentTime: number): void {
+        this._lastTime = currentTime
         const next = this.breakContaining(currentTime)
         if (next?.id === this._active?.id) return
         const previous = this._active

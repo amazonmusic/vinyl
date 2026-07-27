@@ -143,14 +143,15 @@ describe('VinylPlayer ad break API', () => {
         expect(spy).not.toHaveBeenCalled()
     })
 
-    it('skipAd delegates to the ad controller', () => {
+    it('skipAd delegates to the track advanceOrSkipAd', () => {
         const { track, controller } = makeTrackWithController()
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        ;(track as any).advanceOrSkipAd = jasmine.createSpy('advanceOrSkipAd')
         activate(track)
         controller.updateTime(5)
         expect(player.activeAdBreak).not.toBeNull()
         player.skipAd()
-        expect(player.activeAdBreak).toBeNull()
+        expect((track as any).advanceOrSkipAd).toHaveBeenCalled()
     })
 
     it('skipAdBreak delegates to the ad controller', () => {
