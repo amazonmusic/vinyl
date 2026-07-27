@@ -7,7 +7,6 @@ import { MediaUnsupportedError } from '@amazon/vinyl-util'
 import type { Unsubscribe } from '@amazon/vinyl-util'
 import type { SignalOptions } from '@amazon/vinyl-util'
 import { withTimeout } from '@amazon/vinyl-util'
-import { isKnownFalseReport } from './codecSupport'
 
 declare global {
     var ManagedMediaSource: typeof MediaSource | undefined
@@ -34,13 +33,13 @@ function getMediaSourceCtor(): typeof MediaSource {
 /**
  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/MediaSource/isTypeSupported_static)
  *
- * Returns false for codecs on the known browser false-report denylist (see
- * {@link isKnownFalseReport}) even when the browser's own check returns true,
- * so support detection reflects what will actually decode.
+ * Delegates to the browser's native support check. False-positive codecs
+ * (where the browser reports support but decode fails at runtime) are handled
+ * by the decode-failure recovery path rather than a static denylist, so this
+ * function reflects the browser's own answer.
  */
 export function isTypeSupported(type: string): boolean {
     assertMseSupported()
-    if (isKnownFalseReport(type)) return false
     return getMediaSourceCtor().isTypeSupported(type)
 }
 

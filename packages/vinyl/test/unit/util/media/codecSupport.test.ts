@@ -51,24 +51,8 @@ describe('codecSupport', () => {
     })
 
     describe('findFalseReport', () => {
-        it('flags HEVC (hvc1) on Chromium', () => {
+        it('does not flag HEVC by default (runtime recovery handles it)', () => {
             setUserAgent(CHROME_UA)
-            const report = findFalseReport(
-                'video/mp4; codecs="hvc1.2.20000000.L123.B0"'
-            )
-            expect(report?.id).toBe('chromium-hevc')
-        })
-
-        it('flags HEVC (hev1) on Chromium', () => {
-            setUserAgent(CHROME_UA)
-            const report = findFalseReport(
-                'video/mp4; codecs="hev1.2.20000000.L123.B0"'
-            )
-            expect(report?.id).toBe('chromium-hevc')
-        })
-
-        it('does not flag HEVC on Safari', () => {
-            setUserAgent(SAFARI_UA)
             expect(
                 findFalseReport('video/mp4; codecs="hvc1.2.20000000.L123.B0"')
             ).toBeUndefined()
@@ -79,14 +63,6 @@ describe('codecSupport', () => {
             expect(
                 findFalseReport('video/mp4; codecs="avc1.64001f"')
             ).toBeUndefined()
-        })
-
-        it('flags HEVC when combined with other codecs', () => {
-            setUserAgent(CHROME_UA)
-            const report = findFalseReport(
-                'video/mp4; codecs="hvc1.1,mp4a.40.2"'
-            )
-            expect(report?.id).toBe('chromium-hevc')
         })
 
         it('returns undefined for a mimeType with no codecs', () => {
@@ -153,10 +129,8 @@ describe('codecSupport', () => {
     })
 
     describe('KNOWN_CODEC_FALSE_REPORTS', () => {
-        it('includes the Chromium HEVC rule', () => {
-            expect(
-                KNOWN_CODEC_FALSE_REPORTS.some((r) => r.id === 'chromium-hevc')
-            ).toBeTrue()
+        it('is empty by default (runtime recovery preferred)', () => {
+            expect(KNOWN_CODEC_FALSE_REPORTS.length).toBe(0)
         })
     })
 })

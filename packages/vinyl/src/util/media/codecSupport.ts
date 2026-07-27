@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Browser, hasBrowser } from '@amazon/vinyl-util'
-
 /**
  * Known browsers misreport codec support: `MediaSource.isTypeSupported`
  * (and `HTMLMediaElement.canPlayType`) return `true` for a codec the browser
@@ -53,23 +51,14 @@ export interface CodecFalseReport {
 /**
  * The built-in denylist of known browser false codec reports.
  *
- * HEVC on Chromium: Chromium reports `isTypeSupported('video/mp4;
- * codecs="hvc1…"/"hev1…"')` as `true` on builds with no platform HEVC decoder
- * (e.g. Chrome for Testing, many Linux/Windows configs without hardware
- * support). MSE appends then fail with `CHUNK_DEMUXER_ERROR_APPEND_FAILED`.
- * Chrome only decodes HEVC when the OS provides a decoder, which the static
- * support check does not reflect. Safari (which genuinely decodes HEVC) is not
- * matched by {@link hasBrowser} for {@link Browser.CHROMIUM}, so it is
- * unaffected.
+ * Intentionally empty: false-positive codecs (e.g. HEVC on Chromium without a
+ * platform decoder) are handled at runtime via the decode-failure recovery path
+ * ({@link codecUnsupported} event + track reload). A static denylist would
+ * block HEVC on macOS/Windows where hardware decode is available, so we prefer
+ * the try-then-recover approach. Additional application-specific rules can be
+ * provided via the {@link codecOverrides} configuration.
  */
-export const KNOWN_CODEC_FALSE_REPORTS: readonly CodecFalseReport[] = [
-    {
-        id: 'chromium-hevc',
-        codecPattern: /^(hvc1|hev1)\b/i,
-        enabled: () => hasBrowser(Browser.CHROMIUM),
-        reason: 'Chromium reports HEVC as supported but cannot decode it without a platform decoder',
-    },
-]
+export const KNOWN_CODEC_FALSE_REPORTS: readonly CodecFalseReport[] = []
 
 /**
  * Extracts the individual codec strings from a mimeType's `codecs=` parameter.
