@@ -1272,6 +1272,20 @@ describe('MseTrack', () => {
             expect(controller.skipAd).not.toHaveBeenCalled()
             jasmine.clock().uninstall()
         })
+
+        it('resumes content when ad track ends', async () => {
+            const adTrack = createMockAdTrack()
+            const controller = makeAdController()
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            track.setCurrentAdTrack(adTrack)
+            deps.playbackController.dispatch('ended', {})
+            expect(controller.skipAd).toHaveBeenCalled()
+        })
     })
 
     describe('seekRange', () => {

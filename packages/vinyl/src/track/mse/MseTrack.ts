@@ -131,6 +131,7 @@ export class MseTrack extends TrackBase {
     private _currentAdTrack: Track | null = null
     private _adResumeTime: number = 0
     private _adErrorSub: Unsubscribe | null = null
+    private _adEndedSub: Unsubscribe | null = null
     private _adTimeoutId: ReturnType<typeof setTimeout> | null = null
 
     constructor(
@@ -500,6 +501,11 @@ export class MseTrack extends TrackBase {
                 this.dispatch('error', event)
                 this.skipCurrentAd()
             })
+            // When the ad finishes playing, resume content.
+            this._adEndedSub = this.deps.playbackController.on('ended', () => {
+                logDebug(this, 'ad ended, resuming content')
+                this.skipCurrentAd()
+            })
             // If the ad doesn't start playing within a timeout, skip it.
             this._adTimeoutId = setTimeout(() => {
                 this._adTimeoutId = null
@@ -528,6 +534,8 @@ export class MseTrack extends TrackBase {
     private clearAdSubscriptions(): void {
         this._adErrorSub?.()
         this._adErrorSub = null
+        this._adEndedSub?.()
+        this._adEndedSub = null
         if (this._adTimeoutId != null) {
             clearTimeout(this._adTimeoutId)
             this._adTimeoutId = null
