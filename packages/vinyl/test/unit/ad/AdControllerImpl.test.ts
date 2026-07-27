@@ -13,7 +13,7 @@ describe('AdControllerImpl', () => {
             startTime: 10,
             duration: 5,
             placement: 'midroll',
-            ads: [],
+            ads: [{ id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' }],
             ...overrides,
         }
     }
@@ -155,6 +155,13 @@ describe('AdControllerImpl', () => {
         )
         c.dispose()
         expect(events).toEqual([{ previous: 'b1', current: null }])
+    })
+
+    it('does not activate a break with empty ads array', () => {
+        const c = new AdControllerImpl()
+        c.setAdBreaks([makeBreak({ startTime: 0, duration: 10, ads: [] })])
+        c.updateTime(5)
+        expect(c.activeAdBreak).toBeNull()
     })
 
     describe('skipAd', () => {
@@ -362,6 +369,176 @@ describe('AdControllerImpl', () => {
             ])
             c.dispose()
             expect(tracks[0].disposed).toBeTrue()
+        })
+
+        it('fetches X-ASSET-LIST and creates tracks from the response', async () => {
+            const { factory, tracks } = mockTrackFactory()
+            const assetListResponse = {
+                ASSETS: [
+                    { URI: 'https://example.com/mid1.m3u8', DURATION: 10 },
+                    { URI: 'https://example.com/mid2.m3u8', DURATION: 15 },
+                ],
+            }
+            const origFetch = globalThis.fetch
+            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
+                json: () => Promise.resolve(assetListResponse),
+            })
+
+            try {
+                const c = new AdControllerImpl({ trackFactory: factory })
+                c.setAdBreaks([
+                    makeBreak({
+                        id: 'b-list',
+                        ads: [],
+                        metadata: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ])
+
+                await new Promise((r) => setTimeout(r, 0))
+                await new Promise((r) => setTimeout(r, 0))
+
+                expect(globalThis.fetch).toHaveBeenCalledWith(
+                    'https://example.com/ads.json'
+                )
+                expect(tracks.length).toBe(2)
+                expect(c.getAdTrack('b-list-0')).toBe(tracks[0])
+                expect(c.getAdTrack('b-list-1')).toBe(tracks[1])
+
+                const updatedBreak = c.adBreaks.find((b) => b.id === 'b-list')
+                expect(updatedBreak?.ads.length).toBe(2)
+            } finally {
+                globalThis.fetch = origFetch
+            }
+        })
+
+        it('handles assets without DURATION and preserves other breaks', async () => {
+            const { factory, tracks } = mockTrackFactory()
+            const origFetch = globalThis.fetch
+            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
+                json: () =>
+                    Promise.resolve({
+                        ASSETS: [
+                            { URI: 'https://example.com/ad.m3u8' },
+                            { URI: 'https://example.com/unknown' },
+                        ],
+                    }),
+            })
+
+            try {
+                const c = new AdControllerImpl({ trackFactory: factory })
+                c.setAdBreaks([
+                    makeBreak({ id: 'other', startTime: 5 }),
+                    makeBreak({
+                        id: 'b-list',
+                        startTime: 20,
+                        ads: [],
+                        metadata: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ])
+
+                await new Promise((r) => setTimeout(r, 0))
+                await new Promise((r) => setTimeout(r, 0))
+
+                // Only one track created (unknown URI filtered out)
+                expect(tracks.length).toBe(2) // 1 from 'other' + 1 from asset list
+                const listBreak = c.adBreaks.find((b) => b.id === 'b-list')
+                expect(listBreak?.ads[0].duration).toBeNull()
+                // Other break preserved
+                expect(c.adBreaks.find((b) => b.id === 'other')).toBeDefined()
+            } finally {
+                globalThis.fetch = origFetch
+            }
+        })
+
+        it('handles fetch failure gracefully', async () => {
+            const { factory } = mockTrackFactory()
+            const origFetch = globalThis.fetch
+            globalThis.fetch = jasmine
+                .createSpy('fetch')
+                .and.rejectWith(new Error('network'))
+
+            try {
+                const c = new AdControllerImpl({ trackFactory: factory })
+                c.setAdBreaks([
+                    makeBreak({
+                        ads: [],
+                        metadata: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ])
+
+                await new Promise((r) => setTimeout(r, 0))
+                expect(c.adBreaks.length).toBe(1)
+            } finally {
+                globalThis.fetch = origFetch
+            }
+        })
+
+        it('handles missing ASSETS in JSON response', async () => {
+            const { factory, tracks } = mockTrackFactory()
+            const origFetch = globalThis.fetch
+            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
+                json: () => Promise.resolve({}),
+            })
+
+            try {
+                const c = new AdControllerImpl({ trackFactory: factory })
+                c.setAdBreaks([
+                    makeBreak({
+                        id: 'b-empty',
+                        ads: [],
+                        metadata: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ])
+
+                await new Promise((r) => setTimeout(r, 0))
+                await new Promise((r) => setTimeout(r, 0))
+                expect(tracks.length).toBe(0)
+                expect(c.getAdTrack('b-empty-0')).toBeNull()
+            } finally {
+                globalThis.fetch = origFetch
+            }
+        })
+
+        it('skips assets with no URI in the response', async () => {
+            const { factory, tracks } = mockTrackFactory()
+            const origFetch = globalThis.fetch
+            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
+                json: () =>
+                    Promise.resolve({
+                        ASSETS: [
+                            { DURATION: 10 }, // no URI
+                            { URI: 'https://example.com/ad.m3u8', DURATION: 5 },
+                        ],
+                    }),
+            })
+
+            try {
+                const c = new AdControllerImpl({ trackFactory: factory })
+                c.setAdBreaks([
+                    makeBreak({
+                        id: 'b-null',
+                        ads: [],
+                        metadata: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ])
+
+                await new Promise((r) => setTimeout(r, 0))
+                await new Promise((r) => setTimeout(r, 0))
+                // Only the second asset (with URI) gets a track
+                expect(tracks.length).toBe(1)
+            } finally {
+                globalThis.fetch = origFetch
+            }
         })
     })
 })

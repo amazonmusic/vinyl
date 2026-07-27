@@ -1273,7 +1273,7 @@ describe('MseTrack', () => {
             jasmine.clock().uninstall()
         })
 
-        it('resumes content when ad track ends', async () => {
+        it('resumes content when last ad in break ends', async () => {
             const adTrack = createMockAdTrack()
             const controller = makeAdController()
             ;(deps as unknown as Record<string, unknown>).adController =
@@ -1285,6 +1285,37 @@ describe('MseTrack', () => {
             track.setCurrentAdTrack(adTrack)
             deps.playbackController.dispatch('ended', {})
             expect(controller.skipAd).toHaveBeenCalled()
+        })
+
+        it('advances to next ad when first ad ends in multi-ad break', async () => {
+            const adTrack1 = createMockAdTrack()
+            const adTrack2 = createMockAdTrack()
+            const controller = {
+                ...makeAdController(),
+                activeAdBreak: {
+                    id: 'b1',
+                    startTime: 10,
+                    duration: 20,
+                    placement: 'midroll' as const,
+                    ads: [
+                        { id: 'a1', startTime: 10, duration: 10, uri: 'x' },
+                        { id: 'a2', startTime: 10, duration: 10, uri: 'y' },
+                    ],
+                },
+                getAdTrack: (id: string) =>
+                    id === 'a1' ? adTrack1 : id === 'a2' ? adTrack2 : null,
+            }
+            ;(deps as unknown as Record<string, unknown>).adController =
+                controller
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+
+            track.setCurrentAdTrack(adTrack1)
+            // First ad ends — should advance to second, not skip break
+            deps.playbackController.dispatch('ended', {})
+            expect(controller.skipAd).not.toHaveBeenCalled()
+            expect(adTrack2.activate).toHaveBeenCalled()
         })
     })
 

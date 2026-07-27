@@ -42,7 +42,7 @@ describe('VinylPlayer ad break API', () => {
             startTime: 10,
             duration: 5,
             placement: 'midroll',
-            ads: [],
+            ads: [{ id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' }],
             ...overrides,
         }
     }

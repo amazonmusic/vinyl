@@ -4,7 +4,7 @@
  */
 
 import { equalDeep, EventHostImpl } from '@amazon/vinyl-util'
-import type { AdBreakInfo, AdController, AdEventMap } from './AdBreak'
+import type { AdBreakInfo, AdController, AdEventMap, AdInfo } from './AdBreak'
 import type { Track } from '../track/Track'
 import type { TrackFactory, TrackLoadOptions } from '../track/TrackFactory'
 import { inferTrackType } from './inferTrackType'
@@ -126,6 +126,7 @@ export class AdControllerImpl
     private breakContaining(time: number): AdBreakInfo | null {
         for (const b of this._adBreaks) {
             if (b.duration == null) continue
+            if (b.ads.length === 0) continue
             if (this._skippedBreakIds.has(b.id)) continue
             if (time >= b.startTime && time < b.startTime + b.duration) {
                 return b
@@ -137,6 +138,13 @@ export class AdControllerImpl
     private createAdTracks(adBreaks: readonly AdBreakInfo[]): void {
         if (!this._trackFactory) return
         for (const adBreak of adBreaks) {
+            // If the break has no ads but has an X-ASSET-LIST, fetch it.
+            if (
+                adBreak.ads.length === 0 &&
+                adBreak.metadata?.['X-ASSET-LIST']
+            ) {
+                this.fetchAssetList(adBreak)
+            }
             for (const ad of adBreak.ads) {
                 if (!ad.uri) continue
                 const type = inferTrackType(ad.uri)
@@ -148,6 +156,43 @@ export class AdControllerImpl
                 this._adTracks.set(ad.id, track)
             }
         }
+    }
+
+    private fetchAssetList(adBreak: AdBreakInfo): void {
+        const url = adBreak.metadata!['X-ASSET-LIST']
+        fetch(url)
+            .then((res) => res.json())
+            .then((json: { ASSETS?: { URI: string; DURATION?: number }[] }) => {
+                if (!json.ASSETS || !this._trackFactory) return
+                const ads: AdInfo[] = json.ASSETS.map((asset, i) => ({
+                    id: `${adBreak.id}-${i}`,
+                    startTime: adBreak.startTime,
+                    duration: asset.DURATION ?? null,
+                    uri: asset.URI,
+                }))
+                // Mutate the break's ads array by replacing the break with
+                // updated ads. Re-emit adBreaksChange so listeners pick up
+                // the new ads.
+                const updated = this._adBreaks.map((b) =>
+                    b.id === adBreak.id ? { ...b, ads } : b
+                )
+                this._adBreaks = updated
+                for (const ad of ads) {
+                    if (!ad.uri) continue
+                    const type = inferTrackType(ad.uri)
+                    if (!type) continue
+                    const track = this._trackFactory.createTrack({
+                        type,
+                        uri: ad.uri,
+                    })
+                    this._adTracks.set(ad.id, track)
+                }
+                this.dispatch('adBreaksChange', {
+                    previous: updated,
+                    current: updated,
+                })
+            })
+            .catch(() => {})
     }
 
     private disposeAdTracks(): void {

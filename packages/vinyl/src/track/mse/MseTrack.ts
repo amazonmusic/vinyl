@@ -133,6 +133,7 @@ export class MseTrack extends TrackBase {
     private _adErrorSub: Unsubscribe | null = null
     private _adEndedSub: Unsubscribe | null = null
     private _adTimeoutId: ReturnType<typeof setTimeout> | null = null
+    private _activeAdIndex: number = 0
 
     constructor(
         uri: TrackUri,
@@ -158,16 +159,8 @@ export class MseTrack extends TrackBase {
                     'adBreakChange',
                     (event: ChangeEvent<AdBreakInfo | null>) => {
                         if (event.current && event.current.ads.length > 0) {
-                            const ad = event.current.ads[0]
-                            const adCtrl = this.deps.adController as
-                                | (AdController & {
-                                      getAdTrack?(adId: string): Track | null
-                                  })
-                                | null
-                            const adTrack = adCtrl?.getAdTrack?.(ad.id)
-                            if (adTrack) {
-                                this.setCurrentAdTrack(adTrack)
-                            }
+                            this._activeAdIndex = 0
+                            this.activateAdAtIndex(event.current, 0)
                         } else if (this._currentAdTrack) {
                             this.setCurrentAdTrack(null)
                         }
@@ -493,18 +486,18 @@ export class MseTrack extends TrackBase {
             adTrack.activate({})
             this.deps.playbackController.play().catch(() => {
                 logDebug(this, 'ad play rejected, skipping ad')
-                this.skipCurrentAd()
+                this.advanceOrSkipAd()
             })
             // If the ad track errors, skip it and resume content.
             this._adErrorSub = adTrack.on('error', (event) => {
                 logDebug(this, 'ad track error, skipping:', event.error)
                 this.dispatch('error', event)
-                this.skipCurrentAd()
+                this.advanceOrSkipAd()
             })
             // When the ad finishes playing, resume content.
             this._adEndedSub = this.deps.playbackController.on('ended', () => {
                 logDebug(this, 'ad ended, resuming content')
-                this.skipCurrentAd()
+                this.advanceOrSkipAd()
             })
             // If the ad doesn't start playing within a timeout, skip it.
             this._adTimeoutId = setTimeout(() => {
@@ -514,7 +507,7 @@ export class MseTrack extends TrackBase {
                     this.deps.playbackController.currentTime === 0
                 ) {
                     logDebug(this, 'ad playback timeout, skipping')
-                    this.skipCurrentAd()
+                    this.advanceOrSkipAd()
                 }
             }, MseTrack.AD_PLAYBACK_TIMEOUT_MS)
         } else if (this.activateOptions) {
@@ -527,8 +520,25 @@ export class MseTrack extends TrackBase {
         }
     }
 
-    private skipCurrentAd(): void {
-        this.deps.adController?.skipAd()
+    private advanceOrSkipAd(): void {
+        const activeBreak = this.deps.adController?.activeAdBreak
+        if (activeBreak && this._activeAdIndex + 1 < activeBreak.ads.length) {
+            this._activeAdIndex++
+            this.activateAdAtIndex(activeBreak, this._activeAdIndex)
+        } else {
+            this.deps.adController?.skipAd()
+        }
+    }
+
+    private activateAdAtIndex(adBreak: AdBreakInfo, index: number): void {
+        const ad = adBreak.ads[index]
+        const adCtrl = this.deps.adController as
+            | (AdController & { getAdTrack?(adId: string): Track | null })
+            | null
+        const adTrack = adCtrl?.getAdTrack?.(ad.id)
+        if (adTrack) {
+            this.setCurrentAdTrack(adTrack)
+        }
     }
 
     private clearAdSubscriptions(): void {

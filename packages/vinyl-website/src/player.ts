@@ -124,12 +124,16 @@ player.on('seekRangeChange', ({ current }) => {
 // Recomputes the seconds remaining in the active ad break from the playhead.
 function updateAdRemaining() {
     const adBreak = playerState.activeAdBreak$.value
-    if (!adBreak || adBreak.duration == null) {
+    if (!adBreak) {
         playerState.adRemaining$.value = 0
         return
     }
-    const end = adBreak.startTime + adBreak.duration
-    playerState.adRemaining$.value = Math.max(0, end - player.currentTime)
+    const dur = player.duration
+    if (!dur || !isFinite(dur)) {
+        playerState.adRemaining$.value = 0
+        return
+    }
+    playerState.adRemaining$.value = Math.max(0, dur - player.currentTime)
 }
 
 function applyCaptionsPreference() {
