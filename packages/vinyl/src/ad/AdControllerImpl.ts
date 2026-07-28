@@ -177,7 +177,7 @@ export class AdControllerImpl
                 if (!ad.uri) continue
                 const type = inferTrackType(ad.uri)
                 if (!type) continue
-                const track = this._trackFactory.createTrack({
+                const track = (this._trackFactory.createAdTrack ?? this._trackFactory.createTrack).call(this._trackFactory, {
                     type,
                     uri: ad.uri,
                 })
@@ -185,6 +185,7 @@ export class AdControllerImpl
             }
         }
     }
+
 
     private fetchAssetList(adBreak: AdBreakInfo): void {
         const url = adBreak.assetListUrl!
@@ -209,7 +210,7 @@ export class AdControllerImpl
                     if (!ad.uri) continue
                     const type = inferTrackType(ad.uri)
                     if (!type) continue
-                    const track = this._trackFactory.createTrack({
+                    const track = (this._trackFactory.createAdTrack ?? this._trackFactory.createTrack).call(this._trackFactory, {
                         type,
                         uri: ad.uri,
                     })

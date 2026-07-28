@@ -75,5 +75,12 @@ export function createHlsTrackFactory(
                 deps.createHlsFactories(loadOptions)
             )
         },
+
+        createAdTrack(loadOptions: HlsTrackLoadOptions): Track {
+            return new MseTrack(loadOptions.uri, loadOptions.type, {
+                ...deps.createHlsFactories(loadOptions),
+                adController: () => null,
+            })
+        },
     }
 }

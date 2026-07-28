@@ -53,6 +53,14 @@ export interface TrackFactory<TrackLoadOptionsType extends TrackLoadOptions> {
      * Constructs a new track from the provided load options.
      */
     createTrack(options: TrackLoadOptionsType): Track
+
+    /**
+     * Constructs a track intended for ad playback. The returned track will
+     * not subscribe to or interact with the player-level ad controller.
+     *
+     * When not implemented, falls back to {@link createTrack}.
+     */
+    createAdTrack?(options: TrackLoadOptionsType): Track
 }
 
 export type InferLoadOptionsFromFactory<T extends TrackFactory<any>> =
@@ -97,6 +105,13 @@ export function createTrackFactory<T extends TrackFactoryRecord>(
 
         createTrack(options): Track {
             return factories[options.type].createTrack(options)
+        },
+
+        createAdTrack(options): Track {
+            const f = factories[options.type]
+            return f.createAdTrack
+                ? f.createAdTrack(options)
+                : f.createTrack(options)
         },
     }
 }

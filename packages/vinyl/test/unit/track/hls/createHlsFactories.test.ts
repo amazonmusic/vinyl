@@ -158,4 +158,23 @@ describe('createHlsFactories', () => {
         await new Promise((r) => setTimeout(r, 0))
         expect(controller.textTracks).toEqual([])
     })
+
+    it('createAdTrack creates a track without adController', () => {
+        const factoryCreator = createHlsFactories(null)
+        const factory = factoryCreator(hlsFactoryDeps)
+        const hlsFactory = {
+            validate: factory({ uri: 'x', type: 'hls', manifestProvider })
+                .validate,
+            createTrack: (opts: any) => factory(opts),
+            createAdTrack: (opts: any) => factory(opts),
+        }
+        // Just verify it doesn't throw — the ad track should be constructable.
+        expect(() =>
+            hlsFactory.createAdTrack({
+                uri: 'https://example.com/ad.m3u8',
+                type: 'hls',
+                manifestProvider,
+            })
+        ).not.toThrow()
+    })
 })

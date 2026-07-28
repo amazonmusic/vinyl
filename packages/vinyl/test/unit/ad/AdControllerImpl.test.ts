@@ -243,25 +243,62 @@ describe('AdControllerImpl', () => {
     describe('ad tracks', () => {
         function mockTrackFactory() {
             const tracks: any[] = []
+            const createTrack = (opts: any) => {
+                const track = {
+                    uri: opts.uri,
+                    type: opts.type,
+                    disposed: false,
+                    dispose() {
+                        this.disposed = true
+                    },
+                }
+                tracks.push(track)
+                return track as any
+            }
             return {
                 factory: {
                     validate: () => {},
-                    createTrack: (opts: any) => {
-                        const track = {
-                            uri: opts.uri,
-                            type: opts.type,
-                            disposed: false,
-                            dispose() {
-                                this.disposed = true
-                            },
-                        }
-                        tracks.push(track)
-                        return track as any
-                    },
+                    createTrack,
+                    createAdTrack: createTrack,
                 },
                 tracks,
             }
         }
+
+        it('uses createAdTrack to create ad sub-tracks', () => {
+            const createAdTrack = jasmine
+                .createSpy('createAdTrack')
+                .and.callFake((opts: any) => ({
+                    uri: opts.uri,
+                    type: opts.type,
+                    disposed: false,
+                    dispose() {
+                        this.disposed = true
+                    },
+                }))
+            const c = createController({
+                trackFactory: {
+                    validate: () => {},
+                    createTrack: () => {
+                        throw new Error('should not be called')
+                    },
+                    createAdTrack,
+                },
+            })
+            c.setAdBreaks([
+                makeBreak({
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 5,
+                            uri: 'ad.m3u8',
+                        },
+                    ],
+                }),
+            ])
+            expect(createAdTrack).toHaveBeenCalled()
+        })
 
         it('returns null from getAdTrack when no trackFactory', () => {
             const c = createController()

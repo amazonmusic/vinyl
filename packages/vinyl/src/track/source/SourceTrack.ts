@@ -73,6 +73,10 @@ export function createSourceTrackFactory(
                 deps
             )
         },
+
+        createAdTrack(options: SourceTrackLoadOptions): Track {
+            return this.createTrack(options)
+        },
     }
 }
 

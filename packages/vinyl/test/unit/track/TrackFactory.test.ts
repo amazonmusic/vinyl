@@ -68,6 +68,15 @@ describe('createTrackFactory', () => {
         expect(track3.uri).toBe('uri3')
     })
 
+    it('createAdTrack delegates to per-type createAdTrack or falls back to createTrack', () => {
+        const track = trackFactory.createAdTrack!({
+            type: 'key1',
+            uri: 'uri-ad',
+        })
+        expect(track).toBeInstanceOf(MockTrack1)
+        expect(track.uri).toBe('uri-ad')
+    })
+
     it('validates type', () => {
         trackFactory.validate({ type: 'key3', uri: 'abc' })
         expect(() =>
