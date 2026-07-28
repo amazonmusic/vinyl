@@ -535,8 +535,8 @@ export class MseTrack extends TrackBase {
             this.onActivated(this.activateOptions)
             this.deps.playbackController
                 .seekTo(this._adResumeTime)
+                .then(() => this.deps.playbackController.play())
                 .catch(() => {})
-            this.deps.playbackController.play().catch(() => {})
         }
     }
 
