@@ -155,6 +155,8 @@ export class AdControllerImpl
 
     private updateTime(currentTime: number): void {
         this._lastTime = currentTime
+        // Don't re-evaluate during ad playback — the playhead reflects the
+        // ad track's time, not the content timeline.
         if (this._active) return
         const next = this.breakContaining(currentTime)
         if (!next) return
