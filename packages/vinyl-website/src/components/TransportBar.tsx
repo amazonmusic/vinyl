@@ -45,8 +45,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
     const adRemainingLabel$ = adRemaining$.map(formatTime)
     const canSkipAd$ = activeAdBreak$.map((b) => {
         if (!b) return false
-        const restrict = b.metadata?.['X-RESTRICT'] ?? ''
-        return !restrict.includes('SKIP')
+        return !b.restrict?.skip
     })
     const adLabel$ = activeAdBreak$.map((activeBreak) => {
         if (!activeBreak) return ''

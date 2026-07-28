@@ -6,7 +6,12 @@
 import type { DateRange, MediaPlaylist } from '@amazon/vinyl-hls-parser'
 import { HLS_INTERSTITIAL_CLASS } from '@amazon/vinyl-hls-parser'
 import { resolveUrl, type Maybe } from '@amazon/vinyl-util'
-import type { AdBreakInfo, AdBreakPlacement, AdInfo } from './AdBreak'
+import type {
+    AdBreakInfo,
+    AdBreakPlacement,
+    AdInfo,
+    AdRestriction,
+} from './AdBreak'
 
 /**
  * How close to the start or end of content a break must be to be classified as
@@ -58,15 +63,18 @@ export function discoverHlsInterstitials(
             cue === 'PRE' ? 0 : placement === 'preroll' ? 0 : startTime
         const ads = resolveAds(range, effectiveStartTime, duration, baseUrl)
 
+        const assetListUrl = range.clientAttributes['X-ASSET-LIST'] || null
+        const restrictStr = range.clientAttributes['X-RESTRICT'] ?? ''
+        const restrict = parseRestrict(restrictStr)
+
         breaks.push({
             id: range.id,
             startTime: effectiveStartTime,
             duration,
             placement,
             ads,
-            ...(Object.keys(range.clientAttributes).length > 0 && {
-                metadata: range.clientAttributes,
-            }),
+            ...(assetListUrl && { assetListUrl }),
+            ...(restrict && { restrict }),
         })
     }
 
@@ -196,4 +204,14 @@ function resolveAds(
         ]
     }
     return []
+}
+
+function parseRestrict(str: string): AdRestriction | undefined {
+    const skip = str.includes('SKIP')
+    const jump = str.includes('JUMP')
+    if (!skip && !jump) return undefined
+    const result: { skip?: boolean; jump?: boolean } = {}
+    if (skip) result.skip = true
+    if (jump) result.jump = true
+    return result
 }

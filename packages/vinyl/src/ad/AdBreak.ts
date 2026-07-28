@@ -16,6 +16,16 @@ import type { ReadonlyEventHost } from '@amazon/vinyl-util'
 export type AdBreakPlacement = 'preroll' | 'midroll' | 'postroll'
 
 /**
+ * Restrictions on user interaction during an ad break.
+ */
+export interface AdRestriction {
+    /** When true, the user should not be allowed to skip this ad. */
+    readonly skip?: boolean
+    /** When true, the user should not be allowed to seek past this ad. */
+    readonly jump?: boolean
+}
+
+/**
  * A provider-agnostic description of a single ad break on the media timeline.
  *
  * An ad break is a span of the presentation that carries advertising rather
@@ -58,12 +68,16 @@ export interface AdBreakInfo {
     readonly ads: readonly AdInfo[]
 
     /**
-     * Provider-specific metadata carried verbatim from the source signal, for
-     * applications that need details beyond the abstract model (e.g. the raw
-     * HLS `X-` client attributes, or a SCTE-35 splice descriptor). Keys are
-     * provider-defined.
+     * URL of a JSON asset list to fetch ad assets from (HLS `X-ASSET-LIST`).
+     * When present and {@link ads} is empty, the controller fetches this URL
+     * to populate the ad list.
      */
-    readonly metadata?: Readonly<Record<string, string>>
+    readonly assetListUrl?: string | null
+
+    /**
+     * Restrictions on user interaction during this ad break.
+     */
+    readonly restrict?: AdRestriction
 }
 
 /**

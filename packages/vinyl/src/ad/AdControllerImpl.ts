@@ -140,11 +140,7 @@ export class AdControllerImpl
     private createAdTracks(adBreaks: readonly AdBreakInfo[]): void {
         if (!this._trackFactory) return
         for (const adBreak of adBreaks) {
-            // If the break has no ads but has an X-ASSET-LIST, fetch it.
-            if (
-                adBreak.ads.length === 0 &&
-                adBreak.metadata?.['X-ASSET-LIST']
-            ) {
+            if (adBreak.ads.length === 0 && adBreak.assetListUrl) {
                 this.fetchAssetList(adBreak)
             }
             for (const ad of adBreak.ads) {
@@ -161,7 +157,7 @@ export class AdControllerImpl
     }
 
     private fetchAssetList(adBreak: AdBreakInfo): void {
-        const url = adBreak.metadata!['X-ASSET-LIST']
+        const url = adBreak.assetListUrl!
         fetch(url)
             .then((res) => res.json())
             .then((json: { ASSETS?: { URI: string; DURATION?: number }[] }) => {

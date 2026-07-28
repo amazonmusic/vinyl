@@ -174,16 +174,32 @@ describe('discoverHlsInterstitials', () => {
         expect(breaks[0].ads).toEqual([])
     })
 
-    it('carries client attributes through as metadata', () => {
+    it('parses X-RESTRICT into typed restrict field', () => {
         const playlist = makePlaylist({
             dateRanges: [
                 makeRange({
-                    clientAttributes: { 'X-SNAP': 'IN,OUT' },
+                    duration: 10,
+                    clientAttributes: { 'X-RESTRICT': 'SKIP,JUMP' },
                 }),
             ],
         })
         const breaks = discoverHlsInterstitials(playlist, BASE)
-        expect(breaks[0].metadata).toEqual({ 'X-SNAP': 'IN,OUT' })
+        expect(breaks[0].restrict).toEqual({ skip: true, jump: true })
+    })
+
+    it('parses X-ASSET-LIST into assetListUrl', () => {
+        const playlist = makePlaylist({
+            dateRanges: [
+                makeRange({
+                    duration: 10,
+                    clientAttributes: {
+                        'X-ASSET-LIST': 'https://example.com/ads.json',
+                    },
+                }),
+            ],
+        })
+        const breaks = discoverHlsInterstitials(playlist, BASE)
+        expect(breaks[0].assetListUrl).toBe('https://example.com/ads.json')
     })
 
     it('classifies a break at the end of content as a post-roll', () => {

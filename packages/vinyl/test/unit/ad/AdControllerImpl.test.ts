@@ -390,9 +390,7 @@ describe('AdControllerImpl', () => {
                     makeBreak({
                         id: 'b-list',
                         ads: [],
-                        metadata: {
-                            'X-ASSET-LIST': 'https://example.com/ads.json',
-                        },
+                        assetListUrl: 'https://example.com/ads.json',
                     }),
                 ])
 
@@ -434,9 +432,7 @@ describe('AdControllerImpl', () => {
                         id: 'b-list',
                         startTime: 20,
                         ads: [],
-                        metadata: {
-                            'X-ASSET-LIST': 'https://example.com/ads.json',
-                        },
+                        assetListUrl: 'https://example.com/ads.json',
                     }),
                 ])
 
@@ -466,9 +462,7 @@ describe('AdControllerImpl', () => {
                 c.setAdBreaks([
                     makeBreak({
                         ads: [],
-                        metadata: {
-                            'X-ASSET-LIST': 'https://example.com/ads.json',
-                        },
+                        assetListUrl: 'https://example.com/ads.json',
                     }),
                 ])
 
@@ -492,9 +486,7 @@ describe('AdControllerImpl', () => {
                     makeBreak({
                         id: 'b-empty',
                         ads: [],
-                        metadata: {
-                            'X-ASSET-LIST': 'https://example.com/ads.json',
-                        },
+                        assetListUrl: 'https://example.com/ads.json',
                     }),
                 ])
 
@@ -526,9 +518,7 @@ describe('AdControllerImpl', () => {
                     makeBreak({
                         id: 'b-null',
                         ads: [],
-                        metadata: {
-                            'X-ASSET-LIST': 'https://example.com/ads.json',
-                        },
+                        assetListUrl: 'https://example.com/ads.json',
                     }),
                 ])
 
