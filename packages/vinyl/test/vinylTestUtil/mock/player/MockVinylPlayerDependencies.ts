@@ -4,6 +4,7 @@
  */
 
 import {
+    AdControllerImpl,
     type DashFactoryDeps,
     defaultVinylOptions,
     type DrmKeySystemResolver,
@@ -31,11 +32,12 @@ export type MockVinylDependencies = ReturnType<
  * Creates mock dependencies for the Vinyl Player and all track factories.
  */
 export function createMockVinylDependencies() {
+    const playbackController = new MockPlaybackController()
     return {
         options: data<VinylOptions>(defaultVinylOptions),
         trackController: new MockTrackController(),
         playbackSource: new MockPlaybackSource(),
-        playbackController: new MockPlaybackController(),
+        playbackController,
         capabilities: new MockCapabilities(),
         drmController: new MockDrmController(),
         media: createMockMedia(),
@@ -44,6 +46,7 @@ export function createMockVinylDependencies() {
         createHlsFactories: (_loadOptions) =>
             externalDependencies(createMockDashDependencies()) as any,
         autoResetController: new MockAutoResetController(),
+        adController: new AdControllerImpl({ playbackController }),
         requestInterceptor: noop,
         drmKeySystemResolver: createSpy<DrmKeySystemResolver>(
             'drmKeySystemResolver'

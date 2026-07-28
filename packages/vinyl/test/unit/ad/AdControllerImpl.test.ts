@@ -5,8 +5,30 @@
 
 import { AdControllerImpl } from '@amazon/vinyl'
 import type { AdBreakInfo } from '@amazon/vinyl'
+import { MockPlaybackController } from '@amazon/vinyl/vinylTestUtil'
 
 describe('AdControllerImpl', () => {
+    let playbackController: MockPlaybackController
+
+    beforeEach(() => {
+        playbackController = new MockPlaybackController()
+    })
+
+    function createController(opts?: { trackFactory?: any }) {
+        return new AdControllerImpl({
+            playbackController,
+            ...opts,
+        })
+    }
+
+    function updateTime(_c: AdControllerImpl, time: number) {
+        playbackController.currentTime = time
+        playbackController.dispatch('timeUpdate', {
+            previous: 0,
+            current: time,
+        })
+    }
+
     function makeBreak(overrides: Partial<AdBreakInfo> = {}): AdBreakInfo {
         return {
             id: 'b1',
@@ -19,13 +41,13 @@ describe('AdControllerImpl', () => {
     }
 
     it('starts with no breaks and no active break', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         expect(c.adBreaks).toEqual([])
         expect(c.activeAdBreak).toBeNull()
     })
 
     it('emits adBreaksChange when the list changes', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         const events: AdBreakInfo[][] = []
         c.on('adBreaksChange', (e) => events.push([...e.current]))
         const breaks = [makeBreak()]
@@ -36,7 +58,7 @@ describe('AdControllerImpl', () => {
     })
 
     it('does not re-emit when set to an equal list', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         let count = 0
         c.on('adBreaksChange', () => count++)
         c.setAdBreaks([makeBreak()])
@@ -45,7 +67,7 @@ describe('AdControllerImpl', () => {
     })
 
     it('sorts breaks by start time', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([
             makeBreak({ id: 'late', startTime: 30 }),
             makeBreak({ id: 'early', startTime: 5 }),
@@ -54,22 +76,22 @@ describe('AdControllerImpl', () => {
     })
 
     it('emits adBreakChange when the playhead crosses into a break', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
         const entered: (string | null)[] = []
         c.on('adBreakChange', (e) => entered.push(e.current?.id ?? null))
 
-        c.updateTime(9)
+        updateTime(c, 9)
         expect(entered).toEqual([])
         expect(c.activeAdBreak).toBeNull()
 
-        c.updateTime(10)
+        updateTime(c, 10)
         expect(entered).toEqual(['b1'])
         expect(c.activeAdBreak?.id).toBe('b1')
     })
 
     it('emits adBreakChange to null when the playhead leaves a break', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
         const events: { previous: string | null; current: string | null }[] = []
         c.on('adBreakChange', (e) =>
@@ -79,9 +101,9 @@ describe('AdControllerImpl', () => {
             })
         )
 
-        c.updateTime(12)
+        updateTime(c, 12)
         expect(c.activeAdBreak?.id).toBe('b1')
-        c.updateTime(15) // endTime is exclusive: 10 + 5
+        updateTime(c, 15) // endTime is exclusive: 10 + 5
         expect(events).toEqual([
             { previous: null, current: 'b1' },
             { previous: 'b1', current: null },
@@ -90,18 +112,18 @@ describe('AdControllerImpl', () => {
     })
 
     it('does not re-emit while remaining inside the same break', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 10 })])
         let changes = 0
         c.on('adBreakChange', () => changes++)
-        c.updateTime(11)
-        c.updateTime(12)
-        c.updateTime(13)
+        updateTime(c, 11)
+        updateTime(c, 12)
+        updateTime(c, 13)
         expect(changes).toBe(1)
     })
 
     it('transitions directly between adjacent breaks', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([
             makeBreak({ id: 'a', startTime: 0, duration: 10 }),
             makeBreak({ id: 'b', startTime: 10, duration: 10 }),
@@ -114,8 +136,8 @@ describe('AdControllerImpl', () => {
                 current: e.current?.id ?? null,
             })
         )
-        c.updateTime(5)
-        c.updateTime(15)
+        updateTime(c, 5)
+        updateTime(c, 15)
         expect(changes).toEqual([
             { previous: null, current: 'a' },
             { previous: 'a', current: 'b' },
@@ -124,17 +146,17 @@ describe('AdControllerImpl', () => {
     })
 
     it('treats null-duration breaks as never containing the playhead', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: null })])
-        c.updateTime(10)
-        c.updateTime(11)
+        updateTime(c, 10)
+        updateTime(c, 11)
         expect(c.activeAdBreak).toBeNull()
     })
 
     it('emits adBreakChange to null when the active break is removed from the list', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 10 })])
-        c.updateTime(12)
+        updateTime(c, 12)
         const exited: (string | null)[] = []
         c.on('adBreakChange', (e) => exited.push(e.current?.id ?? null))
         c.setAdBreaks([])
@@ -143,9 +165,9 @@ describe('AdControllerImpl', () => {
     })
 
     it('emits adBreakChange to null on dispose when a break is active', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
-        c.updateTime(5)
+        updateTime(c, 5)
         const events: { previous: string | null; current: string | null }[] = []
         c.on('adBreakChange', (e) =>
             events.push({
@@ -158,15 +180,15 @@ describe('AdControllerImpl', () => {
     })
 
     it('does not activate a break with empty ads array', () => {
-        const c = new AdControllerImpl()
+        const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 0, duration: 10, ads: [] })])
-        c.updateTime(5)
+        updateTime(c, 5)
         expect(c.activeAdBreak).toBeNull()
     })
 
     describe('skipAd', () => {
         it('is a no-op when no break is active', () => {
-            const c = new AdControllerImpl()
+            const c = createController()
             c.setAdBreaks([makeBreak()])
             const spy = jasmine.createSpy('adBreakChange')
             c.on('adBreakChange', spy)
@@ -175,9 +197,9 @@ describe('AdControllerImpl', () => {
         })
 
         it('emits adBreakChange to null when a break is active', () => {
-            const c = new AdControllerImpl()
+            const c = createController()
             c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
-            c.updateTime(5)
+            updateTime(c, 5)
             const events: any[] = []
             c.on('adBreakChange', (e) => events.push(e))
             c.skipAd()
@@ -187,13 +209,13 @@ describe('AdControllerImpl', () => {
         })
 
         it('prevents re-entry after skip', () => {
-            const c = new AdControllerImpl()
+            const c = createController()
             c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
-            c.updateTime(5)
+            updateTime(c, 5)
             c.skipAd()
             const spy = jasmine.createSpy('adBreakChange')
             c.on('adBreakChange', spy)
-            c.updateTime(7)
+            updateTime(c, 7)
             expect(spy).not.toHaveBeenCalled()
             expect(c.activeAdBreak).toBeNull()
         })
@@ -201,7 +223,7 @@ describe('AdControllerImpl', () => {
 
     describe('skipAdBreak', () => {
         it('is a no-op when no break is active', () => {
-            const c = new AdControllerImpl()
+            const c = createController()
             const spy = jasmine.createSpy('adBreakChange')
             c.on('adBreakChange', spy)
             c.skipAdBreak()
@@ -209,9 +231,9 @@ describe('AdControllerImpl', () => {
         })
 
         it('emits adBreakChange to null when a break is active', () => {
-            const c = new AdControllerImpl()
+            const c = createController()
             c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
-            c.updateTime(5)
+            updateTime(c, 5)
             const events: any[] = []
             c.on('adBreakChange', (e) => events.push(e))
             c.skipAdBreak()
@@ -244,7 +266,7 @@ describe('AdControllerImpl', () => {
         }
 
         it('returns null from getAdTrack when no trackFactory', () => {
-            const c = new AdControllerImpl()
+            const c = createController()
             c.setAdBreaks([
                 makeBreak({
                     ads: [
@@ -262,7 +284,7 @@ describe('AdControllerImpl', () => {
 
         it('creates tracks for ads with resolvable URIs', () => {
             const { factory, tracks } = mockTrackFactory()
-            const c = new AdControllerImpl({ trackFactory: factory })
+            const c = createController({ trackFactory: factory })
             c.setAdBreaks([
                 makeBreak({
                     ads: [
@@ -283,7 +305,7 @@ describe('AdControllerImpl', () => {
 
         it('does not create tracks for ads with null URI', () => {
             const { factory, tracks } = mockTrackFactory()
-            const c = new AdControllerImpl({ trackFactory: factory })
+            const c = createController({ trackFactory: factory })
             c.setAdBreaks([
                 makeBreak({
                     ads: [
@@ -302,7 +324,7 @@ describe('AdControllerImpl', () => {
 
         it('does not create tracks for unresolvable URIs', () => {
             const { factory, tracks } = mockTrackFactory()
-            const c = new AdControllerImpl({ trackFactory: factory })
+            const c = createController({ trackFactory: factory })
             c.setAdBreaks([
                 makeBreak({
                     ads: [
@@ -320,7 +342,7 @@ describe('AdControllerImpl', () => {
 
         it('disposes previous tracks on setAdBreaks', () => {
             const { factory, tracks } = mockTrackFactory()
-            const c = new AdControllerImpl({ trackFactory: factory })
+            const c = createController({ trackFactory: factory })
             c.setAdBreaks([
                 makeBreak({
                     ads: [
@@ -354,7 +376,7 @@ describe('AdControllerImpl', () => {
 
         it('disposes tracks on controller dispose', () => {
             const { factory, tracks } = mockTrackFactory()
-            const c = new AdControllerImpl({ trackFactory: factory })
+            const c = createController({ trackFactory: factory })
             c.setAdBreaks([
                 makeBreak({
                     ads: [
@@ -385,7 +407,7 @@ describe('AdControllerImpl', () => {
             })
 
             try {
-                const c = new AdControllerImpl({ trackFactory: factory })
+                const c = createController({ trackFactory: factory })
                 c.setAdBreaks([
                     makeBreak({
                         id: 'b-list',
@@ -425,7 +447,7 @@ describe('AdControllerImpl', () => {
             })
 
             try {
-                const c = new AdControllerImpl({ trackFactory: factory })
+                const c = createController({ trackFactory: factory })
                 c.setAdBreaks([
                     makeBreak({ id: 'other', startTime: 5 }),
                     makeBreak({
@@ -458,7 +480,7 @@ describe('AdControllerImpl', () => {
                 .and.rejectWith(new Error('network'))
 
             try {
-                const c = new AdControllerImpl({ trackFactory: factory })
+                const c = createController({ trackFactory: factory })
                 c.setAdBreaks([
                     makeBreak({
                         ads: [],
@@ -481,7 +503,7 @@ describe('AdControllerImpl', () => {
             })
 
             try {
-                const c = new AdControllerImpl({ trackFactory: factory })
+                const c = createController({ trackFactory: factory })
                 c.setAdBreaks([
                     makeBreak({
                         id: 'b-empty',
@@ -513,7 +535,7 @@ describe('AdControllerImpl', () => {
             })
 
             try {
-                const c = new AdControllerImpl({ trackFactory: factory })
+                const c = createController({ trackFactory: factory })
                 c.setAdBreaks([
                     makeBreak({
                         id: 'b-null',

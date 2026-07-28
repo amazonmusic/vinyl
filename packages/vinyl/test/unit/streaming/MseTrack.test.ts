@@ -801,22 +801,6 @@ describe('MseTrack', () => {
             expect(track.adController).toBe(controller)
         })
 
-        it('feeds the playhead to the ad controller on timeUpdate', async () => {
-            const controller = makeAdController()
-            ;(deps as unknown as Record<string, unknown>).adController =
-                controller
-            track = createTrack()
-            track.activate({})
-            await flushPromises()
-
-            deps.playbackController.currentTime = 12
-            deps.playbackController.dispatch('timeUpdate', {
-                previous: 0,
-                current: 12,
-            })
-            expect(controller.updateTime).toHaveBeenCalledWith(12)
-        })
-
         it('switches to ad track on adBreakChange enter', async () => {
             const mockAdTrack = {
                 activate: jasmine.createSpy('activate'),

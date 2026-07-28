@@ -40,10 +40,6 @@ import { createDefaultMediaTimelineTransformer } from '../../streaming/createDef
 import type { HlsManifestData } from './HlsManifestProvider'
 import { SidecarTextTrackController } from '../../text/SidecarTextTrackController'
 import { discoverHlsTextTracks } from '../../text/discoverHlsTextTracks'
-import { AdControllerImpl } from '../../ad/AdControllerImpl'
-import { discoverHlsInterstitials } from '../../ad/discoverHlsInterstitials'
-import { resolveUrl } from '@amazon/vinyl-util'
-import type { TrackFactory, TrackLoadOptions } from '../TrackFactory'
 
 export interface HlsFactoryDeps {
     readonly options: ObservableValue<{
@@ -69,11 +65,6 @@ export type HlsInitOptions = {
 
 export function createHlsFactories(options: Maybe<HlsInitOptions>) {
     return (deps: HlsFactoryDeps) => {
-        const trackFactory = (
-            deps as unknown as {
-                trackFactory?: TrackFactory<TrackLoadOptions>
-            }
-        ).trackFactory
         return (loadOptions: HlsTrackLoadOptions) => {
             const manifestProvider =
                 loadOptions.manifestProvider ||
@@ -143,54 +134,6 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                                     discoverHlsTextTracks(
                                         data.mainPlaylist,
                                         data.baseUrl
-                                    )
-                                )
-                            })
-                            .catch(() => {
-                                // Manifest errors are surfaced through the
-                                // manifest controller. Don't double-report.
-                            })
-                    })
-                    return controller
-                },
-                adController: (deps: {
-                    readonly manifestTransformed: ObservableValue<
-                        Promise<HlsManifestData>
-                    >
-                }) => {
-                    const controller = new AdControllerImpl({
-                        trackFactory: trackFactory ?? null,
-                    })
-                    // HLS Interstitials (SGAI) are signaled in the media
-                    // playlist via EXT-X-DATERANGE, so a media playlist must be
-                    // fetched to discover them. The first variant is used as
-                    // the reference timeline; interstitials are shared across
-                    // variants.
-                    deps.manifestTransformed.onData((manifestPromise) => {
-                        manifestPromise
-                            .then(async (data) => {
-                                if (data.mainPlaylist.variants.length === 0) {
-                                    return
-                                }
-                                const variant = data.mainPlaylist.variants[0]
-                                const media = await data.getMediaPlaylist(
-                                    variant.uri
-                                )
-                                const contentDuration = media.ended
-                                    ? media.segments.reduce(
-                                          (sum, s) => sum + s.duration,
-                                          0
-                                      )
-                                    : null
-                                const playlistBaseUrl = resolveUrl(
-                                    variant.uri,
-                                    data.baseUrl
-                                )
-                                controller.setAdBreaks(
-                                    discoverHlsInterstitials(
-                                        media,
-                                        playlistBaseUrl,
-                                        contentDuration
                                     )
                                 )
                             })

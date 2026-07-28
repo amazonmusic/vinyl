@@ -49,7 +49,6 @@ import {
 import type { TextTrackController } from '../../text/TextTrack'
 import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
 import type { ChangeEvent } from '../../event/ChangeEvent'
-import type { TrackFactory, TrackLoadOptions } from '../TrackFactory'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -67,18 +66,11 @@ export type MseTrackDeps = TrackBaseDeps & {
     readonly textTrackController?: TextTrackController | null
 
     /**
-     * Optional ad controller for this track. When provided, it is exposed via
-     * {@link MseTrack.adController}, fed playhead updates while the track is
-     * active, and disposed when the track itself is disposed.
+     * The player-level ad controller. MseTrack sets ad breaks on it when
+     * the media timeline resolves and listens for ad break changes to
+     * switch playback to/from ad tracks.
      */
     readonly adController?: AdController | null
-
-    /**
-     * Optional track factory for creating ad sub-tracks. When provided,
-     * enables ad playback by allowing the track to create child tracks from
-     * ad asset URIs.
-     */
-    readonly trackFactory?: TrackFactory<TrackLoadOptions> | null
 }
 
 type FunctionKeys<T> = {
@@ -218,6 +210,11 @@ export class MseTrack extends TrackBase {
                 timelinePromise
                     .then((timeline) => {
                         if (this.disposer.disposed) return
+                        if (this.active) {
+                            this.deps.adController?.setAdBreaks(
+                                timeline.adBreaks
+                            )
+                        }
                         return timeline.getDuration().then((duration) => {
                             if (this.disposer.disposed) return
                             const start =
@@ -426,8 +423,6 @@ export class MseTrack extends TrackBase {
             'timeUpdate',
             () => {
                 const time = this.deps.playbackController.currentTime
-                // Drive ad-break enter/exit detection off the playhead.
-                this.deps.adController?.updateTime(time)
                 this.preloadUpcomingAds(time)
                 const cached = this._cachedPeriod
                 if (
@@ -456,6 +451,7 @@ export class MseTrack extends TrackBase {
 
         this.deps.playbackSource.src = null
         this.deps.playbackSource.load()
+        this.deps.adController?.setAdBreaks([])
     }
 
     /**
@@ -536,10 +532,7 @@ export class MseTrack extends TrackBase {
 
     private activateAdAtIndex(adBreak: AdBreakInfo, index: number): void {
         const ad = adBreak.ads[index]
-        const adCtrl = this.deps.adController as
-            | (AdController & { getAdTrack?(adId: string): Track | null })
-            | null
-        const adTrack = adCtrl?.getAdTrack?.(ad.id)
+        const adTrack = this.deps.adController?.getAdTrack(ad.id)
         if (adTrack) {
             this.setCurrentAdTrack(adTrack)
         }
@@ -598,10 +591,8 @@ export class MseTrack extends TrackBase {
     private static readonly AD_PRELOAD_SECONDS = 20
 
     private preloadUpcomingAds(time: number): void {
-        const adController = this.deps.adController as
-            | (AdController & { getAdTrack?(adId: string): Track | null })
-            | null
-        if (!adController?.getAdTrack) return
+        const adController = this.deps.adController
+        if (!adController) return
         for (const adBreak of adController.adBreaks) {
             if (time < adBreak.startTime - MseTrack.AD_PRELOAD_SECONDS) continue
             if (time > adBreak.startTime) continue

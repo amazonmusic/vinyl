@@ -5,6 +5,7 @@
 
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { ReadonlyEventHost } from '@amazon/vinyl-util'
+import type { Track } from '../track/Track'
 
 /**
  * Where an ad break is scheduled relative to the main content.
@@ -160,10 +161,10 @@ export interface AdController extends ReadonlyAdController {
     setAdBreaks(adBreaks: readonly AdBreakInfo[]): void
 
     /**
-     * Reports the current playhead time (seconds, media timeline). Emits
-     * `adBreakChange` as the playhead crosses break boundaries.
+     * Returns the track created for the given ad id, or null if no track
+     * exists for the ad.
      */
-    updateTime(currentTime: number): void
+    getAdTrack(adId: string): Track | null
 
     /**
      * Skips the currently playing ad. If there are more ads in the break,

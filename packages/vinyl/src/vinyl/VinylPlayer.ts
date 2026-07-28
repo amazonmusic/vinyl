@@ -32,7 +32,7 @@ import {
     type PlaybackReadyState,
 } from '../playback/ReadonlyPlaybackController'
 import type { VinylTrackLoadOptions } from '../track/createVinylTrackFactories'
-import { type ReadonlyTrack, type Track, type TrackUri } from '../track/Track'
+import { type ReadonlyTrack, type TrackUri } from '../track/Track'
 import type { SeekRange } from '../track/SeekRange'
 import {
     ALL_TRACK_CONTROLLER_EVENTS,
@@ -227,8 +227,8 @@ export class VinylPlayer<
     protected redispatchCurrentTrackEvents() {
         let sub: Unsubscribe | null = null
         let textSub: Unsubscribe | null = null
-        let adSub: Unsubscribe | null = null
         const add = this.disposer.add
+        add(redispatchEvents(this, this.deps.adController, ALL_AD_EVENTS))
         add(
             this.trackController.on('currentTrackChange', (event) => {
                 // The previous track may stay cached, so its text track
@@ -246,8 +246,6 @@ export class VinylPlayer<
                 sub = null
                 textSub?.()
                 textSub = null
-                adSub?.()
-                adSub = null
                 if (event.current) {
                     sub = redispatchEvents(
                         this,
@@ -261,16 +259,8 @@ export class VinylPlayer<
                             ALL_TEXT_TRACK_EVENTS
                         )
                     }
-                    if (event.current.adController) {
-                        adSub = redispatchEvents(
-                            this,
-                            event.current.adController,
-                            ALL_AD_EVENTS
-                        )
-                    }
                 }
                 this.emitTextTrackChangeEventsFor(event.previous, event.current)
-                this.emitAdBreaksChangeEventsFor(event.previous, event.current)
                 this.dispatch('fetchedRangesChange', {})
 
                 // Emit a quality change event for every stream that has changed
@@ -775,7 +765,7 @@ export class VinylPlayer<
      * Listen to {@link AdEventMap.adBreaksChange} for changes.
      */
     get adBreaks(): readonly AdBreakInfo[] {
-        return this.currentTrack?.adController?.adBreaks ?? []
+        return this.deps.adController.adBreaks
     }
 
     /**
@@ -785,7 +775,7 @@ export class VinylPlayer<
      * Listen to {@link AdEventMap.adBreakChange} for transitions.
      */
     get activeAdBreak(): AdBreakInfo | null {
-        return this.currentTrack?.adController?.activeAdBreak ?? null
+        return this.deps.adController.activeAdBreak
     }
 
     /**
@@ -794,10 +784,7 @@ export class VinylPlayer<
      * No-op when no ad break is active.
      */
     skipAd(): void {
-        const track = this.trackController.currentTrack as
-            | (Track<any> & { advanceOrSkipAd?(): void })
-            | null
-        track?.advanceOrSkipAd?.()
+        this.deps.adController.skipAd()
     }
 
     /**
@@ -806,28 +793,7 @@ export class VinylPlayer<
      * No-op when no ad break is active.
      */
     skipAdBreak(): void {
-        const controller = (
-            this.trackController.currentTrack as Track<any> | null
-        )?.adController
-        controller?.skipAdBreak()
-    }
-
-    private emitAdBreaksChangeEventsFor(
-        previous: ReadonlyTrack | null,
-        current: ReadonlyTrack | null
-    ): void {
-        // Bridge the ad-break list difference at track boundaries, mirroring
-        // how text-track lists are surfaced on switch.
-        const prevList: readonly AdBreakInfo[] =
-            previous?.adController?.adBreaks ?? []
-        const curList: readonly AdBreakInfo[] =
-            current?.adController?.adBreaks ?? []
-        if (prevList !== curList) {
-            this.dispatch('adBreaksChange', {
-                previous: prevList,
-                current: curList,
-            })
-        }
+        this.deps.adController.skipAdBreak()
     }
 
     //----------------------------------------------------

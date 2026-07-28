@@ -4,7 +4,6 @@
  */
 
 import {
-    AdControllerImpl,
     createVinylPlayer,
     type AdBreakInfo,
     type VinylDeps,
@@ -12,7 +11,6 @@ import {
 import { externalDependencies, type Factories } from '@amazon/vinyl-di'
 import {
     createMockVinylDependencies,
-    MockTrack,
     type MockVinylDependencies,
 } from '@amazon/vinyl/vinylTestUtil'
 import { MockHTMLAudioElement } from '@amazon/vinyl-util/browserTestUtil'
@@ -47,127 +45,73 @@ describe('VinylPlayer ad break API', () => {
         }
     }
 
-    function makeTrackWithController(): {
-        track: MockTrack
-        controller: AdControllerImpl
-    } {
-        const track = new MockTrack()
-        const controller = new AdControllerImpl()
-        track.adController = controller
-        return { track, controller }
-    }
-
-    function activate(track: MockTrack, previous: MockTrack | null = null) {
-        deps.trackController.currentTrack = track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous,
-            current: track,
+    function simulateTimeUpdate(time: number) {
+        deps.playbackController.currentTime = time
+        deps.playbackController.dispatch('timeUpdate', {
+            previous: 0,
+            current: time,
         })
     }
 
-    it('returns empty defaults when there is no current track', () => {
+    it('returns empty defaults when no ad breaks are set', () => {
         expect(player.adBreaks).toEqual([])
         expect(player.activeAdBreak).toBeNull()
     })
 
-    it('returns ad breaks from the current track', () => {
-        const { track, controller } = makeTrackWithController()
+    it('returns ad breaks from the player-level ad controller', () => {
+        const controller = deps.adController
         controller.setAdBreaks([makeBreak()])
-        activate(track)
         expect(player.adBreaks.map((b) => b.id)).toEqual(['b1'])
     })
 
-    it('returns empty when current track has no ad controller', () => {
-        const track = new MockTrack()
-        activate(track)
-        expect(player.adBreaks).toEqual([])
-        expect(player.activeAdBreak).toBeNull()
-    })
-
-    it('redispatches adBreaksChange from the active controller', () => {
-        const { track, controller } = makeTrackWithController()
-        activate(track)
+    it('redispatches adBreaksChange from the ad controller', () => {
+        const controller = deps.adController
         const spy = createEventSpy(player, 'adBreaksChange')
         controller.setAdBreaks([makeBreak()])
         expect(spy).toHaveBeenCalled()
     })
 
-    it('redispatches adBreakChange from the active controller', () => {
-        const { track, controller } = makeTrackWithController()
+    it('redispatches adBreakChange from the ad controller', () => {
+        const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
-        activate(track)
         const change = createEventSpy(player, 'adBreakChange')
-        controller.updateTime(11)
+        simulateTimeUpdate(11)
         expect(change).toHaveBeenCalledTimes(1)
         expect(change.calls.mostRecent().args[0].current?.id).toBe('b1')
-        controller.updateTime(20)
+        simulateTimeUpdate(20)
         expect(change).toHaveBeenCalledTimes(2)
         expect(change.calls.mostRecent().args[0].current).toBeNull()
     })
 
     it('reflects the active ad break through the player getter', () => {
-        const { track, controller } = makeTrackWithController()
+        const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
-        activate(track)
-        controller.updateTime(5)
+        simulateTimeUpdate(5)
         expect(player.activeAdBreak?.id).toBe('b1')
     })
 
-    it('fires adBreaksChange when switching to a track with a different list', () => {
-        const a = makeTrackWithController()
-        const b = makeTrackWithController()
-        a.controller.setAdBreaks([makeBreak({ id: 'a1' })])
-        b.controller.setAdBreaks([makeBreak({ id: 'b1' })])
-        activate(a.track)
-        const spy = createEventSpy(player, 'adBreaksChange')
-        deps.trackController.currentTrack = b.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: a.track,
-            current: b.track,
-        })
-        expect(spy).toHaveBeenCalled()
-    })
-
-    it('stops redispatching from a track after switching away', () => {
-        const a = makeTrackWithController()
-        const b = makeTrackWithController()
-        activate(a.track)
-        deps.trackController.currentTrack = b.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: a.track,
-            current: b.track,
-        })
-        const spy = createEventSpy(player, 'adBreaksChange')
-        // The old controller should no longer be wired to the player.
-        a.controller.setAdBreaks([makeBreak({ id: 'stale' })])
-        expect(spy).not.toHaveBeenCalled()
-    })
-
-    it('skipAd delegates to the track advanceOrSkipAd', () => {
-        const { track, controller } = makeTrackWithController()
+    it('skipAd delegates to the ad controller', () => {
+        const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
-        ;(track as any).advanceOrSkipAd = jasmine.createSpy('advanceOrSkipAd')
-        activate(track)
-        controller.updateTime(5)
+        simulateTimeUpdate(5)
         expect(player.activeAdBreak).not.toBeNull()
         player.skipAd()
-        expect((track as any).advanceOrSkipAd).toHaveBeenCalled()
+        expect(player.activeAdBreak).toBeNull()
     })
 
     it('skipAdBreak delegates to the ad controller', () => {
-        const { track, controller } = makeTrackWithController()
+        const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
-        activate(track)
-        controller.updateTime(5)
+        simulateTimeUpdate(5)
         player.skipAdBreak()
         expect(player.activeAdBreak).toBeNull()
     })
 
-    it('skipAd is a no-op without a current track', () => {
+    it('skipAd is a no-op without an active break', () => {
         expect(() => player.skipAd()).not.toThrow()
     })
 
-    it('skipAdBreak is a no-op without a current track', () => {
+    it('skipAdBreak is a no-op without an active break', () => {
         expect(() => player.skipAdBreak()).not.toThrow()
     })
 })

@@ -3,13 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { equalDeep, EventHostImpl } from '@amazon/vinyl-util'
+import { equalDeep, EventHostImpl, type Unsubscribe } from '@amazon/vinyl-util'
 import type { AdBreakInfo, AdController, AdEventMap, AdInfo } from './AdBreak'
 import type { Track } from '../track/Track'
 import type { TrackFactory, TrackLoadOptions } from '../track/TrackFactory'
 import { inferTrackType } from './inferTrackType'
+import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
 
-export interface AdControllerImplOptions {
+export interface AdControllerImplDeps {
+    readonly playbackController: ReadonlyPlaybackController
     readonly trackFactory?: TrackFactory<TrackLoadOptions> | null
 }
 
@@ -41,10 +43,14 @@ export class AdControllerImpl
     private readonly _adTracks = new Map<string, Track>()
     private readonly _skippedBreakIds = new Set<string>()
     private _lastTime: number = 0
+    private readonly _timeUpdateSub: Unsubscribe
 
-    constructor(options?: AdControllerImplOptions) {
+    constructor(deps: AdControllerImplDeps) {
         super()
-        this._trackFactory = options?.trackFactory ?? null
+        this._trackFactory = deps.trackFactory ?? null
+        this._timeUpdateSub = deps.playbackController.on('timeUpdate', () => {
+            this.updateTime(deps.playbackController.currentTime)
+        })
     }
 
     /**
@@ -85,7 +91,7 @@ export class AdControllerImpl
         }
     }
 
-    updateTime(currentTime: number): void {
+    private updateTime(currentTime: number): void {
         this._lastTime = currentTime
         const next = this.breakContaining(currentTime)
         if (next?.id === this._active?.id) return
@@ -115,6 +121,7 @@ export class AdControllerImpl
      * so listeners observe a clean exit when the media is unloaded.
      */
     dispose(): void {
+        this._timeUpdateSub()
         const active = this._active
         this._active = null
         this._adBreaks = []
