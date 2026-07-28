@@ -50,6 +50,9 @@ import type { TextTrackController } from '../../text/TextTrack'
 import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
 import type { ChangeEvent } from '../../event/ChangeEvent'
 
+const AD_PLAYBACK_TIMEOUT_MS = 10_000
+const AD_PRELOAD_SECONDS = 20
+
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
     readonly contentStreamFactory: (contentType: ContentType) => ContentStream
@@ -469,7 +472,6 @@ export class MseTrack extends TrackBase {
      * activated. When null is provided, the ad track is deactivated and the
      * outer track resumes.
      */
-    private static readonly AD_PLAYBACK_TIMEOUT_MS = 10_000
 
     setCurrentAdTrack(adTrack: Track | null): void {
         if (adTrack === this._currentAdTrack) return
@@ -481,7 +483,6 @@ export class MseTrack extends TrackBase {
         if (adTrack) {
             this._adResumeTime = this.deps.playbackController.currentTime
             this._currentAdTrack = adTrack
-            this.deps.adController?.setAdPlaying(true)
             // Deactivate outer track's streams without full deactivate.
             this.timeUpdateSub?.()
             this.timeUpdateSub = null
@@ -499,25 +500,13 @@ export class MseTrack extends TrackBase {
                 this.dispatch('error', event)
                 this.advanceOrSkipAd()
             })
-            // Detect ad completion. Use both the playback controller's ended
-            // event and a timeUpdate-based loop detection as fallback.
-            let adPeakTime = 0
-            const onAdDone = () => {
+            // When the ad finishes playing, advance to the next ad or
+            // resume content.
+            this._adEndedSub = this.deps.playbackController.on('ended', () => {
                 if (this._currentAdTrack !== adTrack) return
                 logDebug(this, 'ad ended, resuming content')
                 this.advanceOrSkipAd()
-            }
-            const endedUnsub = this.deps.playbackController.on('ended', onAdDone)
-            const timeUnsub = this.deps.playbackController.on(
-                'timeUpdate',
-                () => {
-                    if (this._currentAdTrack !== adTrack) return
-                    const time = this.deps.playbackController.currentTime
-                    if (time > adPeakTime) adPeakTime = time
-                    if (adPeakTime > 2 && time < adPeakTime - 2) onAdDone()
-                }
-            )
-            this._adEndedSub = () => { endedUnsub(); timeUnsub() }
+            })
             // If the ad doesn't start playing within a timeout, skip it.
             this._adTimeoutId = setTimeout(() => {
                 this._adTimeoutId = null
@@ -528,15 +517,19 @@ export class MseTrack extends TrackBase {
                     logDebug(this, 'ad playback timeout, skipping')
                     this.advanceOrSkipAd()
                 }
-            }, MseTrack.AD_PLAYBACK_TIMEOUT_MS)
+            }, AD_PLAYBACK_TIMEOUT_MS)
         } else if (this.activateOptions) {
-            this.deps.adController?.setAdPlaying(false)
-            // Resume outer track at the saved position.
+            // Resume the outer track.
+            logDebug(this, 'resuming content at', this._adResumeTime)
             this.onActivated(this.activateOptions)
             this.deps.playbackController
                 .seekTo(this._adResumeTime)
-                .then(() => this.deps.playbackController.play())
-                .catch(() => {})
+                .then(() => {
+                    logDebug(this, 'seek complete, calling play')
+                    return this.deps.playbackController.play()
+                })
+                .then(() => logDebug(this, 'play resolved'))
+                .catch((e) => logDebug(this, 'resume failed:', e))
         }
     }
 
@@ -612,13 +605,12 @@ export class MseTrack extends TrackBase {
         return this.streams.every((stream) => stream.bufferingEnded)
     }
 
-    private static readonly AD_PRELOAD_SECONDS = 20
 
     private preloadUpcomingAds(time: number): void {
         const adController = this.deps.adController
         if (!adController) return
         for (const adBreak of adController.adBreaks) {
-            if (time < adBreak.startTime - MseTrack.AD_PRELOAD_SECONDS) continue
+            if (time < adBreak.startTime - AD_PRELOAD_SECONDS) continue
             if (time > adBreak.startTime) continue
             for (const ad of adBreak.ads) {
                 if (this._preloadedAdIds.has(ad.id)) continue

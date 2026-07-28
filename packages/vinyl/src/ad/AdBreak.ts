@@ -175,11 +175,6 @@ export interface AdController extends ReadonlyAdController {
     getAdTrack(adId: string): Track | null
 
     /**
-     * Signals that ad playback has started or stopped on the media element.
-     */
-    setAdPlaying(playing: boolean): void
-
-    /**
      * Skips the currently playing ad. If there are more ads in the break,
      * the next ad begins. If it's the last ad, the break ends.
      * No-op when no ad break is active.

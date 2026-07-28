@@ -66,8 +66,6 @@ export class AdControllerImpl
         return this._adTracks.get(adId) ?? null
     }
 
-    private _adPlaying = false
-
     get adBreaks(): readonly AdBreakInfo[] {
         return this._adBreaks
     }
@@ -77,7 +75,7 @@ export class AdControllerImpl
     }
 
     get adPlaying(): boolean {
-        return this._adPlaying
+        return this._active != null
     }
 
     setAdBreaks(adBreaks: readonly AdBreakInfo[]): void {
@@ -130,13 +128,8 @@ export class AdControllerImpl
         this.dispatch('adBreakChange', { previous: null, current: next })
     }
 
-    setAdPlaying(playing: boolean): void {
-        this._adPlaying = playing
-    }
-
     skipAd(): void {
         if (!this._active) return
-        this._adPlaying = false
         const previous = this._active
         this._skippedBreakIds.add(previous.id)
         this._active = null
@@ -145,7 +138,6 @@ export class AdControllerImpl
 
     skipAdBreak(): void {
         if (!this._active) return
-        this._adPlaying = false
         const previous = this._active
         this._skippedBreakIds.add(previous.id)
         this._active = null
