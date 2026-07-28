@@ -3,12 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-    equalDeep,
-    EventHostImpl,
-    logDebug,
-    type Unsubscribe,
-} from '@amazon/vinyl-util'
+import { EventHostImpl, logDebug, type Unsubscribe } from '@amazon/vinyl-util'
 import type { AdBreakInfo, AdController, AdEventMap, AdInfo } from './AdBreak'
 import type { Track } from '../track/Track'
 import type { TrackFactory, TrackLoadOptions } from '../track/TrackFactory'
@@ -48,7 +43,6 @@ export class AdControllerImpl
     private readonly _playbackController: ReadonlyPlaybackController
     private readonly _adTracks = new Map<string, Track>()
     private readonly _skippedBreakIds = new Set<string>()
-    private _lastTime: number = 0
     private readonly _timeUpdateSub: Unsubscribe
 
     constructor(deps: AdControllerImplDeps) {
@@ -94,7 +88,13 @@ export class AdControllerImpl
 
     advanceOrSkipAd(): void {
         if (!this._active) return
-        logDebug(this, 'advanceOrSkipAd, index:', this._activeAdIndex, '/', this._active.ads.length)
+        logDebug(
+            this,
+            'advanceOrSkipAd, index:',
+            this._activeAdIndex,
+            '/',
+            this._active.ads.length
+        )
         if (this._activeAdIndex + 1 < this._active.ads.length) {
             this._activeAdIndex++
             // Re-dispatch adBreakChange so listeners pick up the new ad
@@ -119,18 +119,38 @@ export class AdControllerImpl
         // Keep a stable, start-time ordering so consumers can rely on it and
         // so region lookups can assume monotonic starts.
         const sorted = [...adBreaks].sort((a, b) => a.startTime - b.startTime)
-        this._adBreaks = sorted
+        // Preserve ads that were populated by fetchAssetList for breaks
+        // that still exist (the timeline always provides empty ads for
+        // X-ASSET-LIST breaks).
+        this._adBreaks = sorted.map((b) => {
+            if (b.ads.length > 0) return b
+            const existing = this._adBreaks.find((e) => e.id === b.id)
+            return existing && existing.ads.length > 0 ? existing : b
+        })
         this._preloadedAdIds.clear()
 
         // Only dispose/recreate ad tracks if there's no active break being
         // played — otherwise a re-set of the same breaks would kill the
-        // currently playing ad track.
+        // currently playing ad track. Also preserve existing tracks for
+        // breaks that were already populated via fetchAssetList.
         if (!this._active || !sorted.some((b) => b.id === this._active!.id)) {
-            this.disposeAdTracks()
+            // Only dispose tracks for breaks that are no longer present
+            for (const [id, track] of this._adTracks) {
+                const breakId = id.split('-')[0]
+                if (!sorted.some((b) => b.id === breakId)) {
+                    track.dispose()
+                    this._adTracks.delete(id)
+                }
+            }
             this.createAdTracks(sorted)
         }
         // Always fetch asset lists for breaks that need them.
-        const needsFetch = sorted.filter(b => b.ads.length === 0 && b.assetListUrl && !this._adTracks.has(`${b.id}-0`))
+        const needsFetch = sorted.filter(
+            (b) =>
+                b.ads.length === 0 &&
+                b.assetListUrl &&
+                !this._adTracks.has(`${b.id}-0`)
+        )
         for (const adBreak of needsFetch) {
             this.fetchAssetList(adBreak)
         }
@@ -160,7 +180,6 @@ export class AdControllerImpl
     }
 
     private updateTime(currentTime: number): void {
-        this._lastTime = currentTime
         if (this._active) return
         const next = this.breakContaining(currentTime)
         if (!next) return
@@ -231,7 +250,6 @@ export class AdControllerImpl
         }
     }
 
-
     private fetchAssetList(adBreak: AdBreakInfo): void {
         logDebug(this, 'fetchAssetList', adBreak.id)
         const url = adBreak.assetListUrl!
@@ -239,7 +257,13 @@ export class AdControllerImpl
             .then((res) => res.json())
             .then((json: { ASSETS?: { URI: string; DURATION?: number }[] }) => {
                 if (!json.ASSETS || !this._trackFactory) return
-                logDebug(this, 'assetList resolved', adBreak.id, json.ASSETS.length, 'assets')
+                logDebug(
+                    this,
+                    'assetList resolved',
+                    adBreak.id,
+                    json.ASSETS.length,
+                    'assets'
+                )
                 const ads: AdInfo[] = json.ASSETS.map((asset, i) => ({
                     id: `${adBreak.id}-${i}`,
                     startTime: adBreak.startTime,
