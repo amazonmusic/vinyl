@@ -5,6 +5,9 @@
 
 import type { HlsTrackLoadOptions, HlsTrackDeps } from './HlsTrack'
 import type { Maybe, RequestInterceptor } from '@amazon/vinyl-util'
+import { resolveUrl } from '@amazon/vinyl-util'
+import type { AdBreakInfo } from '../../ad/AdBreak'
+import { discoverHlsInterstitials } from '../../ad/discoverHlsInterstitials'
 import { createMediaSource } from '../../util/media/mediaSource'
 import { createDefaultHlsMediaQualityMetadataResolver } from './HlsMediaQualityMetadataResolver'
 import {
@@ -114,7 +117,14 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 ) =>
                     deps.manifestTransformed.map(async (manifestPromise) => {
                         const data = await manifestPromise
-                        return buildHlsMediaTimeline(deps, data)
+                        const timeline = buildHlsMediaTimeline(deps, data)
+                        // Discover HLS Interstitials from the first variant's
+                        // media playlist and attach to the timeline.
+                        const adBreaks = await discoverAdsFromManifest(data)
+                        if (adBreaks.length > 0) {
+                            return { ...timeline, adBreaks }
+                        }
+                        return timeline
                     }),
                 mediaTimelineTransformed: createDefaultMediaTimelineTransformer,
                 textTrackController: (deps: {
@@ -146,5 +156,22 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 },
             } as const) satisfies Factories<HlsTrackDeps>
         }
+    }
+}
+
+async function discoverAdsFromManifest(
+    data: HlsManifestData
+): Promise<readonly AdBreakInfo[]> {
+    try {
+        if (data.mainPlaylist.variants.length === 0) return []
+        const variant = data.mainPlaylist.variants[0]
+        const media = await data.getMediaPlaylist(variant.uri)
+        const contentDuration = media.ended
+            ? media.segments.reduce((sum, s) => sum + s.duration, 0)
+            : null
+        const playlistBaseUrl = resolveUrl(variant.uri, data.baseUrl)
+        return discoverHlsInterstitials(media, playlistBaseUrl, contentDuration)
+    } catch {
+        return []
     }
 }

@@ -128,6 +128,8 @@ describe('AdControllerImpl', () => {
             makeBreak({ id: 'a', startTime: 0, duration: 10 }),
             makeBreak({ id: 'b', startTime: 10, duration: 10 }),
         ])
+        // Break A is immediately active (currentTime=0 is within A).
+        expect(c.activeAdBreak?.id).toBe('a')
         const changes: { previous: string | null; current: string | null }[] =
             []
         c.on('adBreakChange', (e) =>
@@ -136,12 +138,8 @@ describe('AdControllerImpl', () => {
                 current: e.current?.id ?? null,
             })
         )
-        updateTime(c, 5)
         updateTime(c, 15)
-        expect(changes).toEqual([
-            { previous: null, current: 'a' },
-            { previous: 'a', current: 'b' },
-        ])
+        expect(changes).toEqual([{ previous: 'a', current: 'b' }])
         expect(c.activeAdBreak?.id).toBe('b')
     })
 

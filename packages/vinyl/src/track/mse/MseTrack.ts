@@ -150,6 +150,7 @@ export class MseTrack extends TrackBase {
                 deps.adController.on(
                     'adBreakChange',
                     (event: ChangeEvent<AdBreakInfo | null>) => {
+                        if (!this.active) return
                         if (event.current && event.current.ads.length > 0) {
                             this._activeAdIndex = 0
                             this.activateAdAtIndex(event.current, 0)
@@ -210,7 +211,7 @@ export class MseTrack extends TrackBase {
                 timelinePromise
                     .then((timeline) => {
                         if (this.disposer.disposed) return
-                        if (this.active) {
+                        if (timeline.adBreaks.length > 0) {
                             this.deps.adController?.setAdBreaks(
                                 timeline.adBreaks
                             )
@@ -418,6 +419,14 @@ export class MseTrack extends TrackBase {
             this.deps.mediaSourceController.createUrl()
         this.callOnStreams('activate', loadOptions)
 
+        // If an ad break is already active (preroll set before activation),
+        // start playing it now.
+        const activeBreak = this.deps.adController?.activeAdBreak
+        if (activeBreak && activeBreak.ads.length > 0) {
+            this._activeAdIndex = 0
+            this.activateAdAtIndex(activeBreak, 0)
+        }
+
         // Listen for timeUpdate to detect period changes.
         this.timeUpdateSub = this.deps.playbackController.on(
             'timeUpdate',
@@ -451,7 +460,6 @@ export class MseTrack extends TrackBase {
 
         this.deps.playbackSource.src = null
         this.deps.playbackSource.load()
-        this.deps.adController?.setAdBreaks([])
     }
 
     /**

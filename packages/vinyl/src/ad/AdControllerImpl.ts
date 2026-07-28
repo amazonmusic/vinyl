@@ -39,7 +39,8 @@ export class AdControllerImpl
 
     private _adBreaks: readonly AdBreakInfo[] = []
     private _active: AdBreakInfo | null = null
-    private readonly _trackFactory: TrackFactory<TrackLoadOptions> | null
+    private _trackFactory: TrackFactory<TrackLoadOptions> | null
+    private readonly _playbackController: ReadonlyPlaybackController
     private readonly _adTracks = new Map<string, Track>()
     private readonly _skippedBreakIds = new Set<string>()
     private _lastTime: number = 0
@@ -47,10 +48,15 @@ export class AdControllerImpl
 
     constructor(deps: AdControllerImplDeps) {
         super()
+        this._playbackController = deps.playbackController
         this._trackFactory = deps.trackFactory ?? null
         this._timeUpdateSub = deps.playbackController.on('timeUpdate', () => {
             this.updateTime(deps.playbackController.currentTime)
         })
+    }
+
+    setTrackFactory(factory: TrackFactory<TrackLoadOptions>): void {
+        this._trackFactory = factory
     }
 
     /**
@@ -77,9 +83,13 @@ export class AdControllerImpl
         this._adBreaks = sorted
         this._skippedBreakIds.clear()
 
-        // Dispose previous ad tracks and create new ones.
-        this.disposeAdTracks()
-        this.createAdTracks(sorted)
+        // Only dispose/recreate ad tracks if there's no active break being
+        // played — otherwise a re-set of the same breaks would kill the
+        // currently playing ad track.
+        if (!this._active || !sorted.some((b) => b.id === this._active!.id)) {
+            this.disposeAdTracks()
+            this.createAdTracks(sorted)
+        }
 
         this.dispatch('adBreaksChange', { previous, current: sorted })
 
@@ -88,6 +98,19 @@ export class AdControllerImpl
             const previous = this._active
             this._active = null
             this.dispatch('adBreakChange', { previous, current: null })
+        }
+        // Check if the playhead is already within a break (handles prerolls
+        // and cases where the timeline resolves after seeking into a break).
+        if (!this._active) {
+            const time = this._playbackController.currentTime
+            const next = this.breakContaining(time)
+            if (next) {
+                this._active = next
+                this.dispatch('adBreakChange', {
+                    previous: null,
+                    current: next,
+                })
+            }
         }
     }
 
