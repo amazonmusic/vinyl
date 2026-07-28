@@ -409,7 +409,6 @@ export class MseTrack extends TrackBase {
         this.deps.playbackSource.load()
     }
 
-
     getStreamingQuality(contentType: ContentType): MediaQualityMetadata | null {
         return this.getStream(contentType)?.streamingQuality ?? null
     }
@@ -448,7 +447,6 @@ export class MseTrack extends TrackBase {
     get bufferingEnded(): boolean {
         return this.streams.every((stream) => stream.bufferingEnded)
     }
-
 
     dispose(): void {
         logDebug(this, 'dispose')

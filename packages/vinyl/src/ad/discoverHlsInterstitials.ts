@@ -187,7 +187,10 @@ function classifyPlacement(
  * The JSON shape of an HLS interstitial `X-ASSET-LIST` document.
  */
 interface AssetListDocument {
-    readonly ASSETS?: readonly { readonly URI: string; readonly DURATION?: number }[]
+    readonly ASSETS?: readonly {
+        readonly URI: string
+        readonly DURATION?: number
+    }[]
 }
 
 /**

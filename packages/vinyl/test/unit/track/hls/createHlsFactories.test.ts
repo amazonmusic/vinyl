@@ -257,8 +257,7 @@ describe('createHlsFactories', () => {
                 'throwingMedia'
             ).and.resolveTo({
                 ...mockHlsManifestData,
-                getMediaPlaylist: () =>
-                    Promise.reject(new Error('media down')),
+                getMediaPlaylist: () => Promise.reject(new Error('media down')),
             })
             const factories = factoryCreator(hlsFactoryDeps)({
                 uri: 'https://example.com/main.m3u8',

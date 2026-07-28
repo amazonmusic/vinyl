@@ -1187,7 +1187,9 @@ describe('TrackControllerImpl', () => {
             const content = trackController.currentTrack as MockTrack
             expect(trackController.currentAdTrack).toBeNull()
 
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
 
@@ -1205,7 +1207,9 @@ describe('TrackControllerImpl', () => {
             const content = trackController.currentTrack as MockTrack
             content.deactivate.calls.reset()
 
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
 
@@ -1222,8 +1226,18 @@ describe('TrackControllerImpl', () => {
                     startTime: 0,
                     duration: 30,
                     ads: [
-                        { id: 'a1', startTime: 0, duration: 10, uri: 'a1.m3u8' },
-                        { id: 'a2', startTime: 0, duration: 10, uri: 'a2.m3u8' },
+                        {
+                            id: 'a1',
+                            startTime: 0,
+                            duration: 10,
+                            uri: 'a1.m3u8',
+                        },
+                        {
+                            id: 'a2',
+                            startTime: 0,
+                            duration: 10,
+                            uri: 'a2.m3u8',
+                        },
                     ],
                 }),
             ])
@@ -1256,15 +1270,18 @@ describe('TrackControllerImpl', () => {
             await flush()
             expect(trackController.currentAdTrack).toBeNull()
             expect(content.activate).toHaveBeenCalled()
-            const activateArg = content.activate.calls.mostRecent()
-                .args[0] as { startTime?: number }
+            const activateArg = content.activate.calls.mostRecent().args[0] as {
+                startTime?: number
+            }
             expect(activateArg.startTime).toBe(20)
         })
 
         it('does not advance the content queue when an ad ends', async () => {
             const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
             trackController.load(...createLoadOptionsList(1))
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
 
@@ -1278,7 +1295,9 @@ describe('TrackControllerImpl', () => {
         it('resumes content when skipAd ends the break', async () => {
             trackController.load(...createLoadOptionsList(1))
             const content = trackController.currentTrack as MockTrack
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
             content.activate.calls.reset()
@@ -1296,7 +1315,9 @@ describe('TrackControllerImpl', () => {
                 'advanceOrSkipAd'
             ).and.callThrough()
             trackController.load(...createLoadOptionsList(1))
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
             expect(advanceSpy).toHaveBeenCalled()
@@ -1308,7 +1329,9 @@ describe('TrackControllerImpl', () => {
                 'advanceOrSkipAd'
             ).and.callThrough()
             trackController.load(...createLoadOptionsList(1))
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
             advanceSpy.calls.reset()
@@ -1354,9 +1377,7 @@ describe('TrackControllerImpl', () => {
                 makeBreak({
                     startTime: 0,
                     duration: 10,
-                    ads: [
-                        { id: 'a1', startTime: 0, duration: 5, uri: null },
-                    ],
+                    ads: [{ id: 'a1', startTime: 0, duration: 5, uri: null }],
                 }),
             ])
             simulateTimeUpdate(1)
@@ -1464,7 +1485,9 @@ describe('TrackControllerImpl', () => {
 
         it('ignores a redundant adBreakChange for the already-playing ad', async () => {
             trackController.load(...createLoadOptionsList(1))
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
             const adTrack = trackController.currentAdTrack as MockTrack
@@ -1480,9 +1503,41 @@ describe('TrackControllerImpl', () => {
             expect(trackController.currentAdTrack).toBe(adTrack)
         })
 
+        it('rebuilds suspended content in place during reloadCurrentTrack without disturbing the ad', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            const content = trackController.currentTrack as MockTrack
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
+            simulateTimeUpdate(1)
+            await flush()
+            const adTrack = trackController.currentAdTrack as MockTrack
+            expect(adTrack).not.toBeNull()
+            deps.playbackController.play.calls.reset()
+
+            trackController.reloadCurrentTrack()
+
+            // The stale content track is disposed and a fresh one created, but
+            // the ad keeps playing and playback is not touched.
+            expect(content.dispose).toHaveBeenCalled()
+            expect(trackController.currentAdTrack).toBe(adTrack)
+            expect(adTrack.deactivate).not.toHaveBeenCalled()
+            expect(deps.playbackController.play).not.toHaveBeenCalled()
+
+            // When the break ends, the freshly-rebuilt content resumes.
+            adController.skipAd()
+            await flush()
+            expect(trackController.currentAdTrack).toBeNull()
+            const resumed = trackController.currentTrack as MockTrack
+            expect(resumed).not.toBe(content)
+            expect(resumed.activate).toHaveBeenCalled()
+        })
+
         it('disposes ad tracks and resets the break when content changes', async () => {
             trackController.load(...createLoadOptionsList(1))
-            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
             simulateTimeUpdate(1)
             await flush()
             const adTrack = trackController.currentAdTrack as MockTrack

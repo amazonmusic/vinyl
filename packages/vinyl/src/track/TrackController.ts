@@ -432,10 +432,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
      * Preloads ad tracks for any break the playhead is approaching (within
      * {@link AD_PRELOAD_SECONDS}), resolving each break's ad list lazily.
      */
-    private preloadUpcomingAds(
-        adController: AdController,
-        time: number
-    ): void {
+    private preloadUpcomingAds(adController: AdController, time: number): void {
         for (const adBreak of adController.adBreaks) {
             if (time < adBreak.startTime - AD_PRELOAD_SECONDS) continue
             if (time > adBreak.startTime) continue
@@ -778,6 +775,21 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             return
         }
         logDebug(this, 'reloadCurrentTrack', loadOptions.uri)
+        // While an ad is playing the content track is suspended and the ad
+        // owns the media element. Rebuild the content track in place without
+        // reactivating it (or touching playback); it will be reactivated at
+        // the saved resume time when the break ends.
+        if (this._adTrack) {
+            const stale = this._currentTrack
+            this.setCurrentTrack(null, null)
+            this.trackCache.delete(loadOptions.uri)
+            stale.dispose()
+            this._currentTrack = this.getOrCreateTrack(
+                loadOptions.uri,
+                loadOptions
+            )
+            return
+        }
         // Preserve the playhead and play state across the rebuild.
         const resumeTime = this.deps.playbackController.currentTime
         const wasPlaying =

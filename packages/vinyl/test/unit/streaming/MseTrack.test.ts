@@ -905,7 +905,9 @@ describe('MseTrack', () => {
             )
         }
 
-        function makeTimeline(adBreaks: MediaTimeline['adBreaks']): MediaTimeline {
+        function makeTimeline(
+            adBreaks: MediaTimeline['adBreaks']
+        ): MediaTimeline {
             return {
                 periods: [],
                 minBufferTime: 2,
