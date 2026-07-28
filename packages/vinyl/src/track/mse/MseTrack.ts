@@ -19,12 +19,7 @@ import {
     redispatchEvents,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
-import type {
-    Track,
-    TrackPreloadOptions,
-    TrackTypeId,
-    TrackUri,
-} from '../Track'
+import type { TrackPreloadOptions, TrackTypeId, TrackUri } from '../Track'
 import type { SeekRange } from '../SeekRange'
 import type {
     ContentType,
@@ -47,11 +42,7 @@ import {
     type MediaPeriod,
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
-import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
-import type { ChangeEvent } from '../../event/ChangeEvent'
-
-const AD_PLAYBACK_TIMEOUT_MS = 10_000
-const AD_PRELOAD_SECONDS = 20
+import type { AdController } from '../../ad/AdBreak'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -102,10 +93,6 @@ export class MseTrack extends TrackBase {
         return this._seekRange
     }
 
-    get currentAdTrack(): Track | null {
-        return this._currentAdTrack
-    }
-
     private readonly streams: ContentStream[] = []
     private readonly disposeAbort = new Abort()
     private lastPreloadOptions: ContentStreamPreloadOptions | null = null
@@ -122,13 +109,6 @@ export class MseTrack extends TrackBase {
     private timeUpdateSub: Unsubscribe | null = null
     private _cachedPeriod: MediaPeriod | null = null
     private _seekRange: SeekRange | null = null
-    private readonly _preloadedAdIds = new Set<string>()
-    private _currentAdTrack: Track | null = null
-    private _adResumeTime: number = 0
-    private _adErrorSub: Unsubscribe | null = null
-    private _adEndedSub: Unsubscribe | null = null
-    private _adTimeoutId: ReturnType<typeof setTimeout> | null = null
-    private _activeAdIndex: number = 0
 
     constructor(
         uri: TrackUri,
@@ -142,28 +122,6 @@ export class MseTrack extends TrackBase {
         const { add } = this.disposer
         add(depsContainer)
         this.deps = deps
-
-        if (deps.adController) {
-            add(
-                deps.adController.on('adBreaksChange', () => {
-                    this._preloadedAdIds.clear()
-                })
-            )
-            add(
-                deps.adController.on(
-                    'adBreakChange',
-                    (event: ChangeEvent<AdBreakInfo | null>) => {
-                        if (!this.active) return
-                        if (event.current && event.current.ads.length > 0) {
-                            this._activeAdIndex = 0
-                            this.activateAdAtIndex(event.current, 0)
-                        } else if (this._currentAdTrack) {
-                            this.setCurrentAdTrack(null)
-                        }
-                    }
-                )
-            )
-        }
 
         add(
             deps.contentTypesValue.onData((contentTypesPromise) => {
@@ -422,20 +380,11 @@ export class MseTrack extends TrackBase {
             this.deps.mediaSourceController.createUrl()
         this.callOnStreams('activate', loadOptions)
 
-        // If an ad break is already active (preroll set before activation),
-        // start playing it now.
-        const activeBreak = this.deps.adController?.activeAdBreak
-        if (activeBreak && activeBreak.ads.length > 0) {
-            this._activeAdIndex = 0
-            this.activateAdAtIndex(activeBreak, 0)
-        }
-
         // Listen for timeUpdate to detect period changes.
         this.timeUpdateSub = this.deps.playbackController.on(
             'timeUpdate',
             () => {
                 const time = this.deps.playbackController.currentTime
-                this.preloadUpcomingAds(time)
                 const cached = this._cachedPeriod
                 if (
                     cached &&
@@ -451,11 +400,6 @@ export class MseTrack extends TrackBase {
     }
 
     onDeactivated(): void {
-        this.clearAdSubscriptions()
-        if (this._currentAdTrack) {
-            this._currentAdTrack.deactivate()
-            this._currentAdTrack = null
-        }
         this.activateOptions = null
         this.timeUpdateSub?.()
         this.timeUpdateSub = null
@@ -465,106 +409,6 @@ export class MseTrack extends TrackBase {
         this.deps.playbackSource.load()
     }
 
-    /**
-     * Switches playback to or from an ad track. When a non-null ad track is
-     * provided, the outer MseTrack's streams are deactivated (without marking
-     * the track as inactive in the TrackController) and the ad track is
-     * activated. When null is provided, the ad track is deactivated and the
-     * outer track resumes.
-     */
-
-    setCurrentAdTrack(adTrack: Track | null): void {
-        if (adTrack === this._currentAdTrack) return
-        this.clearAdSubscriptions()
-        if (this._currentAdTrack) {
-            this._currentAdTrack.deactivate()
-            this._currentAdTrack = null
-        }
-        if (adTrack) {
-            this._adResumeTime = this.deps.playbackController.currentTime
-            this._currentAdTrack = adTrack
-            // Deactivate outer track's streams without full deactivate.
-            this.timeUpdateSub?.()
-            this.timeUpdateSub = null
-            this.callOnStreams('deactivate')
-            this.deps.playbackSource.src = null
-            // Activate the ad sub-track and always play (ads should auto-play).
-            adTrack.activate({})
-            this.deps.playbackController.play().catch(() => {
-                logDebug(this, 'ad play rejected, skipping ad')
-                this.advanceOrSkipAd()
-            })
-            // If the ad track errors, skip it and resume content.
-            this._adErrorSub = adTrack.on('error', (event) => {
-                logDebug(this, 'ad track error, skipping:', event.error)
-                this.dispatch('error', event)
-                this.advanceOrSkipAd()
-            })
-            // When the ad finishes playing, advance to the next ad or
-            // resume content.
-            this._adEndedSub = this.deps.playbackController.on('ended', () => {
-                if (this._currentAdTrack !== adTrack) return
-                logDebug(this, 'ad ended, resuming content')
-                this.advanceOrSkipAd()
-            })
-            // If the ad doesn't start playing within a timeout, skip it.
-            this._adTimeoutId = setTimeout(() => {
-                this._adTimeoutId = null
-                if (
-                    this._currentAdTrack === adTrack &&
-                    this.deps.playbackController.currentTime === 0
-                ) {
-                    logDebug(this, 'ad playback timeout, skipping')
-                    this.advanceOrSkipAd()
-                }
-            }, AD_PLAYBACK_TIMEOUT_MS)
-        } else if (this.activateOptions) {
-            // Resume the outer track.
-            logDebug(this, 'resuming content at', this._adResumeTime)
-            this.onActivated(this.activateOptions)
-            this.deps.playbackController
-                .seekTo(this._adResumeTime)
-                .then(() => {
-                    logDebug(this, 'seek complete, calling play')
-                    return this.deps.playbackController.play()
-                })
-                .then(() => logDebug(this, 'play resolved'))
-                .catch((e) => logDebug(this, 'resume failed:', e))
-        }
-    }
-
-    /**
-     * Advances to the next ad in the active break, or skips the break if
-     * this was the last ad.
-     */
-    advanceOrSkipAd(): void {
-        const activeBreak = this.deps.adController?.activeAdBreak
-        if (activeBreak && this._activeAdIndex + 1 < activeBreak.ads.length) {
-            this._activeAdIndex++
-            this.activateAdAtIndex(activeBreak, this._activeAdIndex)
-        } else {
-            this.deps.adController?.skipAd()
-        }
-    }
-
-    private activateAdAtIndex(adBreak: AdBreakInfo, index: number): void {
-        const ad = adBreak.ads[index]
-        const adTrack = this.deps.adController?.getAdTrack(ad.id)
-        if (adTrack) {
-            this.setCurrentAdTrack(adTrack)
-        }
-    }
-
-    private clearAdSubscriptions(): void {
-        this._adErrorSub?.()
-        this._adErrorSub = null
-        this._adEndedSub?.()
-        this._adEndedSub = null
-        if (this._adTimeoutId != null) {
-            clearTimeout(this._adTimeoutId)
-            this._adTimeoutId = null
-        }
-    }
 
     getStreamingQuality(contentType: ContentType): MediaQualityMetadata | null {
         return this.getStream(contentType)?.streamingQuality ?? null
@@ -606,25 +450,8 @@ export class MseTrack extends TrackBase {
     }
 
 
-    private preloadUpcomingAds(time: number): void {
-        const adController = this.deps.adController
-        if (!adController) return
-        for (const adBreak of adController.adBreaks) {
-            if (time < adBreak.startTime - AD_PRELOAD_SECONDS) continue
-            if (time > adBreak.startTime) continue
-            for (const ad of adBreak.ads) {
-                if (this._preloadedAdIds.has(ad.id)) continue
-                const track = adController.getAdTrack(ad.id)
-                if (!track) continue
-                this._preloadedAdIds.add(ad.id)
-                track.preload({ prefetchPriority: 0 }, {})
-            }
-        }
-    }
-
     dispose(): void {
         logDebug(this, 'dispose')
-        this.clearAdSubscriptions()
         this.timeUpdateSub?.()
         this.timeUpdateSub = null
         this.clearStreams()

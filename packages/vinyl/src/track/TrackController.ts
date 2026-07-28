@@ -23,7 +23,7 @@ import type { PlaybackController } from '../playback/PlaybackController'
 import type { ReadonlyTrack, Track, TrackUri } from './Track'
 import type { TrackFactory, TrackLoadOptions } from './TrackFactory'
 import type { ChangeEvent } from '../event/ChangeEvent'
-import type { ReadonlyAdController } from '../ad/AdBreak'
+import type { AdController } from '../ad/AdBreak'
 
 export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,
@@ -201,7 +201,7 @@ export interface TrackControllerImplDeps<
 
     readonly playbackController: PlaybackController
 
-    readonly adController?: ReadonlyAdController | null
+    readonly adController?: AdController | null
 }
 
 export interface TrackControllerImplOptions {
@@ -261,6 +261,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         defaultTrackControllerImplOptions
 
     private trackEndedTimeoutId: TimeoutId | null = null
+    private _adTrack: Track | null = null
+    private _adResumeTime: number = 0
+    private _adTimeoutId: TimeoutId | null = null
 
     constructor(
         private readonly deps: TrackControllerImplDeps<TrackLoadOptionsType>,
@@ -284,10 +287,11 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
         add(
             deps.playbackController.on('ended', () => {
-                if (deps.adController?.adPlaying) return
+                if (deps.adController?.adPlaying) {
+                    deps.adController.advanceOrSkipAd()
+                    return
+                }
                 this.trackEndedTimeoutId = setTimeout(() => {
-                    // Adds a frame delay to allow applications an opportunity to respond to 'ended' events before the
-                    // track is changed.
                     this.trackEndedTimeoutId = null
                     if (this.hasNext()) {
                         this.next()
@@ -298,7 +302,73 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 })
             })
         )
+
+        if (deps.adController) {
+            add(
+                deps.adController.on('adBreakChange', (event) => {
+                    if (event.current && event.current.ads.length > 0) {
+                        const ad = deps.adController!.currentAd
+                        if (ad) {
+                            const track =
+                                deps.adController!.getAdTrack(ad.id)
+                            if (track) {
+                                this.activateAdTrack(track)
+                            }
+                        }
+                    } else if (this._adTrack) {
+                        this.resumeContent()
+                    }
+                })
+            )
+        }
+
         this.configure(initialOptions)
+    }
+
+    private activateAdTrack(track: Track): void {
+        if (this._adTrack) {
+            this._adTrack.deactivate()
+        } else if (this._currentTrack?.active) {
+            // First ad in break — save resume time and suspend content
+            this._adResumeTime = this.deps.playbackController.currentTime
+            this._currentTrack.deactivate()
+        }
+        this._adTrack = track
+        track.activate({})
+        this.deps.playbackController.play().catch(() => {
+            this.deps.adController?.advanceOrSkipAd()
+        })
+        // Timeout: if ad doesn't start within 10s, skip it
+        if (this._adTimeoutId) clearTimeout(this._adTimeoutId)
+        this._adTimeoutId = setTimeout(() => {
+            this._adTimeoutId = null
+            if (
+                this._adTrack === track &&
+                this.deps.playbackController.currentTime === 0
+            ) {
+                logDebug(this, 'ad playback timeout, skipping')
+                this.deps.adController?.advanceOrSkipAd()
+            }
+        }, 10_000)
+    }
+
+    private resumeContent(): void {
+        if (this._adTimeoutId) {
+            clearTimeout(this._adTimeoutId)
+            this._adTimeoutId = null
+        }
+        if (this._adTrack) {
+            this._adTrack.deactivate()
+            this._adTrack = null
+        }
+        if (this._currentTrack && !this._currentTrack.active) {
+            const loadOptions = this._current?.config ?? {}
+            this._currentTrack.activate(loadOptions)
+            this.deps.playbackController
+                .seekTo(this._adResumeTime)
+                .then(() => this.deps.playbackController.play())
+                .catch(() => {})
+        }
     }
 
     private clearTrackEndedTimeout() {

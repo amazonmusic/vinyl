@@ -150,6 +150,11 @@ export interface ReadonlyAdController extends ReadonlyEventHost<AdEventMap> {
      * not advance the queue in response to `ended` while this is true.
      */
     readonly adPlaying: boolean
+
+    /**
+     * The ad currently playing within the active break, or null.
+     */
+    readonly currentAd: AdInfo | null
 }
 
 /**
@@ -173,6 +178,13 @@ export interface AdController extends ReadonlyAdController {
      * exists for the ad.
      */
     getAdTrack(adId: string): Track | null
+
+    /**
+     * Advances to the next ad in the active break, or skips the break
+     * entirely if this was the last ad. Dispatches `adBreakChange` when
+     * the break ends. No-op when no ad break is active.
+     */
+    advanceOrSkipAd(): void
 
     /**
      * Skips the currently playing ad. If there are more ads in the break,

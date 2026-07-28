@@ -784,7 +784,7 @@ export class VinylPlayer<
      * No-op when no ad break is active.
      */
     skipAd(): void {
-        this.deps.adController.skipAd()
+        this.deps.adController.advanceOrSkipAd()
     }
 
     /**

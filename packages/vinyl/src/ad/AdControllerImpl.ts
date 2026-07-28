@@ -51,7 +51,9 @@ export class AdControllerImpl
         this._playbackController = deps.playbackController
         this._trackFactory = deps.trackFactory ?? null
         this._timeUpdateSub = deps.playbackController.on('timeUpdate', () => {
-            this.updateTime(deps.playbackController.currentTime)
+            const time = deps.playbackController.currentTime
+            this.updateTime(time)
+            this.preloadUpcomingAds(time)
         })
     }
 
@@ -66,6 +68,9 @@ export class AdControllerImpl
         return this._adTracks.get(adId) ?? null
     }
 
+    private _activeAdIndex = 0
+    private readonly _preloadedAdIds = new Set<string>()
+
     get adBreaks(): readonly AdBreakInfo[] {
         return this._adBreaks
     }
@@ -78,6 +83,24 @@ export class AdControllerImpl
         return this._active != null
     }
 
+    get currentAd(): AdInfo | null {
+        return this._active?.ads[this._activeAdIndex] ?? null
+    }
+
+    advanceOrSkipAd(): void {
+        if (!this._active) return
+        if (this._activeAdIndex + 1 < this._active.ads.length) {
+            this._activeAdIndex++
+            // Re-dispatch adBreakChange so listeners pick up the new ad
+            this.dispatch('adBreakChange', {
+                previous: this._active,
+                current: this._active,
+            })
+        } else {
+            this.skipAd()
+        }
+    }
+
     setAdBreaks(adBreaks: readonly AdBreakInfo[]): void {
         const newIds = adBreaks.map((b) => b.id).join(',')
         const curIds = this._adBreaks.map((b) => b.id).join(',')
@@ -87,6 +110,7 @@ export class AdControllerImpl
         // so region lookups can assume monotonic starts.
         const sorted = [...adBreaks].sort((a, b) => a.startTime - b.startTime)
         this._adBreaks = sorted
+        this._preloadedAdIds.clear()
 
         // Only dispose/recreate ad tracks if there's no active break being
         // played — otherwise a re-set of the same breaks would kill the
@@ -110,6 +134,7 @@ export class AdControllerImpl
             const time = this._playbackController.currentTime
             const next = this.breakContaining(time)
             if (next) {
+                this._activeAdIndex = 0
                 this._active = next
                 this.dispatch('adBreakChange', {
                     previous: null,
@@ -124,6 +149,7 @@ export class AdControllerImpl
         if (this._active) return
         const next = this.breakContaining(currentTime)
         if (!next) return
+        this._activeAdIndex = 0
         this._active = next
         this.dispatch('adBreakChange', { previous: null, current: next })
     }
@@ -235,4 +261,21 @@ export class AdControllerImpl
         }
         this._adTracks.clear()
     }
+
+    private preloadUpcomingAds(time: number): void {
+        if (!this._trackFactory) return
+        for (const adBreak of this._adBreaks) {
+            if (time < adBreak.startTime - AD_PRELOAD_SECONDS) continue
+            if (time > adBreak.startTime) continue
+            for (const ad of adBreak.ads) {
+                if (this._preloadedAdIds.has(ad.id)) continue
+                const track = this._adTracks.get(ad.id)
+                if (!track) continue
+                this._preloadedAdIds.add(ad.id)
+                track.preload({ prefetchPriority: 0 }, {})
+            }
+        }
+    }
 }
+
+const AD_PRELOAD_SECONDS = 20
