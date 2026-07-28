@@ -142,6 +142,14 @@ export interface ReadonlyAdController extends ReadonlyEventHost<AdEventMap> {
      * playhead is in primary content.
      */
     readonly activeAdBreak: AdBreakInfo | null
+
+    /**
+     * True when an ad is actively playing on the media element. While true,
+     * playback events (ended, emptied, etc.) originate from the ad — not
+     * from the content track. Consumers such as the TrackController should
+     * not advance the queue in response to `ended` while this is true.
+     */
+    readonly adPlaying: boolean
 }
 
 /**
@@ -165,6 +173,11 @@ export interface AdController extends ReadonlyAdController {
      * exists for the ad.
      */
     getAdTrack(adId: string): Track | null
+
+    /**
+     * Signals that ad playback has started or stopped on the media element.
+     */
+    setAdPlaying(playing: boolean): void
 
     /**
      * Skips the currently playing ad. If there are more ads in the break,

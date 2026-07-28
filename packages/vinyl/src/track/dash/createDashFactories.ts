@@ -50,6 +50,7 @@ import { createDefaultMediaTimelineTransformer } from '../../streaming/createDef
 import type { DashManifestData } from './DashManifestProvider'
 import { SidecarTextTrackController } from '../../text/SidecarTextTrackController'
 import { discoverDashTextTracks } from '../../text/discoverDashTextTracks'
+import type { AdController } from '../../ad/AdBreak'
 
 /**
  * Player-level dependencies needed for the Dash-specific factories.
@@ -85,10 +86,14 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
         // Player-level dependencies
         deps: DashFactoryDeps
     ) => {
+        const adController =
+            (deps as unknown as { adController?: AdController | null })
+                .adController ?? null
         return (loadOptions: DashTrackLoadOptions) =>
             validateFactories({
                 // Track-level dependencies
                 ...externalDependencies(deps),
+                adController: () => adController,
 
                 contentTypesValue: createDashContentTypesValue,
                 baseUrlSelector: () => pickFirstBaseUrlSelector,

@@ -66,6 +66,8 @@ export class AdControllerImpl
         return this._adTracks.get(adId) ?? null
     }
 
+    private _adPlaying = false
+
     get adBreaks(): readonly AdBreakInfo[] {
         return this._adBreaks
     }
@@ -74,14 +76,19 @@ export class AdControllerImpl
         return this._active
     }
 
+    get adPlaying(): boolean {
+        return this._adPlaying
+    }
+
     setAdBreaks(adBreaks: readonly AdBreakInfo[]): void {
-        if (equalDeep(this._adBreaks, adBreaks)) return
+        const newIds = adBreaks.map((b) => b.id).join(',')
+        const curIds = this._adBreaks.map((b) => b.id).join(',')
+        if (newIds === curIds) return
         const previous = this._adBreaks
         // Keep a stable, start-time ordering so consumers can rely on it and
         // so region lookups can assume monotonic starts.
         const sorted = [...adBreaks].sort((a, b) => a.startTime - b.startTime)
         this._adBreaks = sorted
-        this._skippedBreakIds.clear()
 
         // Only dispose/recreate ad tracks if there's no active break being
         // played — otherwise a re-set of the same breaks would kill the
@@ -116,15 +123,20 @@ export class AdControllerImpl
 
     private updateTime(currentTime: number): void {
         this._lastTime = currentTime
+        if (this._active) return
         const next = this.breakContaining(currentTime)
-        if (next?.id === this._active?.id) return
-        const previous = this._active
+        if (!next) return
         this._active = next
-        this.dispatch('adBreakChange', { previous, current: next })
+        this.dispatch('adBreakChange', { previous: null, current: next })
+    }
+
+    setAdPlaying(playing: boolean): void {
+        this._adPlaying = playing
     }
 
     skipAd(): void {
         if (!this._active) return
+        this._adPlaying = false
         const previous = this._active
         this._skippedBreakIds.add(previous.id)
         this._active = null
@@ -133,6 +145,7 @@ export class AdControllerImpl
 
     skipAdBreak(): void {
         if (!this._active) return
+        this._adPlaying = false
         const previous = this._active
         this._skippedBreakIds.add(previous.id)
         this._active = null

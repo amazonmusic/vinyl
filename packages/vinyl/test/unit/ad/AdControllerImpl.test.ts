@@ -90,7 +90,7 @@ describe('AdControllerImpl', () => {
         expect(c.activeAdBreak?.id).toBe('b1')
     })
 
-    it('emits adBreakChange to null when the playhead leaves a break', () => {
+    it('emits adBreakChange to null when the ad is skipped', () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
         const events: { previous: string | null; current: string | null }[] = []
@@ -103,7 +103,7 @@ describe('AdControllerImpl', () => {
 
         updateTime(c, 12)
         expect(c.activeAdBreak?.id).toBe('b1')
-        updateTime(c, 15) // endTime is exclusive: 10 + 5
+        c.skipAd()
         expect(events).toEqual([
             { previous: null, current: 'b1' },
             { previous: 'b1', current: null },
@@ -122,13 +122,12 @@ describe('AdControllerImpl', () => {
         expect(changes).toBe(1)
     })
 
-    it('transitions directly between adjacent breaks', () => {
+    it('transitions between breaks via skipAd then timeUpdate', () => {
         const c = createController()
         c.setAdBreaks([
             makeBreak({ id: 'a', startTime: 0, duration: 10 }),
             makeBreak({ id: 'b', startTime: 10, duration: 10 }),
         ])
-        // Break A is immediately active (currentTime=0 is within A).
         expect(c.activeAdBreak?.id).toBe('a')
         const changes: { previous: string | null; current: string | null }[] =
             []
@@ -138,8 +137,13 @@ describe('AdControllerImpl', () => {
                 current: e.current?.id ?? null,
             })
         )
+        // Skip A, then advance to B's region
+        c.skipAd()
         updateTime(c, 15)
-        expect(changes).toEqual([{ previous: 'a', current: 'b' }])
+        expect(changes).toEqual([
+            { previous: 'a', current: null },
+            { previous: null, current: 'b' },
+        ])
         expect(c.activeAdBreak?.id).toBe('b')
     })
 

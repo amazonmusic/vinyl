@@ -6,7 +6,7 @@
 import type { HlsTrackLoadOptions, HlsTrackDeps } from './HlsTrack'
 import type { Maybe, RequestInterceptor } from '@amazon/vinyl-util'
 import { resolveUrl } from '@amazon/vinyl-util'
-import type { AdBreakInfo } from '../../ad/AdBreak'
+import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
 import { discoverHlsInterstitials } from '../../ad/discoverHlsInterstitials'
 import { createMediaSource } from '../../util/media/mediaSource'
 import { createDefaultHlsMediaQualityMetadataResolver } from './HlsMediaQualityMetadataResolver'
@@ -68,6 +68,9 @@ export type HlsInitOptions = {
 
 export function createHlsFactories(options: Maybe<HlsInitOptions>) {
     return (deps: HlsFactoryDeps) => {
+        const adController =
+            (deps as unknown as { adController?: AdController | null })
+                .adController ?? null
         return (loadOptions: HlsTrackLoadOptions) => {
             const manifestProvider =
                 loadOptions.manifestProvider ||
@@ -78,6 +81,7 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
 
             return validateFactories({
                 ...externalDependencies(deps),
+                adController: () => adController,
 
                 contentTypesValue: createHlsContentTypesValue,
 

@@ -481,6 +481,7 @@ export class MseTrack extends TrackBase {
         if (adTrack) {
             this._adResumeTime = this.deps.playbackController.currentTime
             this._currentAdTrack = adTrack
+            this.deps.adController?.setAdPlaying(true)
             // Deactivate outer track's streams without full deactivate.
             this.timeUpdateSub?.()
             this.timeUpdateSub = null
@@ -498,11 +499,25 @@ export class MseTrack extends TrackBase {
                 this.dispatch('error', event)
                 this.advanceOrSkipAd()
             })
-            // When the ad finishes playing, resume content.
-            this._adEndedSub = this.deps.playbackController.on('ended', () => {
+            // Detect ad completion. Use both the playback controller's ended
+            // event and a timeUpdate-based loop detection as fallback.
+            let adPeakTime = 0
+            const onAdDone = () => {
+                if (this._currentAdTrack !== adTrack) return
                 logDebug(this, 'ad ended, resuming content')
                 this.advanceOrSkipAd()
-            })
+            }
+            const endedUnsub = this.deps.playbackController.on('ended', onAdDone)
+            const timeUnsub = this.deps.playbackController.on(
+                'timeUpdate',
+                () => {
+                    if (this._currentAdTrack !== adTrack) return
+                    const time = this.deps.playbackController.currentTime
+                    if (time > adPeakTime) adPeakTime = time
+                    if (adPeakTime > 2 && time < adPeakTime - 2) onAdDone()
+                }
+            )
+            this._adEndedSub = () => { endedUnsub(); timeUnsub() }
             // If the ad doesn't start playing within a timeout, skip it.
             this._adTimeoutId = setTimeout(() => {
                 this._adTimeoutId = null
@@ -515,6 +530,7 @@ export class MseTrack extends TrackBase {
                 }
             }, MseTrack.AD_PLAYBACK_TIMEOUT_MS)
         } else if (this.activateOptions) {
+            this.deps.adController?.setAdPlaying(false)
             // Resume outer track at the saved position.
             this.onActivated(this.activateOptions)
             this.deps.playbackController

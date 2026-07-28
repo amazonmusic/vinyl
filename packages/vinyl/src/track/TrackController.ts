@@ -23,6 +23,7 @@ import type { PlaybackController } from '../playback/PlaybackController'
 import type { ReadonlyTrack, Track, TrackUri } from './Track'
 import type { TrackFactory, TrackLoadOptions } from './TrackFactory'
 import type { ChangeEvent } from '../event/ChangeEvent'
+import type { ReadonlyAdController } from '../ad/AdBreak'
 
 export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,
@@ -199,6 +200,8 @@ export interface TrackControllerImplDeps<
     readonly trackFactory: TrackFactory<TrackLoadOptionsType>
 
     readonly playbackController: PlaybackController
+
+    readonly adController?: ReadonlyAdController | null
 }
 
 export interface TrackControllerImplOptions {
@@ -281,6 +284,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
         add(
             deps.playbackController.on('ended', () => {
+                if (deps.adController?.adPlaying) return
                 this.trackEndedTimeoutId = setTimeout(() => {
                     // Adds a frame delay to allow applications an opportunity to respond to 'ended' events before the
                     // track is changed.
