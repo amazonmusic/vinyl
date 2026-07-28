@@ -1549,6 +1549,87 @@ describe('TrackControllerImpl', () => {
             expect(trackController.currentAdTrack).toBeNull()
             expect(adController.activeAdBreak).toBeNull()
         })
+
+        describe('after disposal', () => {
+            it('does not preload ads resolved after the controller is disposed', async () => {
+                // Hold the ad resolver open so it settles only after dispose.
+                let resolveAds: (ads: AdInfo[]) => void = () => {}
+                const adBreak: AdBreakInfo = {
+                    id: 'mid',
+                    startTime: 25,
+                    duration: 10,
+                    placement: 'midroll',
+                    ads: () =>
+                        new Promise<readonly AdInfo[]>((r) => {
+                            resolveAds = r
+                        }),
+                }
+                trackController.load(...createLoadOptionsList(1))
+                adController.setAdBreaks([adBreak])
+                // A timeUpdate within the lookahead window kicks off preload,
+                // whose ad resolution is still pending.
+                simulateTimeUpdate(10)
+                trackController.dispose()
+                disposed = true
+                deps.trackFactory.createTrack.calls.reset()
+                // The late resolution must not create/preload a track.
+                resolveAds([
+                    { id: 'a1', startTime: 25, duration: 5, uri: 'ad.m3u8' },
+                ])
+                await flush()
+                expect(deps.trackFactory.createTrack).not.toHaveBeenCalled()
+            })
+
+            it('does not advance the ad after disposal when play rejects', async () => {
+                // Hold play() pending so its rejection settles only after
+                // dispose, exercising the disposed-guard in the catch handler.
+                let rejectPlay: (e: Error) => void = () => {}
+                const pendingPlay = new Promise<void>((_res, rej) => {
+                    rejectPlay = rej
+                })
+                // The rejection is consumed by production code; mark this test
+                // reference as handled so it is not seen as floating.
+                pendingPlay.catch(() => undefined)
+                deps.playbackController.play.and.returnValue(pendingPlay)
+                const advanceSpy = spyOn(
+                    adController,
+                    'advanceOrSkipAd'
+                ).and.callThrough()
+                trackController.load(...createLoadOptionsList(1))
+                adController.setAdBreaks([
+                    makeBreak({ startTime: 0, duration: 10 }),
+                ])
+                simulateTimeUpdate(1)
+                await flush()
+                // Dispose, then reject play() — the catch must no-op.
+                trackController.dispose()
+                disposed = true
+                advanceSpy.calls.reset()
+                rejectPlay(new Error('x'))
+                await flush()
+                expect(advanceSpy).not.toHaveBeenCalled()
+            })
+
+            it('clears the playback timeout on disposal so it never fires', async () => {
+                const advanceSpy = spyOn(
+                    adController,
+                    'advanceOrSkipAd'
+                ).and.callThrough()
+                trackController.load(...createLoadOptionsList(1))
+                adController.setAdBreaks([
+                    makeBreak({ startTime: 0, duration: 10 }),
+                ])
+                simulateTimeUpdate(1)
+                // Let the ad activate so the playback timeout is scheduled.
+                await flush()
+                // Dispose cancels the timeout (via clearAdTracks).
+                trackController.dispose()
+                disposed = true
+                advanceSpy.calls.reset()
+                await clock.tick(10_000)
+                expect(advanceSpy).not.toHaveBeenCalled()
+            })
+        })
     })
 })
 

@@ -371,9 +371,11 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         this._adTrackAdId = ad.id
         track.activate({})
         this.deps.playbackController.play().catch(() => {
+            if (this.disposer.disposed) return
             this.deps.adController?.advanceOrSkipAd()
         })
-        // Timeout: if the ad doesn't start within 10s, skip it.
+        // Timeout: if the ad doesn't start within 10s, skip it. The timeout is
+        // cleared on resume/advance and on dispose (via clearAdTracks).
         if (this._adTimeoutId) clearTimeout(this._adTimeoutId)
         this._adTimeoutId = setTimeout(() => {
             this._adTimeoutId = null
@@ -437,6 +439,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             if (time < adBreak.startTime - AD_PRELOAD_SECONDS) continue
             if (time > adBreak.startTime) continue
             void adBreak.ads().then((ads) => {
+                if (this.disposer.disposed) return
                 for (const ad of ads) {
                     if (this._preloadedAdIds.has(ad.id)) continue
                     const track = this.getOrCreateAdTrack(ad)
