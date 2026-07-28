@@ -60,6 +60,12 @@ export interface HlsFactoryDeps {
      * `media.addTextTrack`.
      */
     readonly media: HTMLMediaElement
+
+    /**
+     * The player-level ad controller. MseTrack sets discovered ad breaks on it
+     * when the media timeline resolves.
+     */
+    readonly adController: AdController
 }
 
 export type HlsInitOptions = {
@@ -68,9 +74,7 @@ export type HlsInitOptions = {
 
 export function createHlsFactories(options: Maybe<HlsInitOptions>) {
     return (deps: HlsFactoryDeps) => {
-        const adController =
-            (deps as unknown as { adController?: AdController | null })
-                .adController ?? null
+        const adController = deps.adController
         return (loadOptions: HlsTrackLoadOptions) => {
             const manifestProvider =
                 loadOptions.manifestProvider ||

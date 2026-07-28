@@ -71,6 +71,12 @@ export interface DashFactoryDeps {
      * `media.addTextTrack`.
      */
     readonly media: HTMLMediaElement
+
+    /**
+     * The player-level ad controller. MseTrack sets discovered ad breaks on it
+     * when the media timeline resolves.
+     */
+    readonly adController: AdController
 }
 
 export type DashInitOptions = {
@@ -86,9 +92,7 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
         // Player-level dependencies
         deps: DashFactoryDeps
     ) => {
-        const adController =
-            (deps as unknown as { adController?: AdController | null })
-                .adController ?? null
+        const adController = deps.adController
         return (loadOptions: DashTrackLoadOptions) =>
             validateFactories({
                 // Track-level dependencies

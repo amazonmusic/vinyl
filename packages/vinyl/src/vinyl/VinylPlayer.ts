@@ -539,6 +539,10 @@ export class VinylPlayer<
         return this.trackController.currentTrack
     }
 
+    get currentAdTrack(): ReadonlyTrack | null {
+        return this.trackController.currentAdTrack
+    }
+
     get queue(): readonly TrackLoadOptionsType[] {
         return this.trackController.queue
     }

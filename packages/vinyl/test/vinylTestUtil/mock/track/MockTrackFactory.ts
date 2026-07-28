@@ -14,5 +14,4 @@ export class MockTrackFactory<
 
     validate = this.spyFactory('validate')
     createTrack = this.spyFactory('createTrack')
-    createAdTrack = this.spyFactory('createAdTrack')
 }

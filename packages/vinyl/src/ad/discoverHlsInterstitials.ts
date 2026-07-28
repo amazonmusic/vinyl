@@ -61,9 +61,13 @@ export function discoverHlsInterstitials(
         )
         const effectiveStartTime =
             cue === 'PRE' ? 0 : placement === 'preroll' ? 0 : startTime
-        const ads = resolveAds(range, effectiveStartTime, duration, baseUrl)
+        const ads = createAdsResolver(
+            range,
+            effectiveStartTime,
+            duration,
+            baseUrl
+        )
 
-        const assetListUrl = range.clientAttributes['X-ASSET-LIST'] || null
         const restrictStr = range.clientAttributes['X-RESTRICT'] ?? ''
         const restrict = parseRestrict(restrictStr)
 
@@ -73,7 +77,6 @@ export function discoverHlsInterstitials(
             duration,
             placement,
             ads,
-            ...(assetListUrl && { assetListUrl }),
             ...(restrict && { restrict }),
         })
     }
@@ -181,20 +184,27 @@ function classifyPlacement(
 }
 
 /**
- * Resolves the ads within a break. An `X-ASSET-URI` yields a single ad. An
- * `X-ASSET-LIST` describes assets fetched asynchronously and so yields no ads
- * up front; callers may populate them later. Returns an empty list when
- * neither is present.
+ * The JSON shape of an HLS interstitial `X-ASSET-LIST` document.
  */
-function resolveAds(
+interface AssetListDocument {
+    readonly ASSETS?: readonly { readonly URI: string; readonly DURATION?: number }[]
+}
+
+/**
+ * Creates the {@link AdBreakInfo.ads} resolver for a break. An `X-ASSET-URI`
+ * yields a single ad resolved immediately. An `X-ASSET-LIST` yields a resolver
+ * that fetches the list JSON on first call and caches the result. When neither
+ * is present the resolver yields an empty list.
+ */
+function createAdsResolver(
     range: DateRange,
     startTime: number,
     duration: number | null,
     baseUrl: string
-): readonly AdInfo[] {
+): () => Promise<readonly AdInfo[]> {
     const assetUri = range.clientAttributes['X-ASSET-URI']
     if (assetUri) {
-        return [
+        const ads: readonly AdInfo[] = [
             {
                 id: `${range.id}-0`,
                 startTime,
@@ -202,8 +212,37 @@ function resolveAds(
                 uri: resolveUrl(assetUri, baseUrl),
             },
         ]
+        return () => Promise.resolve(ads)
     }
-    return []
+
+    const assetListUrl = range.clientAttributes['X-ASSET-LIST']
+    if (assetListUrl) {
+        const url = resolveUrl(assetListUrl, baseUrl)
+        let cached: Promise<readonly AdInfo[]> | null = null
+        return () => {
+            if (cached) return cached
+            cached = fetch(url)
+                .then((res) => res.json())
+                .then((json: AssetListDocument) =>
+                    (json.ASSETS ?? []).map(
+                        (asset, i): AdInfo => ({
+                            id: `${range.id}-${i}`,
+                            startTime,
+                            duration: asset.DURATION ?? null,
+                            uri: resolveUrl(asset.URI, baseUrl),
+                        })
+                    )
+                )
+                .catch((error) => {
+                    // Allow a later retry by clearing the cached rejection.
+                    cached = null
+                    throw error
+                })
+            return cached
+        }
+    }
+
+    return () => Promise.resolve([])
 }
 
 function parseRestrict(str: string): AdRestriction | undefined {

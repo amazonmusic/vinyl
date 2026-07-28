@@ -40,7 +40,10 @@ describe('VinylPlayer ad break API', () => {
             startTime: 10,
             duration: 5,
             placement: 'midroll',
-            ads: [{ id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' }],
+            ads: () =>
+                Promise.resolve([
+                    { id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' },
+                ]),
             ...overrides,
         }
     }
@@ -51,6 +54,12 @@ describe('VinylPlayer ad break API', () => {
             previous: 0,
             current: time,
         })
+    }
+
+    /** Waits for pending microtasks (ad resolution) to settle. */
+    async function flush(): Promise<void> {
+        await Promise.resolve()
+        await Promise.resolve()
     }
 
     it('returns empty defaults when no ad breaks are set', () => {
@@ -71,11 +80,12 @@ describe('VinylPlayer ad break API', () => {
         expect(spy).toHaveBeenCalled()
     })
 
-    it('redispatches adBreakChange from the ad controller', () => {
+    it('redispatches adBreakChange from the ad controller', async () => {
         const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
         const change = createEventSpy(player, 'adBreakChange')
         simulateTimeUpdate(11)
+        await flush()
         expect(change).toHaveBeenCalledTimes(1)
         expect(change.calls.mostRecent().args[0].current?.id).toBe('b1')
         // Exit via skipAd (updateTime is blocked while ad is active)
@@ -84,26 +94,29 @@ describe('VinylPlayer ad break API', () => {
         expect(change.calls.mostRecent().args[0].current).toBeNull()
     })
 
-    it('reflects the active ad break through the player getter', () => {
+    it('reflects the active ad break through the player getter', async () => {
         const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
         simulateTimeUpdate(5)
+        await flush()
         expect(player.activeAdBreak?.id).toBe('b1')
     })
 
-    it('skipAd delegates to the ad controller', () => {
+    it('skipAd delegates to the ad controller', async () => {
         const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
         simulateTimeUpdate(5)
+        await flush()
         expect(player.activeAdBreak).not.toBeNull()
         player.skipAd()
         expect(player.activeAdBreak).toBeNull()
     })
 
-    it('skipAdBreak delegates to the ad controller', () => {
+    it('skipAdBreak delegates to the ad controller', async () => {
         const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
         simulateTimeUpdate(5)
+        await flush()
         player.skipAdBreak()
         expect(player.activeAdBreak).toBeNull()
     })

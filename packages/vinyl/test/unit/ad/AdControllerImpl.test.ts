@@ -4,7 +4,7 @@
  */
 
 import { AdControllerImpl } from '@amazon/vinyl'
-import type { AdBreakInfo } from '@amazon/vinyl'
+import type { AdBreakInfo, AdInfo } from '@amazon/vinyl'
 import { MockPlaybackController } from '@amazon/vinyl/vinylTestUtil'
 
 describe('AdControllerImpl', () => {
@@ -14,11 +14,8 @@ describe('AdControllerImpl', () => {
         playbackController = new MockPlaybackController()
     })
 
-    function createController(opts?: { trackFactory?: any }) {
-        return new AdControllerImpl({
-            playbackController,
-            ...opts,
-        })
+    function createController() {
+        return new AdControllerImpl({ playbackController })
     }
 
     function updateTime(_c: AdControllerImpl, time: number) {
@@ -29,29 +26,52 @@ describe('AdControllerImpl', () => {
         })
     }
 
-    function makeBreak(overrides: Partial<AdBreakInfo> = {}): AdBreakInfo {
+    /**
+     * Builds an ad break. `ads` accepts a plain array (wrapped in an immediate
+     * resolver) or a resolver function for async cases.
+     */
+    function makeBreak(
+        overrides: Partial<Omit<AdBreakInfo, 'ads'>> & {
+            ads?: readonly AdInfo[] | (() => Promise<readonly AdInfo[]>)
+        } = {}
+    ): AdBreakInfo {
+        const { ads, ...rest } = overrides
+        const defaultAds: readonly AdInfo[] = [
+            { id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' },
+        ]
+        const adsResolver =
+            typeof ads === 'function'
+                ? ads
+                : () => Promise.resolve(ads ?? defaultAds)
         return {
             id: 'b1',
             startTime: 10,
             duration: 5,
             placement: 'midroll',
-            ads: [{ id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' }],
-            ...overrides,
+            ads: adsResolver,
+            ...rest,
         }
+    }
+
+    /** Waits for pending microtasks (ad resolution) to settle. */
+    async function flush(): Promise<void> {
+        await Promise.resolve()
+        await Promise.resolve()
     }
 
     it('starts with no breaks and no active break', () => {
         const c = createController()
         expect(c.adBreaks).toEqual([])
         expect(c.activeAdBreak).toBeNull()
+        expect(c.currentAd).toBeNull()
+        expect(c.adPlaying).toBeFalse()
     })
 
     it('emits adBreaksChange when the list changes', () => {
         const c = createController()
         const events: AdBreakInfo[][] = []
         c.on('adBreaksChange', (e) => events.push([...e.current]))
-        const breaks = [makeBreak()]
-        c.setAdBreaks(breaks)
+        c.setAdBreaks([makeBreak()])
         expect(events.length).toBe(1)
         expect(events[0].map((b) => b.id)).toEqual(['b1'])
         expect(c.adBreaks.map((b) => b.id)).toEqual(['b1'])
@@ -75,22 +95,25 @@ describe('AdControllerImpl', () => {
         expect(c.adBreaks.map((b) => b.id)).toEqual(['early', 'late'])
     })
 
-    it('emits adBreakChange when the playhead crosses into a break', () => {
+    it('emits adBreakChange when the playhead crosses into a break', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
         const entered: (string | null)[] = []
         c.on('adBreakChange', (e) => entered.push(e.current?.id ?? null))
 
         updateTime(c, 9)
+        await flush()
         expect(entered).toEqual([])
         expect(c.activeAdBreak).toBeNull()
 
         updateTime(c, 10)
+        await flush()
         expect(entered).toEqual(['b1'])
         expect(c.activeAdBreak?.id).toBe('b1')
+        expect(c.currentAd?.id).toBe('a1')
     })
 
-    it('emits adBreakChange to null when the ad is skipped', () => {
+    it('emits adBreakChange to null when the ad is skipped', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
         const events: { previous: string | null; current: string | null }[] = []
@@ -102,6 +125,7 @@ describe('AdControllerImpl', () => {
         )
 
         updateTime(c, 12)
+        await flush()
         expect(c.activeAdBreak?.id).toBe('b1')
         c.skipAd()
         expect(events).toEqual([
@@ -111,23 +135,26 @@ describe('AdControllerImpl', () => {
         expect(c.activeAdBreak).toBeNull()
     })
 
-    it('does not re-emit while remaining inside the same break', () => {
+    it('does not re-emit while remaining inside the same break', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 10 })])
         let changes = 0
         c.on('adBreakChange', () => changes++)
         updateTime(c, 11)
+        await flush()
         updateTime(c, 12)
         updateTime(c, 13)
+        await flush()
         expect(changes).toBe(1)
     })
 
-    it('transitions between breaks via skipAd then timeUpdate', () => {
+    it('transitions between breaks via skipAd then timeUpdate', async () => {
         const c = createController()
         c.setAdBreaks([
             makeBreak({ id: 'a', startTime: 0, duration: 10 }),
             makeBreak({ id: 'b', startTime: 10, duration: 10 }),
         ])
+        await flush()
         expect(c.activeAdBreak?.id).toBe('a')
         const changes: { previous: string | null; current: string | null }[] =
             []
@@ -140,6 +167,7 @@ describe('AdControllerImpl', () => {
         // Skip A, then advance to B's region
         c.skipAd()
         updateTime(c, 15)
+        await flush()
         expect(changes).toEqual([
             { previous: 'a', current: null },
             { previous: null, current: 'b' },
@@ -147,18 +175,20 @@ describe('AdControllerImpl', () => {
         expect(c.activeAdBreak?.id).toBe('b')
     })
 
-    it('treats null-duration breaks as never containing the playhead', () => {
+    it('treats null-duration breaks as never containing the playhead', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: null })])
         updateTime(c, 10)
         updateTime(c, 11)
+        await flush()
         expect(c.activeAdBreak).toBeNull()
     })
 
-    it('emits adBreakChange to null when the active break is removed from the list', () => {
+    it('emits adBreakChange to null when the active break is removed from the list', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 10 })])
         updateTime(c, 12)
+        await flush()
         const exited: (string | null)[] = []
         c.on('adBreakChange', (e) => exited.push(e.current?.id ?? null))
         c.setAdBreaks([])
@@ -166,10 +196,11 @@ describe('AdControllerImpl', () => {
         expect(c.activeAdBreak).toBeNull()
     })
 
-    it('emits adBreakChange to null on dispose when a break is active', () => {
+    it('emits adBreakChange to null on dispose when a break is active', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
         updateTime(c, 5)
+        await flush()
         const events: { previous: string | null; current: string | null }[] = []
         c.on('adBreakChange', (e) =>
             events.push({
@@ -181,11 +212,121 @@ describe('AdControllerImpl', () => {
         expect(events).toEqual([{ previous: 'b1', current: null }])
     })
 
-    it('does not activate a break with empty ads array', () => {
+    it('skips a break whose resolver returns an empty ad list', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 0, duration: 10, ads: [] })])
         updateTime(c, 5)
+        await flush()
         expect(c.activeAdBreak).toBeNull()
+        // The empty break is not re-entered on subsequent updates.
+        updateTime(c, 7)
+        await flush()
+        expect(c.activeAdBreak).toBeNull()
+    })
+
+    it('skips a break whose resolver rejects', async () => {
+        const c = createController()
+        c.setAdBreaks([
+            makeBreak({
+                startTime: 0,
+                duration: 10,
+                ads: () => Promise.reject(new Error('boom')),
+            }),
+        ])
+        updateTime(c, 5)
+        await flush()
+        expect(c.activeAdBreak).toBeNull()
+    })
+
+    it('does not activate a break if the playhead leaves before ads resolve', async () => {
+        let resolveAds: (ads: readonly AdInfo[]) => void = () => {}
+        const c = createController()
+        c.setAdBreaks([
+            makeBreak({
+                startTime: 0,
+                duration: 10,
+                ads: () =>
+                    new Promise<readonly AdInfo[]>((r) => {
+                        resolveAds = r
+                    }),
+            }),
+        ])
+        updateTime(c, 5)
+        // The break is provisionally active but ads have not resolved.
+        c.skipAd()
+        expect(c.activeAdBreak).toBeNull()
+        // Late resolution must not re-activate it.
+        resolveAds([{ id: 'a1', startTime: 0, duration: 5, uri: 'ad.m3u8' }])
+        await flush()
+        expect(c.activeAdBreak).toBeNull()
+    })
+
+    it('ignores a late rejection after the playhead has left the break', async () => {
+        let rejectAds: (error: Error) => void = () => {}
+        const c = createController()
+        c.setAdBreaks([
+            makeBreak({
+                startTime: 0,
+                duration: 10,
+                ads: () =>
+                    new Promise<readonly AdInfo[]>((_resolve, reject) => {
+                        rejectAds = reject
+                    }),
+            }),
+        ])
+        updateTime(c, 5)
+        // Skip the break before the resolver rejects.
+        c.skipAd()
+        expect(c.activeAdBreak).toBeNull()
+        // The late rejection must be a no-op (break already left).
+        rejectAds(new Error('boom'))
+        await flush()
+        expect(c.activeAdBreak).toBeNull()
+    })
+
+    describe('currentAd / advanceOrSkipAd', () => {
+        function multiAdBreak(): AdBreakInfo {
+            return makeBreak({
+                startTime: 0,
+                duration: 30,
+                ads: [
+                    { id: 'a1', startTime: 0, duration: 10, uri: 'ad1.m3u8' },
+                    { id: 'a2', startTime: 0, duration: 20, uri: 'ad2.m3u8' },
+                ],
+            })
+        }
+
+        it('advances to the next ad in the break', async () => {
+            const c = createController()
+            c.setAdBreaks([multiAdBreak()])
+            updateTime(c, 1)
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            const changes: (string | null)[] = []
+            c.on('adBreakChange', (e) => changes.push(e.current?.id ?? null))
+            c.advanceOrSkipAd()
+            expect(c.currentAd?.id).toBe('a2')
+            expect(changes).toEqual(['b1'])
+            expect(c.activeAdBreak?.id).toBe('b1')
+        })
+
+        it('skips the break after the last ad', async () => {
+            const c = createController()
+            c.setAdBreaks([multiAdBreak()])
+            updateTime(c, 1)
+            await flush()
+            c.advanceOrSkipAd() // to a2
+            const changes: (string | null)[] = []
+            c.on('adBreakChange', (e) => changes.push(e.current?.id ?? null))
+            c.advanceOrSkipAd() // past last -> skip
+            expect(changes).toEqual([null])
+            expect(c.activeAdBreak).toBeNull()
+        })
+
+        it('is a no-op when no break is active', () => {
+            const c = createController()
+            expect(() => c.advanceOrSkipAd()).not.toThrow()
+        })
     })
 
     describe('skipAd', () => {
@@ -198,10 +339,11 @@ describe('AdControllerImpl', () => {
             expect(spy).not.toHaveBeenCalled()
         })
 
-        it('emits adBreakChange to null when a break is active', () => {
+        it('emits adBreakChange to null when a break is active', async () => {
             const c = createController()
             c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
             updateTime(c, 5)
+            await flush()
             const events: any[] = []
             c.on('adBreakChange', (e) => events.push(e))
             c.skipAd()
@@ -210,14 +352,16 @@ describe('AdControllerImpl', () => {
             expect(c.activeAdBreak).toBeNull()
         })
 
-        it('prevents re-entry after skip', () => {
+        it('prevents re-entry after skip', async () => {
             const c = createController()
             c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
             updateTime(c, 5)
+            await flush()
             c.skipAd()
             const spy = jasmine.createSpy('adBreakChange')
             c.on('adBreakChange', spy)
             updateTime(c, 7)
+            await flush()
             expect(spy).not.toHaveBeenCalled()
             expect(c.activeAdBreak).toBeNull()
         })
@@ -232,364 +376,16 @@ describe('AdControllerImpl', () => {
             expect(spy).not.toHaveBeenCalled()
         })
 
-        it('emits adBreakChange to null when a break is active', () => {
+        it('emits adBreakChange to null when a break is active', async () => {
             const c = createController()
             c.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
             updateTime(c, 5)
+            await flush()
             const events: any[] = []
             c.on('adBreakChange', (e) => events.push(e))
             c.skipAdBreak()
             expect(events.length).toBe(1)
             expect(events[0].current).toBeNull()
-        })
-    })
-
-    describe('ad tracks', () => {
-        function mockTrackFactory() {
-            const tracks: any[] = []
-            const createTrack = (opts: any) => {
-                const track = {
-                    uri: opts.uri,
-                    type: opts.type,
-                    disposed: false,
-                    dispose() {
-                        this.disposed = true
-                    },
-                }
-                tracks.push(track)
-                return track as any
-            }
-            return {
-                factory: {
-                    validate: () => {},
-                    createTrack,
-                    createAdTrack: createTrack,
-                },
-                tracks,
-            }
-        }
-
-        it('uses createAdTrack to create ad sub-tracks', () => {
-            const createAdTrack = jasmine
-                .createSpy('createAdTrack')
-                .and.callFake((opts: any) => ({
-                    uri: opts.uri,
-                    type: opts.type,
-                    disposed: false,
-                    dispose() {
-                        this.disposed = true
-                    },
-                }))
-            const c = createController({
-                trackFactory: {
-                    validate: () => {},
-                    createTrack: () => {
-                        throw new Error('should not be called')
-                    },
-                    createAdTrack,
-                },
-            })
-            c.setAdBreaks([
-                makeBreak({
-                    ads: [
-                        {
-                            id: 'a1',
-                            startTime: 10,
-                            duration: 5,
-                            uri: 'ad.m3u8',
-                        },
-                    ],
-                }),
-            ])
-            expect(createAdTrack).toHaveBeenCalled()
-        })
-
-        it('returns null from getAdTrack when no trackFactory', () => {
-            const c = createController()
-            c.setAdBreaks([
-                makeBreak({
-                    ads: [
-                        {
-                            id: 'a1',
-                            startTime: 10,
-                            duration: 15,
-                            uri: 'https://example.com/ad.m3u8',
-                        },
-                    ],
-                }),
-            ])
-            expect(c.getAdTrack('a1')).toBeNull()
-        })
-
-        it('creates tracks for ads with resolvable URIs', () => {
-            const { factory, tracks } = mockTrackFactory()
-            const c = createController({ trackFactory: factory })
-            c.setAdBreaks([
-                makeBreak({
-                    ads: [
-                        {
-                            id: 'a1',
-                            startTime: 10,
-                            duration: 15,
-                            uri: 'https://example.com/ad.m3u8',
-                        },
-                    ],
-                }),
-            ])
-            expect(tracks.length).toBe(1)
-            expect(tracks[0].uri).toBe('https://example.com/ad.m3u8')
-            expect(tracks[0].type).toBe('hls')
-            expect(c.getAdTrack('a1')).toBe(tracks[0])
-        })
-
-        it('does not create tracks for ads with null URI', () => {
-            const { factory, tracks } = mockTrackFactory()
-            const c = createController({ trackFactory: factory })
-            c.setAdBreaks([
-                makeBreak({
-                    ads: [
-                        {
-                            id: 'a1',
-                            startTime: 10,
-                            duration: 15,
-                            uri: null,
-                        },
-                    ],
-                }),
-            ])
-            expect(tracks.length).toBe(0)
-            expect(c.getAdTrack('a1')).toBeNull()
-        })
-
-        it('does not create tracks for unresolvable URIs', () => {
-            const { factory, tracks } = mockTrackFactory()
-            const c = createController({ trackFactory: factory })
-            c.setAdBreaks([
-                makeBreak({
-                    ads: [
-                        {
-                            id: 'a1',
-                            startTime: 10,
-                            duration: 15,
-                            uri: 'https://example.com/unknown',
-                        },
-                    ],
-                }),
-            ])
-            expect(tracks.length).toBe(0)
-        })
-
-        it('disposes previous tracks on setAdBreaks', () => {
-            const { factory, tracks } = mockTrackFactory()
-            const c = createController({ trackFactory: factory })
-            c.setAdBreaks([
-                makeBreak({
-                    ads: [
-                        {
-                            id: 'a1',
-                            startTime: 10,
-                            duration: 15,
-                            uri: 'https://example.com/ad1.m3u8',
-                        },
-                    ],
-                }),
-            ])
-            const firstTrack = tracks[0]
-            c.setAdBreaks([
-                makeBreak({
-                    id: 'b2',
-                    ads: [
-                        {
-                            id: 'a2',
-                            startTime: 20,
-                            duration: 10,
-                            uri: 'https://example.com/ad2.mpd',
-                        },
-                    ],
-                }),
-            ])
-            expect(firstTrack.disposed).toBeTrue()
-            expect(c.getAdTrack('a1')).toBeNull()
-            expect(c.getAdTrack('a2')).not.toBeNull()
-        })
-
-        it('disposes tracks on controller dispose', () => {
-            const { factory, tracks } = mockTrackFactory()
-            const c = createController({ trackFactory: factory })
-            c.setAdBreaks([
-                makeBreak({
-                    ads: [
-                        {
-                            id: 'a1',
-                            startTime: 10,
-                            duration: 15,
-                            uri: 'https://example.com/ad.mp4',
-                        },
-                    ],
-                }),
-            ])
-            c.dispose()
-            expect(tracks[0].disposed).toBeTrue()
-        })
-
-        it('fetches X-ASSET-LIST and creates tracks from the response', async () => {
-            const { factory, tracks } = mockTrackFactory()
-            const assetListResponse = {
-                ASSETS: [
-                    { URI: 'https://example.com/mid1.m3u8', DURATION: 10 },
-                    { URI: 'https://example.com/mid2.m3u8', DURATION: 15 },
-                ],
-            }
-            const origFetch = globalThis.fetch
-            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
-                json: () => Promise.resolve(assetListResponse),
-            })
-
-            try {
-                const c = createController({ trackFactory: factory })
-                c.setAdBreaks([
-                    makeBreak({
-                        id: 'b-list',
-                        ads: [],
-                        assetListUrl: 'https://example.com/ads.json',
-                    }),
-                ])
-
-                await new Promise((r) => setTimeout(r, 0))
-                await new Promise((r) => setTimeout(r, 0))
-
-                expect(globalThis.fetch).toHaveBeenCalledWith(
-                    'https://example.com/ads.json'
-                )
-                expect(tracks.length).toBe(2)
-                expect(c.getAdTrack('b-list-0')).toBe(tracks[0])
-                expect(c.getAdTrack('b-list-1')).toBe(tracks[1])
-
-                const updatedBreak = c.adBreaks.find((b) => b.id === 'b-list')
-                expect(updatedBreak?.ads.length).toBe(2)
-            } finally {
-                globalThis.fetch = origFetch
-            }
-        })
-
-        it('handles assets without DURATION and preserves other breaks', async () => {
-            const { factory, tracks } = mockTrackFactory()
-            const origFetch = globalThis.fetch
-            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
-                json: () =>
-                    Promise.resolve({
-                        ASSETS: [
-                            { URI: 'https://example.com/ad.m3u8' },
-                            { URI: 'https://example.com/unknown' },
-                        ],
-                    }),
-            })
-
-            try {
-                const c = createController({ trackFactory: factory })
-                c.setAdBreaks([
-                    makeBreak({ id: 'other', startTime: 5 }),
-                    makeBreak({
-                        id: 'b-list',
-                        startTime: 20,
-                        ads: [],
-                        assetListUrl: 'https://example.com/ads.json',
-                    }),
-                ])
-
-                await new Promise((r) => setTimeout(r, 0))
-                await new Promise((r) => setTimeout(r, 0))
-
-                // Only one track created (unknown URI filtered out)
-                expect(tracks.length).toBe(2) // 1 from 'other' + 1 from asset list
-                const listBreak = c.adBreaks.find((b) => b.id === 'b-list')
-                expect(listBreak?.ads[0].duration).toBeNull()
-                // Other break preserved
-                expect(c.adBreaks.find((b) => b.id === 'other')).toBeDefined()
-            } finally {
-                globalThis.fetch = origFetch
-            }
-        })
-
-        it('handles fetch failure gracefully', async () => {
-            const { factory } = mockTrackFactory()
-            const origFetch = globalThis.fetch
-            globalThis.fetch = jasmine
-                .createSpy('fetch')
-                .and.rejectWith(new Error('network'))
-
-            try {
-                const c = createController({ trackFactory: factory })
-                c.setAdBreaks([
-                    makeBreak({
-                        ads: [],
-                        assetListUrl: 'https://example.com/ads.json',
-                    }),
-                ])
-
-                await new Promise((r) => setTimeout(r, 0))
-                expect(c.adBreaks.length).toBe(1)
-            } finally {
-                globalThis.fetch = origFetch
-            }
-        })
-
-        it('handles missing ASSETS in JSON response', async () => {
-            const { factory, tracks } = mockTrackFactory()
-            const origFetch = globalThis.fetch
-            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
-                json: () => Promise.resolve({}),
-            })
-
-            try {
-                const c = createController({ trackFactory: factory })
-                c.setAdBreaks([
-                    makeBreak({
-                        id: 'b-empty',
-                        ads: [],
-                        assetListUrl: 'https://example.com/ads.json',
-                    }),
-                ])
-
-                await new Promise((r) => setTimeout(r, 0))
-                await new Promise((r) => setTimeout(r, 0))
-                expect(tracks.length).toBe(0)
-                expect(c.getAdTrack('b-empty-0')).toBeNull()
-            } finally {
-                globalThis.fetch = origFetch
-            }
-        })
-
-        it('skips assets with no URI in the response', async () => {
-            const { factory, tracks } = mockTrackFactory()
-            const origFetch = globalThis.fetch
-            globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
-                json: () =>
-                    Promise.resolve({
-                        ASSETS: [
-                            { DURATION: 10 }, // no URI
-                            { URI: 'https://example.com/ad.m3u8', DURATION: 5 },
-                        ],
-                    }),
-            })
-
-            try {
-                const c = createController({ trackFactory: factory })
-                c.setAdBreaks([
-                    makeBreak({
-                        id: 'b-null',
-                        ads: [],
-                        assetListUrl: 'https://example.com/ads.json',
-                    }),
-                ])
-
-                await new Promise((r) => setTimeout(r, 0))
-                await new Promise((r) => setTimeout(r, 0))
-                // Only the second asset (with URI) gets a track
-                expect(tracks.length).toBe(1)
-            } finally {
-                globalThis.fetch = origFetch
-            }
         })
     })
 })

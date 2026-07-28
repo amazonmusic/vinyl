@@ -5,25 +5,27 @@
 
 import { EventHostImpl, logDebug, type Unsubscribe } from '@amazon/vinyl-util'
 import type { AdBreakInfo, AdController, AdEventMap, AdInfo } from './AdBreak'
-import type { Track } from '../track/Track'
-import type { TrackFactory, TrackLoadOptions } from '../track/TrackFactory'
-import { inferTrackType } from './inferTrackType'
 import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
 
 export interface AdControllerImplDeps {
     readonly playbackController: ReadonlyPlaybackController
-    readonly trackFactory?: TrackFactory<TrackLoadOptions> | null
 }
 
 /**
  * Provider-agnostic {@link AdController}. Holds the discovered ad breaks and
  * derives enter/exit region events from playhead time updates.
  *
+ * This controller is the *model* for ad playback: it knows which breaks exist,
+ * which break contains the playhead, and which ad within that break is current.
+ * It does NOT create, preload, or activate any tracks — that is the
+ * responsibility of the {@link TrackController}. The ad assets themselves are
+ * resolved lazily via each break's {@link AdBreakInfo.ads} function, which the
+ * discovery step supplies (e.g. resolving an HLS `X-ASSET-LIST` on first use).
+ *
  * A break is considered active while `startTime <= currentTime < endTime`,
  * where `endTime` is `startTime + duration`. Breaks whose duration is unknown
- * (null) are treated as instantaneous cue points for the purpose of the
- * active-region test - they surface in {@link adBreaks} but never mark the
- * playhead as inside a break, since their span is not yet resolved.
+ * (null) never mark the playhead as inside a break, since their span is not yet
+ * resolved. Breaks that resolve to zero ads are skipped.
  *
  * This class contains no HLS- or DASH-specific logic; discovery code maps its
  * protocol's signals to {@link AdBreakInfo} and pushes them via
@@ -39,36 +41,19 @@ export class AdControllerImpl
 
     private _adBreaks: readonly AdBreakInfo[] = []
     private _active: AdBreakInfo | null = null
-    private _trackFactory: TrackFactory<TrackLoadOptions> | null
+    private _activeAds: readonly AdInfo[] = []
+    private _activeAdIndex = 0
     private readonly _playbackController: ReadonlyPlaybackController
-    private readonly _adTracks = new Map<string, Track>()
     private readonly _skippedBreakIds = new Set<string>()
     private readonly _timeUpdateSub: Unsubscribe
 
     constructor(deps: AdControllerImplDeps) {
         super()
         this._playbackController = deps.playbackController
-        this._trackFactory = deps.trackFactory ?? null
         this._timeUpdateSub = deps.playbackController.on('timeUpdate', () => {
-            const time = deps.playbackController.currentTime
-            this.updateTime(time)
-            this.preloadUpcomingAds(time)
+            this.updateTime(deps.playbackController.currentTime)
         })
     }
-
-    setTrackFactory(factory: TrackFactory<TrackLoadOptions>): void {
-        this._trackFactory = factory
-    }
-
-    /**
-     * Returns the ad track for the given ad id, or null if no track was created.
-     */
-    getAdTrack(adId: string): Track | null {
-        return this._adTracks.get(adId) ?? null
-    }
-
-    private _activeAdIndex = 0
-    private readonly _preloadedAdIds = new Set<string>()
 
     get adBreaks(): readonly AdBreakInfo[] {
         return this._adBreaks
@@ -83,7 +68,7 @@ export class AdControllerImpl
     }
 
     get currentAd(): AdInfo | null {
-        return this._active?.ads[this._activeAdIndex] ?? null
+        return this._activeAds[this._activeAdIndex] ?? null
     }
 
     advanceOrSkipAd(): void {
@@ -93,11 +78,12 @@ export class AdControllerImpl
             'advanceOrSkipAd, index:',
             this._activeAdIndex,
             '/',
-            this._active.ads.length
+            this._activeAds.length
         )
-        if (this._activeAdIndex + 1 < this._active.ads.length) {
+        if (this._activeAdIndex + 1 < this._activeAds.length) {
             this._activeAdIndex++
-            // Re-dispatch adBreakChange so listeners pick up the new ad
+            // Re-dispatch adBreakChange (same break) so listeners pick up the
+            // new current ad.
             this.dispatch('adBreakChange', {
                 previous: this._active,
                 current: this._active,
@@ -110,99 +96,96 @@ export class AdControllerImpl
     setAdBreaks(adBreaks: readonly AdBreakInfo[]): void {
         const newIds = adBreaks.map((b) => b.id).join(',')
         const curIds = this._adBreaks.map((b) => b.id).join(',')
-        if (newIds === curIds) {
-            logDebug(this, 'setAdBreaks no-op (same IDs)')
-            return
-        }
+        if (newIds === curIds) return
         logDebug(this, 'setAdBreaks', adBreaks.length, 'breaks')
         const previous = this._adBreaks
         // Keep a stable, start-time ordering so consumers can rely on it and
         // so region lookups can assume monotonic starts.
         const sorted = [...adBreaks].sort((a, b) => a.startTime - b.startTime)
-        // Preserve ads that were populated by fetchAssetList for breaks
-        // that still exist (the timeline always provides empty ads for
-        // X-ASSET-LIST breaks).
-        this._adBreaks = sorted.map((b) => {
-            if (b.ads.length > 0) return b
-            const existing = this._adBreaks.find((e) => e.id === b.id)
-            return existing && existing.ads.length > 0 ? existing : b
-        })
-        this._preloadedAdIds.clear()
-
-        // Only dispose/recreate ad tracks if there's no active break being
-        // played — otherwise a re-set of the same breaks would kill the
-        // currently playing ad track. Also preserve existing tracks for
-        // breaks that were already populated via fetchAssetList.
-        if (!this._active || !sorted.some((b) => b.id === this._active!.id)) {
-            // Only dispose tracks for breaks that are no longer present
-            for (const [id, track] of this._adTracks) {
-                const breakId = id.split('-')[0]
-                if (!sorted.some((b) => b.id === breakId)) {
-                    track.dispose()
-                    this._adTracks.delete(id)
-                }
-            }
-            this.createAdTracks(sorted)
-        }
-        // Always fetch asset lists for breaks that need them.
-        const needsFetch = sorted.filter(
-            (b) =>
-                b.ads.length === 0 &&
-                b.assetListUrl &&
-                !this._adTracks.has(`${b.id}-0`)
-        )
-        for (const adBreak of needsFetch) {
-            this.fetchAssetList(adBreak)
-        }
+        this._adBreaks = sorted
 
         this.dispatch('adBreaksChange', { previous, current: sorted })
 
         // If the previously active break is gone, treat it as a change to null.
         if (this._active && !sorted.some((b) => b.id === this._active!.id)) {
-            const previous = this._active
+            const previousBreak = this._active
             this._active = null
-            this.dispatch('adBreakChange', { previous, current: null })
+            this._activeAds = []
+            this.dispatch('adBreakChange', {
+                previous: previousBreak,
+                current: null,
+            })
         }
-        // Check if the playhead is already within a break (handles prerolls
-        // and cases where the timeline resolves after seeking into a break).
+        // Check if the playhead is already within a break (handles prerolls and
+        // cases where the timeline resolves after seeking into a break).
         if (!this._active) {
-            const time = this._playbackController.currentTime
-            const next = this.breakContaining(time)
-            if (next) {
-                this._activeAdIndex = 0
-                this._active = next
-                this.dispatch('adBreakChange', {
-                    previous: null,
-                    current: next,
-                })
-            }
+            const next = this.breakContaining(
+                this._playbackController.currentTime
+            )
+            if (next) this.enterBreak(next)
         }
     }
 
     private updateTime(currentTime: number): void {
+        // Don't re-evaluate while a break is active — the playhead reflects the
+        // ad track's time, not the content timeline.
         if (this._active) return
         const next = this.breakContaining(currentTime)
         if (!next) return
-        logDebug(this, 'entering break', next.id, 'at', currentTime.toFixed(1))
+        this.enterBreak(next)
+    }
+
+    /**
+     * Enters the given break: resolves its ads, then dispatches `adBreakChange`
+     * so the resolved {@link currentAd} is available to listeners. If the break
+     * resolves to zero ads, it is skipped.
+     */
+    private enterBreak(adBreak: AdBreakInfo): void {
+        this._active = adBreak
         this._activeAdIndex = 0
-        this._active = next
-        this.dispatch('adBreakChange', { previous: null, current: next })
+        this._activeAds = []
+        logDebug(this, 'entering break', adBreak.id)
+        adBreak
+            .ads()
+            .then((ads) => {
+                // Guard against the playhead moving on before resolution.
+                if (this._active !== adBreak) return
+                if (ads.length === 0) {
+                    // A break with no playable ads is skipped.
+                    this._active = null
+                    this._skippedBreakIds.add(adBreak.id)
+                    return
+                }
+                this._activeAds = ads
+                this.dispatch('adBreakChange', {
+                    previous: null,
+                    current: adBreak,
+                })
+            })
+            .catch(() => {
+                if (this._active !== adBreak) return
+                this._active = null
+                this._skippedBreakIds.add(adBreak.id)
+            })
     }
 
     skipAd(): void {
         if (!this._active) return
         logDebug(this, 'skipAd', this._active.id)
-        const previous = this._active
-        this._skippedBreakIds.add(previous.id)
-        this._active = null
-        this.dispatch('adBreakChange', { previous, current: null })
+        this.endActiveBreak(this._active)
     }
 
     skipAdBreak(): void {
         if (!this._active) return
-        const previous = this._active
+        logDebug(this, 'skipAdBreak', this._active.id)
+        this.endActiveBreak(this._active)
+    }
+
+    private endActiveBreak(previous: AdBreakInfo): void {
         this._skippedBreakIds.add(previous.id)
         this._active = null
+        this._activeAds = []
+        this._activeAdIndex = 0
         this.dispatch('adBreakChange', { previous, current: null })
     }
 
@@ -214,8 +197,8 @@ export class AdControllerImpl
         this._timeUpdateSub()
         const active = this._active
         this._active = null
+        this._activeAds = []
         this._adBreaks = []
-        this.disposeAdTracks()
         if (active) {
             this.dispatch('adBreakChange', { previous: active, current: null })
         }
@@ -225,7 +208,6 @@ export class AdControllerImpl
     private breakContaining(time: number): AdBreakInfo | null {
         for (const b of this._adBreaks) {
             if (b.duration == null) continue
-            if (b.ads.length === 0) continue
             if (this._skippedBreakIds.has(b.id)) continue
             if (time >= b.startTime && time < b.startTime + b.duration) {
                 return b
@@ -233,89 +215,4 @@ export class AdControllerImpl
         }
         return null
     }
-
-    private createAdTracks(adBreaks: readonly AdBreakInfo[]): void {
-        if (!this._trackFactory) return
-        for (const adBreak of adBreaks) {
-            for (const ad of adBreak.ads) {
-                if (!ad.uri) continue
-                const type = inferTrackType(ad.uri)
-                if (!type) continue
-                const track = this._trackFactory.createAdTrack({
-                    type,
-                    uri: ad.uri,
-                })
-                this._adTracks.set(ad.id, track)
-            }
-        }
-    }
-
-    private fetchAssetList(adBreak: AdBreakInfo): void {
-        logDebug(this, 'fetchAssetList', adBreak.id)
-        const url = adBreak.assetListUrl!
-        fetch(url)
-            .then((res) => res.json())
-            .then((json: { ASSETS?: { URI: string; DURATION?: number }[] }) => {
-                if (!json.ASSETS || !this._trackFactory) return
-                logDebug(
-                    this,
-                    'assetList resolved',
-                    adBreak.id,
-                    json.ASSETS.length,
-                    'assets'
-                )
-                const ads: AdInfo[] = json.ASSETS.map((asset, i) => ({
-                    id: `${adBreak.id}-${i}`,
-                    startTime: adBreak.startTime,
-                    duration: asset.DURATION ?? null,
-                    uri: asset.URI,
-                }))
-                // Mutate the break's ads array by replacing the break with
-                // updated ads. Re-emit adBreaksChange so listeners pick up
-                // the new ads.
-                const updated = this._adBreaks.map((b) =>
-                    b.id === adBreak.id ? { ...b, ads } : b
-                )
-                this._adBreaks = updated
-                for (const ad of ads) {
-                    if (!ad.uri) continue
-                    const type = inferTrackType(ad.uri)
-                    if (!type) continue
-                    const track = this._trackFactory.createAdTrack({
-                        type,
-                        uri: ad.uri,
-                    })
-                    this._adTracks.set(ad.id, track)
-                }
-                this.dispatch('adBreaksChange', {
-                    previous: updated,
-                    current: updated,
-                })
-            })
-            .catch(() => {})
-    }
-
-    private disposeAdTracks(): void {
-        for (const track of this._adTracks.values()) {
-            track.dispose()
-        }
-        this._adTracks.clear()
-    }
-
-    private preloadUpcomingAds(time: number): void {
-        if (!this._trackFactory) return
-        for (const adBreak of this._adBreaks) {
-            if (time < adBreak.startTime - AD_PRELOAD_SECONDS) continue
-            if (time > adBreak.startTime) continue
-            for (const ad of adBreak.ads) {
-                if (this._preloadedAdIds.has(ad.id)) continue
-                const track = this._adTracks.get(ad.id)
-                if (!track) continue
-                this._preloadedAdIds.add(ad.id)
-                track.preload({ prefetchPriority: 0 }, {})
-            }
-        }
-    }
 }
-
-const AD_PRELOAD_SECONDS = 20

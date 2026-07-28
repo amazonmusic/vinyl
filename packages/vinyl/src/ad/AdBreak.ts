@@ -5,7 +5,6 @@
 
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { ReadonlyEventHost } from '@amazon/vinyl-util'
-import type { Track } from '../track/Track'
 
 /**
  * Where an ad break is scheduled relative to the main content.
@@ -62,18 +61,13 @@ export interface AdBreakInfo {
     readonly placement: AdBreakPlacement
 
     /**
-     * The individual ad assets that make up this break, in playback order.
-     * May be empty when the source signals a break whose assets are resolved
-     * asynchronously (e.g. an HLS `X-ASSET-LIST` not yet fetched).
+     * Resolves the individual ad assets that make up this break, in playback
+     * order. Returns a Promise so asset lists that are fetched asynchronously
+     * (e.g. an HLS `X-ASSET-LIST`) can be resolved lazily on first access; the
+     * result is cached by the resolver. For breaks whose assets are known up
+     * front (e.g. an HLS `X-ASSET-URI`) the resolver returns them immediately.
      */
-    readonly ads: readonly AdInfo[]
-
-    /**
-     * URL of a JSON asset list to fetch ad assets from (HLS `X-ASSET-LIST`).
-     * When present and {@link ads} is empty, the controller fetches this URL
-     * to populate the ad list.
-     */
-    readonly assetListUrl?: string | null
+    readonly ads: () => Promise<readonly AdInfo[]>
 
     /**
      * Restrictions on user interaction during this ad break.
@@ -172,12 +166,6 @@ export interface AdController extends ReadonlyAdController {
      * an `adBreakChange` to null is emitted for it.
      */
     setAdBreaks(adBreaks: readonly AdBreakInfo[]): void
-
-    /**
-     * Returns the track created for the given ad id, or null if no track
-     * exists for the ad.
-     */
-    getAdTrack(adId: string): Track | null
 
     /**
      * Advances to the next ad in the active break, or skips the break

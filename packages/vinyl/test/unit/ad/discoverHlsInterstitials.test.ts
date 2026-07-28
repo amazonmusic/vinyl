@@ -143,7 +143,7 @@ describe('discoverHlsInterstitials', () => {
         expect(breaks[0].duration).toBeNull()
     })
 
-    it('resolves X-ASSET-URI to an absolute ad URI', () => {
+    it('resolves X-ASSET-URI to an absolute ad URI', async () => {
         const playlist = makePlaylist({
             dateRanges: [
                 makeRange({
@@ -153,25 +153,19 @@ describe('discoverHlsInterstitials', () => {
             ],
         })
         const breaks = discoverHlsInterstitials(playlist, BASE)
-        expect(breaks[0].ads.length).toBe(1)
-        expect(breaks[0].ads[0].uri).toBe('https://cdn.example.com/ads/ad.m3u8')
-        expect(breaks[0].ads[0].startTime).toBe(0)
-        expect(breaks[0].ads[0].duration).toBe(10)
+        const ads = await breaks[0].ads()
+        expect(ads.length).toBe(1)
+        expect(ads[0].uri).toBe('https://cdn.example.com/ads/ad.m3u8')
+        expect(ads[0].startTime).toBe(0)
+        expect(ads[0].duration).toBe(10)
     })
 
-    it('yields no ads for an X-ASSET-LIST break', () => {
+    it('yields no ads for a break with neither X-ASSET-URI nor X-ASSET-LIST', async () => {
         const playlist = makePlaylist({
-            dateRanges: [
-                makeRange({
-                    duration: 10,
-                    clientAttributes: {
-                        'X-ASSET-LIST': 'https://cdn.example.com/ads/list.json',
-                    },
-                }),
-            ],
+            dateRanges: [makeRange({ duration: 10 })],
         })
         const breaks = discoverHlsInterstitials(playlist, BASE)
-        expect(breaks[0].ads).toEqual([])
+        expect(await breaks[0].ads()).toEqual([])
     })
 
     it('parses X-RESTRICT into typed restrict field', () => {
@@ -187,19 +181,118 @@ describe('discoverHlsInterstitials', () => {
         expect(breaks[0].restrict).toEqual({ skip: true, jump: true })
     })
 
-    it('parses X-ASSET-LIST into assetListUrl', () => {
-        const playlist = makePlaylist({
-            dateRanges: [
-                makeRange({
-                    duration: 10,
-                    clientAttributes: {
-                        'X-ASSET-LIST': 'https://example.com/ads.json',
-                    },
+    it('resolves X-ASSET-LIST ads by fetching the list JSON', async () => {
+        const origFetch = globalThis.fetch
+        globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
+            json: () =>
+                Promise.resolve({
+                    ASSETS: [
+                        { URI: 'mid1.m3u8', DURATION: 10 },
+                        { URI: 'https://cdn.example.com/mid2.m3u8' },
+                    ],
                 }),
-            ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
-        expect(breaks[0].assetListUrl).toBe('https://example.com/ads.json')
+        try {
+            const playlist = makePlaylist({
+                dateRanges: [
+                    makeRange({
+                        duration: 10,
+                        clientAttributes: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ],
+            })
+            const breaks = discoverHlsInterstitials(playlist, BASE)
+            const ads = await breaks[0].ads()
+            expect(globalThis.fetch).toHaveBeenCalledWith(
+                'https://example.com/ads.json'
+            )
+            expect(ads.length).toBe(2)
+            expect(ads[0].uri).toBe('https://cdn.example.com/media/mid1.m3u8')
+            expect(ads[0].duration).toBe(10)
+            expect(ads[1].uri).toBe('https://cdn.example.com/mid2.m3u8')
+            expect(ads[1].duration).toBeNull()
+        } finally {
+            globalThis.fetch = origFetch
+        }
+    })
+
+    it('caches the X-ASSET-LIST fetch across calls', async () => {
+        const origFetch = globalThis.fetch
+        const fetchSpy = jasmine.createSpy('fetch').and.resolveTo({
+            json: () => Promise.resolve({ ASSETS: [{ URI: 'x.m3u8' }] }),
+        })
+        globalThis.fetch = fetchSpy
+        try {
+            const playlist = makePlaylist({
+                dateRanges: [
+                    makeRange({
+                        duration: 10,
+                        clientAttributes: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ],
+            })
+            const resolver = discoverHlsInterstitials(playlist, BASE)[0].ads
+            await resolver()
+            await resolver()
+            expect(fetchSpy).toHaveBeenCalledTimes(1)
+        } finally {
+            globalThis.fetch = origFetch
+        }
+    })
+
+    it('allows retry after an X-ASSET-LIST fetch failure', async () => {
+        const origFetch = globalThis.fetch
+        const fetchSpy = jasmine
+            .createSpy('fetch')
+            .and.rejectWith(new Error('network'))
+        globalThis.fetch = fetchSpy
+        try {
+            const playlist = makePlaylist({
+                dateRanges: [
+                    makeRange({
+                        duration: 10,
+                        clientAttributes: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ],
+            })
+            const resolver = discoverHlsInterstitials(playlist, BASE)[0].ads
+            await expectAsync(resolver()).toBeRejected()
+            // A subsequent call retries rather than returning the cached
+            // rejection.
+            await expectAsync(resolver()).toBeRejected()
+            expect(fetchSpy).toHaveBeenCalledTimes(2)
+        } finally {
+            globalThis.fetch = origFetch
+        }
+    })
+
+    it('yields empty ads when X-ASSET-LIST JSON has no ASSETS', async () => {
+        const origFetch = globalThis.fetch
+        globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
+            json: () => Promise.resolve({}),
+        })
+        try {
+            const playlist = makePlaylist({
+                dateRanges: [
+                    makeRange({
+                        duration: 10,
+                        clientAttributes: {
+                            'X-ASSET-LIST': 'https://example.com/ads.json',
+                        },
+                    }),
+                ],
+            })
+            const breaks = discoverHlsInterstitials(playlist, BASE)
+            expect(await breaks[0].ads()).toEqual([])
+        } finally {
+            globalThis.fetch = origFetch
+        }
     })
 
     it('classifies a break at the end of content as a post-roll', () => {

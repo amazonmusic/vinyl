@@ -4,6 +4,9 @@
  */
 
 import {
+    type AdBreakInfo,
+    AdControllerImpl,
+    type AdInfo,
     type ALL_TRACK_CONTROLLER_EVENTS,
     type TrackControllerEventMap,
     TrackControllerImpl,
@@ -1123,6 +1126,373 @@ describe('TrackControllerImpl', () => {
 
             trackController.dispose()
             expect(trackCount).toBe(0)
+        })
+    })
+
+    describe('ad playback orchestration', () => {
+        let adController: AdControllerImpl
+
+        /** Waits for pending microtasks (ad resolution) to settle. */
+        async function flush(): Promise<void> {
+            await Promise.resolve()
+            await Promise.resolve()
+        }
+
+        function makeBreak(
+            overrides: Partial<Omit<AdBreakInfo, 'ads'>> & {
+                ads?: readonly AdInfo[]
+            } = {}
+        ): AdBreakInfo {
+            const { ads, ...rest } = overrides
+            const resolved: readonly AdInfo[] = ads ?? [
+                { id: 'a1', startTime: 0, duration: 5, uri: 'ad1.m3u8' },
+            ]
+            return {
+                id: 'break1',
+                startTime: 0,
+                duration: 10,
+                placement: 'preroll',
+                ads: () => Promise.resolve(resolved),
+                ...rest,
+            }
+        }
+
+        function simulateTimeUpdate(time: number) {
+            deps.playbackController.currentTime = time
+            deps.playbackController.dispatch('timeUpdate', {
+                previous: 0,
+                current: time,
+            })
+        }
+
+        beforeEach(() => {
+            // Recreate a controller wired to a real AdControllerImpl so the
+            // model transitions (enter/advance/skip) are exercised end-to-end.
+            if (!disposed) trackController.dispose()
+            adController = new AdControllerImpl({
+                playbackController: deps.playbackController,
+            })
+            trackController = new TrackControllerImpl<any>({
+                ...deps,
+                adController,
+            })
+        })
+
+        afterEach(() => {
+            adController.dispose()
+        })
+
+        it('exposes currentAdTrack while an ad plays and null otherwise', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            const content = trackController.currentTrack as MockTrack
+            expect(trackController.currentAdTrack).toBeNull()
+
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+
+            expect(trackController.currentAdTrack).not.toBeNull()
+            expect((trackController.currentAdTrack as MockTrack).uri).toBe(
+                'ad1.m3u8'
+            )
+            // Content track is suspended (deactivated) but still current.
+            expect(trackController.currentTrack).toBe(content)
+            expect(content.deactivate).toHaveBeenCalled()
+        })
+
+        it('suspends content and activates the ad track on break enter', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            const content = trackController.currentTrack as MockTrack
+            content.deactivate.calls.reset()
+
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+
+            expect(content.deactivate).toHaveBeenCalled()
+            const adTrack = trackController.currentAdTrack as MockTrack
+            expect(adTrack.activate).toHaveBeenCalled()
+            expect(deps.playbackController.play).toHaveBeenCalled()
+        })
+
+        it('advances to the next ad when the ad ends', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({
+                    startTime: 0,
+                    duration: 30,
+                    ads: [
+                        { id: 'a1', startTime: 0, duration: 10, uri: 'a1.m3u8' },
+                        { id: 'a2', startTime: 0, duration: 10, uri: 'a2.m3u8' },
+                    ],
+                }),
+            ])
+            simulateTimeUpdate(1)
+            await flush()
+            const first = trackController.currentAdTrack as MockTrack
+            expect(first.uri).toBe('a1.m3u8')
+
+            // Ad ends → advance to second ad.
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            const second = trackController.currentAdTrack as MockTrack
+            expect(second.uri).toBe('a2.m3u8')
+            expect(first.deactivate).toHaveBeenCalled()
+        })
+
+        it('resumes content at the saved time when the last ad ends', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            const content = trackController.currentTrack as MockTrack
+            adController.setAdBreaks([
+                makeBreak({ id: 'mid', startTime: 20, duration: 10 }),
+            ])
+            simulateTimeUpdate(20)
+            await flush()
+            expect(trackController.currentAdTrack).not.toBeNull()
+            content.activate.calls.reset()
+
+            // Last (only) ad ends → resume content.
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            expect(trackController.currentAdTrack).toBeNull()
+            expect(content.activate).toHaveBeenCalled()
+            const activateArg = content.activate.calls.mostRecent()
+                .args[0] as { startTime?: number }
+            expect(activateArg.startTime).toBe(20)
+        })
+
+        it('does not advance the content queue when an ad ends', async () => {
+            const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+
+            deps.playbackController.dispatch('ended', {})
+            await clock.tick()
+            await flush()
+            // The content queue must not end; the ad-ended just resumed content.
+            expect(queueEndedSpy).not.toHaveBeenCalled()
+        })
+
+        it('resumes content when skipAd ends the break', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            const content = trackController.currentTrack as MockTrack
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+            content.activate.calls.reset()
+
+            adController.skipAd()
+            await flush()
+            expect(trackController.currentAdTrack).toBeNull()
+            expect(content.activate).toHaveBeenCalled()
+        })
+
+        it('skips the ad when play() is rejected', async () => {
+            deps.playbackController.play.and.rejectWith(new Error('no play'))
+            const advanceSpy = spyOn(
+                adController,
+                'advanceOrSkipAd'
+            ).and.callThrough()
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+            expect(advanceSpy).toHaveBeenCalled()
+        })
+
+        it('skips the ad on the playback-start timeout', async () => {
+            const advanceSpy = spyOn(
+                adController,
+                'advanceOrSkipAd'
+            ).and.callThrough()
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+            advanceSpy.calls.reset()
+            // Ad never starts (currentTime stays 0) → timeout fires.
+            deps.playbackController.currentTime = 0
+            await clock.tick(10_000)
+            expect(advanceSpy).toHaveBeenCalled()
+        })
+
+        it('advances past an ad with no inferable track type', async () => {
+            const advanceSpy = spyOn(
+                adController,
+                'advanceOrSkipAd'
+            ).and.callThrough()
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({
+                    startTime: 0,
+                    duration: 10,
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 0,
+                            duration: 5,
+                            uri: 'no-extension',
+                        },
+                    ],
+                }),
+            ])
+            simulateTimeUpdate(1)
+            await flush()
+            expect(advanceSpy).toHaveBeenCalled()
+            expect(trackController.currentAdTrack).toBeNull()
+        })
+
+        it('advances past an ad with a null URI', async () => {
+            const advanceSpy = spyOn(
+                adController,
+                'advanceOrSkipAd'
+            ).and.callThrough()
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({
+                    startTime: 0,
+                    duration: 10,
+                    ads: [
+                        { id: 'a1', startTime: 0, duration: 5, uri: null },
+                    ],
+                }),
+            ])
+            simulateTimeUpdate(1)
+            await flush()
+            expect(advanceSpy).toHaveBeenCalled()
+            expect(trackController.currentAdTrack).toBeNull()
+        })
+
+        it('preloads upcoming ad tracks within the lookahead window', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({ id: 'mid', startTime: 25, duration: 10 }),
+            ])
+            // Within 20s lookahead of the break start.
+            simulateTimeUpdate(10)
+            await flush()
+            // The ad track is created and preloaded (not activated yet).
+            expect(trackController.currentAdTrack).toBeNull()
+            expect(deps.trackFactory.createTrack).toHaveBeenCalledWith(
+                objectContaining({ uri: 'ad1.m3u8' })
+            )
+        })
+
+        it('does not preload the same ad twice', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            deps.trackFactory.createTrack.calls.reset()
+            adController.setAdBreaks([
+                makeBreak({ id: 'mid', startTime: 25, duration: 10 }),
+            ])
+            simulateTimeUpdate(10)
+            await flush()
+            simulateTimeUpdate(11)
+            await flush()
+            const adCreations = deps.trackFactory.createTrack.calls
+                .all()
+                .filter((c) => c.args[0].uri === 'ad1.m3u8')
+            expect(adCreations.length).toBe(1)
+        })
+
+        it('skips preload for ads with no inferable track type', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            deps.trackFactory.createTrack.calls.reset()
+            adController.setAdBreaks([
+                makeBreak({
+                    id: 'mid',
+                    startTime: 25,
+                    duration: 10,
+                    ads: [
+                        {
+                            id: 'a1',
+                            startTime: 25,
+                            duration: 5,
+                            uri: 'no-extension',
+                        },
+                    ],
+                }),
+            ])
+            simulateTimeUpdate(10)
+            await flush()
+            const adCreations = deps.trackFactory.createTrack.calls
+                .all()
+                .filter((c) => c.args[0].uri === 'no-extension')
+            expect(adCreations.length).toBe(0)
+        })
+
+        it('does not preload breaks outside the lookahead window', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            deps.trackFactory.createTrack.calls.reset()
+            adController.setAdBreaks([
+                makeBreak({ id: 'far', startTime: 100, duration: 10 }),
+            ])
+            // Far before the window and after the start are both ignored.
+            simulateTimeUpdate(10)
+            await flush()
+            const adCreations = deps.trackFactory.createTrack.calls
+                .all()
+                .filter((c) => c.args[0].uri === 'ad1.m3u8')
+            expect(adCreations.length).toBe(0)
+        })
+
+        it('reuses a preloaded ad track on activation', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({ id: 'mid', startTime: 25, duration: 10 }),
+            ])
+            // Preload while approaching the break.
+            simulateTimeUpdate(10)
+            await flush()
+            const adCreationsBefore = deps.trackFactory.createTrack.calls
+                .all()
+                .filter((c) => c.args[0].uri === 'ad1.m3u8').length
+            expect(adCreationsBefore).toBe(1)
+
+            // Enter the break — the preloaded track is reused, not recreated.
+            simulateTimeUpdate(25)
+            await flush()
+            const adCreationsAfter = deps.trackFactory.createTrack.calls
+                .all()
+                .filter((c) => c.args[0].uri === 'ad1.m3u8').length
+            expect(adCreationsAfter).toBe(1)
+            expect((trackController.currentAdTrack as MockTrack).uri).toBe(
+                'ad1.m3u8'
+            )
+        })
+
+        it('ignores a redundant adBreakChange for the already-playing ad', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+            const adTrack = trackController.currentAdTrack as MockTrack
+            adTrack.activate.calls.reset()
+            // Re-dispatch adBreakChange for the same active break/ad.
+            adController.dispatch('adBreakChange', {
+                previous: adController.activeAdBreak,
+                current: adController.activeAdBreak,
+            })
+            await flush()
+            // The same ad is already playing; it must not be re-activated.
+            expect(adTrack.activate).not.toHaveBeenCalled()
+            expect(trackController.currentAdTrack).toBe(adTrack)
+        })
+
+        it('disposes ad tracks and resets the break when content changes', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+            simulateTimeUpdate(1)
+            await flush()
+            const adTrack = trackController.currentAdTrack as MockTrack
+            expect(adTrack).not.toBeNull()
+
+            // Load new content — ad tracks should be disposed and break reset.
+            trackController.load(...createLoadOptionsList(1))
+            expect(adTrack.dispose).toHaveBeenCalled()
+            expect(trackController.currentAdTrack).toBeNull()
+            expect(adController.activeAdBreak).toBeNull()
         })
     })
 })

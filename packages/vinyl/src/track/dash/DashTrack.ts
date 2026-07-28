@@ -91,13 +91,6 @@ export function createDashTrackFactory(
                 deps.createDashFactories(loadOptions)
             )
         },
-
-        createAdTrack(loadOptions: DashTrackLoadOptions): Track {
-            return new MseTrack(loadOptions.uri, loadOptions.type, {
-                ...deps.createDashFactories(loadOptions),
-                adController: () => null,
-            })
-        },
     }
 }
 

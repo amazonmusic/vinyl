@@ -275,6 +275,42 @@ describe('VinylPlayer', () => {
         expect(trackController.reloadCurrentTrack).toHaveBeenCalledOnceWith()
     })
 
+    it('does not reload the current track on codecUnsupported while an ad is playing', async () => {
+        const trackController = deps.trackController
+        // Drive the ad controller into an active break so adPlaying is true.
+        deps.adController.setAdBreaks([
+            {
+                id: 'b1',
+                startTime: 0,
+                duration: 10,
+                placement: 'preroll',
+                ads: () =>
+                    Promise.resolve([
+                        { id: 'a1', startTime: 0, duration: 5, uri: 'ad.m3u8' },
+                    ]),
+            },
+        ])
+        deps.playbackController.currentTime = 1
+        deps.playbackController.dispatch('timeUpdate', {
+            previous: 0,
+            current: 1,
+        })
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(deps.adController.adPlaying).toBeTrue()
+
+        const mockTrack = new MockTrack()
+        trackController.dispatch('currentTrackChange', {
+            previous: null,
+            current: mockTrack,
+        })
+        mockTrack.dispatch('codecUnsupported', {
+            mimeType: 'video/mp4; codecs="hvc1.1"',
+            contentType: 'video',
+        })
+        expect(trackController.reloadCurrentTrack).not.toHaveBeenCalled()
+    })
+
     describe('currentTrack', () => {
         it('returns the currently active track', () => {
             expect(player.currentTrack).toBeNull()
@@ -287,6 +323,16 @@ describe('VinylPlayer', () => {
             expect(player.currentTrack).toBe(mockTrackA)
             deps.trackController.currentTrack = mockTrackB
             expect(player.currentTrack).toBe(mockTrackB)
+        })
+    })
+
+    describe('currentAdTrack', () => {
+        it('returns the currently playing ad track', () => {
+            expect(player.currentAdTrack).toBeNull()
+            const adTrack = new MockTrack()
+            adTrack.uri = 'ad'
+            deps.trackController.currentAdTrack = adTrack
+            expect(player.currentAdTrack).toBe(adTrack)
         })
     })
 
@@ -1060,18 +1106,10 @@ describe('createVinylPlayer', () => {
                                             type: 'test1'
                                             uri: string
                                         }) => new MockTrack(),
-                                        createAdTrack: (_options: {
-                                            type: 'test1'
-                                            uri: string
-                                        }) => new MockTrack(),
                                     },
                                     test2: {
                                         validate() {},
                                         createTrack: (_options: {
-                                            type: 'test2'
-                                            uri: string
-                                        }) => new MockTrack(),
-                                        createAdTrack: (_options: {
                                             type: 'test2'
                                             uri: string
                                         }) => new MockTrack(),

@@ -896,4 +896,71 @@ describe('MseTrack', () => {
             expect(track.seekRange).toBeNull()
         })
     })
+
+    describe('adController', () => {
+        function setTimeline(timeline: MediaTimeline) {
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+        }
+
+        function makeTimeline(adBreaks: MediaTimeline['adBreaks']): MediaTimeline {
+            return {
+                periods: [],
+                minBufferTime: 2,
+                adBreaks,
+                getDuration: () => Promise.resolve(Infinity),
+            }
+        }
+
+        it('returns null when no ad controller is provided', () => {
+            track = createTrack()
+            expect(track.adController).toBeNull()
+        })
+
+        it('sets discovered ad breaks on the ad controller when the timeline resolves', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            const adBreaks = [
+                {
+                    id: 'b1',
+                    startTime: 10,
+                    duration: 5,
+                    placement: 'midroll' as const,
+                    ads: () =>
+                        Promise.resolve([
+                            {
+                                id: 'a1',
+                                startTime: 10,
+                                duration: 5,
+                                uri: 'ad.m3u8',
+                            },
+                        ]),
+                },
+            ]
+            setTimeline(makeTimeline(adBreaks))
+            track = createTrack()
+            expect(track.adController).toBe((deps as any).adController)
+            await flushPromises()
+            expect(setAdBreaks).toHaveBeenCalledWith(adBreaks)
+        })
+
+        it('does not call setAdBreaks when the timeline has no ad breaks', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            setTimeline(makeTimeline([]))
+            track = createTrack()
+            await flushPromises()
+            expect(setAdBreaks).not.toHaveBeenCalled()
+        })
+    })
 })
