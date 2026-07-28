@@ -177,7 +177,7 @@ export class AdControllerImpl
                 if (!ad.uri) continue
                 const type = inferTrackType(ad.uri)
                 if (!type) continue
-                const track = (this._trackFactory.createAdTrack ?? this._trackFactory.createTrack).call(this._trackFactory, {
+                const track = this._trackFactory.createAdTrack({
                     type,
                     uri: ad.uri,
                 })
@@ -210,7 +210,7 @@ export class AdControllerImpl
                     if (!ad.uri) continue
                     const type = inferTrackType(ad.uri)
                     if (!type) continue
-                    const track = (this._trackFactory.createAdTrack ?? this._trackFactory.createTrack).call(this._trackFactory, {
+                    const track = this._trackFactory.createAdTrack({
                         type,
                         uri: ad.uri,
                     })

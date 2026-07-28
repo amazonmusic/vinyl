@@ -1060,10 +1060,18 @@ describe('createVinylPlayer', () => {
                                             type: 'test1'
                                             uri: string
                                         }) => new MockTrack(),
+                                        createAdTrack: (_options: {
+                                            type: 'test1'
+                                            uri: string
+                                        }) => new MockTrack(),
                                     },
                                     test2: {
                                         validate() {},
                                         createTrack: (_options: {
+                                            type: 'test2'
+                                            uri: string
+                                        }) => new MockTrack(),
+                                        createAdTrack: (_options: {
                                             type: 'test2'
                                             uri: string
                                         }) => new MockTrack(),
