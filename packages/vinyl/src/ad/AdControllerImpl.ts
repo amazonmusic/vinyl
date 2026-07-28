@@ -119,14 +119,10 @@ export class AdControllerImpl
             this.disposeAdTracks()
             this.createAdTracks(sorted)
         }
-        // Always fetch asset lists for breaks that need them (even if we
-        // didn't recreate tracks, e.g. during preroll playback).
-        for (const adBreak of sorted) {
-            if (adBreak.ads.length === 0 && adBreak.assetListUrl) {
-                if (!this._adTracks.has(`${adBreak.id}-0`)) {
-                    this.fetchAssetList(adBreak)
-                }
-            }
+        // Always fetch asset lists for breaks that need them.
+        const needsFetch = sorted.filter(b => b.ads.length === 0 && b.assetListUrl && !this._adTracks.has(`${b.id}-0`))
+        for (const adBreak of needsFetch) {
+            this.fetchAssetList(adBreak)
         }
 
         this.dispatch('adBreaksChange', { previous, current: sorted })
@@ -155,8 +151,6 @@ export class AdControllerImpl
 
     private updateTime(currentTime: number): void {
         this._lastTime = currentTime
-        // Don't re-evaluate during ad playback — the playhead reflects the
-        // ad track's time, not the content timeline.
         if (this._active) return
         const next = this.breakContaining(currentTime)
         if (!next) return

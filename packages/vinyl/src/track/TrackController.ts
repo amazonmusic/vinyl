@@ -362,12 +362,15 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             this._adTrack = null
         }
         if (this._currentTrack && !this._currentTrack.active) {
-            const loadOptions = this._current?.config ?? {}
-            this._currentTrack.activate(loadOptions)
-            this.deps.playbackController
-                .seekTo(this._adResumeTime)
-                .then(() => this.deps.playbackController.play())
-                .catch(() => {})
+            // Reactivate with the resume time as startTime so the track
+            // seeks there as part of its normal activation (which waits
+            // for the MediaSource to be ready before seeking).
+            const config = this._current?.config ?? {}
+            this._currentTrack.activate({
+                ...config,
+                startTime: this._adResumeTime,
+            })
+            this.deps.playbackController.play().catch(() => {})
         }
     }
 
