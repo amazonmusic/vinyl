@@ -119,6 +119,15 @@ export class AdControllerImpl
             this.disposeAdTracks()
             this.createAdTracks(sorted)
         }
+        // Always fetch asset lists for breaks that need them (even if we
+        // didn't recreate tracks, e.g. during preroll playback).
+        for (const adBreak of sorted) {
+            if (adBreak.ads.length === 0 && adBreak.assetListUrl) {
+                if (!this._adTracks.has(`${adBreak.id}-0`)) {
+                    this.fetchAssetList(adBreak)
+                }
+            }
+        }
 
         this.dispatch('adBreaksChange', { previous, current: sorted })
 
@@ -201,9 +210,6 @@ export class AdControllerImpl
     private createAdTracks(adBreaks: readonly AdBreakInfo[]): void {
         if (!this._trackFactory) return
         for (const adBreak of adBreaks) {
-            if (adBreak.ads.length === 0 && adBreak.assetListUrl) {
-                this.fetchAssetList(adBreak)
-            }
             for (const ad of adBreak.ads) {
                 if (!ad.uri) continue
                 const type = inferTrackType(ad.uri)
