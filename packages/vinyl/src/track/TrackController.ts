@@ -672,7 +672,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         logDebug(this, 'reloadCurrentTrack', loadOptions.uri)
         // Preserve the playhead and play state across the rebuild.
         const resumeTime = this.deps.playbackController.currentTime
-        const wasPlaying = !this.deps.playbackController.paused
+        const wasPlaying =
+            !this.deps.playbackController.paused ||
+            this.deps.playbackController.playIsPending
         // Deactivate, evict, and dispose the poisoned track so a fresh one
         // (with a new MediaSource) is created on reactivation.
         const stale = this._currentTrack
