@@ -15,20 +15,10 @@ import { resolveUrl } from '@amazon/vinyl-util'
 /**
  * Integration tests for HLS Interstitial (SGAI) ad-break support.
  *
- * There is no DMTestAssetBuilder fixture that carries EXT-X-DATERANGE
- * interstitials yet, so these tests wrap a real generated HLS asset with a
- * `manifestProvider` that injects, into each fetched media playlist:
- *
- *   - an EXT-X-PROGRAM-DATE-TIME anchor on the first segment, and
- *   - an interstitial EXT-X-DATERANGE (CLASS="com.apple.hls.interstitial")
- *     whose START-DATE lands MIDROLL_TIME seconds after that anchor.
- *
- * This exercises the full path — parser → discoverHlsInterstitials →
- * AdController → VinylPlayer events — against a stream that actually decodes
- * and plays, so enter/exit can be observed by driving the real playhead.
+ * Uses a real HLS asset with injected EXT-X-DATERANGE interstitials to
+ * test the full pipeline: discovery → AdController → MseTrack → playback.
  */
 describe('hls ad interstitials integ', () => {
-    // Anchor wall clock and the media-timeline offset of the injected break.
     const ANCHOR_ISO = '2024-01-01T00:00:00.000Z'
     const ANCHOR_MS = Date.parse(ANCHOR_ISO)
     const MIDROLL_TIME = 20
@@ -36,11 +26,6 @@ describe('hls ad interstitials integ', () => {
     const AD_ID = 'integ-midroll-1'
     const AD_ASSET = 'https://ads.example.com/interstitial.m3u8'
 
-    /**
-     * Builds a manifestProvider for the given main-playlist URL that fetches
-     * the real playlists and rewrites media playlists to carry a program
-     * date-time anchor plus a single mid-roll interstitial.
-     */
     function injectingManifestProvider(
         mainUrl: string
     ): () => Promise<HlsManifestData> {
@@ -68,10 +53,6 @@ describe('hls ad interstitials integ', () => {
         }
     }
 
-    /**
-     * Inserts a PROGRAM-DATE-TIME before the first segment line and an
-     * interstitial DATERANGE into a media playlist's header.
-     */
     function injectInterstitial(text: string): string {
         const startDate = new Date(
             ANCHOR_MS + MIDROLL_TIME * 1000
@@ -85,14 +66,12 @@ describe('hls ad interstitials integ', () => {
         const out: string[] = []
         let anchored = false
         for (const line of lines) {
-            // Anchor the first media segment (first EXTINF) with a PDT.
             if (!anchored && line.startsWith('#EXTINF')) {
                 out.push(`#EXT-X-PROGRAM-DATE-TIME:${ANCHOR_ISO}`)
                 anchored = true
             }
             out.push(line)
         }
-        // DATERANGE is a playlist-level tag; place it just after the header.
         out.splice(1, 0, dateRange)
         return out.join('\n')
     }
@@ -123,6 +102,7 @@ describe('hls ad interstitials integ', () => {
         }
     }
 
+    // ─── Acceptance: Ad breaks are discovered from timeline ──────────────
     it('discovers the injected interstitial as an ad break', async () => {
         await loadAndAwaitAdBreaks()
         const breaks = suite.player.adBreaks
@@ -134,6 +114,7 @@ describe('hls ad interstitials integ', () => {
         expect(breaks[0].ads[0].uri).toBe(AD_ASSET)
     })
 
+    // ─── Acceptance: adBreakChange fires on enter/exit ───────────────────
     it('emits adBreakChange as the playhead crosses into and out of the break', async () => {
         await loadAndAwaitAdBreaks()
         if (suite.player.adBreaks.length === 0) {
@@ -148,7 +129,6 @@ describe('hls ad interstitials integ', () => {
         })
 
         try {
-            // Seek just before the break, then play through it.
             await player.seekTo(MIDROLL_TIME - 1, 0.5)
             await player.play()
 
@@ -167,14 +147,13 @@ describe('hls ad interstitials integ', () => {
         }
     })
 
+    // ─── Acceptance: activeAdBreak reflects state ────────────────────────
     it('reports the active ad break while the playhead is inside it', async () => {
         await loadAndAwaitAdBreaks()
         if (suite.player.adBreaks.length === 0) {
             pending('no ad breaks discovered')
         }
         const player = suite.player
-        // Seek into the middle of the break and play so timeUpdate fires and
-        // drives the active-region detection.
         await player.seekTo(MIDROLL_TIME + MIDROLL_DURATION / 2, 0.5)
         await player.play()
         const deadline = Date.now() + 15_000
@@ -184,6 +163,7 @@ describe('hls ad interstitials integ', () => {
         expect(player.activeAdBreak?.id).toBe(AD_ID)
     })
 
+    // ─── Acceptance: skipAd clears active break ──────────────────────────
     it('skipAd clears the active ad break', async () => {
         await loadAndAwaitAdBreaks()
         if (suite.player.adBreaks.length === 0) {
@@ -201,6 +181,7 @@ describe('hls ad interstitials integ', () => {
         expect(player.activeAdBreak).toBeNull()
     })
 
+    // ─── Acceptance: skipAdBreak clears active break ─────────────────────
     it('skipAdBreak clears the active ad break', async () => {
         await loadAndAwaitAdBreaks()
         if (suite.player.adBreaks.length === 0) {
@@ -218,6 +199,7 @@ describe('hls ad interstitials integ', () => {
         expect(player.activeAdBreak).toBeNull()
     })
 
+    // ─── Acceptance: seekRange resolves from timeline ─────────────────────
     it('exposes seekRange once the timeline resolves', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
@@ -228,5 +210,31 @@ describe('hls ad interstitials integ', () => {
         expect(player.seekRange).not.toBeNull()
         expect(player.seekRange!.start).toBeGreaterThanOrEqual(0)
         expect(player.seekRange!.end).toBeGreaterThan(0)
+    })
+
+    // ─── Acceptance: AdBreakInfo has typed restrict/assetListUrl ──────────
+    it('ad breaks have strongly typed fields (no metadata)', async () => {
+        await loadAndAwaitAdBreaks()
+        const adBreak = suite.player.adBreaks[0]
+        // Verify the shape - no 'metadata' property
+        expect('metadata' in adBreak).toBeFalse()
+        // restrict and assetListUrl are the typed alternatives
+        expect(adBreak.restrict).toBeUndefined()
+        expect(adBreak.assetListUrl).toBeUndefined()
+    })
+
+    // ─── Acceptance: adController is on VinylDeps (player-level) ─────────
+    it('ad events come from the player-level controller (not per-track)', async () => {
+        const player = suite.player
+        const spy = jasmine.createSpy('adBreaksChange')
+        const sub = player.on('adBreaksChange', spy)
+        player.load(...makePlaylist())
+        const deadline = Date.now() + 15_000
+        while (spy.calls.count() === 0 && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 50))
+        }
+        sub()
+        expect(spy).toHaveBeenCalled()
+        expect(spy.calls.mostRecent().args[0].current.length).toBe(1)
     })
 })
