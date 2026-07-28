@@ -630,6 +630,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -653,6 +654,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -689,6 +691,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             }
             setTimeline(timeline)
@@ -725,6 +728,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -1342,6 +1346,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(120),
             })
             track = createTrack()
@@ -1359,6 +1364,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(60),
             })
             track = createTrack()
@@ -1382,6 +1388,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -1399,6 +1406,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(60),
             }
             ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
@@ -1421,6 +1429,7 @@ describe('MseTrack', () => {
             const timeline: MediaTimeline = {
                 periods: [{ startTime: 0, endTime: 60, qualities: [] }],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () =>
                     new Promise((r) => {
                         resolveDuration = r

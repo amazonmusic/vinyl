@@ -69,6 +69,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
@@ -102,6 +103,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
@@ -133,6 +135,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
@@ -161,6 +164,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
@@ -205,6 +209,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
@@ -239,6 +244,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
@@ -271,6 +277,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const options = data({
@@ -308,6 +315,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
                 },
             ],
             minBufferTime: 5,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = await createDefaultMediaTimelineTransformer(
