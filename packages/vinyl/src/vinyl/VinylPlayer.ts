@@ -211,6 +211,7 @@ export class VinylPlayer<
         // already been denylisted, so the reload selects a codec that decodes.
         add(
             this.on('codecUnsupported', (event) => {
+                if (this.deps.adController.adPlaying) return
                 logInfo(
                     this,
                     'codec unsupported, reloading track:',
