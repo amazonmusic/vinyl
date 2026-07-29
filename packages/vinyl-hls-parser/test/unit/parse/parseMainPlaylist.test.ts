@@ -241,6 +241,30 @@ low/index.m3u8`
         )
     })
 
+    it('resolves #EXT-X-DEFINE:QUERYPARAM from the playlist URL query params', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:QUERYPARAM="sid"',
+            '#EXT-X-STREAM-INF:BANDWIDTH=500000',
+            'low.m3u8?s={$sid}',
+        ].join('\n')
+        const result = parseMainPlaylist(manifest, { sid: 'abc-123' })
+        expect(result.variants[0].uri).toBe('low.m3u8?s=abc-123')
+        // The resolved value is exposed so child media playlists can IMPORT it.
+        expect(result.defines['sid']).toBe('abc-123')
+    })
+
+    it('silently ignores #EXT-X-DEFINE:QUERYPARAM for absent query params', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:QUERYPARAM="sid"',
+            '#EXT-X-STREAM-INF:BANDWIDTH=500000',
+            'low.m3u8?s={$sid}',
+        ].join('\n')
+        const result = parseMainPlaylist(manifest, {})
+        expect(result.variants[0].uri).toBe('low.m3u8?s={$sid}')
+    })
+
     it('substitutes #EXT-X-DEFINE variables in EXT-X-MEDIA URIs', () => {
         const manifest = [
             '#EXTM3U',
