@@ -25,11 +25,14 @@ export function createUrlHlsManifestProvider(
             abort,
         })
         const mainText = await mainResponse.text()
-        const mainPlaylist = parseMainPlaylist(mainText)
 
         // Use the response URL (after redirects) as the base for resolving
-        // relative URIs in the manifest.
+        // relative URIs and for resolving #EXT-X-DEFINE:QUERYPARAM tokens.
         const baseUrl = mainResponse.url || url
+        const mainPlaylist = parseMainPlaylist(
+            mainText,
+            parseQueryParams(baseUrl)
+        )
 
         const getMediaPlaylist = memoize(
             (uri: string) =>
@@ -74,5 +77,23 @@ export async function fetchMediaPlaylist(
     const variantUrl = resolveUrl(uri, baseUrl)
     const response = await requestWithRetry(variantUrl, requestInit, { abort })
     const text = await response.text()
-    return parseMediaPlaylist(text, defines)
+    // The resolved URL (after redirects) carries the query parameters that
+    // #EXT-X-DEFINE:QUERYPARAM entries resolve against (e.g. MediaTailor ad
+    // manifests). Fall back to the requested URL if the response omits it.
+    const queryParams = parseQueryParams(response.url || variantUrl)
+    return parseMediaPlaylist(text, defines, queryParams)
+}
+
+/**
+ * Extracts a URL's query parameters into a plain record for
+ * `#EXT-X-DEFINE:QUERYPARAM` resolution. Returns undefined when the URL has no
+ * query string so the parser can skip substitution entirely.
+ */
+function parseQueryParams(url: string): Record<string, string> | undefined {
+    const queryStart = url.indexOf('?')
+    if (queryStart === -1) return undefined
+    const params: Record<string, string> = {}
+    const search = new URLSearchParams(url.substring(queryStart + 1))
+    for (const [key, value] of search) params[key] = value
+    return params
 }

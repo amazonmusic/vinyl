@@ -29,6 +29,20 @@ describe('resolveUrl', () => {
         )
     })
 
+    it('returns data URIs as-is', () => {
+        const dataUri = 'data:application/json;base64,eyJhIjoxfQ=='
+        expect(resolveUrl(dataUri, 'https://base.com/media/index.m3u8')).toBe(
+            dataUri
+        )
+    })
+
+    it('returns blob URIs as-is', () => {
+        const blobUri = 'blob:https://base.com/550e8400-e29b'
+        expect(resolveUrl(blobUri, 'https://base.com/media/index.m3u8')).toBe(
+            blobUri
+        )
+    })
+
     it('resolves protocol-relative URIs', () => {
         expectParity(
             '//other.com/a',

@@ -39,6 +39,7 @@ describe('filterTimelineQualities', () => {
             },
         ],
         minBufferTime: 2,
+        adBreaks: [],
         getDuration: () => Promise.resolve(Infinity),
     }
 
@@ -95,6 +96,7 @@ describe('filterTimelineQualitiesAsync', () => {
             },
         ],
         minBufferTime: 2,
+        adBreaks: [],
         getDuration: () => Promise.resolve(Infinity),
     }
 

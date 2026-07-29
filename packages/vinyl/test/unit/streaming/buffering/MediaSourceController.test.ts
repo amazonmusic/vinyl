@@ -31,12 +31,14 @@ function createVodTimeline(duration: number = VOD_DURATION): MediaTimeline {
     return {
         periods: [],
         minBufferTime: 0,
+        adBreaks: [],
         getDuration: () => Promise.resolve(duration),
     }
 }
 const liveTimeline: MediaTimeline = {
     periods: [],
     minBufferTime: 0,
+    adBreaks: [],
     getDuration: () => Promise.resolve(Infinity),
 }
 
@@ -135,6 +137,7 @@ describe('MediaSourceControllerImpl', () => {
             mediaTimelineTransformed.value = Promise.resolve({
                 periods: [],
                 minBufferTime: 0,
+                adBreaks: [],
                 getDuration: () => Promise.reject(error),
             })
             open()
@@ -150,6 +153,7 @@ describe('MediaSourceControllerImpl', () => {
             mediaTimelineTransformed.value = Promise.resolve({
                 periods: [],
                 minBufferTime: 0,
+                adBreaks: [],
                 getDuration: () => Promise.reject(new AbortError()),
             })
             open()
@@ -162,6 +166,7 @@ describe('MediaSourceControllerImpl', () => {
             mediaTimelineTransformed.value = Promise.resolve({
                 periods: [],
                 minBufferTime: 0,
+                adBreaks: [],
                 getDuration: () => deferred,
             })
             open()
