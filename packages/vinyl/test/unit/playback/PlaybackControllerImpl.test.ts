@@ -267,6 +267,32 @@ describe('PlaybackController', () => {
                     expect(media.currentTime).toBe(3)
                 })
 
+                it('does not let a metadata-deferred seek clobber a newer seek', async () => {
+                    // Reproduces the real race: the activate-time seek to the
+                    // track start parks waiting for the `loadedmetadata` EVENT.
+                    // Meanwhile readyState reaches HAVE_METADATA, so a
+                    // later-issued seek proceeds immediately and applies its
+                    // target. When the `loadedmetadata` event finally fires, the
+                    // parked stale seek must NOT reset the position back over the
+                    // newer target — it resolves as a no-op and the newer wins.
+                    enableSeekAutoComplete()
+                    // Stale seek parks: no metadata yet.
+                    const stale = controller.seekTo(0)
+                    // Metadata becomes available (readyState) WITHOUT the event
+                    // dispatching yet, so the next seek does not park.
+                    media.readyState = PlaybackReadyState.HAVE_METADATA
+                    media.duration = 10
+                    media.seekable = new MockTimeRanges([[0, 10]])
+                    const newer = controller.seekTo(3)
+                    await expectAsync(newer).toBeResolved()
+                    expect(media.currentTime).toBe(3)
+                    // Now the deferred event fires and the stale seek resumes.
+                    media.dispatchEvent(mockEvent('loadedmetadata'))
+                    await expectAsync(stale).toBeResolved()
+                    // The stale seek did not clobber the newer target back to 0.
+                    expect(media.currentTime).toBe(3)
+                })
+
                 it('constrains seeks to allowable ranges within tolerance', async () => {
                     const minSeekableBuffer =
                         controller.options.minSeekableBuffer
