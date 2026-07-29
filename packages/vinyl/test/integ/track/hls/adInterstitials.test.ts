@@ -5,6 +5,7 @@
 
 import { createVinylSuite, vinylTestAssets } from '@amazon/vinyl/vinylTestUtil'
 import {
+    PlaybackReadyState,
     supportsMse,
     type HlsManifestData,
     type VinylTrackLoadOptions,
@@ -454,6 +455,73 @@ describe('hls ad interstitials integ', () => {
         player.skipAd()
         expect(await poll(() => player.activeAdBreak == null)).toBeTrue()
         expect(await poll(() => player.currentAdTrack == null)).toBeTrue()
+    })
+
+    it('parks content loaded and paused after a postroll finishes (no stuck loading)', async () => {
+        const player = suite.player
+        // Track the play/pause events an application (e.g. the website's play
+        // button) relies on to reflect playback state.
+        const playPauseEvents: ('play' | 'pause')[] = []
+        const playSub = player.on('play', () => playPauseEvents.push('play'))
+        const pauseSub = player.on('pause', () => playPauseEvents.push('pause'))
+        try {
+            player.load({
+                type: 'hls',
+                uri: 'integ-postroll',
+                manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                    {
+                        id: 'postroll-1',
+                        startTime: 0,
+                        duration: 6,
+                        assetUri: AD_ASSET,
+                        cue: 'POST',
+                    },
+                ]),
+            })
+            await poll(() => player.adBreaks.length > 0, 15_000)
+            await player.play()
+            // Drive content to its end so the postroll triggers on `ended`.
+            // Seek near the end of the ~60s content asset.
+            const contentDuration = player.duration
+            await player
+                .seekTo(Math.max(0, contentDuration - 1.5), 1)
+                .catch(() => undefined)
+            // The postroll takes over.
+            expect(
+                await poll(() => player.currentAdTrack != null, 40_000)
+            ).toBeTrue()
+            expect(player.activeAdBreak?.placement).toBe('postroll')
+            // Ensure the postroll is actually playing (not just intent) so the
+            // skip below exercises the real "playing -> paused" transition an
+            // application observes.
+            await poll(() => !player.paused, 8_000)
+
+            // Skip the postroll while it is actively playing.
+            player.skipAd()
+            expect(
+                await poll(() => player.currentAdTrack == null, 20_000)
+            ).toBeTrue()
+
+            // Content is loaded (not stuck in an endless loading/HAVE_NOTHING
+            // state), parked near the start, and paused — no replay/auto-play.
+            expect(player.currentTrack?.uri).toBe('integ-postroll')
+            expect(
+                await poll(
+                    () => player.readyState !== PlaybackReadyState.HAVE_NOTHING,
+                    20_000
+                )
+            ).toBeTrue()
+            expect(await poll(() => player.paused, 20_000)).toBeTrue()
+            // The last play/pause event observed must be `pause`, so an
+            // application driving its UI off these events shows paused (the
+            // website play-button regression).
+            expect(playPauseEvents[playPauseEvents.length - 1])
+                .withContext(`events: ${playPauseEvents.join(',')}`)
+                .toBe('pause')
+        } finally {
+            playSub()
+            pauseSub()
+        }
     })
 
     it('disposes the ad track when new content is loaded mid-ad', async () => {

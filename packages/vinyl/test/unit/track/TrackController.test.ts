@@ -1325,7 +1325,7 @@ describe('TrackControllerImpl', () => {
             expect(queueEndedSpy).not.toHaveBeenCalled()
         })
 
-        it('finalizes the queue after a postroll with no next track, without reactivating content', async () => {
+        it('resets the content track to its start (loaded, paused) after a postroll with no next track', async () => {
             const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
             trackController.load(...createLoadOptionsList(1))
             const content = trackController.currentTrack as MockTrack
@@ -1340,28 +1340,71 @@ describe('TrackControllerImpl', () => {
                     ],
                 }),
             ])
-            // Content ended at t=60; the postroll takes over.
+            // Content ended at t=60; the postroll takes over (suspending and
+            // tearing down the content track's media source).
             deps.playbackController.currentTime = 60
             deps.playbackController.dispatch('ended', {})
             await flush()
             expect(trackController.currentAdTrack).not.toBeNull()
             content.activate.calls.reset()
             deps.playbackController.play.calls.reset()
-            deps.playbackController.seekTo.calls.reset()
+            deps.playbackController.pause.calls.reset()
 
             // The postroll ad ends → break ends. With no next track the content
-            // track stays the current track in its ended (deactivated) state:
-            // it is NOT reactivated (which would seek back to the content end
-            // and replay) and NOT auto-played.
+            // track is reactivated at its START (so the element has a source and
+            // is parked at 0, not left empty/loading and not replaying the
+            // content end), and is left paused (content already finished).
             deps.playbackController.dispatch('ended', {})
             await flush()
+            // finishPostroll pauses immediately (so the `pause` DOM event
+            // dispatches while the ad is still the live source), then defers the
+            // source teardown + content reactivation to a macrotask so that
+            // queued `pause` event is not swallowed by the source reset.
+            expect(deps.playbackController.pause).toHaveBeenCalled()
+            expect(queueEndedSpy).toHaveBeenCalled()
+            // Tearing down the ad + reactivating content happens on the deferred
+            // macrotask.
+            await clock.tick()
             expect(trackController.currentAdTrack).toBeNull()
             expect(trackController.currentTrack).toBe(content)
-            expect(content.activate).not.toHaveBeenCalled()
-            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
+            expect(content.activate).toHaveBeenCalledTimes(1)
+            const activateArg = content.activate.calls.mostRecent().args[0] as {
+                startTime?: number
+            }
+            // Reactivated at the start (no startTime override / not 60).
+            expect(activateArg.startTime).toBeUndefined()
             expect(deps.playbackController.play).not.toHaveBeenCalled()
+        })
+
+        it('does not reactivate content if disposed before the deferred postroll teardown runs', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            const content = trackController.currentTrack as MockTrack
+            adController.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 60,
+                    duration: 10,
+                    placement: 'postroll',
+                    ads: [
+                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                    ],
+                }),
+            ])
+            deps.playbackController.currentTime = 60
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            expect(trackController.currentAdTrack).not.toBeNull()
+            content.activate.calls.reset()
+
+            // Postroll ends → finishPostroll pauses now but DEFERS the source
+            // teardown/reactivation. Dispose before the macrotask fires.
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            disposed = true
+            trackController.dispose()
             await clock.tick()
-            expect(queueEndedSpy).toHaveBeenCalled()
+            // The deferred callback bailed out — no content reactivation.
+            expect(content.activate).not.toHaveBeenCalled()
         })
 
         it('advances to the next track after a postroll when the queue has more', async () => {
