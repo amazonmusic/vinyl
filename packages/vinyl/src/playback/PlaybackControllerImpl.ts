@@ -114,6 +114,9 @@ export class PlaybackControllerImpl
     private _seeking = false
     private _waiting = false
 
+    // Monotonic counter identifying the most recent seekTo call.
+    private _seekId = 0
+
     // default user volume (0.0 to 1.0 scale)
     private userVolume: number = 1.0
     private _pendingPlay: Promise<void> | null = null
@@ -597,6 +600,14 @@ export class PlaybackControllerImpl
 
     async seekTo(time: number, tolerance = 0.5): Promise<void> {
         logDebug(this, `seekTo: ${time}`)
+        // Claim this seek as the newest. A seek that parks on an await (e.g. waiting for loadedMetadata) can resume
+        // AFTER a later-issued seek has already applied its target.
+        const seekId = ++this._seekId
+        const superseded = (): boolean => {
+            if (this._seekId === seekId) return false
+            logDebug(this, `seekTo: ${time} superseded by a newer seek`)
+            return true
+        }
         const nextEvent = <K extends keyof PlaybackControllerEventMap>(
             type: K
         ): Promise<PlaybackControllerEventMap[K]> => {
@@ -615,6 +626,9 @@ export class PlaybackControllerImpl
         // Cannot seek until there are seekable ranges.
         if (!this.hasMetadata) {
             await nextEvent('loadedMetadata')
+            // A newer seek was issued while we waited — it already applied (or
+            // will apply) its target. Don't overwrite it with this stale one.
+            if (superseded()) return
         }
 
         const seekable = this.seekable
