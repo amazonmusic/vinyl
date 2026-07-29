@@ -365,6 +365,34 @@ describe('hls ad interstitials integ', () => {
         expect(player.currentTrack!.uri).toBe('integ-interstitial')
     })
 
+    it('resumes content playback when the ad ends naturally', async () => {
+        await loadAndAwaitAdBreaks()
+        const player = suite.player
+        await seekTolerant(MIDROLL_TIME + 1)
+        await player.play()
+        // Ad is playing over the suspended content.
+        expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
+        expect(await poll(() => player.currentTime > 0, 20_000)).toBeTrue()
+
+        // Drive the ad to its natural end by seeking near the end of the ad
+        // asset (the playhead is the ad's while it plays), rather than calling
+        // skipAd. The ad's own `ended` must resume content playback.
+        const adDuration = player.duration
+        await player
+            .seekTo(Math.max(0, adDuration - 1), 1)
+            .catch(() => undefined)
+
+        // Content resumes and is playing (not left paused by the ad's end).
+        expect(
+            await poll(() => player.currentAdTrack == null, 40_000)
+        ).toBeTrue()
+        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentTrack!.uri).toBe('integ-interstitial')
+        expect(
+            await poll(() => !player.paused && player.currentTime > 0, 20_000)
+        ).toBeTrue()
+    })
+
     it('plays a preroll before content, then resumes content', async () => {
         const player = suite.player
         player.load({

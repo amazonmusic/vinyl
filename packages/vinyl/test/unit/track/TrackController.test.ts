@@ -1254,7 +1254,7 @@ describe('TrackControllerImpl', () => {
             expect(first.deactivate).toHaveBeenCalled()
         })
 
-        it('resumes content at the saved time when the last ad ends', async () => {
+        it('resumes content playing at the saved time when the last ad ends naturally', async () => {
             trackController.load(...createLoadOptionsList(1))
             const content = trackController.currentTrack as MockTrack
             adController.setAdBreaks([
@@ -1264,8 +1264,12 @@ describe('TrackControllerImpl', () => {
             await flush()
             expect(trackController.currentAdTrack).not.toBeNull()
             content.activate.calls.reset()
+            deps.playbackController.play.calls.reset()
+            // A naturally-ended ad leaves the element paused; content must still
+            // resume PLAYING (the user was watching), not be left paused.
+            deps.playbackController.paused = true
 
-            // Last (only) ad ends → resume content.
+            // Last (only) ad ends naturally.
             deps.playbackController.dispatch('ended', {})
             await flush()
             expect(trackController.currentAdTrack).toBeNull()
@@ -1274,6 +1278,8 @@ describe('TrackControllerImpl', () => {
                 startTime?: number
             }
             expect(activateArg.startTime).toBe(20)
+            // Playback resumed despite the paused element after the ad's end.
+            expect(deps.playbackController.play).toHaveBeenCalled()
         })
 
         it('does not advance the content queue when an ad ends', async () => {
@@ -1319,7 +1325,7 @@ describe('TrackControllerImpl', () => {
             expect(queueEndedSpy).not.toHaveBeenCalled()
         })
 
-        it('parks at content end and finalizes the queue after a postroll with no next track', async () => {
+        it('finalizes the queue after a postroll with no next track, without reactivating content', async () => {
             const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
             trackController.load(...createLoadOptionsList(1))
             const content = trackController.currentTrack as MockTrack
@@ -1341,20 +1347,18 @@ describe('TrackControllerImpl', () => {
             expect(trackController.currentAdTrack).not.toBeNull()
             content.activate.calls.reset()
             deps.playbackController.play.calls.reset()
+            deps.playbackController.seekTo.calls.reset()
 
-            // The postroll ad ends → break ends. With no next track, the content
-            // track becomes current again parked at the content end (no replay
-            // from 0) and is not auto-played.
+            // The postroll ad ends → break ends. With no next track the content
+            // track stays the current track in its ended (deactivated) state:
+            // it is NOT reactivated (which would seek back to the content end
+            // and replay) and NOT auto-played.
             deps.playbackController.dispatch('ended', {})
             await flush()
             expect(trackController.currentAdTrack).toBeNull()
             expect(trackController.currentTrack).toBe(content)
-            // Reactivated at the content-end position, not seeked back to 0.
-            expect(content.activate).toHaveBeenCalledTimes(1)
-            const activateArg = content.activate.calls.mostRecent().args[0] as {
-                startTime?: number
-            }
-            expect(activateArg.startTime).toBe(60)
+            expect(content.activate).not.toHaveBeenCalled()
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
             expect(deps.playbackController.play).not.toHaveBeenCalled()
             await clock.tick()
             expect(queueEndedSpy).toHaveBeenCalled()

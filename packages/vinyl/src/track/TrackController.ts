@@ -279,6 +279,10 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     // The placement of the break currently playing. A postroll finalizes the
     // queue on completion (content is over) rather than resuming content.
     private _activeBreakPlacement: AdBreakPlacement | null = null
+    // True while an ad ends naturally (its `ended` fired). Content should resume
+    // playing in that case; a natural end leaves the element paused, which must
+    // not be mistaken for the user having paused during the ad.
+    private _adEndedNaturally = false
     // Ad tracks that have been created for preloading, keyed by ad id, so they
     // can be reused on activation and disposed when content changes.
     private readonly _adTrackCache = new Map<string, Track>()
@@ -307,7 +311,12 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         add(
             deps.playbackController.on('ended', () => {
                 if (deps.adController?.adPlaying) {
+                    // The current ad played to its end. Advancing to the next
+                    // ad or resuming content should continue playing (the
+                    // natural end leaves the element paused).
+                    this._adEndedNaturally = true
                     deps.adController.advanceOrSkipAd()
+                    this._adEndedNaturally = false
                     return
                 }
                 // A postroll's start sits at the content end, so the playhead
@@ -403,13 +412,15 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     private resumeContent(): void {
-        // Capture the user's play/pause intent while the ad is still playing.
-        // During ad playback `paused` reflects the user's intent (playing ad =>
-        // not paused; user paused the ad => paused). Read it BEFORE
-        // clearAdPlayback(), whose deactivate() pauses the element and would
-        // otherwise always look paused here.
+        // Decide whether to resume playing:
+        //  - Ad ended naturally: continue playing (the ended element is paused,
+        //    but the user was watching and expects content to follow).
+        //  - User skipped: honor the current intent — stay paused if the user
+        //    had paused during the ad, otherwise resume playing. Read this
+        //    BEFORE clearAdPlayback(), whose deactivate() pauses the element.
         const playback = this.deps.playbackController
-        const shouldPlay = !playback.paused || playback.playIsPending
+        const shouldPlay =
+            this._adEndedNaturally || !playback.paused || playback.playIsPending
         this.clearAdPlayback()
         if (this._currentTrack && !this._currentTrack.active) {
             // Reactivate with the resume time as startTime so the track seeks
@@ -420,16 +431,13 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 ...config,
                 startTime: this._adResumeTime,
             })
-            // Resume playing unless the user paused during the ad.
             if (shouldPlay) playback.play().catch(() => {})
         }
     }
 
     /**
      * Handles the end of a postroll break. Content is over, so advance to the
-     * next queued track if there is one; otherwise switch back to the content
-     * track (parked at the content end, paused — no replay) and finalize the
-     * queue.
+     * next queued track if there is one; otherwise finalize the queue.
      */
     private finishPostroll(): void {
         this.clearAdPlayback()
@@ -438,16 +446,11 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             this.next()
             return
         }
-        // No more content in the queue. Reactivate the (suspended) content
-        // track so it is current again, parked at the content end and paused —
-        // the ad already played through, so we neither replay nor auto-play.
-        if (this._currentTrack && !this._currentTrack.active) {
-            const config = this._current?.config ?? {}
-            this._currentTrack.activate({
-                ...config,
-                startTime: this._adResumeTime,
-            })
-        }
+        // No more content in the queue. The content track is already the
+        // current track (it was only deactivated for the ad, not replaced), so
+        // leave it as-is: reactivating it would seek back to the content end
+        // and replay. Its deactivated state is the correct end-of-content
+        // state. Just finalize the queue.
         logInfo(this, 'queueEnded')
         this.dispatch('queueEnded', {})
     }
