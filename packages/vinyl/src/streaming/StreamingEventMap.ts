@@ -65,6 +65,30 @@ export interface StreamingEventMap {
     readonly qualitiesUnfilteredChange: ChangeEvent<
         readonly MediaQualityMetadata[]
     >
+
+    /**
+     * A codec the browser reported as supported failed to decode on append and
+     * has been denylisted at runtime. The current media should be reloaded so
+     * quality selection can fall back to a codec that decodes. Recoverable:
+     * this is dispatched instead of an `error`, and the player reloads the
+     * track in response.
+     */
+    readonly codecUnsupported: CodecUnsupportedEvent
+}
+
+/**
+ * Payload for {@link StreamingEventMap.codecUnsupported}.
+ */
+export interface CodecUnsupportedEvent {
+    /**
+     * The mimeType (including the failing codec) that was denylisted.
+     */
+    readonly mimeType: string
+
+    /**
+     * The content type of the stream whose append failed.
+     */
+    readonly contentType: ContentType
 }
 
 /**
@@ -82,4 +106,5 @@ export const ALL_STREAMING_EVENTS = [
     'reset',
     'qualitiesChange',
     'qualitiesUnfilteredChange',
+    'codecUnsupported',
 ] as const satisfies readonly (keyof StreamingEventMap)[]

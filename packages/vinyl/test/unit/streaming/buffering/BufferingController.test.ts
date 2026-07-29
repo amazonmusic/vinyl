@@ -15,10 +15,12 @@ import {
     BufferingControllerImpl,
     type BufferingControllerImplOptions,
     type ChangeEvent,
+    clearCodecDenylist,
     clearSourceBufferQuota,
     type ContentType,
     createEmptyMediaQualityMetadata,
     DEFAULT_MAX_APPEND_SIZE,
+    getDenylistedCodecs,
     getSourceBufferQuota,
     type MediaQualityMetadata,
     MIN_APPEND_SIZE,
@@ -26,6 +28,7 @@ import {
     QUOTA_REACHED_SCALE,
     SEGMENT_START_AFFORDANCE,
     type SegmentReference,
+    SourceBufferError,
 } from '@amazon/vinyl'
 import type { MutableDeep, Task } from '@amazon/vinyl-util'
 import {
@@ -662,6 +665,88 @@ describe('BufferingControllerImpl', () => {
                     'QuotaExceededError'
                 )
             })
+        })
+    })
+
+    describe('when append fails to decode a codec (SourceBufferError)', () => {
+        afterEach(() => {
+            clearCodecDenylist()
+        })
+
+        /**
+         * Configures segments whose quality carries the given mimeType so the
+         * codec-fallback path (which reads bufferingQuality.mimeType) can run.
+         */
+        function setSegmentsWithMimeType(mimeType: string) {
+            const segments = Array.from({ length: 20 }, (_, i) => {
+                const segment = createMockSegment(i * 10, 1)
+                segment.quality.contentType = 'video'
+                segment.quality.mimeType = mimeType
+                return Promise.resolve(segment)
+            })
+            segmentController.getSegment.and.returnValues(
+                ...segments,
+                Promise.resolve(null)
+            )
+            segmentController.dispatch('change', {})
+        }
+
+        it('denylists the codec and emits codecUnsupported instead of erroring', async () => {
+            const mimeType = 'video/mp4; codecs="hvc1.1"'
+            setSegmentsWithMimeType(mimeType)
+            bufferingController = createBufferingController()
+            bufferingController.activate()
+            const codecUnsupported = createEventSpy(
+                bufferingController,
+                'codecUnsupported'
+            )
+            sourceBufferController.append.and.rejectWith(
+                new SourceBufferError()
+            )
+
+            await open()
+
+            expect(bufferingController.error).toBeNull()
+            expect(codecUnsupported).toHaveBeenCalledOnceWith({
+                mimeType,
+                contentType: 'video',
+            })
+            expect(getDenylistedCodecs()).toContain('hvc1.1')
+        })
+
+        it('errors when the failing quality has no mimeType', async () => {
+            // Default segments carry no mimeType, so the fallback cannot
+            // identify a codec and the error is fatal.
+            setSegmentList(Array<number>(20).fill(1), 0, 'video')
+            bufferingController = createBufferingController()
+            bufferingController.activate()
+            sourceBufferController.append.and.rejectWith(
+                new SourceBufferError()
+            )
+
+            await open()
+
+            expect(bufferingController.error).toBeInstanceOf(SourceBufferError)
+            expect(getDenylistedCodecs()).toEqual([])
+        })
+
+        it('errors when the codec is already denylisted (no alternative)', async () => {
+            const mimeType = 'video/mp4; codecs="hvc1.1"'
+            setSegmentsWithMimeType(mimeType)
+            bufferingController = createBufferingController()
+            bufferingController.activate()
+            sourceBufferController.append.and.rejectWith(
+                new SourceBufferError()
+            )
+
+            // First failure: recoverable (denylist + codecUnsupported).
+            await open()
+            expect(bufferingController.error).toBeNull()
+
+            // A repeat failure for the same, already-denylisted codec is not
+            // recoverable and falls through to the error state.
+            await clock.tick(...Array<number>(5).fill(0))
+            expect(bufferingController.error).toBeInstanceOf(SourceBufferError)
         })
     })
 
