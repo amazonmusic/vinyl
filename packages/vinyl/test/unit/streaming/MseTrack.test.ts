@@ -921,35 +921,68 @@ describe('MseTrack', () => {
             expect(track.adController).toBeNull()
         })
 
-        it('sets discovered ad breaks on the ad controller when the timeline resolves', async () => {
+        const sampleAdBreaks: MediaTimeline['adBreaks'] = [
+            {
+                id: 'b1',
+                startTime: 10,
+                duration: 5,
+                placement: 'midroll' as const,
+                ads: () =>
+                    Promise.resolve([
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 5,
+                            uri: 'ad.m3u8',
+                        },
+                    ]),
+            },
+        ]
+
+        it('publishes discovered ad breaks to the controller once active', async () => {
             const setAdBreaks = jasmine.createSpy('setAdBreaks')
             ;(deps as any).adController = {
                 setAdBreaks,
                 activeAdBreak: null,
                 adBreaks: [],
             }
-            const adBreaks = [
-                {
-                    id: 'b1',
-                    startTime: 10,
-                    duration: 5,
-                    placement: 'midroll' as const,
-                    ads: () =>
-                        Promise.resolve([
-                            {
-                                id: 'a1',
-                                startTime: 10,
-                                duration: 5,
-                                uri: 'ad.m3u8',
-                            },
-                        ]),
-                },
-            ]
-            setTimeline(makeTimeline(adBreaks))
+            setTimeline(makeTimeline(sampleAdBreaks))
             track = createTrack()
             expect(track.adController).toBe((deps as any).adController)
+            track.activate({})
             await flushPromises()
-            expect(setAdBreaks).toHaveBeenCalledWith(adBreaks)
+            expect(setAdBreaks).toHaveBeenCalledWith(sampleAdBreaks)
+        })
+
+        it('does not publish ad breaks while inactive (prefetched)', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            setTimeline(makeTimeline(sampleAdBreaks))
+            // Created but never activated (as when prefetched): must not touch
+            // the shared controller.
+            track = createTrack()
+            await flushPromises()
+            expect(setAdBreaks).not.toHaveBeenCalled()
+        })
+
+        it('publishes ad breaks discovered before activation on activate', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            setTimeline(makeTimeline(sampleAdBreaks))
+            track = createTrack()
+            await flushPromises()
+            expect(setAdBreaks).not.toHaveBeenCalled()
+            // Activating a track whose timeline already resolved publishes now.
+            track.activate({})
+            expect(setAdBreaks).toHaveBeenCalledWith(sampleAdBreaks)
         })
 
         it('does not call setAdBreaks when the timeline has no ad breaks', async () => {
@@ -961,6 +994,7 @@ describe('MseTrack', () => {
             }
             setTimeline(makeTimeline([]))
             track = createTrack()
+            track.activate({})
             await flushPromises()
             expect(setAdBreaks).not.toHaveBeenCalled()
         })

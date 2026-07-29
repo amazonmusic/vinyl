@@ -122,6 +122,46 @@ describe('AdControllerImpl', () => {
         expect(c.activeAdBreak).toBeNull()
     })
 
+    describe('reset', () => {
+        it('clears skip history so a reused id can play again', async () => {
+            const c = createController()
+            c.setAdBreaks([makeBreak({ id: '1', startTime: 0, duration: 10 })])
+            updateTime(c, 1)
+            await flush()
+            c.skipAd()
+
+            // A content change resets all state, then the next content reuses
+            // id '1' — it must be playable again.
+            c.reset()
+            expect(c.adBreaks).toEqual([])
+            c.setAdBreaks([makeBreak({ id: '1', startTime: 0, duration: 10 })])
+            updateTime(c, 1)
+            await flush()
+            expect(c.activeAdBreak?.id).toBe('1')
+        })
+
+        it('emits adBreakChange to null when a break was active', async () => {
+            const c = createController()
+            c.setAdBreaks([makeBreak({ id: '1', startTime: 0, duration: 10 })])
+            updateTime(c, 1)
+            await flush()
+            const events: (string | null)[] = []
+            c.on('adBreakChange', (e) => events.push(e.current?.id ?? null))
+            c.reset()
+            expect(events).toEqual([null])
+            expect(c.activeAdBreak).toBeNull()
+        })
+
+        it('does not emit when no break was active', () => {
+            const c = createController()
+            c.setAdBreaks([makeBreak({ id: '1', startTime: 50, duration: 10 })])
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakChange', spy)
+            c.reset()
+            expect(spy).not.toHaveBeenCalled()
+        })
+    })
+
     it('sorts breaks by start time', () => {
         const c = createController()
         c.setAdBreaks([

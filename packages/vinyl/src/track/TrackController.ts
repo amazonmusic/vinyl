@@ -23,7 +23,7 @@ import type { PlaybackController } from '../playback/PlaybackController'
 import type { ReadonlyTrack, Track, TrackUri } from './Track'
 import type { TrackFactory, TrackLoadOptions } from './TrackFactory'
 import type { ChangeEvent } from '../event/ChangeEvent'
-import type { AdController, AdInfo } from '../ad/AdBreak'
+import type { AdBreakPlacement, AdController, AdInfo } from '../ad/AdBreak'
 import { inferTrackType } from '../ad/inferTrackType'
 
 export interface TrackControllerEventMap<
@@ -276,9 +276,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     private _adTrackAdId: string | null = null
     private _adResumeTime: number = 0
     private _adTimeoutId: TimeoutId | null = null
-    // Set when content reached its natural end while a postroll break plays, so
-    // the break's completion finalizes the queue instead of resuming content.
-    private _contentEnded = false
+    // The placement of the break currently playing. A postroll finalizes the
+    // queue on completion (content is over) rather than resuming content.
+    private _activeBreakPlacement: AdBreakPlacement | null = null
     // Ad tracks that have been created for preloading, keyed by ad id, so they
     // can be reused on activation and disposed when content changes.
     private readonly _adTrackCache = new Map<string, Track>()
@@ -312,10 +312,12 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 }
                 // A postroll's start sits at the content end, so the playhead
                 // rarely emits a timeUpdate inside it before `ended`. Give the
-                // ad controller a chance to activate a pending postroll; if it
-                // does, defer end-of-content handling until the break finishes.
+                // ad controller a chance to activate a pending postroll. Mark
+                // the break as a postroll up front so that even if it resolves
+                // to no ads, its completion still finalizes the queue instead
+                // of stalling.
                 if (deps.adController?.enterPostrollIfPending()) {
-                    this._contentEnded = true
+                    this._activeBreakPlacement = 'postroll'
                     return
                 }
                 this.finishContent()
@@ -329,16 +331,17 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     if (event.current) {
                         // A break is active (entering or advancing an ad).
                         // Switch playback to the current ad's track.
+                        this._activeBreakPlacement = event.current.placement
                         const ad = adController.currentAd
                         if (ad) this.playAdTrack(ad)
-                    } else if (this._contentEnded) {
-                        // A postroll finished after content ended: tear down the
-                        // ad and finalize the queue rather than resuming content.
-                        this._contentEnded = false
-                        this.clearAdPlayback()
-                        this.finishContent()
+                    } else if (this._activeBreakPlacement === 'postroll') {
+                        // A postroll finished: content is over, so finalize the
+                        // queue rather than replaying the content track.
+                        this._activeBreakPlacement = null
+                        this.finishPostroll()
                     } else if (this._adTrack) {
                         // The break ended — resume the content track.
+                        this._activeBreakPlacement = null
                         this.resumeContent()
                     }
                 })
@@ -372,7 +375,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             // Advancing to the next ad within the same break.
             this._adTrack.deactivate()
         } else if (this._currentTrack?.active) {
-            // First ad of the break — save resume time and suspend content.
+            // First ad of the break — save the resume position, then suspend
+            // content.
             this._adResumeTime = this.deps.playbackController.currentTime
             this._currentTrack.deactivate()
         }
@@ -399,6 +403,13 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     private resumeContent(): void {
+        // Capture the user's play/pause intent while the ad is still playing.
+        // During ad playback `paused` reflects the user's intent (playing ad =>
+        // not paused; user paused the ad => paused). Read it BEFORE
+        // clearAdPlayback(), whose deactivate() pauses the element and would
+        // otherwise always look paused here.
+        const playback = this.deps.playbackController
+        const shouldPlay = !playback.paused || playback.playIsPending
         this.clearAdPlayback()
         if (this._currentTrack && !this._currentTrack.active) {
             // Reactivate with the resume time as startTime so the track seeks
@@ -409,8 +420,36 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 ...config,
                 startTime: this._adResumeTime,
             })
-            this.deps.playbackController.play().catch(() => {})
+            // Resume playing unless the user paused during the ad.
+            if (shouldPlay) playback.play().catch(() => {})
         }
+    }
+
+    /**
+     * Handles the end of a postroll break. Content is over, so advance to the
+     * next queued track if there is one; otherwise switch back to the content
+     * track (parked at the content end, paused — no replay) and finalize the
+     * queue.
+     */
+    private finishPostroll(): void {
+        this.clearAdPlayback()
+        if (this.hasNext()) {
+            // next() reactivates the upcoming track and preserves play state.
+            this.next()
+            return
+        }
+        // No more content in the queue. Reactivate the (suspended) content
+        // track so it is current again, parked at the content end and paused —
+        // the ad already played through, so we neither replay nor auto-play.
+        if (this._currentTrack && !this._currentTrack.active) {
+            const config = this._current?.config ?? {}
+            this._currentTrack.activate({
+                ...config,
+                startTime: this._adResumeTime,
+            })
+        }
+        logInfo(this, 'queueEnded')
+        this.dispatch('queueEnded', {})
     }
 
     /**
@@ -501,11 +540,12 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         for (const track of this._adTrackCache.values()) track.dispose()
         this._adTrackCache.clear()
         this._preloadedAdIds.clear()
-        // Reset the ad controller's active-break state so a stale break from
-        // the previous content does not persist.
-        if (this.deps.adController?.activeAdBreak) {
-            this.deps.adController.skipAdBreak()
-        }
+        this._activeBreakPlacement = null
+        // Fully reset the ad controller: break and ad ids are only unique
+        // within a single presentation, so retaining any state (including skip
+        // history) across a content change would let the previous content's
+        // ids collide with the new one's.
+        this.deps.adController?.reset()
     }
 
     private clearTrackEndedTimeout() {

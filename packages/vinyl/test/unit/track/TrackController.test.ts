@@ -1319,11 +1319,10 @@ describe('TrackControllerImpl', () => {
             expect(queueEndedSpy).not.toHaveBeenCalled()
         })
 
-        it('finalizes the queue after the postroll finishes', async () => {
+        it('parks at content end and finalizes the queue after a postroll with no next track', async () => {
             const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
             trackController.load(...createLoadOptionsList(1))
             const content = trackController.currentTrack as MockTrack
-            content.activate.calls.reset()
             adController.setAdBreaks([
                 makeBreak({
                     id: 'post',
@@ -1335,18 +1334,57 @@ describe('TrackControllerImpl', () => {
                     ],
                 }),
             ])
+            // Content ended at t=60; the postroll takes over.
+            deps.playbackController.currentTime = 60
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            expect(trackController.currentAdTrack).not.toBeNull()
+            content.activate.calls.reset()
+            deps.playbackController.play.calls.reset()
+
+            // The postroll ad ends → break ends. With no next track, the content
+            // track becomes current again parked at the content end (no replay
+            // from 0) and is not auto-played.
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            expect(trackController.currentAdTrack).toBeNull()
+            expect(trackController.currentTrack).toBe(content)
+            // Reactivated at the content-end position, not seeked back to 0.
+            expect(content.activate).toHaveBeenCalledTimes(1)
+            const activateArg = content.activate.calls.mostRecent().args[0] as {
+                startTime?: number
+            }
+            expect(activateArg.startTime).toBe(60)
+            expect(deps.playbackController.play).not.toHaveBeenCalled()
+            await clock.tick()
+            expect(queueEndedSpy).toHaveBeenCalled()
+        })
+
+        it('advances to the next track after a postroll when the queue has more', async () => {
+            trackController.load(...createLoadOptionsList(2))
+            const first = trackController.currentTrack as MockTrack
+            adController.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 60,
+                    duration: 10,
+                    placement: 'postroll',
+                    ads: [
+                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                    ],
+                }),
+            ])
+            deps.playbackController.currentTime = 60
             deps.playbackController.dispatch('ended', {})
             await flush()
             expect(trackController.currentAdTrack).not.toBeNull()
 
-            // The postroll ad ends → break ends → queue finalizes, content is
-            // NOT resumed.
+            // Postroll ends → advance to the next queued content track.
             deps.playbackController.dispatch('ended', {})
             await flush()
             expect(trackController.currentAdTrack).toBeNull()
-            expect(content.activate).not.toHaveBeenCalled()
-            await clock.tick()
-            expect(queueEndedSpy).toHaveBeenCalled()
+            expect(trackController.currentTrack).not.toBe(first)
+            expect(trackController.queue.length).toBe(0)
         })
 
         it('finalizes the queue if the postroll resolves to no ads', async () => {
@@ -1383,6 +1421,40 @@ describe('TrackControllerImpl', () => {
             await flush()
             expect(trackController.currentAdTrack).toBeNull()
             expect(content.activate).toHaveBeenCalled()
+        })
+
+        it('resumes content playing when not paused at skip', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
+            simulateTimeUpdate(1)
+            await flush()
+            deps.playbackController.paused = false
+            deps.playbackController.play.calls.reset()
+
+            adController.skipAd()
+            await flush()
+            expect(deps.playbackController.play).toHaveBeenCalled()
+        })
+
+        it('stays paused when skipping an ad while paused', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10 }),
+            ])
+            simulateTimeUpdate(1)
+            await flush()
+            // The user paused during the ad, then presses skip.
+            deps.playbackController.paused = true
+            deps.playbackController.playIsPending = false
+            deps.playbackController.play.calls.reset()
+
+            adController.skipAd()
+            await flush()
+            expect(trackController.currentAdTrack).toBeNull()
+            // Content resumed but playback was NOT auto-started.
+            expect(deps.playbackController.play).not.toHaveBeenCalled()
         })
 
         it('skips the ad when play() is rejected', async () => {

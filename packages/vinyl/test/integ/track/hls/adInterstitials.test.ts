@@ -447,6 +447,112 @@ describe('hls ad interstitials integ', () => {
         ).toBeTrue()
     })
 
+    // ─── Ad id collisions across tracks ──────────────────────────────────
+    // Break/ad ids are only unique within a single presentation, so two
+    // different tracks can carry the same interstitial ID. Ad state must not
+    // leak across a content change, or the second track's ad would be
+    // suppressed (treated as already-played) — a regression these tests guard.
+
+    it('plays a reused-id ad after loading a different track (via load)', async () => {
+        const player = suite.player
+        // Track A carries interstitial ID "1"; play and skip it.
+        player.load({
+            type: 'hls',
+            uri: 'track-a',
+            manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                {
+                    id: '1',
+                    startTime: MIDROLL_TIME,
+                    duration: 6,
+                    assetUri: AD_ASSET,
+                },
+            ]),
+        })
+        await poll(() => player.adBreaks.length > 0, 15_000)
+        await seekTolerant(MIDROLL_TIME + 1)
+        await player.play().catch(() => undefined)
+        expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
+        player.skipAd()
+        expect(await poll(() => player.currentAdTrack == null)).toBeTrue()
+
+        // Load Track B which reuses interstitial ID "1". Its ad must still play
+        // (the skip from Track A must not carry over).
+        player.load({
+            type: 'hls',
+            uri: 'track-b',
+            manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                {
+                    id: '1',
+                    startTime: MIDROLL_TIME,
+                    duration: 6,
+                    assetUri: AD_ASSET,
+                },
+            ]),
+        })
+        expect(await poll(() => player.adBreaks.length > 0, 15_000)).toBeTrue()
+        await seekTolerant(MIDROLL_TIME + 1)
+        await player.play().catch(() => undefined)
+        expect(
+            await poll(() => player.currentAdTrack != null, 30_000)
+        ).toBeTrue()
+        expect(player.activeAdBreak?.id).toBe('1')
+    })
+
+    it('plays a reused-id ad after advancing the queue (via next)', async () => {
+        const player = suite.player
+        // A two-track queue where both tracks carry interstitial ID "1".
+        player.load(
+            {
+                type: 'hls',
+                uri: 'queue-a',
+                manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                    {
+                        id: '1',
+                        startTime: MIDROLL_TIME,
+                        duration: 6,
+                        assetUri: AD_ASSET,
+                    },
+                ]),
+            },
+            {
+                type: 'hls',
+                uri: 'queue-b',
+                manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                    {
+                        id: '1',
+                        startTime: MIDROLL_TIME,
+                        duration: 6,
+                        assetUri: AD_ASSET,
+                    },
+                ]),
+            }
+        )
+        await poll(() => player.adBreaks.length > 0, 15_000)
+        await seekTolerant(MIDROLL_TIME + 1)
+        await player.play().catch(() => undefined)
+        expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
+        player.skipAd()
+        expect(await poll(() => player.currentAdTrack == null)).toBeTrue()
+
+        // Advance to the next queued track (same reused ad ID "1").
+        player.next()
+        expect(
+            await poll(() => player.currentTrack?.uri === 'queue-b', 15_000)
+        ).toBeTrue()
+        // queue-b's break is rediscovered. Its shared id must NOT be
+        // pre-suppressed by queue-a's skip (the collision regression).
+        expect(await poll(() => player.adBreaks.length > 0, 15_000)).toBeTrue()
+        expect(player.activeAdBreak).toBeNull()
+        // Crossing into the break activates it, proving the id was not treated
+        // as already-skipped.
+        await seekTolerant(MIDROLL_TIME + 1)
+        await player.play().catch(() => undefined)
+        expect(
+            await poll(() => player.activeAdBreak != null, 30_000)
+        ).toBeTrue()
+        expect(player.activeAdBreak?.id).toBe('1')
+    })
+
     // ─── Codec-failure recovery path ─────────────────────────────────────
     // Reproduces the real-world case where an ad uses a codec that differs
     // from the content's. When content resumes after such an ad, a

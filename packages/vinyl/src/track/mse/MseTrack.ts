@@ -42,7 +42,7 @@ import {
     type MediaPeriod,
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
-import type { AdController } from '../../ad/AdBreak'
+import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -109,6 +109,9 @@ export class MseTrack extends TrackBase {
     private timeUpdateSub: Unsubscribe | null = null
     private _cachedPeriod: MediaPeriod | null = null
     private _seekRange: SeekRange | null = null
+    // The most recently resolved ad breaks, published to the shared ad
+    // controller only while this track is active (see publishAdBreaks).
+    private _adBreaks: readonly AdBreakInfo[] = []
 
     constructor(
         uri: TrackUri,
@@ -172,11 +175,12 @@ export class MseTrack extends TrackBase {
                 timelinePromise
                     .then((timeline) => {
                         if (this.disposer.disposed) return
-                        if (timeline.adBreaks.length > 0) {
-                            this.deps.adController?.setAdBreaks(
-                                timeline.adBreaks
-                            )
-                        }
+                        // Publish ad breaks to the shared controller only while
+                        // this track is active — a prefetched track's timeline
+                        // resolves too, and must not clobber the playing track's
+                        // breaks on the shared controller.
+                        this._adBreaks = timeline.adBreaks
+                        this.publishAdBreaks()
                         return timeline.getDuration().then((duration) => {
                             if (this.disposer.disposed) return
                             const start =
@@ -365,8 +369,22 @@ export class MseTrack extends TrackBase {
         super.reset()
     }
 
+    /**
+     * Publishes this track's discovered ad breaks to the shared ad controller,
+     * but only while the track is active. Prefetched (inactive) tracks resolve
+     * their timelines too; publishing from them would clobber the currently
+     * playing track's breaks on the shared, player-level controller.
+     */
+    private publishAdBreaks(): void {
+        if (!this.activateOptions) return
+        if (this._adBreaks.length === 0) return
+        this.deps.adController?.setAdBreaks(this._adBreaks)
+    }
+
     onActivated(loadOptions: TrackBaseOptions): void {
         this.activateOptions = loadOptions
+        // Publish any ad breaks already discovered before activation.
+        this.publishAdBreaks()
         // AirPlay not supported using managed media sources
         this.deps.playbackSource.disableRemotePlayback = true
 

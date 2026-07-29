@@ -196,4 +196,13 @@ export interface AdController extends ReadonlyAdController {
      * No-op when no ad break is active.
      */
     skipAdBreak(): void
+
+    /**
+     * Clears all ad state (known breaks, the active break, and skip history).
+     * Called when the content changes, because break and ad ids are only unique
+     * within a single presentation — retaining state across a media change
+     * would let ids from the previous content collide with the new one. Emits
+     * `adBreakChange` to null if a break was active.
+     */
+    reset(): void
 }

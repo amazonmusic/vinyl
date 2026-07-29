@@ -237,6 +237,18 @@ export class AdControllerImpl
         this.dispatch('adBreakChange', { previous, current: null })
     }
 
+    reset(): void {
+        const previous = this._active
+        this._adBreaks = []
+        this._active = null
+        this._activeAds = []
+        this._activeAdIndex = 0
+        this._skippedBreakIds.clear()
+        if (previous) {
+            this.dispatch('adBreakChange', { previous, current: null })
+        }
+    }
+
     /**
      * Clears all state. Emits an `adBreakChange` to null if a break was active
      * so listeners observe a clean exit when the media is unloaded.
