@@ -170,6 +170,9 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                     </div>
                     <span className="progressTime">{remaining$}</span>
                 </div>
+                {/* Spacer keeps the surrounding controls in place while the
+                    scrub bar is hidden during ad playback. */}
+                <div className="transportProgressSpacer" visible={adActive$} />
                 <div className="transportTrackInfo">
                     <div className="trackTitle">
                         {track$.map((t) => t?.title)}

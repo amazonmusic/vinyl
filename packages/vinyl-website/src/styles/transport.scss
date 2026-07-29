@@ -165,6 +165,12 @@
     gap: var(--space-sm);
 }
 
+// Occupies the scrub bar's flex space while it is hidden during an ad so the
+// play button and track info keep their positions.
+.transportProgressSpacer {
+    flex: 1;
+}
+
 .progressTime {
     font-size: 11px;
     font-variant-numeric: tabular-nums;
@@ -411,6 +417,12 @@
     .transportProgress {
         order: -1;
         flex-basis: 100%;
+    }
+
+    // The progress bar is its own wrapped row here, so hiding it during an ad
+    // doesn't shift the controls row — no spacer needed.
+    .transportProgressSpacer {
+        display: none;
     }
 
     .transportTrackInfo {
