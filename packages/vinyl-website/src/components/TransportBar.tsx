@@ -3,6 +3,7 @@ import { jsx } from '@amazon/vinyl-tsx'
 import {
     playerState,
     seekToPercent,
+    skipAd,
     togglePlayPause,
     unloadTrack,
 } from '../player'
@@ -34,7 +35,31 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         volume$,
         muted$,
         hasVideo$,
+        activeAdBreak$,
+        adBreaks$,
+        adRemaining$,
+        seekRange$,
     } = playerState
+
+    const adActive$ = activeAdBreak$.map((b) => b != null)
+    const adRemainingLabel$ = adRemaining$.map(formatTime)
+    const canSkipAd$ = activeAdBreak$.map((b) => {
+        if (!b) return false
+        return !b.restrict?.skip
+    })
+    const adLabel$ = activeAdBreak$.map((activeBreak) => {
+        if (!activeBreak) return ''
+        const breakAds = activeBreak.ads
+        if (breakAds.length <= 1) return 'Ad'
+        const time = player.currentTime
+        const idx =
+            breakAds.findIndex(
+                (a) =>
+                    a.startTime <= time &&
+                    (a.duration == null || a.startTime + a.duration > time)
+            ) + 1
+        return `Ad ${idx || 1} / ${breakAds.length}`
+    })
 
     const elapsed$ = currentTime$.map(formatTime)
     const remaining$ = currentTime$.map((t) => {
@@ -97,6 +122,17 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         >
             <div className="transportVideo" visible={showVideo$}>
                 {media}
+                <div className="adOverlay" visible={adActive$}>
+                    <span className="adBadge">{adLabel$}</span>
+                    <span className="adRemaining">{adRemainingLabel$}</span>
+                    <button
+                        className="adSkipBtn"
+                        visible={canSkipAd$}
+                        onclick={skipAd}
+                    >
+                        Skip Ad
+                    </button>
+                </div>
             </div>
             <div className="transportControlsRow">
                 <div className="transportControls">
@@ -117,18 +153,26 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                         </span>
                     </button>
                 </div>
-                <div className="transportProgress">
+                <div
+                    className="transportProgress"
+                    visible={adActive$.map((v) => !v)}
+                >
                     <span className="progressTime">{elapsed$}</span>
                     <div className="progressBar">
                         <ScrubBar
                             currentTimePercent$={currentTimePercent$}
                             fetchedTimePercent$={fetchedTimePercent$}
                             seeking$={seeking$}
+                            adBreaks$={adBreaks$}
+                            seekRange$={seekRange$}
                             onSeek={seekToPercent}
                         />
                     </div>
                     <span className="progressTime">{remaining$}</span>
                 </div>
+                {/* Spacer keeps the surrounding controls in place while the
+                    scrub bar is hidden during ad playback. */}
+                <div className="transportProgressSpacer" visible={adActive$} />
                 <div className="transportTrackInfo">
                     <div className="trackTitle">
                         {track$.map((t) => t?.title)}

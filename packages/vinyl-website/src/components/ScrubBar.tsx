@@ -3,11 +3,14 @@ import type { ObservableValue } from '@amazon/vinyl-observable'
 import { combineData, data } from '@amazon/vinyl-observable'
 import { clamp, createDisposer, type Unsubscribe } from '@amazon/vinyl-util'
 import { windowEvents } from '../util/interaction'
+import type { AdBreakInfo, SeekRange } from '@amazon/vinyl'
 
 export interface ScrubBarProps {
     readonly currentTimePercent$: ObservableValue<number>
     readonly fetchedTimePercent$: ObservableValue<number>
     readonly seeking$: ObservableValue<boolean>
+    readonly adBreaks$: ObservableValue<readonly AdBreakInfo[]>
+    readonly seekRange$: ObservableValue<SeekRange | null>
     readonly onSeekStart?: (percent: number) => void
     readonly onSeek: (percent: number) => void
 }
@@ -25,6 +28,30 @@ export function ScrubBar(props: ScrubBarProps) {
         return toPercentCss(
             scrubbing || seeking ? scrubPercent : currentTimePercent
         )
+    })
+
+    const adMarkers$ = combineData({
+        adBreaks: props.adBreaks$,
+        seekRange: props.seekRange$,
+    }).map(({ adBreaks, seekRange }) => {
+        if (!seekRange || seekRange.end <= 0 || !isFinite(seekRange.end))
+            return []
+        const duration = seekRange.end - seekRange.start
+        if (duration <= 0) return []
+        return adBreaks
+            .filter((b) => b.duration != null && b.duration > 0)
+            .map((b) => {
+                const leftPct = clamp(
+                    (b.startTime - seekRange.start) / duration,
+                    0,
+                    1
+                )
+                const widthPct = clamp(b.duration! / duration, 0, 1 - leftPct)
+                return {
+                    left: toPercentCss(leftPct),
+                    width: toPercentCss(widthPct),
+                }
+            })
     })
 
     const bar = (
@@ -47,6 +74,24 @@ export function ScrubBar(props: ScrubBarProps) {
                     className="progressBarPrefetched"
                     style={{
                         width: props.fetchedTimePercent$.map(toPercentCss),
+                    }}
+                />
+                <div
+                    className="progressBarAdMarkers"
+                    onConnect={(el) => {
+                        return adMarkers$.onData((markers) => {
+                            el.replaceChildren(
+                                ...markers.map((m) => (
+                                    <div
+                                        className="progressBarAdMarker"
+                                        style={{
+                                            left: m.left,
+                                            width: m.width,
+                                        }}
+                                    />
+                                ))
+                            )
+                        })
                     }}
                 />
                 <div
