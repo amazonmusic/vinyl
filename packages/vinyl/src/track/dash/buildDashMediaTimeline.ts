@@ -14,7 +14,7 @@ import {
     calculateDuration,
     calculatePeriodEnd,
     calculatePeriodStart,
-    flattenRepresentations,
+    flattenMediaRepresentations,
 } from './util/mpd'
 import {
     createDashRepresentationSegmentProvider,
@@ -34,7 +34,7 @@ export function buildDashMediaTimeline(
     const periods: MediaPeriod[] = manifest.MPD.Period.map((period) => {
         const startTime = calculatePeriodStart(period)
         const endTime = calculatePeriodEnd(period) ?? Infinity
-        const representations = flattenRepresentations(period)
+        const representations = flattenMediaRepresentations(period)
         const qualities: MediaQualityData[] = representations.map(
             (representation: RepresentationType): MediaQualityData => {
                 const metadata =

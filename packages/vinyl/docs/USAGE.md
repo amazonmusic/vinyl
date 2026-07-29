@@ -430,3 +430,64 @@ player.configure({ abr: { maxBandwidth: 0 } })
 // Remove the cap.
 player.configure({ abr: { maxBandwidth: null } })
 ```
+
+## Sidecar Text Tracks
+
+Vinyl discovers WebVTT subtitle tracks delivered alongside HLS or DASH content
+("sidecar" subtitles) and exposes them through `VinylPlayer`.
+
+### Discovery
+
+For HLS, the player reads `EXT-X-MEDIA:TYPE=SUBTITLES` renditions from the
+multivariant playlist. The rendition's `URI` may point at a `.vtt` file directly
+or at a media playlist (`.m3u8`) whose segments are individual `.vtt` files;
+both forms are supported.
+
+For DASH, the player reads `<AdaptationSet contentType="text">` (or any
+`<AdaptationSet>` with a `text/*` `mimeType`). Each `<Representation>`'s
+`BaseURL` chain is resolved against the manifest URL to produce the absolute
+text track URL. Segmented text codecs (`stpp`, `wvtt`) are not surfaced in v1.
+
+Discovery happens automatically when a track loads — applications need only
+listen for the `textTracksChange` event or read `player.textTracks`.
+
+### API
+
+```typescript
+// Inspect available text tracks for the current media.
+console.log(player.textTracks)
+// → [{ id, kind: 'subtitles', language: 'en', label: 'English', default: true,
+//      uri: 'https://.../subs/en.vtt', mimeType: 'text/vtt' }, ...]
+
+// Activate a track.
+player.setActiveTextTrack(player.textTracks[0].id)
+
+// Inspect or clear the active track.
+console.log(player.activeTextTrack)
+player.setActiveTextTrack(null)
+
+// React to changes.
+player.on('textTracksChange', (event) => {
+    console.log('Text tracks updated:', event.current)
+})
+player.on('activeTextTrackChange', (event) => {
+    console.log('Active text track:', event.current)
+})
+player.on('textTrackError', (event) => {
+    console.warn('Failed to load track', event.track.label, event.error)
+})
+```
+
+When a track is activated, Vinyl fetches the WebVTT, parses it, and adds the
+resulting cues to a `TextTrack` on the underlying `<video>` / `<audio>` element
+via `HTMLMediaElement.addTextTrack`. The browser handles cue rendering according
+to the `default` controls or any custom UI you build on top of the DOM
+`TextTrack` API.
+
+### Generating Test Content
+
+`DMTestAssetBuilder` generates English / Spanish / Japanese sidecar VTT files
+for every produced HLS and DASH asset. The text-track wiring lives in
+`src/addTextTracks.ts`; running `npm run generate` produces VTT files in
+`subs/<lang>.vtt` next to each manifest, with the manifest patched to reference
+them.

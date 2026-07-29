@@ -48,6 +48,8 @@ import {
 } from './buildDashMediaTimeline'
 import { createDefaultMediaTimelineTransformer } from '../../streaming/createDefaultMediaTimelineTransformer'
 import type { DashManifestData } from './DashManifestProvider'
+import { SidecarTextTrackController } from '../../text/SidecarTextTrackController'
+import { discoverDashTextTracks } from '../../text/discoverDashTextTracks'
 
 /**
  * Player-level dependencies needed for the Dash-specific factories.
@@ -63,6 +65,11 @@ export interface DashFactoryDeps {
     readonly requestInterceptor: RequestInterceptor
     readonly drmController: DrmController
     readonly capabilities: Capabilities
+    /**
+     * The HTML media element. Required to attach sidecar text tracks via
+     * `media.addTextTrack`.
+     */
+    readonly media: HTMLMediaElement
 }
 
 export type DashInitOptions = {
@@ -122,6 +129,33 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                         return buildDashMediaTimeline(deps, data)
                     }),
                 mediaTimelineTransformed: createDefaultMediaTimelineTransformer,
+                textTrackController: (deps: {
+                    readonly media: HTMLMediaElement
+                    readonly manifestTransformed: ObservableValue<
+                        Promise<DashManifestData>
+                    >
+                }) => {
+                    const controller = new SidecarTextTrackController({
+                        media: deps.media,
+                        requestInit: loadOptions.requestInit ?? undefined,
+                    })
+                    deps.manifestTransformed.onData((manifestPromise) => {
+                        manifestPromise
+                            .then((data) => {
+                                controller.setTextTracks(
+                                    discoverDashTextTracks(
+                                        data.manifest,
+                                        data.baseUrl
+                                    )
+                                )
+                            })
+                            .catch(() => {
+                                // Manifest errors are surfaced through the
+                                // manifest controller. Don't double-report.
+                            })
+                    })
+                    return controller
+                },
             } as const) satisfies Factories<DashTrackDeps>
     }
 }

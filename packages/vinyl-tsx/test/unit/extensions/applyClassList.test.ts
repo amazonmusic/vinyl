@@ -93,6 +93,29 @@ describe('applyClassList', () => {
         expect(el.classList.contains('dynamic')).toBeTrue()
     })
 
+    it('returns a callable unsubscribe for a static-only list', () => {
+        const el = dom.createElement('div')
+        const unsub = applyClassList(el, ['foo', 'bar'])
+        expect(unsub).toEqual(jasmine.any(Function))
+        expect(() => unsub()).not.toThrow()
+    })
+
+    it('unsubscribes observable bindings via the returned unsubscribe', () => {
+        initializeConnectedObserver()
+        const el = dom.createElement('div')
+        const className = data<string | null>('active')
+
+        const unsub = applyClassList(el, [className])
+        dom.simulateConnect(dom.document, el)
+        expect(el.classList.contains('active')).toBeTrue()
+
+        unsub()
+        expect(el.classList.contains('active')).toBeFalse()
+
+        className.value = 'new-class'
+        expect(el.classList.contains('new-class')).toBeFalse()
+    })
+
     it('does not remove a re-added class on cleanup after null transition', () => {
         initializeConnectedObserver()
         const el = dom.createElement('div')

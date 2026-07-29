@@ -31,6 +31,7 @@ import type {
     MediaQualityMetadata,
 } from '../streaming/MediaQualityMetadata'
 import { type DrmOptions, drmOptionsValidator } from '../drm/DrmOptions'
+import type { TextTrackController } from '../text/TextTrack'
 
 /**
  * Dependencies for TrackBase.
@@ -110,6 +111,14 @@ export abstract class TrackBase<
 
     get fetchedRanges(): ReadonlyRanges {
         return emptyRanges
+    }
+
+    /**
+     * Default text track controller is null. Tracks that surface text tracks
+     * (e.g. {@link MseTrack}) override this getter.
+     */
+    get textTrackController(): TextTrackController | null {
+        return null
     }
 
     abstract get contentTypes(): ReadonlySet<ContentType>

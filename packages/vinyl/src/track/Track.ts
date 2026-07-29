@@ -16,6 +16,10 @@ import type {
     MediaQualityMetadata,
 } from '../streaming/MediaQualityMetadata'
 import type { StreamingEventMap } from '../streaming/StreamingEventMap'
+import type {
+    ReadonlyTextTrackController,
+    TextTrackController,
+} from '../text/TextTrack'
 
 /**
  * All events a track may emit.
@@ -156,6 +160,12 @@ export interface ReadonlyTrack extends ReadonlyStreamingState, LogTarget {
      * The last error that occurred in this track, or null if no error.
      */
     readonly error: Error | null
+
+    /**
+     * Controller for sidecar text tracks discovered for this track, or null
+     * if the track type does not surface text tracks.
+     */
+    readonly textTrackController: ReadonlyTextTrackController | null
 }
 
 /**
@@ -163,6 +173,11 @@ export interface ReadonlyTrack extends ReadonlyStreamingState, LogTarget {
  */
 export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
     extends ReadonlyTrack, StreamingState, Disposable {
+    /**
+     * Mutable view of {@link ReadonlyTrack.textTrackController} that allows
+     * selecting the active text track.
+     */
+    readonly textTrackController: TextTrackController | null
     /**
      * Provides configuration to the track and begins preloading (if applicable).
      *

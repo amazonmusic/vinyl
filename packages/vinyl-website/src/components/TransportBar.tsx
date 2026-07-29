@@ -13,6 +13,7 @@ import { Icon } from './icons'
 import { LIVE_DURATION } from '@amazon/vinyl'
 import { ScrubBar } from './ScrubBar'
 import { VolumeControl } from './VolumeControl'
+import { CaptionsControl } from './CaptionsControl'
 
 const target: LogTarget = {
     logPrefix: 'TransportBar',
@@ -137,6 +138,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                     </div>
                 </div>
                 <div className="transportActions">
+                    <CaptionsControl />
                     <button
                         className="transportBtn"
                         title="Picture in Picture"

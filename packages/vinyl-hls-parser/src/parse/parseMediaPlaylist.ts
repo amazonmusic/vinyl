@@ -25,12 +25,16 @@ const EXT_X_BYTERANGE = '#EXT-X-BYTERANGE:'
 const EXT_X_DISCONTINUITY = '#EXT-X-DISCONTINUITY'
 const EXT_X_PROGRAM_DATE_TIME = '#EXT-X-PROGRAM-DATE-TIME:'
 const EXT_X_MAP = '#EXT-X-MAP:'
+const EXT_X_DEFINE = '#EXT-X-DEFINE:'
 
 /**
  * Parses an HLS media playlist from M3U8 text.
  *
  * @param text The raw M3U8 manifest string.
- * @param variables Optional variable definitions from the master playlist's #EXT-X-DEFINE tags.
+ * @param variables Optional variable definitions from the parent multivariant
+ *   playlist's #EXT-X-DEFINE tags. Media-playlist `#EXT-X-DEFINE:IMPORT="name"`
+ *   entries resolve against this map. Local `#EXT-X-DEFINE:NAME=,VALUE=`
+ *   entries are also supported and take precedence.
  * @returns A readonly MediaPlaylist structure.
  * @throws StringParseError if the manifest is malformed.
  */
@@ -38,6 +42,12 @@ export function parseMediaPlaylist(
     text: string,
     variables?: Readonly<Record<string, string>>
 ): MediaPlaylist {
+    const defines: Record<string, string> = { ...(variables ?? {}) }
+    const substituteVars = (v: string): string =>
+        Object.keys(defines).length === 0
+            ? v
+            : substitute(v, defines, HLS_VARIABLE_PATTERN)
+
     const reader = new StringReader(text)
 
     reader.white()
@@ -78,9 +88,7 @@ export function parseMediaPlaylist(
                 if (skipWhitespaceLine(reader)) continue
                 const nextLine = readLine(reader).trim()
                 if (!nextLine.startsWith('#')) {
-                    uri = variables
-                        ? substitute(nextLine, variables, HLS_VARIABLE_PATTERN)
-                        : nextLine
+                    uri = substituteVars(nextLine)
                     break
                 }
                 // Process tags that come between EXTINF and URI
@@ -184,6 +192,19 @@ export function parseMediaPlaylist(
             pendingDiscontinuity = true
         } else if (trimmed.startsWith(EXT_X_PROGRAM_DATE_TIME)) {
             pendingDateTime = trimmed.substring(EXT_X_PROGRAM_DATE_TIME.length)
+        } else if (trimmed.startsWith(EXT_X_DEFINE)) {
+            const attrStr = trimmed.substring(EXT_X_DEFINE.length)
+            const attrReader = new StringReader(attrStr)
+            const attrs = parseAttributes(attrReader)
+            const importName = attrs['IMPORT']
+            if (importName) {
+                // Per RFC 8216 §4.4.2.3: IMPORT copies the value from the
+                // parent multivariant's DEFINE map. Ignore silently if unknown.
+                const imported = variables?.[importName]
+                if (imported !== undefined) defines[importName] = imported
+            } else if (attrs['NAME'] && attrs['VALUE']) {
+                defines[attrs['NAME']] = attrs['VALUE']
+            }
         }
         // Unrecognized tags and comments are silently skipped
     }

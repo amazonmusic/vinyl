@@ -40,6 +40,7 @@ import {
     getMediaPeriodAtTime,
     type MediaPeriod,
 } from '../../streaming/MediaTimeline'
+import type { TextTrackController } from '../../text/TextTrack'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -49,6 +50,12 @@ export type MseTrackDeps = TrackBaseDeps & {
     readonly playbackSource: PlaybackSource
     readonly mediaTimeline: ObservableValue<Promise<MediaTimeline>>
     readonly mediaTimelineTransformed: ObservableValue<Promise<MediaTimeline>>
+    /**
+     * Optional sidecar text track controller for this track. When provided,
+     * the controller is exposed via {@link MseTrack.textTrackController} and
+     * disposed when the track itself is disposed.
+     */
+    readonly textTrackController?: TextTrackController | null
 }
 
 type FunctionKeys<T> = {
@@ -64,6 +71,10 @@ export class MseTrack extends TrackBase {
     }
 
     declare protected readonly deps: MseTrackDeps
+
+    override get textTrackController(): TextTrackController | null {
+        return this.deps.textTrackController ?? null
+    }
 
     private readonly streams: ContentStream[] = []
     private readonly disposeAbort = new Abort()

@@ -102,4 +102,60 @@ describe('createHlsFactories', () => {
         const deps = createContainer(factories).dependencies
         expect(deps.manifestController).toEqual(any(HlsManifestControllerImpl))
     })
+
+    it('creates a sidecar text track controller and populates from manifest', async () => {
+        const factoryCreator = createHlsFactories(null)
+        const subtitleManifest = {
+            ...mockHlsManifestData,
+            mainPlaylist: {
+                ...mockHlsManifestData.mainPlaylist,
+                alternativeRenditions: [
+                    {
+                        type: 'SUBTITLES' as const,
+                        groupId: 'subs',
+                        name: 'English',
+                        language: 'en',
+                        uri: 'subs/en.vtt',
+                    },
+                ],
+            },
+        }
+        const provider =
+            createSpy<HlsManifestProvider>('subtitleProvider').and.resolveTo(
+                subtitleManifest
+            )
+        const factories = factoryCreator(hlsFactoryDeps)({
+            uri: 'https://example.com/main.m3u8',
+            type: 'hls',
+            manifestProvider: provider,
+        })
+        const deps = createContainer(factories).dependencies
+        // Resolve textTrackController first so it subscribes to
+        // manifestTransformed before the manifest promise resolves.
+        const controller = deps.textTrackController
+        await deps.manifestTransformed.value
+        await new Promise((r) => setTimeout(r, 0))
+        expect(controller).toBeDefined()
+        expect(controller.textTracks.length).toBe(1)
+        expect(controller.textTracks[0].language).toBe('en')
+    })
+
+    it('text track controller swallows manifest fetch errors', async () => {
+        const factoryCreator = createHlsFactories(null)
+        const provider = createSpy<HlsManifestProvider>(
+            'failing'
+        ).and.rejectWith(new Error('manifest down'))
+        const factories = factoryCreator(hlsFactoryDeps)({
+            uri: 'https://example.com/main.m3u8',
+            type: 'hls',
+            manifestProvider: provider,
+        })
+        const deps = createContainer(factories).dependencies
+        const controller = deps.textTrackController
+        // Trigger the transform; the promise will reject but the
+        // textTrackController must not throw.
+        await deps.manifestTransformed.value.catch(() => undefined)
+        await new Promise((r) => setTimeout(r, 0))
+        expect(controller.textTracks).toEqual([])
+    })
 })

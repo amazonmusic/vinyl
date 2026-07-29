@@ -69,6 +69,7 @@ import type {
 import type { VinylOptions } from './VinylOptions'
 import type { AutoResetController } from '../track/AutoResetController'
 import type { ChangeEvent } from '../event/ChangeEvent'
+import type { TextTrackEventMap, TextTrackInfo } from '../text/TextTrack'
 
 /**
  * Events the Vinyl Player emits.
@@ -79,7 +80,8 @@ export interface VinylPlayerEventMap<
     extends
         PlaybackControllerEventMap,
         TrackControllerEventMap<TrackLoadOptionsType>,
-        StreamingEventMap {
+        StreamingEventMap,
+        TextTrackEventMap {
     /**
      * Dispatched when {@link VinylPlayer.resetPending} changes.
      *
@@ -94,6 +96,12 @@ export interface VinylPlayerEventMap<
      */
     readonly resetPendingChange: ChangeEvent<boolean>
 }
+
+const ALL_TEXT_TRACK_EVENTS = [
+    'textTracksChange',
+    'activeTextTrackChange',
+    'textTrackError',
+] as const satisfies readonly (keyof TextTrackEventMap)[]
 
 /**
  * A Vinyl Media Player.
@@ -196,18 +204,40 @@ export class VinylPlayer<
      */
     protected redispatchCurrentTrackEvents() {
         let sub: Unsubscribe | null = null
+        let textSub: Unsubscribe | null = null
         const add = this.disposer.add
         add(
             this.trackController.on('currentTrackChange', (event) => {
+                // The previous track may stay cached, so its text track
+                // controller isn't disposed here. Deactivate its selection
+                // so the DOM TextTrack is disabled and cues cleared. Done
+                // before tearing down redispatch subs so the resulting
+                // activeTextTrackChange event flows through to the player.
+                const prevTextController = event.previous
+                    ?.textTrackController as
+                    | { setActiveTextTrack(id: string | null): void }
+                    | null
+                    | undefined
+                prevTextController?.setActiveTextTrack(null)
                 sub?.()
                 sub = null
+                textSub?.()
+                textSub = null
                 if (event.current) {
                     sub = redispatchEvents(
                         this,
                         event.current,
                         ALL_STREAMING_EVENTS.filter(notResetEvent)
                     )
+                    if (event.current.textTrackController) {
+                        textSub = redispatchEvents(
+                            this,
+                            event.current.textTrackController,
+                            ALL_TEXT_TRACK_EVENTS
+                        )
+                    }
                 }
+                this.emitTextTrackChangeEventsFor(event.previous, event.current)
                 this.dispatch('fetchedRangesChange', {})
 
                 // Emit a quality change event for every stream that has changed
@@ -630,6 +660,62 @@ export class VinylPlayer<
      */
     getPlaybackQuality(contentType: ContentType): MediaQualityMetadata | null {
         return this.currentTrack?.getPlaybackQuality(contentType) ?? null
+    }
+
+    //----------------------------------------------------
+    // Text track delegate methods
+    //----------------------------------------------------
+
+    /**
+     * The list of currently discovered sidecar text tracks for the active
+     * media. Empty when there is no current track or the current track
+     * carries no text.
+     */
+    get textTracks(): readonly TextTrackInfo[] {
+        return this.currentTrack?.textTrackController?.textTracks ?? []
+    }
+
+    /**
+     * The currently active text track, or null if no track is selected.
+     */
+    get activeTextTrack(): TextTrackInfo | null {
+        return this.currentTrack?.textTrackController?.activeTextTrack ?? null
+    }
+
+    /**
+     * Selects the text track with the given id, or clears the active text
+     * track when called with null. No-op when the current track does not
+     * surface text tracks or the id is unknown.
+     */
+    setActiveTextTrack(id: string | null): void {
+        const controller = this.deps.trackController.currentTrack
+            ?.textTrackController as
+            | { setActiveTextTrack(id: string | null): void }
+            | null
+            | undefined
+        controller?.setActiveTextTrack(id)
+    }
+
+    private emitTextTrackChangeEventsFor(
+        previous: ReadonlyTrack | null,
+        current: ReadonlyTrack | null
+    ): void {
+        // Active-track changes are surfaced by redispatching the previous
+        // track's controller (deactivated on switch) and the current track's
+        // controller. Here we only bridge the list-of-tracks difference,
+        // which doesn't have its own redispatched signal at track boundaries.
+        const prevList =
+            previous?.textTrackController?.textTracks ??
+            ([] as readonly TextTrackInfo[])
+        const curList =
+            current?.textTrackController?.textTracks ??
+            ([] as readonly TextTrackInfo[])
+        if (prevList !== curList) {
+            this.dispatch('textTracksChange', {
+                previous: prevList,
+                current: curList,
+            })
+        }
     }
 
     //----------------------------------------------------

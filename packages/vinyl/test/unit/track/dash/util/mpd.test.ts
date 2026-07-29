@@ -8,6 +8,7 @@ import {
     calculatePeriodEnd,
     calculatePeriodStart,
     calculatePeriodTimeRange,
+    flattenMediaRepresentations,
     flattenRepresentations,
     getPeriodAtTime,
     getRepresentationAncestry,
@@ -335,6 +336,33 @@ describe('mpd utils', () => {
                     { bandwidth: 6, id: '3b' },
                 ])
             )
+        })
+    })
+
+    describe('flattenMediaRepresentations', () => {
+        it('excludes text adaptation sets, keeping audio and video', () => {
+            // language=XML
+            const manifest = parseDashManifest(`<?xml version="1.0" ?>
+                <MPD minBufferTime="PT0S" profiles="" xmlns="urn:mpeg:dash:schema:mpd:2011">
+                    <Period>
+                        <AdaptationSet contentType="video" mimeType="video/mp4">
+                            <Representation bandwidth="3285092" codecs="avc1.640028" id="v0"/>
+                        </AdaptationSet>
+                        <AdaptationSet contentType="audio" mimeType="audio/mp4">
+                            <Representation bandwidth="128000" codecs="mp4a.40.2" id="a0"/>
+                        </AdaptationSet>
+                        <AdaptationSet contentType="text" mimeType="text/vtt" lang="en">
+                            <Representation bandwidth="100" id="text-en">
+                                <BaseURL>subs/en.vtt</BaseURL>
+                            </Representation>
+                        </AdaptationSet>
+                    </Period>
+                </MPD>`)
+
+            const ids = flattenMediaRepresentations(manifest.MPD.Period[0]).map(
+                (r) => r.id
+            )
+            expect(ids).toEqual(['v0', 'a0'])
         })
     })
 

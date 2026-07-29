@@ -6,6 +6,7 @@
 import {
     type ContentType,
     type MediaQualityMetadata,
+    type TextTrackController,
     type Track,
     type TrackEventMap,
 } from '@amazon/vinyl'
@@ -33,6 +34,7 @@ export class MockTrack extends MockEventHost<TrackEventMap> implements Track {
     getPlaybackQuality = spyFactory('getPlaybackQuality')
     extra: any = undefined
     error: Error | null = null
+    textTrackController: TextTrackController | null = null
 
     activate = spyFactory('activate')
     deactivate = spyFactory('deactivate')

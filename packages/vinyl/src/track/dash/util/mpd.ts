@@ -15,6 +15,7 @@ import {
     type SegmentListType,
     type SegmentTemplateType,
 } from '@amazon/vinyl-mpd-parser'
+import { getRepresentationMimeInfo } from './mimeType'
 
 // TODO: For dynamic MPDs, availability time offsets should be summed.
 
@@ -175,6 +176,24 @@ export function flattenRepresentations(
         })
     })
     return out
+}
+
+/**
+ * Flattens the representations across all adaptation sets for the given Period
+ * that the MSE media pipeline can play, i.e. `audio` and `video`.
+ *
+ * Text adaptation sets (e.g. `contentType="text"` WebVTT sidecar subtitles) are
+ * excluded: they are surfaced through the sidecar text-track pipeline
+ * (`discoverDashTextTracks`), not buffered through MSE, so including them here
+ * would create an unplayable text SourceBuffer and stall playback.
+ */
+export function flattenMediaRepresentations(
+    period: PeriodType
+): RepresentationType[] {
+    return flattenRepresentations(period).filter((representation) => {
+        const { contentType } = getRepresentationMimeInfo(representation)
+        return contentType === 'audio' || contentType === 'video'
+    })
 }
 
 /**
