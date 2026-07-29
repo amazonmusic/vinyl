@@ -35,6 +35,13 @@ const demoTracks: Track[] = [
         url: `${ASSETS_HOST}/hls/live_static_video_audio_60s_4s_mpegts/main.m3u8`,
         description: '60s HLS video and audio mpegts stream with transmuxing',
     },
+    {
+        title: 'Ad Interstitials (HLS)',
+        type: 'hls',
+        contentType: 'video',
+        url: 'https://devstreaming-cdn.apple.com/videos/streaming/examples/interstitial-sample/mvp_interstitial_sample.m3u8',
+        description: 'Apple HLS Interstitials sample with SGAI ad breaks',
+    },
 ]
 
 export function PlayerPage() {
