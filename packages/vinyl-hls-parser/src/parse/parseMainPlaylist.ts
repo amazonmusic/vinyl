@@ -23,10 +23,18 @@ const EXT_X_DEFINE = '#EXT-X-DEFINE:'
  * Parses an HLS master playlist from M3U8 text.
  *
  * @param text The raw M3U8 manifest string.
+ * @param queryParams Optional query parameters from the playlist's own URL,
+ *   used to resolve `#EXT-X-DEFINE:QUERYPARAM="name"` entries (RFC 8216
+ *   §4.4.5.1). Resolved values are exposed via {@link MainPlaylist.defines} so
+ *   child media playlists can `IMPORT` them. Interstitial ad manifests (e.g.
+ *   AWS MediaTailor) carry session tokens this way.
  * @returns A readonly MainPlaylist structure.
  * @throws StringParseError if the manifest is malformed.
  */
-export function parseMainPlaylist(text: string): MainPlaylist {
+export function parseMainPlaylist(
+    text: string,
+    queryParams?: Readonly<Record<string, string>>
+): MainPlaylist {
     const reader = new StringReader(text)
 
     reader.white()
@@ -136,7 +144,16 @@ export function parseMainPlaylist(text: string): MainPlaylist {
             const attrStr = trimmed.substring(EXT_X_DEFINE.length)
             const attrReader = new StringReader(attrStr)
             const attrs = parseAttributes(attrReader)
-            if (attrs['NAME'] && attrs['VALUE']) {
+            const queryParamName = attrs['QUERYPARAM']
+            if (queryParamName) {
+                // Per RFC 8216 §4.4.5.1: QUERYPARAM copies the value from the
+                // named query parameter of the playlist's own URL. Ignore
+                // silently if the parameter is absent.
+                const queryValue = queryParams?.[queryParamName]
+                if (queryValue !== undefined) {
+                    defines[queryParamName] = queryValue
+                }
+            } else if (attrs['NAME'] && attrs['VALUE']) {
                 defines[attrs['NAME']] = attrs['VALUE']
             }
         }

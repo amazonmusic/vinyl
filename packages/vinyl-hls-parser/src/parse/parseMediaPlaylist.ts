@@ -4,6 +4,7 @@
  */
 
 import { StringReader, substitute } from '@amazon/vinyl-util'
+import type { DateRange } from '../types/DateRange'
 import type { EncryptionKey } from '../types/EncryptionKey'
 import { encryptionMethodValidator } from '../types/EncryptionKey'
 import type { HlsSegment, HlsMap } from '../types/HlsSegment'
@@ -26,6 +27,7 @@ const EXT_X_DISCONTINUITY = '#EXT-X-DISCONTINUITY'
 const EXT_X_PROGRAM_DATE_TIME = '#EXT-X-PROGRAM-DATE-TIME:'
 const EXT_X_MAP = '#EXT-X-MAP:'
 const EXT_X_DEFINE = '#EXT-X-DEFINE:'
+const EXT_X_DATERANGE = '#EXT-X-DATERANGE:'
 
 /**
  * Parses an HLS media playlist from M3U8 text.
@@ -35,12 +37,17 @@ const EXT_X_DEFINE = '#EXT-X-DEFINE:'
  *   playlist's #EXT-X-DEFINE tags. Media-playlist `#EXT-X-DEFINE:IMPORT="name"`
  *   entries resolve against this map. Local `#EXT-X-DEFINE:NAME=,VALUE=`
  *   entries are also supported and take precedence.
+ * @param queryParams Optional query parameters from the playlist's own URL,
+ *   used to resolve `#EXT-X-DEFINE:QUERYPARAM="name"` entries (RFC 8216
+ *   §4.4.5.1). Interstitial ad manifests (e.g. AWS MediaTailor) commonly carry
+ *   session tokens this way and reference them as `{$name}` in child URIs.
  * @returns A readonly MediaPlaylist structure.
  * @throws StringParseError if the manifest is malformed.
  */
 export function parseMediaPlaylist(
     text: string,
-    variables?: Readonly<Record<string, string>>
+    variables?: Readonly<Record<string, string>>,
+    queryParams?: Readonly<Record<string, string>>
 ): MediaPlaylist {
     const defines: Record<string, string> = { ...(variables ?? {}) }
     const substituteVars = (v: string): string =>
@@ -69,6 +76,7 @@ export function parseMediaPlaylist(
     let pendingDateTime: string | undefined
 
     const segments: HlsSegment[] = []
+    const dateRanges: DateRange[] = []
     let sequenceCounter = 0
 
     while (reader.hasNext()) {
@@ -197,14 +205,29 @@ export function parseMediaPlaylist(
             const attrReader = new StringReader(attrStr)
             const attrs = parseAttributes(attrReader)
             const importName = attrs['IMPORT']
+            const queryParamName = attrs['QUERYPARAM']
             if (importName) {
                 // Per RFC 8216 §4.4.2.3: IMPORT copies the value from the
                 // parent multivariant's DEFINE map. Ignore silently if unknown.
                 const imported = variables?.[importName]
                 if (imported !== undefined) defines[importName] = imported
+            } else if (queryParamName) {
+                // Per RFC 8216 §4.4.5.1: QUERYPARAM copies the value from the
+                // named query parameter of the playlist's own URL. Ignore
+                // silently if the parameter is absent.
+                const queryValue = queryParams?.[queryParamName]
+                if (queryValue !== undefined) {
+                    defines[queryParamName] = queryValue
+                }
             } else if (attrs['NAME'] && attrs['VALUE']) {
                 defines[attrs['NAME']] = attrs['VALUE']
             }
+        } else if (trimmed.startsWith(EXT_X_DATERANGE)) {
+            const dateRange = parseDateRange(
+                trimmed.substring(EXT_X_DATERANGE.length),
+                substituteVars
+            )
+            if (dateRange) dateRanges.push(dateRange)
         }
         // Unrecognized tags and comments are silently skipped
     }
@@ -216,6 +239,68 @@ export function parseMediaPlaylist(
         playlistType,
         ended,
         segments,
+        dateRanges,
+    }
+}
+
+/**
+ * Attribute names that map to typed {@link DateRange} fields and are therefore
+ * excluded from the free-form {@link DateRange.clientAttributes} bag.
+ */
+const DATERANGE_RESERVED_ATTRS = new Set([
+    'ID',
+    'CLASS',
+    'START-DATE',
+    'END-DATE',
+    'DURATION',
+    'PLANNED-DURATION',
+    'END-ON-NEXT',
+])
+
+/**
+ * Parses the attribute list of an EXT-X-DATERANGE tag. Returns undefined when
+ * the tag is missing the required ID or START-DATE attributes (per RFC 8216
+ * §4.3.2.7 a Date Range without both is not usable), so malformed tags are
+ * skipped rather than throwing.
+ *
+ * The `X-` client-defined attributes are collected verbatim into
+ * {@link DateRange.clientAttributes}. Interstitial attributes such as
+ * `X-ASSET-URI` frequently reference EXT-X-DEFINE variables, so string values
+ * are passed through the same substitution applied to segment URIs.
+ */
+function parseDateRange(
+    attrStr: string,
+    substituteVars: (v: string) => string
+): DateRange | undefined {
+    const attrs = parseAttributes(new StringReader(attrStr))
+
+    const id = attrs['ID']
+    // START-DATE may be absent (the Record index type hides this), so gate on
+    // key presence rather than a nullish fallback.
+    const startDate = 'START-DATE' in attrs ? attrs['START-DATE'] : ''
+    // END-ON-NEXT ranges anchor to the following range and may legitimately
+    // omit START-DATE; RFC requires ID and CLASS in that case.
+    const endOnNext = attrs['END-ON-NEXT'] === 'YES'
+    if (!id) return undefined
+    if (!startDate && !endOnNext) return undefined
+
+    const clientAttributes: Record<string, string> = {}
+    for (const [key, value] of Object.entries(attrs)) {
+        if (DATERANGE_RESERVED_ATTRS.has(key)) continue
+        clientAttributes[key] = substituteVars(value)
+    }
+
+    return {
+        id,
+        startDate,
+        ...(attrs['CLASS'] && { classId: attrs['CLASS'] }),
+        ...(attrs['END-DATE'] && { endDate: attrs['END-DATE'] }),
+        ...(attrs['DURATION'] && { duration: Number(attrs['DURATION']) }),
+        ...(attrs['PLANNED-DURATION'] && {
+            plannedDuration: Number(attrs['PLANNED-DURATION']),
+        }),
+        ...(endOnNext && { endOnNext: true }),
+        clientAttributes,
     }
 }
 
