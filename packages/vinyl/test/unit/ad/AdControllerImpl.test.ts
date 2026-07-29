@@ -86,6 +86,42 @@ describe('AdControllerImpl', () => {
         expect(count).toBe(1)
     })
 
+    it('drops skip state for a break absent from a new break set', async () => {
+        const c = createController()
+        // Load A: enter and skip break 'a'.
+        c.setAdBreaks([makeBreak({ id: 'a', startTime: 0, duration: 10 })])
+        updateTime(c, 1)
+        await flush()
+        c.skipAd()
+        expect(c.activeAdBreak).toBeNull()
+
+        // Load B: an entirely different break set ('a' is gone). Load A's skip
+        // must not leak; if 'a' ever returns it should be playable again.
+        c.setAdBreaks([makeBreak({ id: 'b', startTime: 40, duration: 5 })])
+        // Load C reintroduces 'a'; its stale skip should have been dropped.
+        c.setAdBreaks([makeBreak({ id: 'a', startTime: 20, duration: 10 })])
+        updateTime(c, 21)
+        await flush()
+        expect(c.activeAdBreak?.id).toBe('a')
+    })
+
+    it('retains skip state for a break still present alongside a new one', async () => {
+        const c = createController()
+        c.setAdBreaks([makeBreak({ id: 'a', startTime: 0, duration: 10 })])
+        updateTime(c, 1)
+        await flush()
+        c.skipAd()
+        // A live manifest reveals a second break; 'a' is still present.
+        c.setAdBreaks([
+            makeBreak({ id: 'a', startTime: 0, duration: 10 }),
+            makeBreak({ id: 'b', startTime: 20, duration: 10 }),
+        ])
+        // 'a' remains skipped and does not re-activate.
+        updateTime(c, 5)
+        await flush()
+        expect(c.activeAdBreak).toBeNull()
+    })
+
     it('sorts breaks by start time', () => {
         const c = createController()
         c.setAdBreaks([
@@ -326,6 +362,63 @@ describe('AdControllerImpl', () => {
         it('is a no-op when no break is active', () => {
             const c = createController()
             expect(() => c.advanceOrSkipAd()).not.toThrow()
+        })
+    })
+
+    describe('enterPostrollIfPending', () => {
+        it('enters a pending postroll and reports it handled', async () => {
+            const c = createController()
+            c.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 60,
+                    duration: 10,
+                    placement: 'postroll',
+                }),
+            ])
+            const handled = c.enterPostrollIfPending()
+            expect(handled).toBeTrue()
+            await flush()
+            expect(c.activeAdBreak?.id).toBe('post')
+        })
+
+        it('returns false when there is no postroll', () => {
+            const c = createController()
+            c.setAdBreaks([
+                makeBreak({ startTime: 0, duration: 10, placement: 'preroll' }),
+            ])
+            expect(c.enterPostrollIfPending()).toBeFalse()
+        })
+
+        it('returns false when a break is already active', async () => {
+            const c = createController()
+            c.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 0,
+                    duration: 10,
+                    placement: 'postroll',
+                }),
+            ])
+            updateTime(c, 1)
+            await flush()
+            expect(c.enterPostrollIfPending()).toBeFalse()
+        })
+
+        it('does not re-enter a postroll that was already played', async () => {
+            const c = createController()
+            c.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 60,
+                    duration: 10,
+                    placement: 'postroll',
+                }),
+            ])
+            expect(c.enterPostrollIfPending()).toBeTrue()
+            await flush()
+            c.skipAd() // play through / end the postroll
+            expect(c.enterPostrollIfPending()).toBeFalse()
         })
     })
 

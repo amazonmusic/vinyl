@@ -1292,6 +1292,83 @@ describe('TrackControllerImpl', () => {
             expect(queueEndedSpy).not.toHaveBeenCalled()
         })
 
+        it('plays a pending postroll on content end instead of ending the queue', async () => {
+            const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 60,
+                    duration: 10,
+                    placement: 'postroll',
+                    ads: [
+                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                    ],
+                }),
+            ])
+            // Content reaches its natural end without a timeUpdate inside the
+            // postroll region.
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            // The postroll activates rather than the queue ending.
+            expect(trackController.currentAdTrack).not.toBeNull()
+            expect((trackController.currentAdTrack as MockTrack).uri).toBe(
+                'p.m3u8'
+            )
+            await clock.tick()
+            expect(queueEndedSpy).not.toHaveBeenCalled()
+        })
+
+        it('finalizes the queue after the postroll finishes', async () => {
+            const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
+            trackController.load(...createLoadOptionsList(1))
+            const content = trackController.currentTrack as MockTrack
+            content.activate.calls.reset()
+            adController.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 60,
+                    duration: 10,
+                    placement: 'postroll',
+                    ads: [
+                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                    ],
+                }),
+            ])
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            expect(trackController.currentAdTrack).not.toBeNull()
+
+            // The postroll ad ends → break ends → queue finalizes, content is
+            // NOT resumed.
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            expect(trackController.currentAdTrack).toBeNull()
+            expect(content.activate).not.toHaveBeenCalled()
+            await clock.tick()
+            expect(queueEndedSpy).toHaveBeenCalled()
+        })
+
+        it('finalizes the queue if the postroll resolves to no ads', async () => {
+            const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
+            trackController.load(...createLoadOptionsList(1))
+            adController.setAdBreaks([
+                makeBreak({
+                    id: 'post',
+                    startTime: 60,
+                    duration: 10,
+                    placement: 'postroll',
+                    ads: [],
+                }),
+            ])
+            deps.playbackController.dispatch('ended', {})
+            await flush()
+            // No ad to play; the queue must still finalize (no stall).
+            expect(trackController.currentAdTrack).toBeNull()
+            await clock.tick()
+            expect(queueEndedSpy).toHaveBeenCalled()
+        })
+
         it('resumes content when skipAd ends the break', async () => {
             trackController.load(...createLoadOptionsList(1))
             const content = trackController.currentTrack as MockTrack

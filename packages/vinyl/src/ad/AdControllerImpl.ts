@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { EventHostImpl, logDebug, type Unsubscribe } from '@amazon/vinyl-util'
+import {
+    equalDeep,
+    EventHostImpl,
+    logDebug,
+    type Unsubscribe,
+} from '@amazon/vinyl-util'
 import type { AdBreakInfo, AdController, AdEventMap, AdInfo } from './AdBreak'
 import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
 
@@ -94,10 +99,23 @@ export class AdControllerImpl
     }
 
     setAdBreaks(adBreaks: readonly AdBreakInfo[]): void {
-        const newIds = adBreaks.map((b) => b.id).join(',')
-        const curIds = this._adBreaks.map((b) => b.id).join(',')
-        if (newIds === curIds) return
+        // Only react when the set of break ids actually changes. This keeps a
+        // codec-recovery reload (which re-resolves the same manifest) from
+        // disrupting an active break, while still reacting to live manifests
+        // that reveal new breaks or to a genuinely new media load.
+        const newIds = new Set(adBreaks.map((b) => b.id))
+        const curIds = new Set(this._adBreaks.map((b) => b.id))
+        if (equalDeep(newIds, curIds)) return
         logDebug(this, 'setAdBreaks', adBreaks.length, 'breaks')
+
+        // Drop skip state for breaks that are no longer present so a new media
+        // load (or id reuse) does not silently suppress its ads. Skips for
+        // breaks still present are retained (e.g. a live break revealed
+        // alongside one the user already skipped).
+        for (const id of this._skippedBreakIds) {
+            if (!newIds.has(id)) this._skippedBreakIds.delete(id)
+        }
+
         const previous = this._adBreaks
         // Keep a stable, start-time ordering so consumers can rely on it and
         // so region lookups can assume monotonic starts.
@@ -126,6 +144,22 @@ export class AdControllerImpl
         }
     }
 
+    enterPostrollIfPending(): boolean {
+        if (this._active) return false
+        // A postroll's start time sits at (or beyond) the content's end, so the
+        // playhead rarely emits a timeUpdate inside it before `ended` fires.
+        // Find the first unplayed postroll and enter it directly.
+        const postroll = this._adBreaks.find(
+            (b) =>
+                b.placement === 'postroll' &&
+                b.duration != null &&
+                !this._skippedBreakIds.has(b.id)
+        )
+        if (!postroll) return false
+        this.enterBreak(postroll)
+        return true
+    }
+
     private updateTime(currentTime: number): void {
         // Don't re-evaluate while a break is active — the playhead reflects the
         // ad track's time, not the content timeline.
@@ -152,8 +186,7 @@ export class AdControllerImpl
                 if (this._active !== adBreak) return
                 if (ads.length === 0) {
                     // A break with no playable ads is skipped.
-                    this._active = null
-                    this._skippedBreakIds.add(adBreak.id)
+                    this.abandonEnteredBreak(adBreak)
                     return
                 }
                 this._activeAds = ads
@@ -164,9 +197,24 @@ export class AdControllerImpl
             })
             .catch(() => {
                 if (this._active !== adBreak) return
-                this._active = null
-                this._skippedBreakIds.add(adBreak.id)
+                this.abandonEnteredBreak(adBreak)
             })
+    }
+
+    /**
+     * Abandons a break that was entered (via {@link enterBreak}) but resolved
+     * to no playable ads. Emits `adBreakChange` to null so a listener that
+     * deferred work on the enter (e.g. a postroll on content end) is released;
+     * this is a no-op transition for listeners that never suspended content.
+     */
+    private abandonEnteredBreak(adBreak: AdBreakInfo): void {
+        this._active = null
+        this._activeAds = []
+        this._skippedBreakIds.add(adBreak.id)
+        // `previous` is null: the break's activation was never announced to
+        // listeners (we only dispatch `current` once ads resolve), so this
+        // reads as a no-op transition except to callers awaiting completion.
+        this.dispatch('adBreakChange', { previous: null, current: null })
     }
 
     skipAd(): void {

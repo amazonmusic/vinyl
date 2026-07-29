@@ -276,6 +276,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     private _adTrackAdId: string | null = null
     private _adResumeTime: number = 0
     private _adTimeoutId: TimeoutId | null = null
+    // Set when content reached its natural end while a postroll break plays, so
+    // the break's completion finalizes the queue instead of resuming content.
+    private _contentEnded = false
     // Ad tracks that have been created for preloading, keyed by ad id, so they
     // can be reused on activation and disposed when content changes.
     private readonly _adTrackCache = new Map<string, Track>()
@@ -307,15 +310,15 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     deps.adController.advanceOrSkipAd()
                     return
                 }
-                this.trackEndedTimeoutId = setTimeout(() => {
-                    this.trackEndedTimeoutId = null
-                    if (this.hasNext()) {
-                        this.next()
-                    } else {
-                        logInfo(this, 'queueEnded')
-                        this.dispatch('queueEnded', {})
-                    }
-                })
+                // A postroll's start sits at the content end, so the playhead
+                // rarely emits a timeUpdate inside it before `ended`. Give the
+                // ad controller a chance to activate a pending postroll; if it
+                // does, defer end-of-content handling until the break finishes.
+                if (deps.adController?.enterPostrollIfPending()) {
+                    this._contentEnded = true
+                    return
+                }
+                this.finishContent()
             })
         )
 
@@ -328,6 +331,12 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                         // Switch playback to the current ad's track.
                         const ad = adController.currentAd
                         if (ad) this.playAdTrack(ad)
+                    } else if (this._contentEnded) {
+                        // A postroll finished after content ended: tear down the
+                        // ad and finalize the queue rather than resuming content.
+                        this._contentEnded = false
+                        this.clearAdPlayback()
+                        this.finishContent()
                     } else if (this._adTrack) {
                         // The break ended — resume the content track.
                         this.resumeContent()
@@ -390,15 +399,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     private resumeContent(): void {
-        if (this._adTimeoutId) {
-            clearTimeout(this._adTimeoutId)
-            this._adTimeoutId = null
-        }
-        if (this._adTrack) {
-            this._adTrack.deactivate()
-            this._adTrack = null
-            this._adTrackAdId = null
-        }
+        this.clearAdPlayback()
         if (this._currentTrack && !this._currentTrack.active) {
             // Reactivate with the resume time as startTime so the track seeks
             // there as part of its normal activation (which waits for the
@@ -410,6 +411,38 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             })
             this.deps.playbackController.play().catch(() => {})
         }
+    }
+
+    /**
+     * Tears down the active ad track and its timeout without touching the
+     * content track or the preload cache.
+     */
+    private clearAdPlayback(): void {
+        if (this._adTimeoutId) {
+            clearTimeout(this._adTimeoutId)
+            this._adTimeoutId = null
+        }
+        if (this._adTrack) {
+            this._adTrack.deactivate()
+            this._adTrack = null
+            this._adTrackAdId = null
+        }
+    }
+
+    /**
+     * Finalizes end-of-content: advances to the next queued track after a frame
+     * delay, or dispatches `queueEnded` when the queue is empty.
+     */
+    private finishContent(): void {
+        this.trackEndedTimeoutId = setTimeout(() => {
+            this.trackEndedTimeoutId = null
+            if (this.hasNext()) {
+                this.next()
+            } else {
+                logInfo(this, 'queueEnded')
+                this.dispatch('queueEnded', {})
+            }
+        })
     }
 
     /**

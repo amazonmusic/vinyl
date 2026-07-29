@@ -37,12 +37,17 @@ const EXT_X_DATERANGE = '#EXT-X-DATERANGE:'
  *   playlist's #EXT-X-DEFINE tags. Media-playlist `#EXT-X-DEFINE:IMPORT="name"`
  *   entries resolve against this map. Local `#EXT-X-DEFINE:NAME=,VALUE=`
  *   entries are also supported and take precedence.
+ * @param queryParams Optional query parameters from the playlist's own URL,
+ *   used to resolve `#EXT-X-DEFINE:QUERYPARAM="name"` entries (RFC 8216
+ *   §4.4.5.1). Interstitial ad manifests (e.g. AWS MediaTailor) commonly carry
+ *   session tokens this way and reference them as `{$name}` in child URIs.
  * @returns A readonly MediaPlaylist structure.
  * @throws StringParseError if the manifest is malformed.
  */
 export function parseMediaPlaylist(
     text: string,
-    variables?: Readonly<Record<string, string>>
+    variables?: Readonly<Record<string, string>>,
+    queryParams?: Readonly<Record<string, string>>
 ): MediaPlaylist {
     const defines: Record<string, string> = { ...(variables ?? {}) }
     const substituteVars = (v: string): string =>
@@ -200,11 +205,20 @@ export function parseMediaPlaylist(
             const attrReader = new StringReader(attrStr)
             const attrs = parseAttributes(attrReader)
             const importName = attrs['IMPORT']
+            const queryParamName = attrs['QUERYPARAM']
             if (importName) {
                 // Per RFC 8216 §4.4.2.3: IMPORT copies the value from the
                 // parent multivariant's DEFINE map. Ignore silently if unknown.
                 const imported = variables?.[importName]
                 if (imported !== undefined) defines[importName] = imported
+            } else if (queryParamName) {
+                // Per RFC 8216 §4.4.5.1: QUERYPARAM copies the value from the
+                // named query parameter of the playlist's own URL. Ignore
+                // silently if the parameter is absent.
+                const queryValue = queryParams?.[queryParamName]
+                if (queryValue !== undefined) {
+                    defines[queryParamName] = queryValue
+                }
             } else if (attrs['NAME'] && attrs['VALUE']) {
                 defines[attrs['NAME']] = attrs['VALUE']
             }

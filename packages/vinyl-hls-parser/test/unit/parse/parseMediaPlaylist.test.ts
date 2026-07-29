@@ -534,6 +534,32 @@ segment.ts`
         )
     })
 
+    it('resolves EXT-X-DEFINE:QUERYPARAM from the playlist URL query params', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:QUERYPARAM="token"',
+            '#EXTINF:6.0,',
+            'seg0.ts?t={$token}',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, undefined, {
+            token: 'abc123',
+        })
+        expect(result.segments[0].uri).toBe('seg0.ts?t=abc123')
+    })
+
+    it('silently ignores EXT-X-DEFINE:QUERYPARAM for absent query params', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-DEFINE:QUERYPARAM="token"',
+            '#EXTINF:6.0,',
+            'seg0.ts?t={$token}',
+            '#EXT-X-ENDLIST',
+        ].join('\n')
+        const result = parseMediaPlaylist(manifest, undefined, {})
+        expect(result.segments[0].uri).toBe('seg0.ts?t={$token}')
+    })
+
     describe('EXT-X-DATERANGE', () => {
         it('defaults dateRanges to an empty array when absent', () => {
             const result = parseMediaPlaylist('#EXTM3U\n#EXTINF:9,\nseg.ts')

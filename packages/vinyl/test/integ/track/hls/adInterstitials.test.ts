@@ -292,6 +292,57 @@ describe('hls ad interstitials integ', () => {
         expect(player.currentTrack!.uri).toBe('integ-interstitial')
     })
 
+    it('lets an application attribute ended events to ads vs content', async () => {
+        // This is the contract documented in ADS.md: an `ended` observed while
+        // activeAdBreak is non-null originated from an ad, not from content.
+        const player = suite.player
+        // Two ads in the break so the first ad's natural `ended` fires while
+        // the break is still active — the exact case that trips naive
+        // `ended`-driven queue advancement.
+        player.load({
+            type: 'hls',
+            uri: 'integ-ended-attribution',
+            manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                {
+                    id: 'multi',
+                    startTime: MIDROLL_TIME,
+                    duration: 12,
+                    assetList: [
+                        { uri: AD_ASSET, duration: 6 },
+                        { uri: AD_ASSET, duration: 6 },
+                    ],
+                },
+            ]),
+        })
+        await poll(() => player.adBreaks.length > 0, 15_000)
+
+        // Record, for every `ended`, whether an ad was active at that moment.
+        const endedDuringAd: boolean[] = []
+        const sub = player.on('ended', () => {
+            endedDuringAd.push(player.activeAdBreak != null)
+        })
+        try {
+            await seekTolerant(MIDROLL_TIME + 1)
+            await player.play()
+            expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
+
+            // Advance through both ads; each advance stands in for the ad's
+            // own `ended`, and the break stays active between ads.
+            expect(player.activeAdBreak).not.toBeNull()
+            player.skipAd() // -> second ad
+            expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
+            expect(player.activeAdBreak).not.toBeNull()
+            player.skipAd() // -> break ends, content resumes
+            expect(await poll(() => player.activeAdBreak == null)).toBeTrue()
+
+            // Every `ended` that fired during the sequence was attributable to
+            // an ad (activeAdBreak was non-null); none was misread as content.
+            expect(endedDuringAd.every((wasAd) => wasAd)).toBeTrue()
+        } finally {
+            sub()
+        }
+    })
+
     it('resumes content playback after the ad break ends', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
@@ -432,4 +483,81 @@ describe('hls ad interstitials integ', () => {
     // deterministically in the TrackController unit tests, where ad playback
     // timing is controlled. A real-browser version would race the ad's own
     // playback lifecycle, so it is intentionally not duplicated here.
+})
+
+/**
+ * Real third-party stream (art19 / AWS MediaTailor) whose interstitial ad
+ * manifests rely on EXT-X-DEFINE variable substitution, including `QUERYPARAM`
+ * tokens carried on the ad manifest URL. This is the end-to-end guard that ad
+ * URIs are fully resolved (no `{$…}` tokens leak) and that the ad plays.
+ *
+ * It hits the public internet, so it tolerates network flake: it pends rather
+ * than fails when the stream or its ads are unreachable.
+ */
+describe('hls ad interstitials integ (art19 real stream)', () => {
+    const STREAM = vinylTestAssets.hls.art19InterstitialsVod
+
+    const suite = createVinylSuite({}, { timeout: 180, failOnError: false })
+
+    beforeEach(() => {
+        if (!supportsMse()) pending('MSE not supported')
+    })
+
+    async function poll(
+        predicate: () => boolean,
+        timeoutMs = 30_000
+    ): Promise<boolean> {
+        const deadline = Date.now() + timeoutMs
+        while (!predicate() && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 50))
+        }
+        return predicate()
+    }
+
+    it('discovers pre/mid/post-roll breaks with fully substituted ad URIs', async () => {
+        const player = suite.player
+        player.load({ type: 'hls', uri: STREAM })
+        if (!(await poll(() => player.adBreaks.length > 0, 20_000))) {
+            pending('art19 stream unreachable')
+            return
+        }
+        const placements = player.adBreaks.map((b) => b.placement)
+        expect(placements).toContain('preroll')
+        expect(placements).toContain('postroll')
+
+        // Every break's resolved ad URIs must be fully substituted — no
+        // leftover EXT-X-DEFINE tokens.
+        for (const adBreak of player.adBreaks) {
+            const ads = await adBreak.ads()
+            for (const ad of ads) {
+                expect(ad.uri).withContext(adBreak.id).not.toContain('{$')
+                expect(ad.uri)
+                    .withContext(adBreak.id)
+                    .toMatch(/^https?:\/\//)
+            }
+        }
+    })
+
+    it('plays the preroll ad, then resumes content', async () => {
+        const player = suite.player
+        player.load({ type: 'hls', uri: STREAM })
+        if (!(await poll(() => player.adBreaks.length > 0, 20_000))) {
+            pending('art19 stream unreachable')
+            return
+        }
+        // The preroll activates at time 0, suspending content — this can abort
+        // the initial play() as the ad takes over the element. That's expected.
+        await player.play().catch(() => undefined)
+        // The preroll is at time 0; its ad track should activate and advance.
+        if (!(await poll(() => player.currentAdTrack != null, 30_000))) {
+            pending('art19 ad did not start (network/CDN)')
+            return
+        }
+        // The ad genuinely plays (its playhead advances past 0).
+        expect(await poll(() => player.currentTime > 0, 20_000)).toBeTrue()
+        // Skipping the break resumes content (long real ads are impractical to
+        // play through in a test).
+        player.skipAd()
+        expect(await poll(() => player.currentAdTrack == null)).toBeTrue()
+    })
 })

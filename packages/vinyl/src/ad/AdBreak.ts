@@ -157,7 +157,8 @@ export interface ReadonlyAdController extends ReadonlyEventHost<AdEventMap> {
  *
  * The controller is deliberately agnostic of HLS/DASH discovery details: its
  * input is a list of {@link AdBreakInfo} produced by a provider-specific
- * discovery step, and a playhead time fed via {@link updateTime}.
+ * discovery step (via {@link setAdBreaks}); it derives the active break from
+ * the playhead by observing the playback controller.
  */
 export interface AdController extends ReadonlyAdController {
     /**
@@ -173,6 +174,15 @@ export interface AdController extends ReadonlyAdController {
      * the break ends. No-op when no ad break is active.
      */
     advanceOrSkipAd(): void
+
+    /**
+     * Signals that the content track reached its natural end. If an unplayed
+     * postroll break is scheduled at or after the content end, it is activated
+     * (dispatching `adBreakChange`) and this returns true so the caller can
+     * defer end-of-content handling until the postroll finishes. Returns false
+     * when there is no pending postroll.
+     */
+    enterPostrollIfPending(): boolean
 
     /**
      * Skips the currently playing ad. If there are more ads in the break,
