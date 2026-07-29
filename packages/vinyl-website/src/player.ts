@@ -3,7 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createVinylPlayer, type TextTrackInfo } from '@amazon/vinyl'
+import {
+    createVinylPlayer,
+    type AdBreakInfo,
+    type SeekRange,
+    type TextTrackInfo,
+} from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
@@ -32,6 +37,10 @@ export const playerState = {
     activeTextTrack$: data<TextTrackInfo | null>(null),
     captionsEnabled$: data(false),
     preferredLanguage$: data<string | null>(null),
+    activeAdBreak$: data<AdBreakInfo | null>(null),
+    adBreaks$: data<readonly AdBreakInfo[]>([]),
+    adRemaining$: data(0),
+    seekRange$: data<SeekRange | null>(null),
 }
 
 // Safari's loadedmetadata fires before videoWidth is populated for HLS; the
@@ -52,6 +61,7 @@ player.on('pause', () => {
 player.on('timeUpdate', () => {
     playerState.currentTime$.value = player.currentTime
     playerState.currentTimePercent$.value = player.currentTimePercent
+    updateAdRemaining()
 })
 player.on('durationChange', ({ current }) => {
     playerState.duration$.value = current
@@ -91,8 +101,40 @@ player.on('activeTextTrackChange', ({ current }) => {
 player.on('currentTrackChange', () => {
     playerState.textTracks$.value = player.textTracks
     playerState.activeTextTrack$.value = player.activeTextTrack
+    playerState.activeAdBreak$.value = player.activeAdBreak
+    updateAdRemaining()
     applyCaptionsPreference()
 })
+
+player.on('adBreakChange', (event) => {
+    playerState.activeAdBreak$.value = event.current
+    if (event.current) {
+        updateAdRemaining()
+    } else {
+        playerState.adRemaining$.value = 0
+    }
+})
+player.on('adBreaksChange', ({ current }) => {
+    playerState.adBreaks$.value = current
+})
+player.on('seekRangeChange', ({ current }) => {
+    playerState.seekRange$.value = current
+})
+
+// Recomputes the seconds remaining in the active ad break from the playhead.
+function updateAdRemaining() {
+    const adBreak = playerState.activeAdBreak$.value
+    if (!adBreak) {
+        playerState.adRemaining$.value = 0
+        return
+    }
+    const dur = player.duration
+    if (!dur || !isFinite(dur)) {
+        playerState.adRemaining$.value = 0
+        return
+    }
+    playerState.adRemaining$.value = Math.max(0, dur - player.currentTime)
+}
 
 function applyCaptionsPreference() {
     if (!playerState.captionsEnabled$.value) return
@@ -175,6 +217,10 @@ export function seekToPercent(pct: number) {
     if (player.duration > 0) {
         player.seekTo(pct * player.duration).catch(() => {})
     }
+}
+
+export function skipAd() {
+    player.skipAd()
 }
 
 export function unloadTrack() {
