@@ -1,0 +1,131 @@
+/*
+ * Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {
+    createVinylPlayer,
+    type AdBreakInfo,
+    type VinylDeps,
+} from '@amazon/vinyl'
+import { externalDependencies, type Factories } from '@amazon/vinyl-di'
+import {
+    createMockVinylDependencies,
+    type MockVinylDependencies,
+} from '@amazon/vinyl/vinylTestUtil'
+import { MockHTMLAudioElement } from '@amazon/vinyl-util/browserTestUtil'
+import { createEventSpy } from '@amazon/vinyl-util/testUtil'
+
+describe('VinylPlayer ad break API', () => {
+    let deps: MockVinylDependencies
+    let depFactories: Factories<VinylDeps>
+    let player: ReturnType<typeof createVinylPlayer>
+
+    beforeEach(() => {
+        deps = createMockVinylDependencies()
+        depFactories = externalDependencies(deps)
+        player = createVinylPlayer(
+            { media: new MockHTMLAudioElement() },
+            depFactories
+        )
+    })
+
+    afterEach(() => {
+        player.dispose()
+    })
+
+    function makeBreak(overrides: Partial<AdBreakInfo> = {}): AdBreakInfo {
+        return {
+            id: 'b1',
+            startTime: 10,
+            duration: 5,
+            placement: 'midroll',
+            ads: () =>
+                Promise.resolve([
+                    { id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' },
+                ]),
+            ...overrides,
+        }
+    }
+
+    function simulateTimeUpdate(time: number) {
+        deps.playbackController.currentTime = time
+        deps.playbackController.dispatch('timeUpdate', {
+            previous: 0,
+            current: time,
+        })
+    }
+
+    /** Waits for pending microtasks (ad resolution) to settle. */
+    async function flush(): Promise<void> {
+        await Promise.resolve()
+        await Promise.resolve()
+    }
+
+    it('returns empty defaults when no ad breaks are set', () => {
+        expect(player.adBreaks).toEqual([])
+        expect(player.activeAdBreak).toBeNull()
+    })
+
+    it('returns ad breaks from the player-level ad controller', () => {
+        const controller = deps.adController
+        controller.setAdBreaks([makeBreak()])
+        expect(player.adBreaks.map((b) => b.id)).toEqual(['b1'])
+    })
+
+    it('redispatches adBreaksChange from the ad controller', () => {
+        const controller = deps.adController
+        const spy = createEventSpy(player, 'adBreaksChange')
+        controller.setAdBreaks([makeBreak()])
+        expect(spy).toHaveBeenCalled()
+    })
+
+    it('redispatches adBreakChange from the ad controller', async () => {
+        const controller = deps.adController
+        controller.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
+        const change = createEventSpy(player, 'adBreakChange')
+        simulateTimeUpdate(11)
+        await flush()
+        expect(change).toHaveBeenCalledTimes(1)
+        expect(change.calls.mostRecent().args[0].current?.id).toBe('b1')
+        // Exit via skipAd (updateTime is blocked while ad is active)
+        player.skipAd()
+        expect(change).toHaveBeenCalledTimes(2)
+        expect(change.calls.mostRecent().args[0].current).toBeNull()
+    })
+
+    it('reflects the active ad break through the player getter', async () => {
+        const controller = deps.adController
+        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        simulateTimeUpdate(5)
+        await flush()
+        expect(player.activeAdBreak?.id).toBe('b1')
+    })
+
+    it('skipAd delegates to the ad controller', async () => {
+        const controller = deps.adController
+        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        simulateTimeUpdate(5)
+        await flush()
+        expect(player.activeAdBreak).not.toBeNull()
+        player.skipAd()
+        expect(player.activeAdBreak).toBeNull()
+    })
+
+    it('skipAdBreak delegates to the ad controller', async () => {
+        const controller = deps.adController
+        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        simulateTimeUpdate(5)
+        await flush()
+        player.skipAdBreak()
+        expect(player.activeAdBreak).toBeNull()
+    })
+
+    it('skipAd is a no-op without an active break', () => {
+        expect(() => player.skipAd()).not.toThrow()
+    })
+
+    it('skipAdBreak is a no-op without an active break', () => {
+        expect(() => player.skipAdBreak()).not.toThrow()
+    })
+})

@@ -153,4 +153,30 @@ describe('fetchMediaPlaylist', () => {
             'https://example.com/path/audio.m3u8'
         )
     })
+
+    it('resolves EXT-X-DEFINE:QUERYPARAM from the playlist URL query string', async () => {
+        mockRequester.request.and.callFake(() =>
+            Promise.resolve(
+                new Response(
+                    [
+                        '#EXTM3U',
+                        '#EXT-X-TARGETDURATION:6',
+                        '#EXT-X-PLAYLIST-TYPE:VOD',
+                        '#EXT-X-DEFINE:QUERYPARAM="tok"',
+                        '#EXTINF:6.0,',
+                        'segment0.aac?t={$tok}',
+                        '#EXT-X-ENDLIST',
+                    ].join('\n')
+                )
+            )
+        )
+        const playlist = await fetchMediaPlaylist({
+            uri: 'audio.m3u8?tok=xyz',
+            baseUrl: 'https://example.com/path/main.m3u8',
+            defines: undefined,
+        })
+        // The QUERYPARAM token from the playlist URL is substituted into the
+        // segment URI (relative resolution happens later, in the timeline).
+        expect(playlist.segments[0].uri).toBe('segment0.aac?t=xyz')
+    })
 })

@@ -5,6 +5,9 @@
 
 import type { HlsTrackLoadOptions, HlsTrackDeps } from './HlsTrack'
 import type { Maybe, RequestInterceptor } from '@amazon/vinyl-util'
+import { resolveUrl } from '@amazon/vinyl-util'
+import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
+import { discoverHlsInterstitials } from '../../ad/discoverHlsInterstitials'
 import { createMediaSource } from '../../util/media/mediaSource'
 import { createDefaultHlsMediaQualityMetadataResolver } from './HlsMediaQualityMetadataResolver'
 import {
@@ -57,6 +60,12 @@ export interface HlsFactoryDeps {
      * `media.addTextTrack`.
      */
     readonly media: HTMLMediaElement
+
+    /**
+     * The player-level ad controller. MseTrack sets discovered ad breaks on it
+     * when the media timeline resolves.
+     */
+    readonly adController: AdController
 }
 
 export type HlsInitOptions = {
@@ -74,6 +83,9 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 )
 
             return validateFactories({
+                // Spreads all player-level deps (including adController) as
+                // external, non-owned dependencies so disposing this track's
+                // container never disposes the shared player-level controllers.
                 ...externalDependencies(deps),
 
                 contentTypesValue: createHlsContentTypesValue,
@@ -114,7 +126,14 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 ) =>
                     deps.manifestTransformed.map(async (manifestPromise) => {
                         const data = await manifestPromise
-                        return buildHlsMediaTimeline(deps, data)
+                        const timeline = buildHlsMediaTimeline(deps, data)
+                        // Discover HLS Interstitials from the first variant's
+                        // media playlist and attach to the timeline.
+                        const adBreaks = await discoverAdsFromManifest(data)
+                        if (adBreaks.length > 0) {
+                            return { ...timeline, adBreaks }
+                        }
+                        return timeline
                     }),
                 mediaTimelineTransformed: createDefaultMediaTimelineTransformer,
                 textTrackController: (deps: {
@@ -146,5 +165,22 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 },
             } as const) satisfies Factories<HlsTrackDeps>
         }
+    }
+}
+
+async function discoverAdsFromManifest(
+    data: HlsManifestData
+): Promise<readonly AdBreakInfo[]> {
+    try {
+        if (data.mainPlaylist.variants.length === 0) return []
+        const variant = data.mainPlaylist.variants[0]
+        const media = await data.getMediaPlaylist(variant.uri)
+        const contentDuration = media.ended
+            ? media.segments.reduce((sum, s) => sum + s.duration, 0)
+            : null
+        const playlistBaseUrl = resolveUrl(variant.uri, data.baseUrl)
+        return discoverHlsInterstitials(media, playlistBaseUrl, contentDuration)
+    } catch {
+        return []
     }
 }

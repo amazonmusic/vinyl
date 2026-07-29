@@ -13,6 +13,7 @@ import type { DrmController } from '../drm/DrmController'
 import type { AutoResetController } from '../track/AutoResetController'
 import type { MutableValue } from '@amazon/vinyl-observable'
 import type { VinylOptions } from './VinylOptions'
+import type { AdController } from '../ad/AdBreak'
 
 export interface VinylDeps<
     TrackLoadOptionsType extends TrackLoadOptions = VinylTrackLoadOptions,
@@ -52,4 +53,9 @@ export interface VinylDeps<
      * Notifies when playback can automatically reset after a failure.
      */
     readonly autoResetController: AutoResetController
+
+    /**
+     * Manages ad break state and playback sequencing.
+     */
+    readonly adController: AdController
 }

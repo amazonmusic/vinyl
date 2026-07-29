@@ -28,6 +28,7 @@ export const mockMediaPlaylist: MediaPlaylist = {
             map: { uri: 'init.mp4' },
         },
     ],
+    dateRanges: [],
 }
 
 export const mockMainPlaylist: MainPlaylist = {

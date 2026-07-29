@@ -29,6 +29,10 @@ import type { VinylDeps } from './VinylDeps'
 import type { VinylPatchOptions } from './VinylPatchOptions'
 import { defaultPatchOptions } from './VinylPatchOptions'
 import { type QualitySelectorImplOptions } from '../streaming/abr/QualitySelectorImpl'
+import {
+    AdControllerImpl,
+    type AdControllerImplDeps,
+} from '../ad/AdControllerImpl'
 import { createDashFactories } from '../track/dash/createDashFactories'
 import { createHlsFactories } from '../track/hls/createHlsFactories'
 import { type DrmOptions } from '../drm/DrmOptions'
@@ -153,6 +157,8 @@ export function createVinylFactories(options: VinylDependencyOptions) {
         commonEme: commonEmeFactory,
         autoResetController: (deps: AutoResetControllerImplDeps) =>
             new AutoResetControllerImpl(deps, options.autoReset),
+        adController: (deps: AdControllerImplDeps) =>
+            new AdControllerImpl(deps),
         createDashFactories: createDashFactories(options),
         createHlsFactories: createHlsFactories(options),
     } as const) satisfies Factories<VinylDeps>
