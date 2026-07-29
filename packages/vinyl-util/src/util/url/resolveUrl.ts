@@ -4,11 +4,18 @@
  */
 
 /**
+ * Matches a URI scheme prefix (e.g. `https:`, `data:`, `blob:`), per RFC 3986:
+ * an ASCII letter followed by letters, digits, `+`, `-`, or `.`, then `:`.
+ */
+const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i
+
+/**
  * Resolves a relative URI against a base URL using string manipulation,
  * avoiding the overhead of constructing `URL` objects.
  *
  * Handles the same cases as `new URL(relative, base)`:
- * - Absolute URIs (with scheme) are returned as-is.
+ * - Absolute URIs (with any scheme, including `data:` / `blob:`) are returned
+ *   as-is.
  * - Protocol-relative URIs (`//host/path`) inherit the base scheme.
  * - Absolute paths (`/path`) replace the base path.
  * - Relative paths are resolved against the base directory.
@@ -18,8 +25,8 @@
  * @returns A resolved absolute URL string.
  */
 export function resolveUrl(relative: string, base: string): string {
-    // Absolute URI — has a scheme.
-    if (relative.indexOf('://') > 0) return relative
+    // Absolute URI — has a scheme (http:, https:, data:, blob:, ...).
+    if (SCHEME_RE.test(relative)) return relative
 
     // Protocol-relative.
     if (relative.startsWith('//')) {

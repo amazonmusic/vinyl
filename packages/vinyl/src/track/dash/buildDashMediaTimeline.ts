@@ -57,6 +57,7 @@ export function buildDashMediaTimeline(
     return {
         periods,
         minBufferTime: manifest.MPD.minBufferTime,
+        adBreaks: [],
         getDuration: () => Promise.resolve(duration),
     }
 }

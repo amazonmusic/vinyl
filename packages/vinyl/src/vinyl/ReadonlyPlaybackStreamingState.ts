@@ -5,6 +5,7 @@
 
 import type { ReadonlyEventHost } from '@amazon/vinyl-util'
 import type { TrackEventMap, ReadonlyStreamingState } from '../track/Track'
+import type { SeekRange } from '../track/SeekRange'
 
 /**
  * Represents the streaming state of the currently active track.
@@ -39,4 +40,10 @@ export interface ReadonlyPlaybackStreamingState
      * @return A number between 0-1
      */
     readonly fetchedTimePercent: number
+
+    /**
+     * The seekable range on the media timeline for the current track, or null
+     * when no track is loaded or the timeline is not yet resolved.
+     */
+    readonly seekRange: SeekRange | null
 }

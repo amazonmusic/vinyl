@@ -20,6 +20,7 @@ import {
     type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { TrackPreloadOptions, TrackTypeId, TrackUri } from '../Track'
+import type { SeekRange } from '../SeekRange'
 import type {
     ContentType,
     MediaQualityMetadata,
@@ -41,6 +42,7 @@ import {
     type MediaPeriod,
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
+import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -56,6 +58,13 @@ export type MseTrackDeps = TrackBaseDeps & {
      * disposed when the track itself is disposed.
      */
     readonly textTrackController?: TextTrackController | null
+
+    /**
+     * The player-level ad controller. MseTrack sets ad breaks on it when
+     * the media timeline resolves and listens for ad break changes to
+     * switch playback to/from ad tracks.
+     */
+    readonly adController?: AdController | null
 }
 
 type FunctionKeys<T> = {
@@ -76,6 +85,14 @@ export class MseTrack extends TrackBase {
         return this.deps.textTrackController ?? null
     }
 
+    override get adController(): AdController | null {
+        return this.deps.adController ?? null
+    }
+
+    override get seekRange(): SeekRange | null {
+        return this._seekRange
+    }
+
     private readonly streams: ContentStream[] = []
     private readonly disposeAbort = new Abort()
     private lastPreloadOptions: ContentStreamPreloadOptions | null = null
@@ -91,6 +108,10 @@ export class MseTrack extends TrackBase {
     private _qualitiesUnfiltered: readonly MediaQualityMetadata[] | null = null
     private timeUpdateSub: Unsubscribe | null = null
     private _cachedPeriod: MediaPeriod | null = null
+    private _seekRange: SeekRange | null = null
+    // The most recently resolved ad breaks, published to the shared ad
+    // controller only while this track is active (see publishAdBreaks).
+    private _adBreaks: readonly AdBreakInfo[] = []
 
     constructor(
         uri: TrackUri,
@@ -148,9 +169,47 @@ export class MseTrack extends TrackBase {
             })
         )
         add(
-            deps.mediaTimeline.onData(() => {
+            deps.mediaTimeline.onData((timelinePromise) => {
                 this._cachedPeriod = null
                 this.updateQualitiesUnfiltered()
+                timelinePromise
+                    .then((timeline) => {
+                        if (this.disposer.disposed) return
+                        // Publish ad breaks to the shared controller only while
+                        // this track is active — a prefetched track's timeline
+                        // resolves too, and must not clobber the playing track's
+                        // breaks on the shared controller.
+                        this._adBreaks = timeline.adBreaks
+                        this.publishAdBreaks()
+                        return timeline.getDuration().then((duration) => {
+                            if (this.disposer.disposed) return
+                            const start =
+                                timeline.periods.length > 0
+                                    ? timeline.periods[0].startTime
+                                    : 0
+                            const newRange: SeekRange = {
+                                start,
+                                end:
+                                    duration === Infinity
+                                        ? Infinity
+                                        : start + duration,
+                            }
+                            const prev = this._seekRange
+                            if (
+                                prev == null ||
+                                prev.start !== newRange.start ||
+                                prev.end !== newRange.end
+                            ) {
+                                const previous = this._seekRange
+                                this._seekRange = newRange
+                                this.dispatch('seekRangeChange', {
+                                    previous,
+                                    current: newRange,
+                                })
+                            }
+                        })
+                    })
+                    .catch(this.errorHandler)
             })
         )
     }
@@ -310,8 +369,22 @@ export class MseTrack extends TrackBase {
         super.reset()
     }
 
+    /**
+     * Publishes this track's discovered ad breaks to the shared ad controller,
+     * but only while the track is active. Prefetched (inactive) tracks resolve
+     * their timelines too; publishing from them would clobber the currently
+     * playing track's breaks on the shared, player-level controller.
+     */
+    private publishAdBreaks(): void {
+        if (!this.activateOptions) return
+        if (this._adBreaks.length === 0) return
+        this.deps.adController?.setAdBreaks(this._adBreaks)
+    }
+
     onActivated(loadOptions: TrackBaseOptions): void {
         this.activateOptions = loadOptions
+        // Publish any ad breaks already discovered before activation.
+        this.publishAdBreaks()
         // AirPlay not supported using managed media sources
         this.deps.playbackSource.disableRemotePlayback = true
 

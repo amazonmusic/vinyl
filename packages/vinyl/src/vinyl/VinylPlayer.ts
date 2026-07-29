@@ -33,6 +33,7 @@ import {
 } from '../playback/ReadonlyPlaybackController'
 import type { VinylTrackLoadOptions } from '../track/createVinylTrackFactories'
 import { type ReadonlyTrack, type TrackUri } from '../track/Track'
+import type { SeekRange } from '../track/SeekRange'
 import {
     ALL_TRACK_CONTROLLER_EVENTS,
     type TrackController,
@@ -70,6 +71,7 @@ import type { VinylOptions } from './VinylOptions'
 import type { AutoResetController } from '../track/AutoResetController'
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { TextTrackEventMap, TextTrackInfo } from '../text/TextTrack'
+import type { AdBreakInfo, AdEventMap } from '../ad/AdBreak'
 
 /**
  * Events the Vinyl Player emits.
@@ -81,7 +83,8 @@ export interface VinylPlayerEventMap<
         PlaybackControllerEventMap,
         TrackControllerEventMap<TrackLoadOptionsType>,
         StreamingEventMap,
-        TextTrackEventMap {
+        TextTrackEventMap,
+        AdEventMap {
     /**
      * Dispatched when {@link VinylPlayer.resetPending} changes.
      *
@@ -102,6 +105,11 @@ const ALL_TEXT_TRACK_EVENTS = [
     'activeTextTrackChange',
     'textTrackError',
 ] as const satisfies readonly (keyof TextTrackEventMap)[]
+
+const ALL_AD_EVENTS = [
+    'adBreaksChange',
+    'adBreakChange',
+] as const satisfies readonly (keyof AdEventMap)[]
 
 /**
  * A Vinyl Media Player.
@@ -203,6 +211,7 @@ export class VinylPlayer<
         // already been denylisted, so the reload selects a codec that decodes.
         add(
             this.on('codecUnsupported', (event) => {
+                if (this.deps.adController.adPlaying) return
                 logInfo(
                     this,
                     'codec unsupported, reloading track:',
@@ -220,6 +229,7 @@ export class VinylPlayer<
         let sub: Unsubscribe | null = null
         let textSub: Unsubscribe | null = null
         const add = this.disposer.add
+        add(redispatchEvents(this, this.deps.adController, ALL_AD_EVENTS))
         add(
             this.trackController.on('currentTrackChange', (event) => {
                 // The previous track may stay cached, so its text track
@@ -471,6 +481,14 @@ export class VinylPlayer<
         return this.playbackController.seekable
     }
 
+    /**
+     * The seekable range on the media timeline for the current track, or null
+     * when no track is loaded or the timeline is not yet resolved.
+     */
+    get seekRange(): SeekRange | null {
+        return this.currentTrack?.seekRange ?? null
+    }
+
     get seeking(): boolean {
         return this.playbackController.seeking
     }
@@ -519,6 +537,10 @@ export class VinylPlayer<
 
     get currentTrack(): ReadonlyTrack | null {
         return this.trackController.currentTrack
+    }
+
+    get currentAdTrack(): ReadonlyTrack | null {
+        return this.trackController.currentAdTrack
     }
 
     get queue(): readonly TrackLoadOptionsType[] {
@@ -734,6 +756,49 @@ export class VinylPlayer<
                 current: curList,
             })
         }
+    }
+
+    //----------------------------------------------------
+    // Ad break delegate methods
+    //----------------------------------------------------
+
+    /**
+     * The ad breaks (e.g. HLS Interstitials) discovered for the active media,
+     * ordered by start time. Empty when there is no current track or the
+     * current track surfaces no ads.
+     *
+     * Listen to {@link AdEventMap.adBreaksChange} for changes.
+     */
+    get adBreaks(): readonly AdBreakInfo[] {
+        return this.deps.adController.adBreaks
+    }
+
+    /**
+     * The ad break currently containing the playhead, or null when the
+     * playhead is in primary content.
+     *
+     * Listen to {@link AdEventMap.adBreakChange} for transitions.
+     */
+    get activeAdBreak(): AdBreakInfo | null {
+        return this.deps.adController.activeAdBreak
+    }
+
+    /**
+     * Skips the currently playing ad. If there are more ads in the break,
+     * the next ad begins; otherwise the break ends and content resumes.
+     * No-op when no ad break is active.
+     */
+    skipAd(): void {
+        this.deps.adController.advanceOrSkipAd()
+    }
+
+    /**
+     * Skips the entire active ad break, advancing past all remaining ads
+     * and resuming content playback.
+     * No-op when no ad break is active.
+     */
+    skipAdBreak(): void {
+        this.deps.adController.skipAdBreak()
     }
 
     //----------------------------------------------------

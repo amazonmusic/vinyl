@@ -22,6 +22,8 @@ export class MockTrackController<
 {
     currentTrack: Track | null = null
 
+    currentAdTrack: Track | null = null
+
     queue: any[] = []
 
     clearPrefetch = spyFactory('clearPrefetch')
