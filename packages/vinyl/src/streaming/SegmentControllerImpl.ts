@@ -24,6 +24,7 @@ import {
     throttle,
     withAbort,
 } from '@amazon/vinyl-util'
+import { isMimeTypeDenylisted } from './buffering/codecDenylist'
 import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
 import {
     type PrefetchOptions,
@@ -540,10 +541,23 @@ export class SegmentControllerImpl
         const period = await this.getPeriodAtTime(time)
         if (!period) return null
 
-        // Filter qualities to this content type.
-        const filteredQualities = period.qualities.filter(
+        // Filter qualities to this content type, excluding any whose codec has
+        // been denylisted at runtime after a decode/append failure (the browser
+        // claimed support it does not actually have). If every quality for this
+        // content type is denylisted, fall back to the unfiltered set so
+        // playback still attempts something rather than stalling silently.
+        const contentTypeQualities = period.qualities.filter(
             (q) => q.metadata.contentType === this.contentType
         )
+        const playableQualities = contentTypeQualities.filter(
+            (q) =>
+                !q.metadata.mimeType ||
+                !isMimeTypeDenylisted(q.metadata.mimeType)
+        )
+        const filteredQualities =
+            playableQualities.length > 0
+                ? playableQualities
+                : contentTypeQualities
         if (filteredQualities.length === 0) return null
 
         // Gets the preceding segment encoding metadata for quality selection.

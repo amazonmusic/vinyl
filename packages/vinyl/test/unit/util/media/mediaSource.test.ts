@@ -92,6 +92,15 @@ describe('mediaSource', () => {
                 MockMediaSourceGlobal.isTypeSupported
             ).toHaveBeenCalledOnceWith('type2')
         })
+
+        it('delegates to the native MediaSource.isTypeSupported', () => {
+            global.MediaSource = MockMediaSourceGlobal
+            MockMediaSourceGlobal.isTypeSupported.and.returnValue(true)
+            expect(
+                isTypeSupported('video/mp4; codecs="hvc1.2.20000000.L123.B0"')
+            ).toBeTrue()
+            expect(MockMediaSourceGlobal.isTypeSupported).toHaveBeenCalled()
+        })
     })
 
     describe('onMediaSourceOpen', () => {
