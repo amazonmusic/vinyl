@@ -32,6 +32,11 @@ function getMediaSourceCtor(): typeof MediaSource {
 
 /**
  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/MediaSource/isTypeSupported_static)
+ *
+ * Delegates to the browser's native support check. False-positive codecs
+ * (where the browser reports support but decode fails at runtime) are handled
+ * by the decode-failure recovery path rather than a static denylist, so this
+ * function reflects the browser's own answer.
  */
 export function isTypeSupported(type: string): boolean {
     assertMseSupported()
