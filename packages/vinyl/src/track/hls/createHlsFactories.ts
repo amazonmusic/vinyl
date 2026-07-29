@@ -74,7 +74,6 @@ export type HlsInitOptions = {
 
 export function createHlsFactories(options: Maybe<HlsInitOptions>) {
     return (deps: HlsFactoryDeps) => {
-        const adController = deps.adController
         return (loadOptions: HlsTrackLoadOptions) => {
             const manifestProvider =
                 loadOptions.manifestProvider ||
@@ -84,8 +83,10 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 )
 
             return validateFactories({
+                // Spreads all player-level deps (including adController) as
+                // external, non-owned dependencies so disposing this track's
+                // container never disposes the shared player-level controllers.
                 ...externalDependencies(deps),
-                adController: () => adController,
 
                 contentTypesValue: createHlsContentTypesValue,
 

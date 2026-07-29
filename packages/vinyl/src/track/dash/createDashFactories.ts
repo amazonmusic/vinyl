@@ -92,12 +92,12 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
         // Player-level dependencies
         deps: DashFactoryDeps
     ) => {
-        const adController = deps.adController
         return (loadOptions: DashTrackLoadOptions) =>
             validateFactories({
-                // Track-level dependencies
+                // Spreads all player-level deps (including adController) as
+                // external, non-owned dependencies so disposing this track's
+                // container never disposes the shared player-level controllers.
                 ...externalDependencies(deps),
-                adController: () => adController,
 
                 contentTypesValue: createDashContentTypesValue,
                 baseUrlSelector: () => pickFirstBaseUrlSelector,

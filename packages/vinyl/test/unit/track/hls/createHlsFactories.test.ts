@@ -77,6 +77,30 @@ describe('createHlsFactories', () => {
         )
     })
 
+    it('exposes the shared adController without owning it', () => {
+        const factoryCreator = createHlsFactories(null)
+        const factories = factoryCreator(hlsFactoryDeps)({
+            uri: 'https://example.com/main.m3u8',
+            type: 'hls',
+            manifestProvider,
+        })
+        const container = createContainer(factories)
+        // The track resolves the same shared player-level controller.
+        expect(container.dependencies.adController).toBe(
+            hlsFactoryDeps.adController
+        )
+        // Disposing the track container must NOT dispose the shared
+        // controller (it is an external, non-owned dependency). Otherwise a
+        // codec-recovery reloadCurrentTrack would tear down the player-level
+        // ad controller.
+        const disposeSpy = spyOn(
+            hlsFactoryDeps.adController as unknown as { dispose(): void },
+            'dispose'
+        ).and.callThrough()
+        container.dispose()
+        expect(disposeSpy).not.toHaveBeenCalled()
+    })
+
     it('provides streaming options to createContentStreamFactories', () => {
         const factoryCreator = createHlsFactories({
             streaming: {
