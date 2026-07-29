@@ -4,8 +4,10 @@
  */
 
 import {
+    type AdController,
     type ContentType,
     type MediaQualityMetadata,
+    type SeekRange,
     type TextTrackController,
     type Track,
     type TrackEventMap,
@@ -35,6 +37,8 @@ export class MockTrack extends MockEventHost<TrackEventMap> implements Track {
     extra: any = undefined
     error: Error | null = null
     textTrackController: TextTrackController | null = null
+    adController: AdController | null = null
+    seekRange: SeekRange | null = null
 
     activate = spyFactory('activate')
     deactivate = spyFactory('deactivate')

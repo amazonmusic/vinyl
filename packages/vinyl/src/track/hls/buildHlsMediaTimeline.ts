@@ -173,6 +173,7 @@ export function buildHlsMediaTimeline(
     return {
         periods: [period],
         minBufferTime: DEFAULT_MIN_BUFFER_TIME,
+        adBreaks: [],
         async getDuration() {
             if (cachedDuration != null) return cachedDuration
             if (mainPlaylist.variants.length === 0) {

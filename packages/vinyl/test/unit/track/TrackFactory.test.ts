@@ -23,34 +23,22 @@ describe('createTrackFactory', () => {
 
     let trackFactory: TrackFactory<TrackLoadOptions>
 
+    function factory(Ctor: new () => MockTrack) {
+        return {
+            validate() {},
+            createTrack(options: TrackLoadOptions): Track {
+                const track = new Ctor()
+                track.uri = options.uri
+                return track
+            },
+        }
+    }
+
     beforeEach(() => {
         trackFactory = createTrackFactory({
-            key1: {
-                validate() {},
-                createTrack(options: TrackLoadOptions): Track {
-                    const track = new MockTrack1()
-                    track.uri = options.uri
-                    return track
-                },
-            },
-
-            key2: {
-                validate() {},
-                createTrack(options: TrackLoadOptions): Track {
-                    const track = new MockTrack2()
-                    track.uri = options.uri
-                    return track
-                },
-            },
-
-            key3: {
-                validate() {},
-                createTrack(options: TrackLoadOptions): Track {
-                    const track = new MockTrack3()
-                    track.uri = options.uri
-                    return track
-                },
-            },
+            key1: factory(MockTrack1),
+            key2: factory(MockTrack2),
+            key3: factory(MockTrack3),
         })
     })
 
@@ -81,7 +69,6 @@ describe('createTrackFactory', () => {
         createTrackFactory({
             key1: {
                 validate() {},
-                // valid, key1 is assignable to key1
                 createTrack(_options: { type: 'key1'; uri: string }): Track {
                     return new MockTrack1()
                 },
@@ -110,6 +97,7 @@ describe('InferLoadOptionsFromFactory', () => {
             InferLoadOptionsFromFactory<{
                 validate(options: LoadOptions): void
                 createTrack: (options: LoadOptions) => Track
+                createAdTrack: (options: LoadOptions) => Track
             }>,
             LoadOptions
         >(true)

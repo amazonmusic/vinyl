@@ -7,6 +7,7 @@ import type { ChangeEvent } from '../event/ChangeEvent'
 import type { ContentType, MediaQualityMetadata } from './MediaQualityMetadata'
 import type { BasicErrorEvent } from '../event/BasicErrorEvent'
 import type { AnyRecord } from '@amazon/vinyl-util'
+import type { SeekRange } from '../track/SeekRange'
 
 /**
  * Events a track dispatches related to streaming quality and status.
@@ -74,6 +75,11 @@ export interface StreamingEventMap {
      * track in response.
      */
     readonly codecUnsupported: CodecUnsupportedEvent
+
+    /**
+     * The seekable range on the media timeline has changed.
+     */
+    readonly seekRangeChange: ChangeEvent<SeekRange | null>
 }
 
 /**
@@ -107,4 +113,5 @@ export const ALL_STREAMING_EVENTS = [
     'qualitiesChange',
     'qualitiesUnfilteredChange',
     'codecUnsupported',
+    'seekRangeChange',
 ] as const satisfies readonly (keyof StreamingEventMap)[]

@@ -7,6 +7,7 @@ import type { SegmentReference } from './SegmentReference'
 import type { SegmentDataProvider } from './SegmentDataSlot'
 import type { MediaQualityMetadata } from './MediaQualityMetadata'
 import { sortedInsertionIndex } from '@amazon/vinyl-util'
+import type { AdBreakInfo } from '../ad/AdBreak'
 
 /**
  * Represents a single quality within a period, providing access to its metadata
@@ -46,6 +47,12 @@ export interface MediaTimeline {
      * The minimum duration of the buffer that a client should maintain for uninterrupted playback.
      */
     readonly minBufferTime: number
+
+    /**
+     * Ad breaks discovered from the media presentation (e.g. HLS Interstitials,
+     * DASH SCTE-35). Empty when the stream carries no ad signals.
+     */
+    readonly adBreaks: readonly AdBreakInfo[]
 
     /**
      * The total duration of the media, in seconds.
