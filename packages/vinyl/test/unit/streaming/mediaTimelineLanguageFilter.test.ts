@@ -61,6 +61,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
@@ -81,6 +82,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
@@ -97,6 +99,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 5,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
@@ -117,6 +120,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')
@@ -137,6 +141,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         // 'xx' doesn't match 'ja', so all kept
@@ -165,6 +170,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         // 'en' matches period 1 but not period 2
@@ -197,6 +203,7 @@ describe('createLanguageFilter', () => {
                 },
             ],
             minBufferTime: 2,
+            adBreaks: [],
             getDuration: () => Promise.resolve(Infinity),
         }
         const result = applyLanguageFilter(timeline, 'en', 'audio')

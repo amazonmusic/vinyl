@@ -25,6 +25,7 @@ describe('createHlsContentStreamFactories', () => {
     const emptyTimeline: MediaTimeline = {
         periods: [],
         minBufferTime: 0,
+        adBreaks: [],
         getDuration: () => Promise.resolve(Infinity),
     }
 

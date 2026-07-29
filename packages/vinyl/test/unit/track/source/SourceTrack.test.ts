@@ -81,6 +81,12 @@ describe('SourceTrack', () => {
         })
     })
 
+    describe('seekRange', () => {
+        it('returns null by default', () => {
+            expect(track.seekRange).toBeNull()
+        })
+    })
+
     describe('toString', () => {
         it('contains the uri', () => {
             expect(track.toString()).toContain(track.uri)

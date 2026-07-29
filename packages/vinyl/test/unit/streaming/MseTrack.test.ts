@@ -65,6 +65,7 @@ describe('MseTrack', () => {
         deps.contentTypesValue.value = Promise.resolve(
             new Set(['audio', 'video'])
         )
+        deps.playbackController.play.and.resolveTo(void 0)
     })
 
     afterEach(() => {
@@ -629,6 +630,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -652,6 +654,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -688,6 +691,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             }
             setTimeline(timeline)
@@ -724,6 +728,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
+                adBreaks: [],
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -763,6 +768,235 @@ describe('MseTrack', () => {
                 controller
             track = createTrack()
             expect(track.textTrackController).toBe(controller)
+        })
+    })
+
+    describe('seekRange', () => {
+        function setTimeline(timeline: MediaTimeline) {
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+        }
+
+        it('is null initially', () => {
+            track = createTrack()
+            expect(track.seekRange).toBeNull()
+        })
+
+        it('resolves from the media timeline duration', async () => {
+            setTimeline({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 120,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                adBreaks: [],
+                getDuration: () => Promise.resolve(120),
+            })
+            track = createTrack()
+            await flushPromises()
+            expect(track.seekRange).toEqual({ start: 0, end: 120 })
+        })
+
+        it('dispatches seekRangeChange when the range resolves', async () => {
+            setTimeline({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 60,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                adBreaks: [],
+                getDuration: () => Promise.resolve(60),
+            })
+            track = createTrack()
+            const spy = createEventSpy(track, 'seekRangeChange')
+            await flushPromises()
+            expect(spy).toHaveBeenCalledWith(
+                jasmine.objectContaining({
+                    previous: null,
+                    current: { start: 0, end: 60 },
+                })
+            )
+        })
+
+        it('returns Infinity end for live streams', async () => {
+            setTimeline({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: Infinity,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                adBreaks: [],
+                getDuration: () => Promise.resolve(Infinity),
+            })
+            track = createTrack()
+            await flushPromises()
+            expect(track.seekRange).toEqual({ start: 0, end: Infinity })
+        })
+
+        it('does not dispatch when range is unchanged', async () => {
+            const timeline: MediaTimeline = {
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 60,
+                        qualities: [],
+                    },
+                ],
+                minBufferTime: 2,
+                adBreaks: [],
+                getDuration: () => Promise.resolve(60),
+            }
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+            track = createTrack()
+            await flushPromises()
+            expect(track.seekRange).toEqual({ start: 0, end: 60 })
+
+            const spy = createEventSpy(track, 'seekRangeChange')
+            // Re-emit the same timeline
+            ;(deps as any).mediaTimeline.value = Promise.resolve(timeline)
+            await flushPromises()
+            expect(spy).not.toHaveBeenCalled()
+        })
+
+        it('does not update seekRange if disposed during getDuration', async () => {
+            let resolveDuration!: (v: number) => void
+            const timeline: MediaTimeline = {
+                periods: [{ startTime: 0, endTime: 60, qualities: [] }],
+                minBufferTime: 2,
+                adBreaks: [],
+                getDuration: () =>
+                    new Promise((r) => {
+                        resolveDuration = r
+                    }),
+            }
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+            track = createTrack()
+            await flushPromises()
+            // Dispose before getDuration resolves
+            track.dispose()
+            resolveDuration(60)
+            await flushPromises()
+            expect(track.seekRange).toBeNull()
+        })
+    })
+
+    describe('adController', () => {
+        function setTimeline(timeline: MediaTimeline) {
+            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
+            ;(deps as any).mediaTimelineTransformed = data(
+                Promise.resolve(timeline)
+            )
+        }
+
+        function makeTimeline(
+            adBreaks: MediaTimeline['adBreaks']
+        ): MediaTimeline {
+            return {
+                periods: [],
+                minBufferTime: 2,
+                adBreaks,
+                getDuration: () => Promise.resolve(Infinity),
+            }
+        }
+
+        it('returns null when no ad controller is provided', () => {
+            track = createTrack()
+            expect(track.adController).toBeNull()
+        })
+
+        const sampleAdBreaks: MediaTimeline['adBreaks'] = [
+            {
+                id: 'b1',
+                startTime: 10,
+                duration: 5,
+                placement: 'midroll' as const,
+                ads: () =>
+                    Promise.resolve([
+                        {
+                            id: 'a1',
+                            startTime: 10,
+                            duration: 5,
+                            uri: 'ad.m3u8',
+                        },
+                    ]),
+            },
+        ]
+
+        it('publishes discovered ad breaks to the controller once active', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            setTimeline(makeTimeline(sampleAdBreaks))
+            track = createTrack()
+            expect(track.adController).toBe((deps as any).adController)
+            track.activate({})
+            await flushPromises()
+            expect(setAdBreaks).toHaveBeenCalledWith(sampleAdBreaks)
+        })
+
+        it('does not publish ad breaks while inactive (prefetched)', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            setTimeline(makeTimeline(sampleAdBreaks))
+            // Created but never activated (as when prefetched): must not touch
+            // the shared controller.
+            track = createTrack()
+            await flushPromises()
+            expect(setAdBreaks).not.toHaveBeenCalled()
+        })
+
+        it('publishes ad breaks discovered before activation on activate', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            setTimeline(makeTimeline(sampleAdBreaks))
+            track = createTrack()
+            await flushPromises()
+            expect(setAdBreaks).not.toHaveBeenCalled()
+            // Activating a track whose timeline already resolved publishes now.
+            track.activate({})
+            expect(setAdBreaks).toHaveBeenCalledWith(sampleAdBreaks)
+        })
+
+        it('does not call setAdBreaks when the timeline has no ad breaks', async () => {
+            const setAdBreaks = jasmine.createSpy('setAdBreaks')
+            ;(deps as any).adController = {
+                setAdBreaks,
+                activeAdBreak: null,
+                adBreaks: [],
+            }
+            setTimeline(makeTimeline([]))
+            track = createTrack()
+            track.activate({})
+            await flushPromises()
+            expect(setAdBreaks).not.toHaveBeenCalled()
         })
     })
 })

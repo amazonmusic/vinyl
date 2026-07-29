@@ -50,6 +50,7 @@ import { createDefaultMediaTimelineTransformer } from '../../streaming/createDef
 import type { DashManifestData } from './DashManifestProvider'
 import { SidecarTextTrackController } from '../../text/SidecarTextTrackController'
 import { discoverDashTextTracks } from '../../text/discoverDashTextTracks'
+import type { AdController } from '../../ad/AdBreak'
 
 /**
  * Player-level dependencies needed for the Dash-specific factories.
@@ -70,6 +71,12 @@ export interface DashFactoryDeps {
      * `media.addTextTrack`.
      */
     readonly media: HTMLMediaElement
+
+    /**
+     * The player-level ad controller. MseTrack sets discovered ad breaks on it
+     * when the media timeline resolves.
+     */
+    readonly adController: AdController
 }
 
 export type DashInitOptions = {
@@ -87,7 +94,9 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
     ) => {
         return (loadOptions: DashTrackLoadOptions) =>
             validateFactories({
-                // Track-level dependencies
+                // Spreads all player-level deps (including adController) as
+                // external, non-owned dependencies so disposing this track's
+                // container never disposes the shared player-level controllers.
                 ...externalDependencies(deps),
 
                 contentTypesValue: createDashContentTypesValue,
