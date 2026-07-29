@@ -491,3 +491,56 @@ for every produced HLS and DASH asset. The text-track wiring lives in
 `src/addTextTracks.ts`; running `npm run generate` produces VTT files in
 `subs/<lang>.vtt` next to each manifest, with the manifest patched to reference
 them.
+
+## Ad Breaks (Server-Guided Ad Insertion)
+
+Vinyl surfaces server-guided ad breaks through a single, provider-agnostic API
+on `VinylPlayer`. Today this is driven by HLS Interstitials (SGAI); the same API
+is intended to also carry DASH SCTE-35 splices, so applications observe one
+interface regardless of the streaming protocol.
+
+### Discovery
+
+For HLS, the player reads `EXT-X-DATERANGE` tags with
+`CLASS="com.apple.hls.interstitial"` from the media playlist. Each interstitial
+is mapped to an abstract `AdBreakInfo`:
+
+- Its wall-clock `START-DATE` is converted to a media-timeline start time by
+  correlating it with the playlist's `EXT-X-PROGRAM-DATE-TIME` anchor.
+- Its duration is resolved from `DURATION`, else the `START-DATE`/`END-DATE`
+  span, else `PLANNED-DURATION`.
+- An `X-ASSET-URI` yields a single resolved ad; an `X-ASSET-LIST` yields a break
+  whose assets are resolved asynchronously (empty `ads` up front).
+- The break is classified as `preroll`, `midroll`, or `postroll`.
+
+Discovery happens automatically when a track loads — applications need only
+listen for the `adBreaksChange` event or read `player.adBreaks`.
+
+### API
+
+```typescript
+// Inspect the ad breaks known for the current media (ordered by start time).
+console.log(player.adBreaks)
+// → [{ id, startTime: 12, duration: 15, placement: 'midroll',
+//      ads: [{ id, startTime, duration, uri }], metadata: { ... } }, ...]
+
+// Inspect the break currently containing the playhead, if any.
+console.log(player.activeAdBreak)
+
+// React to changes and boundary crossings.
+player.on('adBreaksChange', (event) => {
+    console.log('Ad breaks updated:', event.current)
+})
+player.on('adBreakEnter', (adBreak) => {
+    console.log('Entered ad break', adBreak.id)
+})
+player.on('adBreakExit', (adBreak) => {
+    console.log('Exited ad break', adBreak.id)
+})
+```
+
+`adBreakEnter` / `adBreakExit` are derived from the playhead as it crosses each
+break's `[startTime, startTime + duration)` region, so they fire on normal
+playback and on seeks alike. Breaks with an unknown duration surface in
+`adBreaks` but never mark the playhead as inside a break until their span
+resolves.
