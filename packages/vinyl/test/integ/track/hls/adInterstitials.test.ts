@@ -179,6 +179,19 @@ describe('hls ad interstitials integ', () => {
         }
     }
 
+    /**
+     * Starts playback, then seeks into the given position. Playing before
+     * seeking is required on iOS Safari: seeking a cold, never-played MSE
+     * element hangs (the seek never completes, and a subsequent play() from the
+     * now-unbuffered position stalls in `waiting` until it times out). Warming
+     * the element with play() first mirrors real usage (the playhead advances
+     * into a break during playback) and avoids the stall.
+     */
+    async function playThenSeek(time: number): Promise<void> {
+        await suite.player.play().catch(() => undefined)
+        await seekTolerant(time)
+    }
+
     async function loadAndAwaitAdBreaks(
         playlist: VinylTrackLoadOptions[] = makePlaylist()
     ): Promise<void> {
@@ -229,8 +242,7 @@ describe('hls ad interstitials integ', () => {
             else if (e.previous) exited.push(e.previous.id)
         })
         try {
-            await seekTolerant(MIDROLL_TIME - 1)
-            await player.play()
+            await playThenSeek(MIDROLL_TIME - 1)
             // Enter: the playhead crosses into the break.
             expect(await poll(() => entered.includes(AD_ID))).toBeTrue()
             // Exit: ending the break (the injected ad asset is long, so drive
@@ -245,8 +257,7 @@ describe('hls ad interstitials integ', () => {
     it('reports the active ad break while the playhead is inside it', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + MIDROLL_DURATION / 2)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + MIDROLL_DURATION / 2)
         expect(await poll(() => player.activeAdBreak != null)).toBeTrue()
         expect(player.activeAdBreak?.id).toBe(AD_ID)
     })
@@ -254,8 +265,7 @@ describe('hls ad interstitials integ', () => {
     it('skipAd clears the active ad break', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.activeAdBreak != null)).toBeTrue()
         player.skipAd()
         expect(player.activeAdBreak).toBeNull()
@@ -264,8 +274,7 @@ describe('hls ad interstitials integ', () => {
     it('skipAdBreak clears the active ad break', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.activeAdBreak != null)).toBeTrue()
         player.skipAdBreak()
         expect(player.activeAdBreak).toBeNull()
@@ -283,8 +292,7 @@ describe('hls ad interstitials integ', () => {
     it('plays the ad track over the content and exposes currentAdTrack', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         // The ad track becomes current and begins playing.
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
         expect(player.currentAdTrack!.uri).toBe(AD_ASSET)
@@ -323,8 +331,7 @@ describe('hls ad interstitials integ', () => {
             endedDuringAd.push(player.activeAdBreak != null)
         })
         try {
-            await seekTolerant(MIDROLL_TIME + 1)
-            await player.play()
+            await playThenSeek(MIDROLL_TIME + 1)
             expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
 
             // Advance through both ads; each advance stands in for the ad's
@@ -347,8 +354,7 @@ describe('hls ad interstitials integ', () => {
     it('resumes content playback after the ad break ends', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         // Ad is playing over the suspended content.
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
         // Confirm the ad actually plays (its playhead advances).
@@ -369,8 +375,7 @@ describe('hls ad interstitials integ', () => {
     it('resumes content playback when the ad ends naturally', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         // Ad is playing over the suspended content.
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
         expect(await poll(() => player.currentTime > 0, 20_000)).toBeTrue()
@@ -444,8 +449,7 @@ describe('hls ad interstitials integ', () => {
         const ads = await player.adBreaks[0].ads()
         expect(ads.length).toBe(2)
 
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
         // Skip the first ad → the second ad begins (break stays active).
         player.skipAd()
@@ -527,8 +531,7 @@ describe('hls ad interstitials integ', () => {
     it('disposes the ad track when new content is loaded mid-ad', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
 
         // Load different content while the ad is playing.
@@ -565,8 +568,7 @@ describe('hls ad interstitials integ', () => {
             ]),
         })
         await poll(() => player.adBreaks.length > 0, 15_000)
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play().catch(() => undefined)
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
         player.skipAd()
         expect(await poll(() => player.currentAdTrack == null)).toBeTrue()
@@ -586,8 +588,7 @@ describe('hls ad interstitials integ', () => {
             ]),
         })
         expect(await poll(() => player.adBreaks.length > 0, 15_000)).toBeTrue()
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play().catch(() => undefined)
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(
             await poll(() => player.currentAdTrack != null, 30_000)
         ).toBeTrue()
@@ -624,8 +625,7 @@ describe('hls ad interstitials integ', () => {
             }
         )
         await poll(() => player.adBreaks.length > 0, 15_000)
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play().catch(() => undefined)
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
         player.skipAd()
         expect(await poll(() => player.currentAdTrack == null)).toBeTrue()
@@ -641,8 +641,7 @@ describe('hls ad interstitials integ', () => {
         expect(player.activeAdBreak).toBeNull()
         // Crossing into the break activates it, proving the id was not treated
         // as already-skipped.
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play().catch(() => undefined)
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(
             await poll(() => player.activeAdBreak != null, 30_000)
         ).toBeTrue()
@@ -657,8 +656,7 @@ describe('hls ad interstitials integ', () => {
     it('recovers content playback when reloadCurrentTrack fires after an ad', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
-        await seekTolerant(MIDROLL_TIME + 1)
-        await player.play()
+        await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
 
         // Skip the ad → content resumes and begins playing.
