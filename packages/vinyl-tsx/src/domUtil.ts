@@ -99,8 +99,11 @@ export function walkDomDepthFirst(
     if (!node) return
     let next = node.firstChild
     while (next) {
+        // Snapshot the sibling before recursing so a callback that moves
+        // `next` can't sever the chain and skip the rest of the row.
+        const after = next.nextSibling
         walkDomDepthFirst(next, callback)
-        next = next.nextSibling
+        next = after
     }
     callback(node)
 }
