@@ -199,5 +199,26 @@ describe('domUtil', () => {
             walkDomDepthFirst(parent, (node) => visited.push(node))
             expect(visited).toEqual([grandchild, child1, child2, parent])
         })
+
+        it('still visits later siblings when the callback moves the current node', () => {
+            const root = dom.createElement('div')
+            const parent = dom.createElement('div')
+            const first = dom.createElement('span')
+            const second = dom.createElement('p')
+            root.appendChild(parent)
+            parent.appendChild(first)
+            parent.appendChild(second)
+
+            // Reparent `first` out of `parent` mid-walk. Without snapshotting
+            // the sibling, first.nextSibling is severed and `second` is skipped.
+            const visited: any[] = []
+            walkDomDepthFirst(parent, (node) => {
+                visited.push(node)
+                if (node === first) root.appendChild(first)
+            })
+
+            expect(visited).toContain(second)
+            expect(visited).toEqual([first, second, parent])
+        })
     })
 })
