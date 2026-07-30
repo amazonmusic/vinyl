@@ -103,6 +103,20 @@ export class SidecarTextTrackController
         if (target) this.startLoad(target)
     }
 
+    suspend(): void {
+        this.loadAbort?.abort()
+        this.loadAbort = null
+        this.clearDomTrack()
+    }
+
+    resume(): void {
+        // Rebuild only when an active selection exists and it isn't already
+        // rendering (clearDomTrack/suspend nulls _domTrack; setActiveTextTrack
+        // sets it).
+        if (!this._active || this._domTrack) return
+        this.startLoad(this._active)
+    }
+
     /**
      * Cancels any in-flight load, clears the DOM TextTrack, and resets state.
      * Called by the host when the underlying media is unloaded.
