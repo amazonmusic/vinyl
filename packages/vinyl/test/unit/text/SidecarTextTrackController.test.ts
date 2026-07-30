@@ -64,6 +64,8 @@ function makeTrack(overrides: Partial<TextTrackInfo> = {}): TextTrackInfo {
         language: 'en',
         label: 'English',
         default: false,
+        forced: false,
+        characteristics: [],
         uri: 'https://x.test/a.vtt',
         mimeType: 'text/vtt',
         ...overrides,

@@ -47,6 +47,21 @@ export interface TextTrackInfo {
     readonly default: boolean
 
     /**
+     * Whether this is a forced track: it carries essential text (e.g.
+     * translations of foreign-language dialogue) meant to be shown even when
+     * the user has not enabled subtitles. Two tracks may share a language and
+     * differ only by this flag, so selection must distinguish them.
+     */
+    readonly forced: boolean
+
+    /**
+     * Media characteristics / accessibility roles describing the track, e.g.
+     * `public.accessibility.transcribes-spoken-dialog` (HLS CHARACTERISTICS) or
+     * a DASH role/accessibility scheme value. Empty when none are signaled.
+     */
+    readonly characteristics: readonly string[]
+
+    /**
      * The full URL of the underlying text resource (typically a WebVTT file).
      */
     readonly uri: string

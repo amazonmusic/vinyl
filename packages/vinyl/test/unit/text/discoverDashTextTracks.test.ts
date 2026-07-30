@@ -76,6 +76,33 @@ describe('discoverDashTextTracks', () => {
         expect(result[0].default).toBeTrue()
     })
 
+    it('marks forced when role=forced_subtitle is set', () => {
+        const m = manifest(`
+            <AdaptationSet contentType="text" lang="en" mimeType="text/vtt">
+              <Role schemeIdUri="urn:mpeg:dash:role:2011" value="forced_subtitle"/>
+              <Representation id="r" bandwidth="100">
+                <BaseURL>f.vtt</BaseURL>
+              </Representation>
+            </AdaptationSet>`)
+        const result = discoverDashTextTracks(m, baseUrl)
+        expect(result[0].forced).toBeTrue()
+        expect(result[0].characteristics).toEqual(['forced_subtitle'])
+    })
+
+    it('surfaces role and accessibility values as characteristics', () => {
+        const m = manifest(`
+            <AdaptationSet contentType="text" lang="en" mimeType="text/vtt">
+              <Role schemeIdUri="urn:mpeg:dash:role:2011" value="caption"/>
+              <Accessibility schemeIdUri="urn:tva:metadata:cs:AudioPurposeCS:2007" value="2"/>
+              <Representation id="r" bandwidth="100">
+                <BaseURL>c.vtt</BaseURL>
+              </Representation>
+            </AdaptationSet>`)
+        const result = discoverDashTextTracks(m, baseUrl)
+        expect(result[0].forced).toBeFalse()
+        expect(result[0].characteristics).toEqual(['caption', '2'])
+    })
+
     it('skips AdaptationSets that are not text', () => {
         const m = manifest(`
             <AdaptationSet contentType="audio" mimeType="audio/mp4">

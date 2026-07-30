@@ -42,6 +42,8 @@ export function discoverHlsTextTracks(
             language: rendition.language ?? null,
             label: rendition.name,
             default: rendition.default === true,
+            forced: rendition.forced === true,
+            characteristics: rendition.characteristics ?? [],
             uri: resolved,
             // HLS subtitle renditions don't carry a MIME type; WebVTT is the
             // overwhelmingly dominant format for sidecar HLS subtitles.

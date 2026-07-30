@@ -52,6 +52,46 @@ describe('discoverHlsTextTracks', () => {
         )
     })
 
+    it('surfaces forced and characteristics from the rendition', () => {
+        const playlist = makePlaylist({
+            alternativeRenditions: [
+                {
+                    type: 'SUBTITLES',
+                    groupId: 'subs',
+                    name: 'English (Forced)',
+                    language: 'en',
+                    uri: 'subs/en-forced.vtt',
+                    forced: true,
+                    characteristics: [
+                        'public.accessibility.transcribes-spoken-dialog',
+                    ],
+                },
+            ],
+        })
+        const result = discoverHlsTextTracks(playlist, 'https://x/main.m3u8')
+        expect(result[0].forced).toBeTrue()
+        expect(result[0].characteristics).toEqual([
+            'public.accessibility.transcribes-spoken-dialog',
+        ])
+    })
+
+    it('defaults forced to false and characteristics to empty when absent', () => {
+        const playlist = makePlaylist({
+            alternativeRenditions: [
+                {
+                    type: 'SUBTITLES',
+                    groupId: 'subs',
+                    name: 'English',
+                    language: 'en',
+                    uri: 'subs/en.vtt',
+                },
+            ],
+        })
+        const result = discoverHlsTextTracks(playlist, 'https://x/main.m3u8')
+        expect(result[0].forced).toBeFalse()
+        expect(result[0].characteristics).toEqual([])
+    })
+
     it('skips SUBTITLES renditions without a uri', () => {
         const playlist = makePlaylist({
             alternativeRenditions: [
