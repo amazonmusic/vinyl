@@ -329,6 +329,7 @@ export class BufferingControllerImpl
      * Resets the throttle and polls the buffer on the next frame.
      */
     private pollBufferImmediate = () => {
+        if (!this.active) return
         this.pollBuffer.reset()
         setTimeout(() => {
             if (this.active) this.pollBuffer()

@@ -1397,13 +1397,14 @@ describe('TrackControllerImpl', () => {
             content.activate.calls.reset()
 
             // Postroll ends → finishPostroll pauses now but DEFERS the source
-            // teardown/reactivation. Dispose before the macrotask fires.
+            // teardown/reactivation to a macrotask. Dispose before it fires:
+            // dispose cancels the deferral timer, so no content reactivation
+            // (and no log/dispatch) happens after teardown.
             deps.playbackController.dispatch('ended', {})
             await flush()
             disposed = true
             trackController.dispose()
             await clock.tick()
-            // The deferred callback bailed out — no content reactivation.
             expect(content.activate).not.toHaveBeenCalled()
         })
 

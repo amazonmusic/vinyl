@@ -276,6 +276,10 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     private _adTrackAdId: string | null = null
     private _adResumeTime: number = 0
     private _adTimeoutId: TimeoutId | null = null
+    // Deferred macrotask that tears down the ad source and reactivates content
+    // after a postroll finishes (see finishPostroll). Tracked so it can be
+    // cancelled on teardown — otherwise it could fire after disposal.
+    private _postrollDeferralId: TimeoutId | null = null
     // The placement of the break currently playing. A postroll finalizes the
     // queue on completion (content is over) rather than resuming content.
     private _activeBreakPlacement: AdBreakPlacement | null = null
@@ -461,8 +465,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         // and parked at 0 (leaving it deactivated strands the element with no
         // source — endless loading). We do NOT resume at the content-end
         // position (that would replay the last seconds) and do NOT auto-play.
-        setTimeout(() => {
-            if (this.disposer.disposed) return
+        this._postrollDeferralId = setTimeout(() => {
+            this._postrollDeferralId = null
             this.clearAdPlayback()
             if (this._currentTrack && !this._currentTrack.active) {
                 this._currentTrack.activate(this._current?.config ?? {})
@@ -553,6 +557,10 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         if (this._adTimeoutId) {
             clearTimeout(this._adTimeoutId)
             this._adTimeoutId = null
+        }
+        if (this._postrollDeferralId) {
+            clearTimeout(this._postrollDeferralId)
+            this._postrollDeferralId = null
         }
         if (this._adTrack) {
             this._adTrack.deactivate()
