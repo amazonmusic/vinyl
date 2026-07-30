@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createVinylSuite, vinylTestAssets } from '@amazon/vinyl/vinylTestUtil'
+import {
+    createVinylSuite,
+    mediaRef,
+    vinylTestAssets,
+} from '@amazon/vinyl/vinylTestUtil'
 import {
     PlaybackReadyState,
     supportsMse,
@@ -665,6 +669,41 @@ describe('hls ad interstitials integ', () => {
     // deterministically in the TrackController unit tests, where ad playback
     // timing is controlled. A real-browser version would race the ad's own
     // playback lifecycle, so it is intentionally not duplicated here.
+
+    // Regression: a caption cue could get stuck on screen after an ad swapped
+    // the track — the content's DOM text track was orphaned by the source
+    // reset on suspend but its cues kept showing. Suspending on deactivate and
+    // rebuilding on reactivation must leave exactly one showing track.
+    it('does not leave a stuck caption track after an ad', async () => {
+        const player = suite.player
+        await loadAndAwaitAdBreaks()
+        // Activate a caption and wait for cues to render on the DOM track.
+        await poll(() => player.textTracks.length > 0, 15_000)
+        const track = player.textTracks[0]
+        player.setActiveTextTrack(track.id)
+        const showingWithCues = () => {
+            const dom = mediaRef.value.textTracks
+            return Array.from({ length: dom.length }, (_, i) => dom[i]).filter(
+                (t) => t.mode === 'showing' && (t.cues?.length ?? 0) > 0
+            )
+        }
+        expect(
+            await poll(() => showingWithCues().length > 0, 15_000)
+        ).toBeTrue()
+
+        // Play into the midroll ad and back out.
+        await playThenSeek(MIDROLL_TIME + 1)
+        expect(await poll(() => player.currentAdTrack != null)).toBeTrue()
+        player.skipAd()
+        expect(await poll(() => player.currentAdTrack == null)).toBeTrue()
+
+        // After resume the caption renders again on exactly one showing track —
+        // no orphaned track left showing a stuck cue.
+        expect(
+            await poll(() => showingWithCues().length > 0, 20_000)
+        ).toBeTrue()
+        expect(showingWithCues().length).toBe(1)
+    })
 })
 
 /**

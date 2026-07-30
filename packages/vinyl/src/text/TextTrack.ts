@@ -118,4 +118,19 @@ export interface TextTrackController extends ReadonlyTextTrackController {
      * text track.
      */
     setActiveTextTrack(id: string | null): void
+
+    /**
+     * Suspends cue rendering without changing the active selection: cancels any
+     * in-flight load and tears down the DOM text track (so its cues stop
+     * showing). Called when the owning media track is deactivated — e.g. while
+     * an ad plays over the suspended content. {@link resume} rebuilds it.
+     */
+    suspend(): void
+
+    /**
+     * Rebuilds the DOM text track for the active selection after a
+     * {@link suspend}, reloading its cues. No-op when nothing is active or when
+     * already rendering. Called when the owning media track is reactivated.
+     */
+    resume(): void
 }

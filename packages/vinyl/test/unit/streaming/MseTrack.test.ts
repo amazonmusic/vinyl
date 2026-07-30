@@ -759,6 +759,8 @@ describe('MseTrack', () => {
                 textTracks: [],
                 activeTextTrack: null,
                 setActiveTextTrack: () => undefined,
+                suspend: () => undefined,
+                resume: () => undefined,
                 on: () => () => undefined,
                 hasAnyListeners: () => false,
                 hasListeners: () => false,
@@ -768,6 +770,27 @@ describe('MseTrack', () => {
                 controller
             track = createTrack()
             expect(track.textTrackController).toBe(controller)
+        })
+
+        it('suspends the controller on deactivate and resumes it on activate', () => {
+            const controller = {
+                textTracks: [],
+                activeTextTrack: null,
+                setActiveTextTrack: () => undefined,
+                suspend: jasmine.createSpy('suspend'),
+                resume: jasmine.createSpy('resume'),
+                on: () => () => undefined,
+                hasAnyListeners: () => false,
+                hasListeners: () => false,
+                __eventMapType: {} as never,
+            }
+            ;(deps as unknown as Record<string, unknown>).textTrackController =
+                controller
+            track = createTrack()
+            track.activate({})
+            expect(controller.resume).toHaveBeenCalled()
+            track.deactivate()
+            expect(controller.suspend).toHaveBeenCalled()
         })
     })
 

@@ -340,6 +340,54 @@ b.vtt
         expect(media.lastTrack?.cues.length).toBe(1)
     })
 
+    it('suspend clears the DOM track and resume rebuilds it, keeping the selection', async () => {
+        // Fresh Response per call — resume() re-fetches and a Response body can
+        // only be read once.
+        requester.request.and.callFake(() =>
+            Promise.resolve(
+                new Response(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\none`)
+            )
+        )
+        const t = makeTrack()
+        controller.setTextTracks([t])
+        controller.setActiveTextTrack(t.id)
+        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
+        const first = media.lastTrack
+        expect(first?.mode).toBe('showing')
+
+        // Suspend (track deactivated for an ad): DOM track torn down, selection kept.
+        controller.suspend()
+        expect(first?.cues.length).toBe(0)
+        expect(first?.mode).toBe('disabled')
+        expect(controller.activeTextTrack?.id).toBe(t.id)
+
+        // Resume (content reactivated): a fresh DOM track renders the cues again.
+        controller.resume()
+        await flushUntil(
+            () =>
+                media.lastTrack !== first &&
+                (media.lastTrack?.cues.length ?? 0) > 0
+        )
+        expect(media.lastTrack?.mode).toBe('showing')
+        expect(media.lastTrack?.cues.length).toBe(1)
+    })
+
+    it('resume is a no-op when nothing is active', () => {
+        controller.resume()
+        expect(media.addTextTrack).not.toHaveBeenCalled()
+    })
+
+    it('resume is a no-op when already rendering', async () => {
+        respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\none`)
+        const t = makeTrack()
+        controller.setTextTracks([t])
+        controller.setActiveTextTrack(t.id)
+        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
+        media.addTextTrack.calls.reset()
+        controller.resume()
+        expect(media.addTextTrack).not.toHaveBeenCalled()
+    })
+
     it('skips DOM cue creation when no VTTCue ctor is available', async () => {
         ;(globalThis as any).VTTCue = undefined
         respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nignored`)
