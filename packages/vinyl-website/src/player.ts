@@ -51,12 +51,12 @@ const updateHasVideo = () => {
 media.addEventListener('loadedmetadata', updateHasVideo)
 media.addEventListener('resize', updateHasVideo)
 
-player.on('play', () => {
-    playerState.paused$.value = false
-})
-player.on('pause', () => {
-    playerState.paused$.value = true
-})
+// Paused when the element is paused or ended. `ended` is not guaranteed to be
+// preceded by `pause` (e.g. a postroll playing to its end), so listen for it too.
+const refreshPaused = () => {
+    playerState.paused$.value = player.paused || player.ended
+}
+onAny(player, ['play', 'pause', 'ended'], refreshPaused)
 
 player.on('timeUpdate', () => {
     playerState.currentTime$.value = player.currentTime

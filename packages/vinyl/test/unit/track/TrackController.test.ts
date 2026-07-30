@@ -1340,43 +1340,30 @@ describe('TrackControllerImpl', () => {
                     ],
                 }),
             ])
-            // Content ended at t=60; the postroll takes over (suspending and
-            // tearing down the content track's media source).
+            // Content ended at t=60; the postroll takes over.
             deps.playbackController.currentTime = 60
             deps.playbackController.dispatch('ended', {})
             await flush()
             expect(trackController.currentAdTrack).not.toBeNull()
             content.activate.calls.reset()
             deps.playbackController.play.calls.reset()
-            deps.playbackController.pause.calls.reset()
 
-            // The postroll ad ends → break ends. With no next track the content
-            // track is reactivated at its START (so the element has a source and
-            // is parked at 0, not left empty/loading and not replaying the
-            // content end), and is left paused (content already finished).
+            // Postroll ad ends → content track reactivated at its start (parked
+            // at 0, not replaying the end) and not auto-played.
             deps.playbackController.dispatch('ended', {})
             await flush()
-            // finishPostroll pauses immediately (so the `pause` DOM event
-            // dispatches while the ad is still the live source), then defers the
-            // source teardown + content reactivation to a macrotask so that
-            // queued `pause` event is not swallowed by the source reset.
-            expect(deps.playbackController.pause).toHaveBeenCalled()
             expect(queueEndedSpy).toHaveBeenCalled()
-            // Tearing down the ad + reactivating content happens on the deferred
-            // macrotask.
-            await clock.tick()
             expect(trackController.currentAdTrack).toBeNull()
             expect(trackController.currentTrack).toBe(content)
             expect(content.activate).toHaveBeenCalledTimes(1)
             const activateArg = content.activate.calls.mostRecent().args[0] as {
                 startTime?: number
             }
-            // Reactivated at the start (no startTime override / not 60).
             expect(activateArg.startTime).toBeUndefined()
             expect(deps.playbackController.play).not.toHaveBeenCalled()
         })
 
-        it('does not reactivate content if disposed before the deferred postroll teardown runs', async () => {
+        it('does not reactivate content when disposed before the postroll ends', async () => {
             trackController.load(...createLoadOptionsList(1))
             const content = trackController.currentTrack as MockTrack
             adController.setAdBreaks([
@@ -1396,12 +1383,7 @@ describe('TrackControllerImpl', () => {
             expect(trackController.currentAdTrack).not.toBeNull()
             content.activate.calls.reset()
 
-            // Postroll ends → finishPostroll pauses now but DEFERS the source
-            // teardown/reactivation to a macrotask. Dispose before it fires:
-            // dispose cancels the deferral timer, so no content reactivation
-            // (and no log/dispatch) happens after teardown.
-            deps.playbackController.dispatch('ended', {})
-            await flush()
+            // Dispose while the postroll is active; no content reactivation.
             disposed = true
             trackController.dispose()
             await clock.tick()
