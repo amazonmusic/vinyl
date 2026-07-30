@@ -114,6 +114,15 @@ export function parseMainPlaylist(
                         ...(attrs['AUTOSELECT'] && {
                             autoSelect: attrs['AUTOSELECT'] === 'YES',
                         }),
+                        ...(attrs['FORCED'] && {
+                            forced: attrs['FORCED'] === 'YES',
+                        }),
+                        ...(attrs['CHARACTERISTICS'] && {
+                            characteristics: attrs['CHARACTERISTICS']
+                                .split(',')
+                                .map((c) => c.trim())
+                                .filter((c) => c.length > 0),
+                        }),
                     },
                     attrs,
                     {

@@ -5,18 +5,13 @@
 
 import { jsx } from '@amazon/vinyl-tsx'
 import { data } from '@amazon/vinyl-observable'
-import { playerState } from '../player'
+import { captionPreferenceOf, playerState } from '../player'
 import { Icon } from './icons'
 import type { TextTrackInfo } from '@amazon/vinyl'
 
 export function CaptionsControl() {
-    const {
-        player,
-        textTracks$,
-        activeTextTrack$,
-        captionsEnabled$,
-        preferredLanguage$,
-    } = playerState
+    const { player, textTracks$, activeTextTrack$, captionsEnabled$ } =
+        playerState
     const menuOpen$ = data(false)
 
     const visible$ = textTracks$.map((tracks) => tracks.length > 0)
@@ -26,7 +21,7 @@ export function CaptionsControl() {
     const activateTrack = (info: TextTrackInfo) => {
         player.setActiveTextTrack(info.id)
         captionsEnabled$.value = true
-        preferredLanguage$.value = info.language
+        playerState.preferredTextTrack$.value = captionPreferenceOf(info)
     }
 
     const deactivate = () => {

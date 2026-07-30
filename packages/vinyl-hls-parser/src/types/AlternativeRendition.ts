@@ -36,6 +36,21 @@ export interface AlternativeRendition {
 
     /** Whether the client may choose to play this rendition without explicit user selection (AUTOSELECT). */
     readonly autoSelect?: boolean
+
+    /**
+     * Whether this is a forced rendition (FORCED=YES): it presents essential
+     * text (e.g. translations of foreign dialogue) that should be shown even
+     * when the user has not enabled subtitles. Only meaningful for SUBTITLES.
+     */
+    readonly forced?: boolean
+
+    /**
+     * Media Characteristic Tags (CHARACTERISTICS), a comma-separated list of
+     * Uniform Type Identifiers describing the rendition, e.g.
+     * `public.accessibility.transcribes-spoken-dialog`. Parsed into individual
+     * tags. Absent when the attribute is not present.
+     */
+    readonly characteristics?: readonly string[]
 }
 
 /**

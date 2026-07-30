@@ -53,17 +53,31 @@ export function discoverDashTextTracks(
                 // intentionally skipped.
                 if (!isSidecarTextMime(mimeType)) continue
                 const language = adaptationSet.lang ?? null
-                const role = adaptationSet.Role?.find(
-                    (d) => d.schemeIdUri === 'urn:mpeg:dash:role:2011'
-                )?.value
-                const isCaption = role === 'caption'
-                const isDefault = role === 'main'
+                const roleValues = (adaptationSet.Role ?? [])
+                    .filter((d) => d.schemeIdUri === 'urn:mpeg:dash:role:2011')
+                    .map((d) => d.value)
+                    .filter((v): v is string => v != null)
+                // Accessibility descriptors (e.g. SDH / hard-of-hearing) also
+                // describe the track's role; surface them as characteristics.
+                const accessibility = (adaptationSet.Accessibility ?? [])
+                    .map((d) => d.value)
+                    .filter((v): v is string => v != null)
+                const characteristics = [...roleValues, ...accessibility]
+                const isCaption = roleValues.includes('caption')
+                const isDefault = roleValues.includes('main')
+                // DASH signals forced text via the `forced_subtitle` /
+                // `forced-subtitle` role value.
+                const forced =
+                    roleValues.includes('forced_subtitle') ||
+                    roleValues.includes('forced-subtitle')
                 out.push({
                     id: `dash-text-${p}-${representation.id}`,
                     kind: isCaption ? 'captions' : 'subtitles',
                     language,
                     label: language ?? representation.id,
                     default: isDefault,
+                    forced,
+                    characteristics,
                     uri,
                     mimeType,
                 })

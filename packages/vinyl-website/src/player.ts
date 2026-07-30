@@ -36,7 +36,11 @@ export const playerState = {
     textTracks$: data<readonly TextTrackInfo[]>([]),
     activeTextTrack$: data<TextTrackInfo | null>(null),
     captionsEnabled$: data(false),
-    preferredLanguage$: data<string | null>(null),
+    // The identity of the chosen caption track, retained so the same variant
+    // is re-selected when captions carry across a track change (e.g. off an
+    // ad). Language alone is ambiguous when a language has both a full and a
+    // forced track, so forced and characteristics are part of the identity.
+    preferredTextTrack$: data<CaptionPreference | null>(null),
     activeAdBreak$: data<AdBreakInfo | null>(null),
     adBreaks$: data<readonly AdBreakInfo[]>([]),
     adRemaining$: data(0),
@@ -136,6 +140,27 @@ function updateAdRemaining() {
     playerState.adRemaining$.value = Math.max(0, dur - player.currentTime)
 }
 
+/**
+ * The identity used to re-select the user's chosen caption track across track
+ * changes. Language alone is ambiguous (a language can have both a full and a
+ * forced track), so `forced` and `characteristics` disambiguate same-language
+ * variants — mirroring how players like Shaka key text preference off
+ * language + forced + roles rather than a label string.
+ */
+export interface CaptionPreference {
+    readonly language: string | null
+    readonly forced: boolean
+    readonly characteristics: readonly string[]
+}
+
+export function captionPreferenceOf(t: TextTrackInfo): CaptionPreference {
+    return {
+        language: t.language,
+        forced: t.forced,
+        characteristics: t.characteristics,
+    }
+}
+
 function applyCaptionsPreference() {
     if (!playerState.captionsEnabled$.value) return
     if (player.activeTextTrack) return // already on for this track
@@ -143,14 +168,43 @@ function applyCaptionsPreference() {
     if (target) player.setActiveTextTrack(target.id)
 }
 
+/**
+ * Scores how well a track matches the preference: exact identity beats a
+ * language+forced match, which beats language-only. Returns -1 for no match.
+ */
+function scoreMatch(t: TextTrackInfo, pref: CaptionPreference): number {
+    if (t.language !== pref.language) return -1
+    let score = 1 // language matches
+    if (t.forced === pref.forced) score += 2
+    if (sameCharacteristics(t.characteristics, pref.characteristics)) score += 1
+    return score
+}
+
+function sameCharacteristics(
+    a: readonly string[],
+    b: readonly string[]
+): boolean {
+    if (a.length !== b.length) return false
+    const set = new Set(a)
+    return b.every((c) => set.has(c))
+}
+
 function pickPreferredTrack(
     tracks: readonly TextTrackInfo[]
 ): TextTrackInfo | null {
     if (tracks.length === 0) return null
-    const preferred = playerState.preferredLanguage$.value
-    if (preferred) {
-        const match = tracks.find((t) => t.language === preferred)
-        if (match) return match
+    const pref = playerState.preferredTextTrack$.value
+    if (pref) {
+        let best: TextTrackInfo | null = null
+        let bestScore = 0
+        for (const t of tracks) {
+            const score = scoreMatch(t, pref)
+            if (score > bestScore) {
+                bestScore = score
+                best = t
+            }
+        }
+        if (best) return best
     }
     return tracks.find((t) => t.default) ?? tracks[0]
 }

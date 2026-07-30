@@ -74,6 +74,26 @@ describe('parseMainPlaylist', () => {
         expect(es.uri).toBeUndefined()
     })
 
+    it('parses FORCED and CHARACTERISTICS on a subtitles rendition', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English (Forced)",LANGUAGE="en",FORCED=YES,CHARACTERISTICS="public.accessibility.transcribes-spoken-dialog, public.easy-to-read",URI="subs/en-forced.vtt"',
+            '#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID="subs",NAME="English",LANGUAGE="en",FORCED=NO,URI="subs/en.vtt"',
+        ].join('\n')
+
+        const result = parseMainPlaylist(manifest)
+        const forced = result.alternativeRenditions[0]
+        expect(forced.forced).toBe(true)
+        expect(forced.characteristics).toEqual([
+            'public.accessibility.transcribes-spoken-dialog',
+            'public.easy-to-read',
+        ])
+
+        const full = result.alternativeRenditions[1]
+        expect(full.forced).toBe(false)
+        expect(full.characteristics).toBeUndefined()
+    })
+
     it('parses session data', () => {
         const manifest = [
             '#EXTM3U',
