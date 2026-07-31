@@ -57,6 +57,9 @@ export class SidecarTextTrackController
     private _active: TextTrackInfo | null = null
     private _domTrack: TextTrack | null = null
     private loadAbort: Abort | null = null
+    // True once the app has made an explicit selection (including null). Until
+    // then, forced tracks auto-select on discovery.
+    private _userSelected = false
 
     constructor(private readonly deps: SidecarTextTrackControllerDeps) {
         super()
@@ -82,11 +85,28 @@ export class SidecarTextTrackController
         this.dispatch('textTracksChange', { previous, current: tracks })
 
         if (this._active && !tracks.some((t) => t.id === this._active!.id)) {
-            this.setActiveTextTrack(null)
+            // Clear a now-absent selection, but keep _userSelected intact.
+            this.selectById(null)
+        }
+
+        // Auto-show forced captions until the app makes an explicit choice.
+        if (!this._userSelected && !this._active) {
+            const forced = this.pickForcedTrack(tracks)
+            if (forced) this.selectById(forced.id)
         }
     }
 
     setActiveTextTrack(id: string | null): void {
+        // An explicit app choice; stop auto-selecting forced tracks.
+        this._userSelected = true
+        this.selectById(id)
+    }
+
+    /**
+     * Applies a selection by id (null clears it) without marking it as an
+     * explicit user choice. Shared by setActiveTextTrack and forced auto-select.
+     */
+    private selectById(id: string | null): void {
         const next = id == null ? null : this._tracks.find((t) => t.id === id)
         if (id != null && !next) return // unknown id is a no-op
         const target = next ?? null
@@ -101,6 +121,23 @@ export class SidecarTextTrackController
             current: target,
         })
         if (target) this.startLoad(target)
+    }
+
+    /**
+     * The forced track to auto-select, or null. Prefers the default track's
+     * language, else the first forced track.
+     */
+    private pickForcedTrack(
+        tracks: readonly TextTrackInfo[]
+    ): TextTrackInfo | null {
+        const forced = tracks.filter((t) => t.forced)
+        if (forced.length === 0) return null
+        const defaultLang = tracks.find((t) => t.default)?.language
+        if (defaultLang != null) {
+            const match = forced.find((t) => t.language === defaultLang)
+            if (match) return match
+        }
+        return forced[0]
     }
 
     suspend(): void {

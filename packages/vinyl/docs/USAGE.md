@@ -451,13 +451,28 @@ text track URL. Segmented text codecs (`stpp`, `wvtt`) are not surfaced in v1.
 Discovery happens automatically when a track loads — applications need only
 listen for the `textTracksChange` event or read `player.textTracks`.
 
+### Forced subtitles
+
+A track flagged `forced` carries essential text (e.g. translations of
+foreign-language dialogue) that is meant to display even when the user has not
+enabled subtitles. A `forced` track shares its `language` with the full track,
+so selection distinguishes them by the `forced` flag rather than language alone.
+Media characteristics / accessibility roles are surfaced in `characteristics`
+(HLS `CHARACTERISTICS`, DASH `Role`/`Accessibility`).
+
+Until the application makes an explicit selection, the player auto-selects a
+forced track when one is discovered (preferring the default track's language).
+Any `setActiveTextTrack` call — including `setActiveTextTrack(null)` to turn
+captions off — is treated as an explicit choice and disables the auto-select.
+
 ### API
 
 ```typescript
 // Inspect available text tracks for the current media.
 console.log(player.textTracks)
 // → [{ id, kind: 'subtitles', language: 'en', label: 'English', default: true,
-//      uri: 'https://.../subs/en.vtt', mimeType: 'text/vtt' }, ...]
+//      forced: false, characteristics: [], uri: 'https://.../subs/en.vtt',
+//      mimeType: 'text/vtt' }, ...]
 
 // Activate a track.
 player.setActiveTextTrack(player.textTracks[0].id)

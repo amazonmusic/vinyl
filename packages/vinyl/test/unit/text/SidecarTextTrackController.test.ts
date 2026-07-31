@@ -114,6 +114,54 @@ describe('SidecarTextTrackController', () => {
         expect(controller.activeTextTrack).toBeNull()
     })
 
+    describe('forced auto-selection', () => {
+        it('auto-selects a forced track on discovery', () => {
+            controller.setTextTracks([
+                makeTrack({ id: 'full', label: 'English' }),
+                makeTrack({ id: 'forced', label: 'Forced', forced: true }),
+            ])
+            expect(controller.activeTextTrack?.id).toBe('forced')
+        })
+
+        it('prefers the forced track matching the default language', () => {
+            controller.setTextTracks([
+                makeTrack({ id: 'en-f', language: 'en', forced: true }),
+                makeTrack({
+                    id: 'es-f',
+                    language: 'es',
+                    forced: true,
+                    default: true,
+                }),
+            ])
+            expect(controller.activeTextTrack?.id).toBe('es-f')
+        })
+
+        it('does not auto-select when there is no forced track', () => {
+            controller.setTextTracks([makeTrack({ id: 'full' })])
+            expect(controller.activeTextTrack).toBeNull()
+        })
+
+        it('does not auto-select after the app made an explicit choice', () => {
+            // App explicitly turned captions off (null) before tracks arrive.
+            controller.setActiveTextTrack(null)
+            controller.setTextTracks([
+                makeTrack({ id: 'forced', forced: true }),
+            ])
+            expect(controller.activeTextTrack).toBeNull()
+        })
+
+        it('does not override an explicit selection with a forced track', () => {
+            controller.setTextTracks([makeTrack({ id: 'full' })])
+            controller.setActiveTextTrack('full')
+            // A later list reveals a forced track; the explicit choice stands.
+            controller.setTextTracks([
+                makeTrack({ id: 'full' }),
+                makeTrack({ id: 'forced', forced: true }),
+            ])
+            expect(controller.activeTextTrack?.id).toBe('full')
+        })
+    })
+
     it('emits textTracksChange when discovered list changes', () => {
         const handler = jasmine.createSpy('textTracksChange')
         controller.on('textTracksChange', handler)
