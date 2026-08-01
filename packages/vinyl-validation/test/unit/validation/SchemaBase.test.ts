@@ -99,4 +99,53 @@ describe('SchemaBase', () => {
             expectTypeEquals<typeof optionalOption, false>(true)
         })
     })
+
+    describe('jsonSchema', () => {
+        it('exposes the underlying validator fragment', () => {
+            innerValidator.jsonSchema = { type: 'string' }
+            expect(schema.jsonSchema).toEqual({ type: 'string' })
+        })
+
+        it('is undefined when the validator has no fragment', () => {
+            innerValidator.jsonSchema = undefined
+            expect(schema.jsonSchema).toBeUndefined()
+        })
+    })
+
+    describe('describe', () => {
+        it('returns a clone carrying the description without mutating the original', () => {
+            innerValidator.jsonSchema = { type: 'string' }
+            const described = schema.describe('a label')
+            expect(described).not.toBe(schema)
+            expect(described.jsonSchema).toEqual({
+                type: 'string',
+                description: 'a label',
+            })
+            expect(schema.jsonSchema).toEqual({ type: 'string' })
+        })
+
+        it('carries the description through further chaining', () => {
+            innerValidator.jsonSchema = { type: 'string' }
+            const described = schema.describe('a label').optional()
+            expect(described.jsonSchema).toEqual({
+                type: 'string',
+                description: 'a label',
+            })
+        })
+    })
+
+    describe('toJsonSchema', () => {
+        it('serializes the composed fragment', () => {
+            innerValidator.jsonSchema = { type: 'number' }
+            expect(schema.describe('n').toJsonSchema()).toEqual({
+                type: 'number',
+                description: 'n',
+            })
+        })
+
+        it('returns an empty schema when there is no fragment', () => {
+            innerValidator.jsonSchema = undefined
+            expect(schema.toJsonSchema()).toEqual({})
+        })
+    })
 })

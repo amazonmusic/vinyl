@@ -29,7 +29,9 @@ export const numberValidators = {
     gte(min: number): Validator<number, number> {
         return createValidator(
             substitute(locale.gte, { value: min }),
-            (input) => input >= min
+            (input) => input >= min,
+            undefined,
+            { minimum: min }
         )
     },
 
@@ -42,7 +44,9 @@ export const numberValidators = {
     gt(min: number): Validator<number, number> {
         return createValidator(
             substitute(locale.gt, { value: min }),
-            (input) => input > min
+            (input) => input > min,
+            undefined,
+            { exclusiveMinimum: min }
         )
     },
 
@@ -55,7 +59,9 @@ export const numberValidators = {
     lte(max: number): Validator<number, number> {
         return createValidator(
             substitute(locale.lte, { value: max }),
-            (input) => input <= max
+            (input) => input <= max,
+            undefined,
+            { maximum: max }
         )
     },
 
@@ -68,7 +74,9 @@ export const numberValidators = {
     lt(max: number): Validator<number, number> {
         return createValidator(
             substitute(locale.lt, { value: max }),
-            (input) => input < max
+            (input) => input < max,
+            undefined,
+            { exclusiveMaximum: max }
         )
     },
 
@@ -82,7 +90,9 @@ export const numberValidators = {
     within(min: number, max: number): Validator<number, number> {
         return createValidator(
             substitute(locale.within, { min, max }),
-            (input) => input >= min && input <= max
+            (input) => input >= min && input <= max,
+            undefined,
+            { minimum: min, maximum: max }
         )
     },
 
@@ -97,8 +107,11 @@ export const numberValidators = {
      * Creates a validator that asserts that the input number is a safe integer.
      */
     safeInteger(): Validator<number, number> {
-        return createValidator(locale.safeInteger, (input) =>
-            Number.isSafeInteger(input)
+        return createValidator(
+            locale.safeInteger,
+            (input) => Number.isSafeInteger(input),
+            undefined,
+            { type: 'integer' }
         )
     },
 } as const

@@ -6,6 +6,7 @@
 import { substitute } from '@amazon/vinyl-util'
 import type { Validator } from './Validator'
 import { createDeepValidator } from './Validator'
+import { mergeJsonSchema } from './JsonSchema'
 
 /*
  * @brief
@@ -95,6 +96,7 @@ export function andValidators(
                 if (errors.length) return errors
             }
             return []
-        }
+        },
+        mergeJsonSchema(...validators.map((v) => v.jsonSchema))
     )
 }

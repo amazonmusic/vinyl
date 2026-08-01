@@ -17,6 +17,8 @@ import type { ValidationErrorMessage } from './Validator'
 import { createDeepValidator } from './Validator'
 import type { PropertyValidator } from './PropertyValidator'
 import type { Equal } from '@amazon/vinyl-util'
+import type { JsonSchema } from './JsonSchema'
+import { toJsonSchema } from './JsonSchema'
 
 /**
  * @private
@@ -44,6 +46,8 @@ export const objectValidators = {
     }): ValidatorWithPartial<U, object> {
         const propertiesDescriptions: string[] = []
         const keys = ownKeys(propertyValidators)
+        const jsonProperties: Record<string, JsonSchema> = {}
+        const requiredKeys: string[] = []
         for (const key of keys) {
             const validator = propertyValidators[key]
             propertiesDescriptions.push(
@@ -52,6 +56,8 @@ export const objectValidators = {
                     value: validator.description,
                 })
             )
+            jsonProperties[String(key)] = toJsonSchema(validator)
+            if (!validator.options.optional) requiredKeys.push(String(key))
         }
         const description = substitute(locale.extend, {
             body: propertiesDescriptions
@@ -60,6 +66,11 @@ export const objectValidators = {
                 .map((line) => locale.indent + line)
                 .join('\n'),
         })
+        const jsonSchema: JsonSchema = {
+            type: 'object',
+            properties: jsonProperties,
+            ...(requiredKeys.length ? { required: requiredKeys } : {}),
+        }
         const validator = createDeepValidator(
             description,
             (input: any, options, path) => {
@@ -87,7 +98,8 @@ export const objectValidators = {
                     if (!options.all && errors.length) return errors
                 }
                 return errors
-            }
+            },
+            jsonSchema
         )
         return merge(validator, {
             partial(): ValidatorWithPartial<Partial<U>, object> {

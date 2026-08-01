@@ -8,6 +8,7 @@ import { substitute } from '@amazon/vinyl-util'
 import { ValueSchema } from './ValueSchema'
 import type { ValidationErrorMessage, Validator } from './Validator'
 import { createDeepValidator, createValidator } from './Validator'
+import { toJsonSchema } from './JsonSchema'
 
 /**
  * @private
@@ -31,8 +32,11 @@ export const arrayValidators = {
      * to cast to a readonly array.
      */
     isArray(): Validator<unknown[]> {
-        return createValidator(locale.array, (input: unknown) =>
-            Array.isArray(input)
+        return createValidator(
+            locale.array,
+            (input: unknown) => Array.isArray(input),
+            undefined,
+            { type: 'array' }
         )
     },
 
@@ -62,7 +66,8 @@ export const arrayValidators = {
                     if (!options.all && errors.length) return errors
                 }
                 return errors
-            }
+            },
+            { type: 'array', items: toJsonSchema(elementValidator) }
         )
     },
 
@@ -110,6 +115,13 @@ export const arrayValidators = {
                     if (!options.all && errors.length) return errors
                 }
                 return errors
+            },
+            {
+                type: 'array',
+                items: validators.map((v) => toJsonSchema(v)),
+                minItems: validators.length,
+                maxItems: validators.length,
+                additionalItems: false,
             }
         )
     },
@@ -122,7 +134,8 @@ export const arrayValidators = {
         return createValidator(
             substitute(locale.minLength, { value: min }),
             (input) => input.length >= min,
-            (input) => substitute(locale.actualLength, { value: input.length })
+            (input) => substitute(locale.actualLength, { value: input.length }),
+            { minItems: min }
         )
     },
 
@@ -135,7 +148,8 @@ export const arrayValidators = {
         return createValidator(
             substitute(locale.maxLength, { value: max }),
             (input) => input.length <= max,
-            (input) => substitute(locale.actualLength, { value: input.length })
+            (input) => substitute(locale.actualLength, { value: input.length }),
+            { maxItems: max }
         )
     },
 } as const

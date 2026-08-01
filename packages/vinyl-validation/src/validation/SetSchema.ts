@@ -8,6 +8,7 @@ import { substitute } from '@amazon/vinyl-util'
 import type { ValidationErrorMessage, Validator } from './Validator'
 import { createDeepValidator, createValidator } from './Validator'
 import { ValueSchema } from './ValueSchema'
+import { toJsonSchema } from './JsonSchema'
 
 /**
  * @private
@@ -24,7 +25,9 @@ export const setValidators = {
     isSet(): Validator<Set<unknown>> {
         return createValidator(
             locale.set,
-            (input: unknown) => input instanceof Set
+            (input: unknown) => input instanceof Set,
+            undefined,
+            { type: 'array', uniqueItems: true }
         )
     },
 
@@ -55,6 +58,11 @@ export const setValidators = {
                     i++
                 }
                 return errors
+            },
+            {
+                type: 'array',
+                uniqueItems: true,
+                items: toJsonSchema(elementValidator),
             }
         )
     },

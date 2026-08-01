@@ -25,7 +25,12 @@ export const stringValidators = {
      * Creates a validator that asserts that the input is not empty.
      */
     notEmpty(): Validator<string, string> {
-        return createValidator(locale.notEmpty, (input) => input !== '')
+        return createValidator(
+            locale.notEmpty,
+            (input) => input !== '',
+            undefined,
+            { minLength: 1 }
+        )
     },
 
     /**
@@ -37,7 +42,9 @@ export const stringValidators = {
     minLength(min: number): Validator<string, string> {
         return createValidator(
             substitute(locale.minLength, { value: min }),
-            (input) => input.length >= min
+            (input) => input.length >= min,
+            undefined,
+            { minLength: min }
         )
     },
 
@@ -50,7 +57,9 @@ export const stringValidators = {
     maxLength(max: number): Validator<string, string> {
         return createValidator(
             substitute(locale.maxLength, { value: max }),
-            (input) => input.length <= max
+            (input) => input.length <= max,
+            undefined,
+            { maxLength: max }
         )
     },
 
@@ -74,7 +83,9 @@ export const stringValidators = {
             substitute(locale.matches, { value: regex.toString() }),
             (input) => {
                 return regex.test(input)
-            }
+            },
+            undefined,
+            { pattern: regex.source }
         )
     },
 } as const

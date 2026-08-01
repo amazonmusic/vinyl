@@ -5,6 +5,7 @@
 
 import { type Invariant, ValidationError } from '@amazon/vinyl-util'
 import { stringifyForPrint, substitute } from '@amazon/vinyl-util'
+import type { JsonSchema } from './JsonSchema'
 
 /**
  * Represents a validation failure.
@@ -37,6 +38,16 @@ export interface Validator<Output extends Input, in Input = unknown> {
      * A short description of the validator.
      */
     readonly description: string
+
+    /**
+     * The JSON Schema fragment this validator contributes, if any.
+     *
+     * Fragments compose the same way the {@link description} does: chaining validators with `and`
+     * merges their fragments, and `or` unions them into an `anyOf`. Serialize a full schema with
+     * {@link toJsonSchema}. A validator with no meaningful shape (for example a bare type check)
+     * may omit this.
+     */
+    readonly jsonSchema?: JsonSchema | undefined
 
     /**
      * Returns true if the input is valid according to this validator.
@@ -123,15 +134,18 @@ export function createValidationExpectationMessage<Input>(
  * @param isValid Returns true if the given input is valid.
  * @param inputStringify Stringifies the input for use as the actual `{actual}` token in the validation
  * expectation template. Default is `stringifyForPrint` with a 500 character max length.
+ * @param jsonSchema The JSON Schema fragment this validator contributes, if any.
  */
 export function createValidator<Output extends Input, Input = unknown>(
     expectationMessage: string,
     isValid: (input: Input) => boolean,
     inputStringify: (input: Input) => string = (input) =>
-        stringifyForPrint(input, 500)
+        stringifyForPrint(input, 500),
+    jsonSchema?: JsonSchema
 ): Validator<Output, Input> {
     return {
         description: expectationMessage,
+        jsonSchema,
 
         isValid(input: Input): input is Output {
             return isValid(input)
@@ -186,6 +200,7 @@ export function createValidator<Output extends Input, Input = unknown>(
  *
  * @param description Describes the validator.
  * @param validate Returns an array of validation failures.
+ * @param jsonSchema The JSON Schema fragment this validator contributes, if any.
  */
 export function createDeepValidator<Output extends Input, Input = unknown>(
     description: string,
@@ -193,10 +208,12 @@ export function createDeepValidator<Output extends Input, Input = unknown>(
         input: Input,
         options: ValidationOptions,
         path: readonly string[]
-    ) => readonly ValidationErrorMessage[]
+    ) => readonly ValidationErrorMessage[],
+    jsonSchema?: JsonSchema
 ): Validator<Output, Input> {
     return {
         description,
+        jsonSchema,
 
         isValid(input: Input): input is Output {
             return validate(input, { all: false }, []).length === 0

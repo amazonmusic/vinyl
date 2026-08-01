@@ -7,6 +7,7 @@ import type { FromTypeof, Typeof } from '@amazon/vinyl-util'
 import { substitute } from '@amazon/vinyl-util'
 import type { Validator } from './Validator'
 import { createValidator } from './Validator'
+import type { JsonSchema, JsonSchemaType } from './JsonSchema'
 
 /**
  * @private
@@ -14,6 +15,17 @@ import { createValidator } from './Validator'
 const locale = {
     template: 'type {value}',
 } as const
+
+/**
+ * The JSON Schema `type` for each JavaScript `typeof` value that has a JSON representation.
+ * Types with no JSON equivalent (`function`, `symbol`) are absent and contribute no fragment.
+ */
+const jsonSchemaTypeByTypeof: Partial<Record<Typeof, JsonSchemaType>> = {
+    string: 'string',
+    number: 'number',
+    boolean: 'boolean',
+    object: 'object',
+}
 
 /**
  * Creates a validator that validates that the input is not nullish and its `typeof` matches the
@@ -27,11 +39,16 @@ const locale = {
 function typeOfValidator<T extends Typeof>(
     expected: T
 ): Validator<NonNullable<FromTypeof<T>>> {
+    const jsonType = jsonSchemaTypeByTypeof[expected]
+    const jsonSchema: JsonSchema | undefined =
+        jsonType == null ? undefined : { type: jsonType }
     return createValidator(
         substitute(locale.template, { value: expected }),
         (input: unknown): input is NonNullable<FromTypeof<T>> => {
             return input != null && typeof input === expected
-        }
+        },
+        undefined,
+        jsonSchema
     )
 }
 

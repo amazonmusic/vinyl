@@ -2,6 +2,7 @@
 export * from './validation/andValidators'
 export * from './validation/ArraySchema'
 export * from './validation/FunctionSchema'
+export * from './validation/JsonSchema'
 export * from './validation/NumberSchema'
 export * from './validation/ObjectSchema'
 export * from './validation/orValidators'

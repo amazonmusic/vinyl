@@ -9,6 +9,7 @@ import {
     createDeepValidator,
     createValidationExpectationMessage,
 } from './Validator'
+import type { JsonSchema } from './JsonSchema'
 
 /*
  * @brief
@@ -34,6 +35,24 @@ const locale = {
      */
     separator: ' | ',
 } as const
+
+/**
+ * Composes the child validators' JSON Schema fragments into a union.
+ *
+ * Branches with no fragment are skipped: JSON Schema has no representation for `undefined`, and a
+ * value's optionality is instead conveyed by an object's `required` list. A single remaining branch
+ * collapses to that branch rather than a redundant `anyOf`.
+ */
+function unionJsonSchema(
+    validators: readonly Validator<any, any>[]
+): JsonSchema | undefined {
+    const branches = validators
+        .map((v) => v.jsonSchema)
+        .filter((fragment): fragment is JsonSchema => fragment != null)
+    if (branches.length === 0) return undefined
+    if (branches.length === 1) return branches[0]
+    return { anyOf: branches }
+}
 
 /**
  * Validates that one of the given validators pass.
@@ -102,33 +121,37 @@ export function orValidators(
         value: validators.map((v) => v.description).join(locale.separator),
     })
 
-    return createDeepValidator(description, (input, options, path) => {
-        let longestErrors: readonly ValidationErrorMessage[] = []
-        let longestPath = 0
-        for (const validator of validators) {
-            const errors = validator.validate(input, options, path)
-            if (!errors.length) return errors
-            // Take the deepest error to bubble.
-            const pathLength = errors.reduce(
-                (max, m) => Math.max(m.path.length, max),
-                0
-            )
-            if (pathLength >= longestPath) {
-                longestErrors = errors
-                longestPath = pathLength
+    return createDeepValidator(
+        description,
+        (input, options, path) => {
+            let longestErrors: readonly ValidationErrorMessage[] = []
+            let longestPath = 0
+            for (const validator of validators) {
+                const errors = validator.validate(input, options, path)
+                if (!errors.length) return errors
+                // Take the deepest error to bubble.
+                const pathLength = errors.reduce(
+                    (max, m) => Math.max(m.path.length, max),
+                    0
+                )
+                if (pathLength >= longestPath) {
+                    longestErrors = errors
+                    longestPath = pathLength
+                }
             }
-        }
-        return longestPath > path.length
-            ? longestErrors
-            : [
-                  {
-                      message: createValidationExpectationMessage(
-                          description,
-                          input,
-                          path
-                      ),
-                      path,
-                  },
-              ]
-    })
+            return longestPath > path.length
+                ? longestErrors
+                : [
+                      {
+                          message: createValidationExpectationMessage(
+                              description,
+                              input,
+                              path
+                          ),
+                          path,
+                      },
+                  ]
+        },
+        unionJsonSchema(validators)
+    )
 }

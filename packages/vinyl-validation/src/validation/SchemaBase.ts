@@ -15,6 +15,8 @@ import type {
     PropertyValidatorOptions,
     PropertyValidatorWithOptions,
 } from './PropertyValidator'
+import type { JsonSchema, JsonSchemaProvider } from './JsonSchema'
+import { mergeJsonSchema } from './JsonSchema'
 
 const requiredValidationOptions = {
     optional: false,
@@ -26,14 +28,16 @@ const requiredValidationOptions = {
  *
  * Subclasses should not override constructors.
  */
-export abstract class SchemaBase<T> implements PropertyValidator<
-    T,
-    { readonly optional: false }
-> {
+export abstract class SchemaBase<T>
+    implements
+        PropertyValidator<T, { readonly optional: false }>,
+        JsonSchemaProvider
+{
     __type = invariant<T>()
 
     private readonly validator: Validator<T>
     private _options = requiredValidationOptions
+    private _jsonSchemaDescription?: string
 
     get options() {
         return this._options
@@ -82,6 +86,41 @@ export abstract class SchemaBase<T> implements PropertyValidator<
         return this.validator.description
     }
 
+    /**
+     * The composed JSON Schema fragment for this schema, including any {@link describe} description.
+     * Composes through chaining the same way {@link description} does; serialize a complete
+     * definition with {@link toJsonSchema}.
+     */
+    get jsonSchema(): JsonSchema | undefined {
+        const base = this.validator.jsonSchema
+        if (this._jsonSchemaDescription == null) return base
+        return mergeJsonSchema(base, {
+            description: this._jsonSchemaDescription,
+        })
+    }
+
+    /**
+     * Attaches a human-readable description to this schema, akin to zod's `describe`.
+     * The description is metadata only; it does not affect validation, and surfaces in the output
+     * of {@link toJsonSchema}.
+     *
+     * @param description The description to attach.
+     * @return A clone of this schema carrying the description.
+     */
+    describe(description: string): this {
+        const cloned = this.clone()
+        cloned._jsonSchemaDescription = description
+        return cloned
+    }
+
+    /**
+     * Serializes this schema to a JSON Schema definition, suitable for describing the shape to an
+     * LLM or other consumer. Works similarly to zod-to-json-schema.
+     */
+    toJsonSchema(): JsonSchema {
+        return this.jsonSchema ?? {}
+    }
+
     readonly assert: (
         input: unknown,
         origin?: string,
@@ -119,6 +158,7 @@ export abstract class SchemaBase<T> implements PropertyValidator<
               )
             : this.self(transform(this.currentValidator))
         cloned._options = this._options
+        cloned._jsonSchemaDescription = this._jsonSchemaDescription
         return cloned
     }
 
