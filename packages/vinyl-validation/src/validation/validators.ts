@@ -101,7 +101,9 @@ export function isOneOf<const U extends readonly Primitive[]>(
             substitute(locale.isOneOf, {
                 value: possibleValues.join(locale.oneOfSeparator),
             }),
-            (input) => possibleValues.includes(input as U[number])
+            (input) => possibleValues.includes(input as U[number]),
+            undefined,
+            { enum: [...possibleValues] }
         )
     )
 }

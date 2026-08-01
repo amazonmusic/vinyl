@@ -10,6 +10,7 @@ import { StringSchema } from './StringSchema'
 import { typeOfValidators } from './typeOfValidators'
 import type { ValidationErrorMessage, Validator } from './Validator'
 import { createDeepValidator } from './Validator'
+import { toJsonSchema } from './JsonSchema'
 
 /**
  * @private
@@ -62,6 +63,10 @@ export const recordValidators = {
                     if (!options.all && errors.length) return errors
                 }
                 return errors
+            },
+            {
+                type: 'object',
+                additionalProperties: toJsonSchema(valueValidator),
             }
         )
     },

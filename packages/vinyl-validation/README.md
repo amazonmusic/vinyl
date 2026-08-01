@@ -298,6 +298,48 @@ function processUser(data: unknown) {
 }
 ```
 
+## Descriptions and JSON Schema Export
+
+Any schema node can carry a human-readable description, and any schema can be
+exported as a [JSON Schema](https://json-schema.org/) definition. This is useful
+for describing a shape to an LLM or another consumer, and works similarly to
+zod's `describe` and `zod-to-json-schema`.
+
+```typescript
+import {
+    object,
+    string,
+    number,
+    isOneOf,
+    toJsonSchema,
+} from '@amazon/vinyl-validation'
+
+const userSchema = object({
+    name: string().notEmpty().describe('The user full name'),
+    age: number().gte(0).lte(120),
+    role: isOneOf('admin', 'user').describe('Access level'),
+    nickname: string().optional(),
+}).describe('A user record')
+
+toJsonSchema(userSchema)
+// {
+//   type: 'object',
+//   properties: {
+//     name: { type: 'string', minLength: 1, description: 'The user full name' },
+//     age: { type: 'number', minimum: 0, maximum: 120 },
+//     role: { enum: ['admin', 'user'], description: 'Access level' },
+//     nickname: { type: 'string' },
+//   },
+//   required: ['name', 'age', 'role'],
+//   description: 'A user record',
+// }
+```
+
+`describe` is metadata only; it does not affect validation. Optional properties
+are omitted from the `required` list. Unions (`or`, `maybe`) export as `anyOf`,
+arrays as `items`, tuples as positional `items`, sets as unique-item arrays, and
+records as objects with typed `additionalProperties`.
+
 ## License
 
 Apache-2.0

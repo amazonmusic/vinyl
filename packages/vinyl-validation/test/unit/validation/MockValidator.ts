@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { Validator } from '@amazon/vinyl-validation'
+import type { JsonSchema, Validator } from '@amazon/vinyl-validation'
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
 
 export class MockValidator<
@@ -13,6 +13,7 @@ export class MockValidator<
     private readonly spyFactory = createSpyFactory<Validator<Output, Input>>()
 
     description = ''
+    jsonSchema: JsonSchema | undefined = undefined
     assert = this.spyFactory('assert')
     isValid = this.spyFactory('isValid')
     validate = this.spyFactory('validate')

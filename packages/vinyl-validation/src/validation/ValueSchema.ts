@@ -23,16 +23,31 @@ export const valueValidators = {
 
     /**
      * Creates a validator that asserts that the input is nullish.
+     * JSON Schema has no representation for `undefined`, so only `null` is expressed.
      */
     nullish(): Validator<null | undefined> {
-        return createValidator(locale.nullish, (input) => input == null)
+        return createValidator(
+            locale.nullish,
+            (input) => input == null,
+            undefined,
+            {
+                type: 'null',
+            }
+        )
     },
 
     /**
      * Creates a validator that asserts that the input is strictly null.
      */
     null(): Validator<null> {
-        return createValidator(locale.null, (input) => input === null)
+        return createValidator(
+            locale.null,
+            (input) => input === null,
+            undefined,
+            {
+                type: 'null',
+            }
+        )
     },
 
     /**
