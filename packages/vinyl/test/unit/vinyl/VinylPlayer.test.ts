@@ -311,6 +311,50 @@ describe('VinylPlayer', () => {
         expect(trackController.reloadCurrentTrack).not.toHaveBeenCalled()
     })
 
+    describe('allowedContentTypes', () => {
+        it('reloads the current track and clears prefetch when the allow list changes', () => {
+            const trackController = deps.trackController
+            // Sanity: the handler must not fire on the initial (undefined
+            // previous) emission during construction.
+            expect(trackController.reloadCurrentTrack).not.toHaveBeenCalled()
+            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
+
+            player.configure({ allowedContentTypes: ['audio'] })
+
+            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
+            expect(
+                trackController.reloadCurrentTrack
+            ).toHaveBeenCalledOnceWith()
+        })
+
+        it('does not reload when the allow list is unchanged', () => {
+            const trackController = deps.trackController
+            player.configure({ allowedContentTypes: ['audio'] })
+            trackController.reloadCurrentTrack.calls.reset()
+            trackController.clearPrefetch.calls.reset()
+
+            // Re-applying the same value is a no-op (configure diffs deeply).
+            player.configure({ allowedContentTypes: ['audio'] })
+
+            expect(trackController.reloadCurrentTrack).not.toHaveBeenCalled()
+            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
+        })
+
+        it('reloads again when the allow list is later cleared', () => {
+            const trackController = deps.trackController
+            player.configure({ allowedContentTypes: ['audio'] })
+            trackController.reloadCurrentTrack.calls.reset()
+            trackController.clearPrefetch.calls.reset()
+
+            player.configure({ allowedContentTypes: null })
+
+            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
+            expect(
+                trackController.reloadCurrentTrack
+            ).toHaveBeenCalledOnceWith()
+        })
+    })
+
     describe('currentTrack', () => {
         it('returns the currently active track', () => {
             expect(player.currentTrack).toBeNull()

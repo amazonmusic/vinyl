@@ -38,6 +38,19 @@ export const ALL_CONTENT_TYPES = [
 ] as const satisfies ContentType[]
 
 /**
+ * The content types that can be restricted via an allow list (see
+ * `VinylOptions.allowedContentTypes`). Text is intentionally excluded: text
+ * tracks (subtitles / closed captions) are governed by caption selection, not
+ * by the content-type allow list, so they always remain available.
+ */
+export type RestrictableContentType = Exclude<ContentType, 'text'>
+
+export const RESTRICTABLE_CONTENT_TYPES = [
+    'video',
+    'audio',
+] as const satisfies RestrictableContentType[]
+
+/**
  * Contains media formatting and encryption metadata.
  */
 export interface MediaFormatMetadata {
