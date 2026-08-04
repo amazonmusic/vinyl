@@ -23,6 +23,8 @@ import {
 import { createUrlHlsManifestProvider } from './createUrlHlsManifestProvider'
 import type { ContentStreamingOptions } from '../../streaming/ContentStreamingOptions'
 import { createHlsContentTypesValue } from './createHlsContentTypesValue'
+import { createAllowedContentTypesValue } from '../../streaming/createAllowedContentTypesValue'
+import type { RestrictableContentType } from '../../streaming/MediaQualityMetadata'
 import { createHlsContentStreamFactories } from './createHlsContentStreamFactories'
 import { createContentStreamFactory } from '../../streaming/ContentStream'
 import type { ObservableValue } from '@amazon/vinyl-observable'
@@ -48,6 +50,7 @@ export interface HlsFactoryDeps {
     readonly options: ObservableValue<{
         readonly abr: QualitySelectorImplOptions
         readonly preferredAudioLanguage: string | null
+        readonly allowedContentTypes: readonly RestrictableContentType[] | null
     }>
     readonly playbackController: PlaybackController
     readonly playbackSource: PlaybackSource
@@ -88,7 +91,8 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 // container never disposes the shared player-level controllers.
                 ...externalDependencies(deps),
 
-                contentTypesValue: createHlsContentTypesValue,
+                baseContentTypesValue: createHlsContentTypesValue,
+                contentTypesValue: createAllowedContentTypesValue,
 
                 manifestController: () =>
                     new HlsManifestControllerImpl(manifestProvider),

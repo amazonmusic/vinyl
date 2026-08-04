@@ -40,6 +40,8 @@ import { createDashManifestProvider } from './createDashManifestProvider'
 import { createContentStreamFactory } from '../../streaming/ContentStream'
 import type { ContentStreamingOptions } from '../../streaming/ContentStreamingOptions'
 import { createDashContentTypesValue } from './createDashContentTypesValue'
+import { createAllowedContentTypesValue } from '../../streaming/createAllowedContentTypesValue'
+import type { RestrictableContentType } from '../../streaming/MediaQualityMetadata'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import type { VinylOptions } from '../../vinyl/VinylOptions'
 import {
@@ -59,6 +61,7 @@ export interface DashFactoryDeps {
     readonly options: ObservableValue<{
         readonly abr: QualitySelectorImplOptions
         readonly preferredAudioLanguage: string | null
+        readonly allowedContentTypes: readonly RestrictableContentType[] | null
     }>
     readonly playbackController: PlaybackController
     readonly playbackSource: PlaybackSource
@@ -99,7 +102,8 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                 // container never disposes the shared player-level controllers.
                 ...externalDependencies(deps),
 
-                contentTypesValue: createDashContentTypesValue,
+                baseContentTypesValue: createDashContentTypesValue,
+                contentTypesValue: createAllowedContentTypesValue,
                 baseUrlSelector: () => pickFirstBaseUrlSelector,
                 segmentRequestInit: () => loadOptions.segmentRequestInit,
                 manifestProvider: createDashManifestProvider(loadOptions),

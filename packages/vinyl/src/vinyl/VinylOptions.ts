@@ -9,8 +9,18 @@ import {
     qualitySelectorImplOptionsValidator,
 } from '../streaming/abr/QualitySelectorImpl'
 import type { ObjectSchema } from '@amazon/vinyl-validation'
-import { isOneOf, object, record, string } from '@amazon/vinyl-validation'
+import {
+    array,
+    isOneOf,
+    object,
+    record,
+    string,
+} from '@amazon/vinyl-validation'
 import type { CodecOverrides } from '../util/media/codecOverrides'
+import {
+    RESTRICTABLE_CONTENT_TYPES,
+    type RestrictableContentType,
+} from '../streaming/MediaQualityMetadata'
 import {
     defaultLoudnessNormalizationControllerImplOptions,
     type LoudnessNormalizationControllerImplOptions,
@@ -41,6 +51,20 @@ export interface VinylOptions {
      * known-false-report list).
      */
     readonly codecOverrides: CodecOverrides
+
+    /**
+     * Allow list restricting which media content types (`'audio'`, `'video'`)
+     * are streamed. When set, only streams whose content type is in the list
+     * are created; all other media streams are ignored. For example,
+     * `['audio']` streams audio but never video. Changing this reloads the
+     * track using only the allowed content types. Null (the default) means no
+     * restriction (all available media content types are streamed).
+     *
+     * Text tracks (subtitles / closed captions) are not affected by this allow
+     * list; they are governed by caption selection and always remain
+     * available.
+     */
+    readonly allowedContentTypes: readonly RestrictableContentType[] | null
 }
 
 export const defaultVinylOptions: VinylOptions = {
@@ -48,6 +72,7 @@ export const defaultVinylOptions: VinylOptions = {
     loudnessNormalization: defaultLoudnessNormalizationControllerImplOptions,
     preferredAudioLanguage: null,
     codecOverrides: {},
+    allowedContentTypes: null,
 }
 
 export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
@@ -55,4 +80,10 @@ export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
     loudnessNormalization: loudnessNormalizationControllerImplOptionsValidator,
     preferredAudioLanguage: string().orNull(),
     codecOverrides: record(string(), isOneOf('allow', 'deny')),
+    allowedContentTypes: array(isOneOf(...RESTRICTABLE_CONTENT_TYPES))
+        .cast<readonly RestrictableContentType[]>()
+        .describe(
+            'Allow list of media content types (audio, video) to stream; other media streams are ignored. Text tracks are unaffected.'
+        )
+        .orNull(),
 })

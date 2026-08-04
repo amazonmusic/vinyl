@@ -182,6 +182,7 @@ export class VinylPlayer<
         this.redispatchCurrentTrackEvents()
         this.initializeAutoResetHandling()
         this.initializePreferredLanguageHandling()
+        this.initializeAllowedContentTypesHandling()
     }
 
     protected redispatchSubControllerEvents(): void {
@@ -330,6 +331,25 @@ export class VinylPlayer<
                 .pick('preferredAudioLanguage')
                 .onData((_value, previous) => {
                     if (previous !== undefined) this.clearPrefetch()
+                })
+        )
+    }
+
+    private initializeAllowedContentTypesHandling() {
+        const { add } = this.disposer
+        // Changing the allowed content types adds or removes whole media
+        // streams (and their SourceBuffers). SourceBuffers can only be created
+        // while the MediaSource is open, so the streams cannot be rebuilt in
+        // place on the current track. Instead, fully reload the current track
+        // (which recreates the MediaSource) and drop any prefetched tracks so
+        // they rebuild with the new content types.
+        add(
+            (this.deps.options as MutableValue<VinylOptions>)
+                .pick('allowedContentTypes')
+                .onData((_value, previous) => {
+                    if (previous === undefined) return
+                    this.clearPrefetch()
+                    this.reloadCurrentTrack()
                 })
         )
     }
