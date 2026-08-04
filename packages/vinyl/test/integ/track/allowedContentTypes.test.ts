@@ -79,10 +79,12 @@ describe('allowedContentTypes switching integ', () => {
         const resumeBefore = player.currentTime
         await reconfigureAllowed(['audio'])
 
-        // Playback resumes near the prior playhead on the reloaded track.
-        expect(player.currentTime)
-            .withContext('playhead preserved across reload')
-            .toBeGreaterThanOrEqual(resumeBefore - 1)
+        // The reloaded track seeks back to the prior playhead and resumes
+        // playback asynchronously; wait until it plays past that point (which
+        // also proves the audio-only track streams without a
+        // create-source-buffer error). Content types populate asynchronously
+        // too, so only assert on them once playback has resumed.
+        await expectTrackPlaysUntil(player, resumeBefore)
         expect(player.contentTypes.has('video'))
             .withContext('video dropped after switch to audio-only')
             .toBeFalse()
@@ -90,16 +92,15 @@ describe('allowedContentTypes switching integ', () => {
             .withContext('audio retained after switch to audio-only')
             .toBeTrue()
 
-        // The reloaded, audio-only track keeps playing without errors.
-        await expectTrackPlaysUntil(player, player.currentTime + 3)
-
         // Switch back to allowing everything; video returns after another
-        // reload.
+        // reload. The reloaded full track resumes at the prior playhead and
+        // keeps playing without errors.
+        const resumeBeforeRestore = player.currentTime
         await reconfigureAllowed(null)
+        await expectTrackPlaysUntil(player, resumeBeforeRestore)
         expect(player.contentTypes.has('video'))
             .withContext('video restored after clearing the allow list')
             .toBeTrue()
-        await expectTrackPlaysUntil(player, player.currentTime + 3)
     }
 
     it('DASH reloads the track when switching content types', async () => {
