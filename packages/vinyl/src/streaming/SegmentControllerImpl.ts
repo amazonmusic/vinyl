@@ -353,7 +353,7 @@ export class SegmentControllerImpl
     private prefetchErrorHandler = (error: any) => {
         // Only log the error for prefetch failures, it will get reported if/when it is attempted
         // to be buffered.
-        if (!isSilentError(error)) {
+        if (!this.disposed && !isSilentError(error)) {
             logError(this, 'Error prefetching segment', error)
             this._error = error
         }

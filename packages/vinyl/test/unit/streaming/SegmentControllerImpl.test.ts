@@ -377,6 +377,19 @@ describe('SegmentControllerImpl', () => {
                 await clock.tick(PREFETCH_POLL_THROTTLE)
                 expect(segmentProvider.getSegment).not.toHaveBeenCalled()
             })
+
+            describe('but the controller is disposed', () => {
+                it('does not log the error or set the error state', () => {
+                    // A prefetch error can settle after teardown, e.g. when
+                    // dispose() runs between the failure resolving and this
+                    // handler being invoked. A disposed controller should stay
+                    // quiet rather than log a now-irrelevant failure.
+                    segmentController.dispose()
+                    segmentController['prefetchErrorHandler'](error)
+                    expect(loggerRef.value.error).not.toHaveBeenCalled()
+                    expect(segmentController.error).toBeNull()
+                })
+            })
         })
 
         describe('and the error is silent', () => {
