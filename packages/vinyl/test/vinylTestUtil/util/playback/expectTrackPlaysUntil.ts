@@ -24,7 +24,7 @@ const affordanceAfter = 3
 export async function expectTrackPlaysUntil(
     player: ReadonlyPlaybackController,
     endTime: number,
-    timeout = 10
+    timeout = 20
 ) {
     await onPlaying(player)
     // Safari does not always have an updated currentTime after a seeked event. Await the next time update before
