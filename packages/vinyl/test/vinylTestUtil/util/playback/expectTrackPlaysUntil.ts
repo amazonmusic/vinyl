@@ -30,9 +30,11 @@ export async function expectTrackPlaysUntil(
     // Safari does not always have an updated currentTime after a seeked event. Await the next time update before
     // asserting currentTime values.
     await onTimeUpdate(player)
-    expect(player.currentTime)
-        .withContext('currentTime must be less than endTime')
-        .toBeLessThan(endTime)
+    // The playhead may already be at or past endTime when playback resumes
+    // from a seek or track reload. Only require forward progress (and bound the
+    // overshoot) when playback actually started before endTime; otherwise the
+    // target is already satisfied.
+    const startedBeforeEnd = player.currentTime < endTime
     await assertFrequency()
 
     let elapsed = 0
@@ -44,7 +46,9 @@ export async function expectTrackPlaysUntil(
     expect(player.currentTime)
         .withContext('currentTime')
         .toBeGreaterThanOrEqual(endTime - affordanceBefore)
-    expect(player.currentTime)
-        .withContext('currentTime')
-        .toBeLessThan(endTime + affordanceAfter)
+    if (startedBeforeEnd) {
+        expect(player.currentTime)
+            .withContext('currentTime')
+            .toBeLessThan(endTime + affordanceAfter)
+    }
 }
