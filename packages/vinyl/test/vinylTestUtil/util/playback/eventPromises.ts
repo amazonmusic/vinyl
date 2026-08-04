@@ -78,7 +78,7 @@ export async function onEnded(
  */
 export function onTimeUpdate(
     playbackController: ReadonlyPlaybackController,
-    timeout = 5
+    timeout = 10
 ): Promise<ChangeEvent<number>> {
     return nextEventAsPromise(playbackController, 'timeUpdate', {
         timeout,
