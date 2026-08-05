@@ -52,9 +52,14 @@ export const playerState = {
 // Safari's loadedMetadata fires before videoWidth is populated for HLS; the
 // `resize` event covers that case (and any later dimension change).
 const updateHasVideo = () => {
-    playerState.hasVideo$.value = media.videoWidth > 0
+    playerState.hasVideo$.value =
+        media.videoWidth > 0 || player.contentTypes.has('video')
 }
-onAny(player, ['loadedMetadata', 'resize'], updateHasVideo)
+onAny(
+    player,
+    ['loadedMetadata', 'resize', 'contentTypesChange'],
+    updateHasVideo
+)
 
 // Paused when the element is paused or ended. `ended` is not guaranteed to be
 // preceded by `pause` (e.g. a postroll playing to its end), so listen for it too.
