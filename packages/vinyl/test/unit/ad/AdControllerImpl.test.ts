@@ -37,7 +37,14 @@ describe('AdControllerImpl', () => {
     ): AdBreakInfo {
         const { ads, ...rest } = overrides
         const defaultAds: readonly AdInfo[] = [
-            { id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' },
+            {
+                id: 'a1',
+                index: 0,
+                totalAds: 1,
+                startTime: 10,
+                duration: 5,
+                uri: 'ad.m3u8',
+            },
         ]
         const adsResolver =
             typeof ads === 'function'
@@ -360,7 +367,16 @@ describe('AdControllerImpl', () => {
         c.skipAd()
         expect(c.activeAdBreak).toBeNull()
         // Late resolution must not re-activate it.
-        resolveAds([{ id: 'a1', startTime: 0, duration: 5, uri: 'ad.m3u8' }])
+        resolveAds([
+            {
+                id: 'a1',
+                index: 0,
+                totalAds: 1,
+                startTime: 0,
+                duration: 5,
+                uri: 'ad.m3u8',
+            },
+        ])
         await flush()
         expect(c.activeAdBreak).toBeNull()
     })
@@ -394,8 +410,22 @@ describe('AdControllerImpl', () => {
                 startTime: 0,
                 duration: 30,
                 ads: [
-                    { id: 'a1', startTime: 0, duration: 10, uri: 'ad1.m3u8' },
-                    { id: 'a2', startTime: 0, duration: 20, uri: 'ad2.m3u8' },
+                    {
+                        id: 'a1',
+                        index: 0,
+                        totalAds: 2,
+                        startTime: 0,
+                        duration: 10,
+                        uri: 'ad1.m3u8',
+                    },
+                    {
+                        id: 'a2',
+                        index: 1,
+                        totalAds: 2,
+                        startTime: 0,
+                        duration: 20,
+                        uri: 'ad2.m3u8',
+                    },
                 ],
             })
         }

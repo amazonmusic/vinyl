@@ -82,6 +82,12 @@ export interface AdInfo {
     /** A stable identifier for this ad within its break. */
     readonly id: string
 
+    /** The zero-based position of this ad within its break. */
+    readonly index: number
+
+    /** The total number of ads in this ad's break. */
+    readonly totalAds: number
+
     /**
      * The start time of this ad on the media timeline, in seconds.
      */

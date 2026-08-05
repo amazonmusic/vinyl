@@ -48,21 +48,17 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         if (!b) return false
         return !b.restrict?.skip
     })
-    // A break's ads are resolved lazily (the `ads` field is a resolver that
-    // returns a Promise). Resolve them for the active break so the label can
-    // show "Ad n / total"; falls back to an empty list until they resolve.
+    // A break's ads are resolved lazily. Resolve them for the active break so
+    // the label can show "Ad n / total"; empty until they resolve.
     const activeBreakAds$ = externalData<readonly AdInfo[]>([], (set) => {
         let currentBreak: typeof activeAdBreak$.value = null
         return activeAdBreak$.onData((activeBreak) => {
             currentBreak = activeBreak
-            // Clear immediately so a new break never shows the previous break's
-            // ads while its own ads resolve.
-            set([])
+            set([]) // Don't show the previous break's ads while resolving.
             if (!activeBreak) return
             activeBreak
                 .ads()
                 .then((ads) => {
-                    // Guard against the active break changing before resolution.
                     if (currentBreak === activeBreak) set(ads)
                 })
                 .catch(handleError)
@@ -75,13 +71,13 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         if (!activeBreak) return ''
         if (ads.length <= 1) return 'Ad'
         const time = player.currentTime
-        const idx =
-            ads.findIndex(
+        const current =
+            ads.find(
                 (a) =>
                     a.startTime <= time &&
                     (a.duration == null || a.startTime + a.duration > time)
-            ) + 1
-        return `Ad ${idx || 1} / ${ads.length}`
+            ) ?? ads[0]
+        return `Ad ${current.index + 1} / ${current.totalAds}`
     })
 
     const elapsed$ = currentTime$.map(formatTime)
