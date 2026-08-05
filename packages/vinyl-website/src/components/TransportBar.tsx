@@ -10,8 +10,9 @@ import {
 import type { LogTarget } from '@amazon/vinyl-util'
 import { logDebug } from '@amazon/vinyl-util'
 import { combineData, externalData } from '@amazon/vinyl-observable'
+import { handleError } from '../errorHandler'
 import { Icon } from './icons'
-import { LIVE_DURATION } from '@amazon/vinyl'
+import { type AdInfo, LIVE_DURATION } from '@amazon/vinyl'
 import { ScrubBar } from './ScrubBar'
 import { VolumeControl } from './VolumeControl'
 import { CaptionsControl } from './CaptionsControl'
@@ -47,18 +48,40 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         if (!b) return false
         return !b.restrict?.skip
     })
-    const adLabel$ = activeAdBreak$.map((activeBreak) => {
+    // A break's ads are resolved lazily (the `ads` field is a resolver that
+    // returns a Promise). Resolve them for the active break so the label can
+    // show "Ad n / total"; falls back to an empty list until they resolve.
+    const activeBreakAds$ = externalData<readonly AdInfo[]>([], (set) => {
+        let currentBreak: typeof activeAdBreak$.value = null
+        return activeAdBreak$.onData((activeBreak) => {
+            currentBreak = activeBreak
+            // Clear immediately so a new break never shows the previous break's
+            // ads while its own ads resolve.
+            set([])
+            if (!activeBreak) return
+            activeBreak
+                .ads()
+                .then((ads) => {
+                    // Guard against the active break changing before resolution.
+                    if (currentBreak === activeBreak) set(ads)
+                })
+                .catch(handleError)
+        })
+    })
+    const adLabel$ = combineData({
+        activeBreak: activeAdBreak$,
+        ads: activeBreakAds$,
+    }).map(({ activeBreak, ads }) => {
         if (!activeBreak) return ''
-        const breakAds = activeBreak.ads
-        if (breakAds.length <= 1) return 'Ad'
+        if (ads.length <= 1) return 'Ad'
         const time = player.currentTime
         const idx =
-            breakAds.findIndex(
+            ads.findIndex(
                 (a) =>
                     a.startTime <= time &&
                     (a.duration == null || a.startTime + a.duration > time)
             ) + 1
-        return `Ad ${idx || 1} / ${breakAds.length}`
+        return `Ad ${idx || 1} / ${ads.length}`
     })
 
     const elapsed$ = currentTime$.map(formatTime)
