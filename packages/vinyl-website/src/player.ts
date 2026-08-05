@@ -62,7 +62,7 @@ media.addEventListener('resize', updateHasVideo)
 const refreshPaused = () => {
     playerState.paused$.value = player.paused || player.ended
 }
-onAny(player, ['play', 'pause', 'ended'], refreshPaused)
+onAny(player, ['play', 'played', 'pause'], refreshPaused)
 
 player.on('timeUpdate', () => {
     playerState.currentTime$.value = player.currentTime
