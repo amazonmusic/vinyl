@@ -158,6 +158,8 @@ describe('discoverHlsInterstitials', () => {
         expect(ads[0].uri).toBe('https://cdn.example.com/ads/ad.m3u8')
         expect(ads[0].startTime).toBe(0)
         expect(ads[0].duration).toBe(10)
+        expect(ads[0].index).toBe(0)
+        expect(ads[0].totalAds).toBe(1)
     })
 
     it('yields no ads for a break with neither X-ASSET-URI nor X-ASSET-LIST', async () => {
@@ -211,8 +213,12 @@ describe('discoverHlsInterstitials', () => {
             expect(ads.length).toBe(2)
             expect(ads[0].uri).toBe('https://cdn.example.com/media/mid1.m3u8')
             expect(ads[0].duration).toBe(10)
+            expect(ads[0].index).toBe(0)
+            expect(ads[0].totalAds).toBe(2)
             expect(ads[1].uri).toBe('https://cdn.example.com/mid2.m3u8')
             expect(ads[1].duration).toBeNull()
+            expect(ads[1].index).toBe(1)
+            expect(ads[1].totalAds).toBe(2)
         } finally {
             globalThis.fetch = origFetch
         }

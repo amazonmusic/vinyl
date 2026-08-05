@@ -42,7 +42,14 @@ describe('VinylPlayer ad break API', () => {
             placement: 'midroll',
             ads: () =>
                 Promise.resolve([
-                    { id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' },
+                    {
+                        id: 'a1',
+                        index: 0,
+                        totalAds: 1,
+                        startTime: 10,
+                        duration: 5,
+                        uri: 'ad.m3u8',
+                    },
                 ]),
             ...overrides,
         }
@@ -100,6 +107,15 @@ describe('VinylPlayer ad break API', () => {
         simulateTimeUpdate(5)
         await flush()
         expect(player.activeAdBreak?.id).toBe('b1')
+    })
+
+    it('reflects the current ad through the player getter', async () => {
+        const controller = deps.adController
+        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        expect(player.currentAd).toBeNull()
+        simulateTimeUpdate(5)
+        await flush()
+        expect(player.currentAd?.id).toBe('a1')
     })
 
     it('skipAd delegates to the ad controller', async () => {

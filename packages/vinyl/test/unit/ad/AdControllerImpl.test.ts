@@ -37,7 +37,14 @@ describe('AdControllerImpl', () => {
     ): AdBreakInfo {
         const { ads, ...rest } = overrides
         const defaultAds: readonly AdInfo[] = [
-            { id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' },
+            {
+                id: 'a1',
+                index: 0,
+                totalAds: 1,
+                startTime: 10,
+                duration: 5,
+                uri: 'ad.m3u8',
+            },
         ]
         const adsResolver =
             typeof ads === 'function'
@@ -189,6 +196,34 @@ describe('AdControllerImpl', () => {
         expect(c.currentAd?.id).toBe('a1')
     })
 
+    it('does not enter a postroll from the playhead, even when its start time falls within content', async () => {
+        // A CUE="POST" range anchored at media time 0 resolves to a postroll
+        // whose startTime sits inside the content. The playhead crossing it
+        // must not activate it — a postroll is entered only on content end via
+        // enterPostrollIfPending().
+        const c = createController()
+        c.setAdBreaks([
+            makeBreak({
+                id: 'post',
+                startTime: 0,
+                duration: 6,
+                placement: 'postroll',
+            }),
+        ])
+        // setAdBreaks checks the current playhead (0) for a containing break.
+        await flush()
+        expect(c.activeAdBreak).toBeNull()
+
+        updateTime(c, 3) // inside [0, 6)
+        await flush()
+        expect(c.activeAdBreak).toBeNull()
+
+        // It still enters once content ends.
+        expect(c.enterPostrollIfPending()).toBeTrue()
+        await flush()
+        expect(c.activeAdBreak?.id).toBe('post')
+    })
+
     it('emits adBreakChange to null when the ad is skipped', async () => {
         const c = createController()
         c.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
@@ -332,7 +367,16 @@ describe('AdControllerImpl', () => {
         c.skipAd()
         expect(c.activeAdBreak).toBeNull()
         // Late resolution must not re-activate it.
-        resolveAds([{ id: 'a1', startTime: 0, duration: 5, uri: 'ad.m3u8' }])
+        resolveAds([
+            {
+                id: 'a1',
+                index: 0,
+                totalAds: 1,
+                startTime: 0,
+                duration: 5,
+                uri: 'ad.m3u8',
+            },
+        ])
         await flush()
         expect(c.activeAdBreak).toBeNull()
     })
@@ -366,8 +410,22 @@ describe('AdControllerImpl', () => {
                 startTime: 0,
                 duration: 30,
                 ads: [
-                    { id: 'a1', startTime: 0, duration: 10, uri: 'ad1.m3u8' },
-                    { id: 'a2', startTime: 0, duration: 20, uri: 'ad2.m3u8' },
+                    {
+                        id: 'a1',
+                        index: 0,
+                        totalAds: 2,
+                        startTime: 0,
+                        duration: 10,
+                        uri: 'ad1.m3u8',
+                    },
+                    {
+                        id: 'a2',
+                        index: 1,
+                        totalAds: 2,
+                        startTime: 0,
+                        duration: 20,
+                        uri: 'ad2.m3u8',
+                    },
                 ],
             })
         }
@@ -435,12 +493,14 @@ describe('AdControllerImpl', () => {
             c.setAdBreaks([
                 makeBreak({
                     id: 'post',
-                    startTime: 0,
+                    startTime: 60,
                     duration: 10,
                     placement: 'postroll',
                 }),
             ])
-            updateTime(c, 1)
+            // Enter the postroll, then confirm a second call is a no-op while it
+            // is active.
+            expect(c.enterPostrollIfPending()).toBeTrue()
             await flush()
             expect(c.enterPostrollIfPending()).toBeFalse()
         })

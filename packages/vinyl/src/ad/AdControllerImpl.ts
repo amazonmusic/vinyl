@@ -7,6 +7,7 @@ import {
     equalDeep,
     EventHostImpl,
     logDebug,
+    onAny,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { AdBreakInfo, AdController, AdEventMap, AdInfo } from './AdBreak'
@@ -58,6 +59,10 @@ export class AdControllerImpl
         this._timeUpdateSub = deps.playbackController.on('timeUpdate', () => {
             this.updateTime(deps.playbackController.currentTime)
         })
+        // Log changes to ad breaks and ad break.
+        onAny(this, ['adBreakChange', 'adBreaksChange'], (event, type) =>
+            logDebug(this, type, event)
+        )
     }
 
     get adBreaks(): readonly AdBreakInfo[] {
@@ -269,6 +274,8 @@ export class AdControllerImpl
         for (const b of this._adBreaks) {
             if (b.duration == null) continue
             if (this._skippedBreakIds.has(b.id)) continue
+            // Post-rolls are entered only once content ends, via enterPostrollIfPending().
+            if (b.placement === 'postroll') continue
             if (time >= b.startTime && time < b.startTime + b.duration) {
                 return b
             }

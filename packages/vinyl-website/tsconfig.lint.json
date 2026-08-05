@@ -1,7 +1,12 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "noEmit": true
+        "noEmit": true,
+        // Resolve workspace dependencies to their built type declarations
+        // (already validated by each dependency's own build) rather than the
+        // `development` condition's source .ts, so type-checking the website
+        // does not surface unrelated errors from dependency sources.
+        "customConditions": []
     },
     "include": [
         "src/**/*",

@@ -203,6 +203,12 @@ export interface PlaybackControllerEventMap {
     readonly progress: ProgressEvent
 
     /**
+     * Fired when the intrinsic dimensions of the media (e.g. a video's width or
+     * height) change, including once they first become known.
+     */
+    readonly resize: AnyRecord
+
+    /**
      * Fired when the playback rate has changed.
      */
     readonly rateChange: ChangeEvent<number>
@@ -310,6 +316,7 @@ export const ALL_PLAYBACK_STATE_EVENTS = [
     'rateChange',
     'readyStateChange',
     'reset',
+    'resize',
     'seeked',
     'seeking',
     'timeUpdate',

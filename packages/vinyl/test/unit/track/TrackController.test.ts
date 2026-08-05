@@ -1145,7 +1145,14 @@ describe('TrackControllerImpl', () => {
         ): AdBreakInfo {
             const { ads, ...rest } = overrides
             const resolved: readonly AdInfo[] = ads ?? [
-                { id: 'a1', startTime: 0, duration: 5, uri: 'ad1.m3u8' },
+                {
+                    id: 'a1',
+                    index: 0,
+                    totalAds: 1,
+                    startTime: 0,
+                    duration: 5,
+                    uri: 'ad1.m3u8',
+                },
             ]
             return {
                 id: 'break1',
@@ -1228,12 +1235,16 @@ describe('TrackControllerImpl', () => {
                     ads: [
                         {
                             id: 'a1',
+                            index: 0,
+                            totalAds: 2,
                             startTime: 0,
                             duration: 10,
                             uri: 'a1.m3u8',
                         },
                         {
                             id: 'a2',
+                            index: 1,
+                            totalAds: 2,
                             startTime: 0,
                             duration: 10,
                             uri: 'a2.m3u8',
@@ -1308,7 +1319,14 @@ describe('TrackControllerImpl', () => {
                     duration: 10,
                     placement: 'postroll',
                     ads: [
-                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                        {
+                            id: 'p1',
+                            index: 0,
+                            totalAds: 1,
+                            startTime: 60,
+                            duration: 5,
+                            uri: 'p.m3u8',
+                        },
                     ],
                 }),
             ])
@@ -1336,7 +1354,14 @@ describe('TrackControllerImpl', () => {
                     duration: 10,
                     placement: 'postroll',
                     ads: [
-                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                        {
+                            id: 'p1',
+                            index: 0,
+                            totalAds: 1,
+                            startTime: 60,
+                            duration: 5,
+                            uri: 'p.m3u8',
+                        },
                     ],
                 }),
             ])
@@ -1373,7 +1398,14 @@ describe('TrackControllerImpl', () => {
                     duration: 10,
                     placement: 'postroll',
                     ads: [
-                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                        {
+                            id: 'p1',
+                            index: 0,
+                            totalAds: 1,
+                            startTime: 60,
+                            duration: 5,
+                            uri: 'p.m3u8',
+                        },
                     ],
                 }),
             ])
@@ -1400,7 +1432,14 @@ describe('TrackControllerImpl', () => {
                     duration: 10,
                     placement: 'postroll',
                     ads: [
-                        { id: 'p1', startTime: 60, duration: 5, uri: 'p.m3u8' },
+                        {
+                            id: 'p1',
+                            index: 0,
+                            totalAds: 1,
+                            startTime: 60,
+                            duration: 5,
+                            uri: 'p.m3u8',
+                        },
                     ],
                 }),
             ])
@@ -1533,6 +1572,8 @@ describe('TrackControllerImpl', () => {
                     ads: [
                         {
                             id: 'a1',
+                            index: 0,
+                            totalAds: 1,
                             startTime: 0,
                             duration: 5,
                             uri: 'no-extension',
@@ -1556,7 +1597,16 @@ describe('TrackControllerImpl', () => {
                 makeBreak({
                     startTime: 0,
                     duration: 10,
-                    ads: [{ id: 'a1', startTime: 0, duration: 5, uri: null }],
+                    ads: [
+                        {
+                            id: 'a1',
+                            index: 0,
+                            totalAds: 1,
+                            startTime: 0,
+                            duration: 5,
+                            uri: null,
+                        },
+                    ],
                 }),
             ])
             simulateTimeUpdate(1)
@@ -1607,6 +1657,8 @@ describe('TrackControllerImpl', () => {
                     ads: [
                         {
                             id: 'a1',
+                            index: 0,
+                            totalAds: 1,
                             startTime: 25,
                             duration: 5,
                             uri: 'no-extension',
@@ -1753,7 +1805,14 @@ describe('TrackControllerImpl', () => {
                 deps.trackFactory.createTrack.calls.reset()
                 // The late resolution must not create/preload a track.
                 resolveAds([
-                    { id: 'a1', startTime: 25, duration: 5, uri: 'ad.m3u8' },
+                    {
+                        id: 'a1',
+                        index: 0,
+                        totalAds: 1,
+                        startTime: 25,
+                        duration: 5,
+                        uri: 'ad.m3u8',
+                    },
                 ])
                 await flush()
                 expect(deps.trackFactory.createTrack).not.toHaveBeenCalled()

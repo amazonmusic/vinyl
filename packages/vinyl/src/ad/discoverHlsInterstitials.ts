@@ -210,6 +210,8 @@ function createAdsResolver(
         const ads: readonly AdInfo[] = [
             {
                 id: `${range.id}-0`,
+                index: 0,
+                totalAds: 1,
                 startTime,
                 duration,
                 uri: resolveUrl(assetUri, baseUrl),
@@ -226,16 +228,19 @@ function createAdsResolver(
             if (cached) return cached
             cached = fetch(url)
                 .then((res) => res.json())
-                .then((json: AssetListDocument) =>
-                    (json.ASSETS ?? []).map(
+                .then((json: AssetListDocument) => {
+                    const assets = json.ASSETS ?? []
+                    return assets.map(
                         (asset, i): AdInfo => ({
                             id: `${range.id}-${i}`,
+                            index: i,
+                            totalAds: assets.length,
                             startTime,
                             duration: asset.DURATION ?? null,
                             uri: resolveUrl(asset.URI, baseUrl),
                         })
                     )
-                )
+                })
                 .catch((error) => {
                     // Allow a later retry by clearing the cached rejection.
                     cached = null

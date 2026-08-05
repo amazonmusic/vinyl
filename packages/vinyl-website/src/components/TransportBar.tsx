@@ -36,6 +36,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         muted$,
         hasVideo$,
         activeAdBreak$,
+        activeAd$,
         adBreaks$,
         adRemaining$,
         seekRange$,
@@ -47,18 +48,10 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         if (!b) return false
         return !b.restrict?.skip
     })
-    const adLabel$ = activeAdBreak$.map((activeBreak) => {
-        if (!activeBreak) return ''
-        const breakAds = activeBreak.ads
-        if (breakAds.length <= 1) return 'Ad'
-        const time = player.currentTime
-        const idx =
-            breakAds.findIndex(
-                (a) =>
-                    a.startTime <= time &&
-                    (a.duration == null || a.startTime + a.duration > time)
-            ) + 1
-        return `Ad ${idx || 1} / ${breakAds.length}`
+    const adLabel$ = activeAd$.map((ad) => {
+        if (!ad) return ''
+        if (ad.totalAds <= 1) return 'Ad'
+        return `Ad ${ad.index + 1} / ${ad.totalAds}`
     })
 
     const elapsed$ = currentTime$.map(formatTime)

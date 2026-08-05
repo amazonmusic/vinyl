@@ -6,6 +6,7 @@
 import {
     createVinylPlayer,
     type AdBreakInfo,
+    type AdInfo,
     type SeekRange,
     type TextTrackInfo,
 } from '@amazon/vinyl'
@@ -42,25 +43,30 @@ export const playerState = {
     // forced track, so forced and characteristics are part of the identity.
     preferredTextTrack$: data<CaptionPreference | null>(null),
     activeAdBreak$: data<AdBreakInfo | null>(null),
+    activeAd$: data<AdInfo | null>(null),
     adBreaks$: data<readonly AdBreakInfo[]>([]),
     adRemaining$: data(0),
     seekRange$: data<SeekRange | null>(null),
 }
 
-// Safari's loadedmetadata fires before videoWidth is populated for HLS; the
+// Safari's loadedMetadata fires before videoWidth is populated for HLS; the
 // `resize` event covers that case (and any later dimension change).
 const updateHasVideo = () => {
-    playerState.hasVideo$.value = media.videoWidth > 0
+    playerState.hasVideo$.value =
+        media.videoWidth > 0 || player.contentTypes.has('video')
 }
-media.addEventListener('loadedmetadata', updateHasVideo)
-media.addEventListener('resize', updateHasVideo)
+onAny(
+    player,
+    ['loadedMetadata', 'resize', 'contentTypesChange'],
+    updateHasVideo
+)
 
 // Paused when the element is paused or ended. `ended` is not guaranteed to be
 // preceded by `pause` (e.g. a postroll playing to its end), so listen for it too.
 const refreshPaused = () => {
     playerState.paused$.value = player.paused || player.ended
 }
-onAny(player, ['play', 'pause', 'ended'], refreshPaused)
+onAny(player, ['play', 'played', 'pause'], refreshPaused)
 
 player.on('timeUpdate', () => {
     playerState.currentTime$.value = player.currentTime
@@ -106,12 +112,14 @@ player.on('currentTrackChange', () => {
     playerState.textTracks$.value = player.textTracks
     playerState.activeTextTrack$.value = player.activeTextTrack
     playerState.activeAdBreak$.value = player.activeAdBreak
+    playerState.activeAd$.value = player.currentAd
     updateAdRemaining()
     applyCaptionsPreference()
 })
 
 player.on('adBreakChange', (event) => {
     playerState.activeAdBreak$.value = event.current
+    playerState.activeAd$.value = player.currentAd
     if (event.current) {
         updateAdRemaining()
     } else {

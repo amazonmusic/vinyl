@@ -71,7 +71,7 @@ import type { VinylOptions } from './VinylOptions'
 import type { AutoResetController } from '../track/AutoResetController'
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { TextTrackEventMap, TextTrackInfo } from '../text/TextTrack'
-import type { AdBreakInfo, AdEventMap } from '../ad/AdBreak'
+import type { AdBreakInfo, AdEventMap, AdInfo } from '../ad/AdBreak'
 
 /**
  * Events the Vinyl Player emits.
@@ -801,6 +801,17 @@ export class VinylPlayer<
      */
     get activeAdBreak(): AdBreakInfo | null {
         return this.deps.adController.activeAdBreak
+    }
+
+    /**
+     * The ad currently playing within the active break, or null when the
+     * playhead is in primary content.
+     *
+     * Listen to {@link AdEventMap.adBreakChange} for transitions; it
+     * re-dispatches as the current ad advances within a break.
+     */
+    get currentAd(): AdInfo | null {
+        return this.deps.adController.currentAd
     }
 
     /**

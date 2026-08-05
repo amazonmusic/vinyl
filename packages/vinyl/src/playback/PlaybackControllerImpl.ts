@@ -225,6 +225,7 @@ export class PlaybackControllerImpl
             'pause',
             'play',
             'playing',
+            'resize',
             'seeking',
             'waiting',
             'waitingForKey',

@@ -286,7 +286,14 @@ describe('VinylPlayer', () => {
                 placement: 'preroll',
                 ads: () =>
                     Promise.resolve([
-                        { id: 'a1', startTime: 0, duration: 5, uri: 'ad.m3u8' },
+                        {
+                            id: 'a1',
+                            index: 0,
+                            totalAds: 1,
+                            startTime: 0,
+                            duration: 5,
+                            uri: 'ad.m3u8',
+                        },
                     ]),
             },
         ])
