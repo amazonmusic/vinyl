@@ -6,6 +6,7 @@
 import {
     createVinylPlayer,
     type AdBreakInfo,
+    type AdInfo,
     type SeekRange,
     type TextTrackInfo,
 } from '@amazon/vinyl'
@@ -42,6 +43,7 @@ export const playerState = {
     // forced track, so forced and characteristics are part of the identity.
     preferredTextTrack$: data<CaptionPreference | null>(null),
     activeAdBreak$: data<AdBreakInfo | null>(null),
+    activeAd$: data<AdInfo | null>(null),
     adBreaks$: data<readonly AdBreakInfo[]>([]),
     adRemaining$: data(0),
     seekRange$: data<SeekRange | null>(null),
@@ -106,12 +108,14 @@ player.on('currentTrackChange', () => {
     playerState.textTracks$.value = player.textTracks
     playerState.activeTextTrack$.value = player.activeTextTrack
     playerState.activeAdBreak$.value = player.activeAdBreak
+    playerState.activeAd$.value = player.currentAd
     updateAdRemaining()
     applyCaptionsPreference()
 })
 
 player.on('adBreakChange', (event) => {
     playerState.activeAdBreak$.value = event.current
+    playerState.activeAd$.value = player.currentAd
     if (event.current) {
         updateAdRemaining()
     } else {

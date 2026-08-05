@@ -10,9 +10,8 @@ import {
 import type { LogTarget } from '@amazon/vinyl-util'
 import { logDebug } from '@amazon/vinyl-util'
 import { combineData, externalData } from '@amazon/vinyl-observable'
-import { handleError } from '../errorHandler'
 import { Icon } from './icons'
-import { type AdInfo, LIVE_DURATION } from '@amazon/vinyl'
+import { LIVE_DURATION } from '@amazon/vinyl'
 import { ScrubBar } from './ScrubBar'
 import { VolumeControl } from './VolumeControl'
 import { CaptionsControl } from './CaptionsControl'
@@ -37,6 +36,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         muted$,
         hasVideo$,
         activeAdBreak$,
+        activeAd$,
         adBreaks$,
         adRemaining$,
         seekRange$,
@@ -48,36 +48,10 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         if (!b) return false
         return !b.restrict?.skip
     })
-    // A break's ads are resolved lazily. Resolve them for the active break so
-    // the label can show "Ad n / total"; empty until they resolve.
-    const activeBreakAds$ = externalData<readonly AdInfo[]>([], (set) => {
-        let currentBreak: typeof activeAdBreak$.value = null
-        return activeAdBreak$.onData((activeBreak) => {
-            currentBreak = activeBreak
-            set([]) // Don't show the previous break's ads while resolving.
-            if (!activeBreak) return
-            activeBreak
-                .ads()
-                .then((ads) => {
-                    if (currentBreak === activeBreak) set(ads)
-                })
-                .catch(handleError)
-        })
-    })
-    const adLabel$ = combineData({
-        activeBreak: activeAdBreak$,
-        ads: activeBreakAds$,
-    }).map(({ activeBreak, ads }) => {
-        if (!activeBreak) return ''
-        if (ads.length <= 1) return 'Ad'
-        const time = player.currentTime
-        const current =
-            ads.find(
-                (a) =>
-                    a.startTime <= time &&
-                    (a.duration == null || a.startTime + a.duration > time)
-            ) ?? ads[0]
-        return `Ad ${current.index + 1} / ${current.totalAds}`
+    const adLabel$ = activeAd$.map((ad) => {
+        if (!ad) return ''
+        if (ad.totalAds <= 1) return 'Ad'
+        return `Ad ${ad.index + 1} / ${ad.totalAds}`
     })
 
     const elapsed$ = currentTime$.map(formatTime)

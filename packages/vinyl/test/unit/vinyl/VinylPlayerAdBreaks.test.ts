@@ -109,6 +109,15 @@ describe('VinylPlayer ad break API', () => {
         expect(player.activeAdBreak?.id).toBe('b1')
     })
 
+    it('reflects the current ad through the player getter', async () => {
+        const controller = deps.adController
+        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        expect(player.currentAd).toBeNull()
+        simulateTimeUpdate(5)
+        await flush()
+        expect(player.currentAd?.id).toBe('a1')
+    })
+
     it('skipAd delegates to the ad controller', async () => {
         const controller = deps.adController
         controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
