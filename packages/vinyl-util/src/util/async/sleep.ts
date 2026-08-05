@@ -4,6 +4,7 @@
  */
 
 import type { ReadonlyAbort } from './Abort'
+import type { Maybe } from '../type'
 import { promise } from './promise'
 
 /**
@@ -32,7 +33,7 @@ import { promise } from './promise'
  */
 export function sleep(
     time: number,
-    abort?: ReadonlyAbort | null
+    abort?: Maybe<ReadonlyAbort>
 ): Promise<void> {
     if (abort?.aborted()) return Promise.reject(abort.reason!)
     if (time <= 0.0) return Promise.resolve(void 0)
