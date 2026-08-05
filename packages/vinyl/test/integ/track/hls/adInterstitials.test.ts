@@ -9,13 +9,13 @@ import {
     vinylTestAssets,
 } from '@amazon/vinyl/vinylTestUtil'
 import {
+    type HlsManifestData,
     PlaybackReadyState,
     supportsMse,
-    type HlsManifestData,
     type VinylTrackLoadOptions,
 } from '@amazon/vinyl'
 import { parseMainPlaylist, parseMediaPlaylist } from '@amazon/vinyl-hls-parser'
-import { poll, resolveUrl } from '@amazon/vinyl-util'
+import { nextEventAsPromise, noop, poll, resolveUrl } from '@amazon/vinyl-util'
 
 /**
  * Integration tests for HLS Interstitial (SGAI) ad-break support.
@@ -523,7 +523,15 @@ describe('hls ad interstitials integ', () => {
             ]),
         })
         await poll(() => player.adBreaks.length > 0, { timeout: 15 })
-        await player.play()
+        // Tolerate the benign AbortError when the seek below pauses the element
+        // before this play() promise settles (more likely under throttling).
+        await player.play().catch(noop)
+        // A CUE="POST" range anchors at media time 0, so its resolved start
+        // time falls within content. The postroll must NOT activate while
+        // content is still playing — it is entered only once content ends.
+        expect(player.activeAdBreak)
+            .withContext('postroll not active during content')
+            .toBeNull()
         // Drive content to its end so the postroll triggers on `ended`.
         const contentDuration = player.duration
         await player
@@ -603,7 +611,10 @@ describe('hls ad interstitials integ', () => {
                 },
             ]),
         })
-        await poll(() => player.adBreaks.length > 0, { timeout: 15 })
+        await nextEventAsPromise(player, 'adBreaksChange', { timeout: 15 })
+        expect(player.adBreaks.length)
+            .withContext('adBreaks length')
+            .toBeGreaterThan(0)
         await playThenSeek(MIDROLL_TIME + 1)
         expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
             .withContext('player.currentAdTrack != null')
