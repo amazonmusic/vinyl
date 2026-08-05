@@ -526,6 +526,11 @@ describe('PlaybackController', () => {
                     media.dispatchEvent(mockEvent('pause'))
                     expect(pauseSpy).toHaveBeenCalledWith({})
                     pauseSpy.calls.reset()
+
+                    const resizeSpy = createSpy('resize')
+                    controller.on('resize', resizeSpy)
+                    media.dispatchEvent(mockEvent('resize'))
+                    expect(resizeSpy).toHaveBeenCalledWith({})
                 })
 
                 describe('durationChange', () => {
