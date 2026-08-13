@@ -231,12 +231,21 @@ export class VinylPlayer<
                 // so the DOM TextTrack is disabled and cues cleared. Done
                 // before tearing down redispatch subs so the resulting
                 // activeTextTrackChange event flows through to the player.
+                //
+                // Exception: if an ad break is currently active, this change
+                // is an ad-swap. The previous track (the content) will be
+                // reactivated when the ad completes, and its caption selection
+                // must survive so `resume()` can restore the cues. Track
+                // deactivation already suspends the DOM output via
+                // MseTrack.onDeactivated → textTrackController.suspend().
                 const prevTextController = event.previous
                     ?.textTrackController as
                     | { setActiveTextTrack(id: string | null): void }
                     | null
                     | undefined
-                prevTextController?.setActiveTextTrack(null)
+                if (!this.deps.adController.currentAdBreak) {
+                    prevTextController?.setActiveTextTrack(null)
+                }
                 sub?.()
                 sub = null
                 textSub?.()
