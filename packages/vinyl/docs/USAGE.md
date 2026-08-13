@@ -529,21 +529,21 @@ is mapped to an abstract `AdBreakInfo`:
 - The break is classified as `preroll`, `midroll`, or `postroll`.
 
 Discovery happens automatically when a track loads — applications need only
-listen for the `adBreaksChange` event or read `player.adBreaks`.
+listen for the `currentTrackAdsChange` event or read `player.currentTrackAds`.
 
 ### API
 
 ```typescript
 // Inspect the ad breaks known for the current media (ordered by start time).
-console.log(player.adBreaks)
+console.log(player.currentTrackAds)
 // → [{ id, startTime: 12, duration: 15, placement: 'midroll',
 //      ads: [{ id, startTime, duration, uri }], metadata: { ... } }, ...]
 
 // Inspect the break currently containing the playhead, if any.
-console.log(player.activeAdBreak)
+console.log(player.currentAdBreak)
 
 // React to changes and boundary crossings.
-player.on('adBreaksChange', (event) => {
+player.on('currentTrackAdsChange', (event) => {
     console.log('Ad breaks updated:', event.current)
 })
 player.on('adBreakEnter', (adBreak) => {
@@ -557,5 +557,5 @@ player.on('adBreakExit', (adBreak) => {
 `adBreakEnter` / `adBreakExit` are derived from the playhead as it crosses each
 break's `[startTime, startTime + duration)` region, so they fire on normal
 playback and on seeks alike. Breaks with an unknown duration surface in
-`adBreaks` but never mark the playhead as inside a break until their span
+`currentTrackAds` but never mark the playhead as inside a break until their span
 resolves.
