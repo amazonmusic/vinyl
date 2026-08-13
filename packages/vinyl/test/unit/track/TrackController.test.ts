@@ -767,6 +767,45 @@ describe('TrackControllerImpl', () => {
                 expect(track.clearPrefetch).toHaveBeenCalledTimes(1)
             }
         })
+
+        it('also clears prefetch on preloaded ad tracks', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            const track = trackController.currentTrack as MockTrack
+            const ads = {
+                trackUri: main.uri,
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 5,
+                        duration: 10,
+                        placement: 'midroll' as const,
+                        restrict: {},
+                        ads: () =>
+                            Promise.resolve([
+                                {
+                                    id: 'a1',
+                                    startTime: 5,
+                                    duration: 10,
+                                    uri: 'https://ads/a.m3u8',
+                                },
+                            ]),
+                    },
+                ],
+            }
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            // Ad resolution runs on microtasks.
+            await Promise.resolve()
+            await Promise.resolve()
+            await Promise.resolve()
+
+            const adTrack = trackController.getCachedTrack(
+                'https://ads/a.m3u8'
+            ) as MockTrack
+            trackController.clearPrefetch()
+            expect(adTrack.clearPrefetch).toHaveBeenCalled()
+        })
     })
 
     describe('clearQueue', () => {
@@ -1072,6 +1111,231 @@ describe('TrackControllerImpl', () => {
 
         it('does nothing when there is no current track', () => {
             expect(() => trackController.reset(true)).not.toThrow()
+        })
+    })
+
+    describe('ad preloading', () => {
+        /** A TrackAds value with a single midroll break carrying one ad URI. */
+        function trackAdsWith(trackUri: string, adUri: string) {
+            return {
+                trackUri,
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 5,
+                        duration: 10,
+                        placement: 'midroll' as const,
+                        restrict: {},
+                        ads: () =>
+                            Promise.resolve([
+                                {
+                                    id: 'a1',
+                                    startTime: 5,
+                                    duration: 10,
+                                    uri: adUri,
+                                },
+                            ]),
+                    },
+                ],
+            }
+        }
+
+        async function flushAds(): Promise<void> {
+            await Promise.resolve()
+            await Promise.resolve()
+            await Promise.resolve()
+        }
+
+        it('preloads ad tracks discovered on the current track', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            const track = trackController.currentTrack as MockTrack
+
+            // The track's ads resolve after activation.
+            const ads = trackAdsWith(main.uri, 'https://ads/a1.m3u8')
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            expect(
+                trackController.isTrackCached('https://ads/a1.m3u8')
+            ).toBeTrue()
+            const adTrack = trackController.getCachedTrack(
+                'https://ads/a1.m3u8'
+            ) as MockTrack
+            expect(adTrack.preload).toHaveBeenCalled()
+        })
+
+        it('does not inflate the content preload capacity to hold ad tracks', async () => {
+            // Ad tracks live in a store keyed by the parent content URI, so
+            // adding them must not enlarge the content cache's capacity — the
+            // content cache stays sized purely by content preload options.
+            const before = trackController.preloadCapacity
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            const track = trackController.currentTrack as MockTrack
+
+            const ads = trackAdsWith(main.uri, 'https://ads/a1.m3u8')
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            expect(trackController.preloadCapacity).toBe(before)
+        })
+
+        it('does not preload ads that carry no URI', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            const track = trackController.currentTrack as MockTrack
+
+            const ads = {
+                trackUri: main.uri,
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 5,
+                        duration: 10,
+                        placement: 'midroll' as const,
+                        restrict: {},
+                        ads: () =>
+                            Promise.resolve([
+                                {
+                                    id: 'a1',
+                                    startTime: 5,
+                                    duration: 10,
+                                    uri: null,
+                                },
+                            ]),
+                    },
+                ],
+            }
+            const createdBefore = deps.trackFactory.createTrack.calls.count()
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            // No ad URI -> no ad track was ever instantiated.
+            expect(deps.trackFactory.createTrack.calls.count()).toBe(
+                createdBefore
+            )
+        })
+
+        it('continues without throwing when an ad track cannot be resolved', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            const track = trackController.currentTrack as MockTrack
+
+            const ads = trackAdsWith(main.uri, 'unresolvable')
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            // The provider rejected 'unresolvable'; no ad track is cached.
+            expect(trackController.isTrackCached('unresolvable')).toBeFalse()
+        })
+
+        it('creates the ad track only once for a repeated ad URI', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            const track = trackController.currentTrack as MockTrack
+            const createdBefore = deps.trackFactory.createTrack.calls.count()
+
+            const ads = trackAdsWith(main.uri, 'https://ads/shared.m3u8')
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+            // A second resolution of the same ad URI must reuse the existing ad track.
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            expect(deps.trackFactory.createTrack.calls.count()).toBe(
+                createdBefore + 1
+            )
+        })
+
+        it('disposes preloaded ad tracks when the parent content track is evicted', async () => {
+            // With no room for the previous track to linger in the cache, its
+            // preloaded ad must also go: an ad's lifetime is pegged to its
+            // parent so the ad map can't grow without bound.
+            trackController.configure({
+                preloadCapacity: 0,
+                trackPrefetchCount: 0,
+            })
+            const [a] = createLoadOptionsList(1)
+
+            trackController.load(a)
+            const trackA = trackController.currentTrack as MockTrack
+            const adsA = trackAdsWith(a.uri, 'https://ads/a.m3u8')
+            trackA.ads = adsA
+            trackA.dispatch('adsChange', { previous: null, current: adsA })
+            await flushAds()
+            expect(
+                trackController.isTrackCached('https://ads/a.m3u8')
+            ).toBeTrue()
+            const adTrack = trackController.getCachedTrack(
+                'https://ads/a.m3u8'
+            ) as MockTrack
+
+            const [b] = createLoadOptionsList(1)
+            trackController.load(b)
+            await flushAds()
+            expect(trackController.isTrackCached(a.uri)).toBeFalse()
+            expect(
+                trackController.isTrackCached('https://ads/a.m3u8')
+            ).toBeFalse()
+            expect(adTrack.dispose).toHaveBeenCalled()
+        })
+
+        it("continues without throwing when a break's ads fail to resolve", async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            const track = trackController.currentTrack as MockTrack
+
+            const ads = {
+                trackUri: main.uri,
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 5,
+                        duration: 10,
+                        placement: 'midroll' as const,
+                        restrict: {},
+                        ads: () => Promise.reject(new Error('ad list down')),
+                    },
+                ],
+            }
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            expect(trackController.currentTrack?.uri).toBe(main.uri)
+        })
+
+        it('does not preload an ad track if disposed before its options resolve', async () => {
+            // A provider that resolves only when we choose, so we can dispose
+            // between the ad being seen and its load options resolving.
+            let resolveOptions: (o: TrackLoadOptions) => void = () => {}
+            const tc = new TrackControllerImpl<TrackLoadOptions>({
+                ...deps,
+                adTrackLoadOptionsProvider: () =>
+                    new Promise<TrackLoadOptions>((resolve) => {
+                        resolveOptions = resolve
+                    }),
+            })
+            const [main] = createLoadOptionsList(1)
+            tc.load(main)
+            const track = tc.currentTrack as MockTrack
+            const ads = trackAdsWith(main.uri, 'https://ads/late.m3u8')
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            // Dispose after the ad's options are requested but before they resolve.
+            tc.dispose()
+            resolveOptions({ uri: 'https://ads/late.m3u8', type: '' })
+            await flushAds()
+
+            expect(tc.isTrackCached('https://ads/late.m3u8')).toBeFalse()
         })
     })
 

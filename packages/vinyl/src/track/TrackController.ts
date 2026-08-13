@@ -19,6 +19,7 @@ import {
     type Maybe,
     noop,
     type ReadonlyEventHost,
+    resolveValueProvider,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { PlaybackController } from '../playback/PlaybackController'
@@ -250,7 +251,19 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
     // When tracks are preloaded, the cache capacity may expand automatically to accommodate.
     private _autoPreloadCapacity = 0
+    // Tracks whose ad preloading has already been wired, to avoid attaching a
+    // duplicate `adsChange` listener when a track is re-activated or re-prefetched.
+    private readonly adPreloadWired = new WeakSet<Track>()
+    // The primary content track cache. Bounded by preloadCapacity + prefetch.
     private readonly trackCache = new LruCache<string, Track>(0)
+    // Ad tracks kept separate from the content cache and keyed by their parent
+    // content URI. Their presence is pegged to the parent: when the parent is
+    // evicted from `trackCache`, its ad tracks are disposed here. This avoids
+    // flexing the content cache's capacity to accommodate ads.
+    private readonly adTracksByParent = new Map<
+        TrackUri,
+        Map<TrackUri, Track>
+    >()
     // A monotonically increasing id for a queue change, to allow for queue changes during events.
     private queueIdx = 0
     private _queue: readonly TrackLoadOptionsType[] = []
@@ -282,6 +295,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
         this.trackCache.onEvict = (track) => {
             logDebug(this, `Disposing track: ${track.uri}`)
+            // Ad tracks are pegged to their parent — disposing them here keeps
+            // the ad map bounded by content-cache membership.
+            this.disposeAdTracksFor(track.uri)
             track.dispose()
             return true
         }
@@ -442,11 +458,22 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     isTrackCached(uri: TrackUri): boolean {
-        return this.trackCache.has(uri)
+        if (this.trackCache.has(uri)) return true
+        // A preloaded ad track counts as cached for the public surface.
+        for (const parentAds of this.adTracksByParent.values()) {
+            if (parentAds.has(uri)) return true
+        }
+        return false
     }
 
     getCachedTrack(uri: TrackUri): ReadonlyTrack | null {
-        return this.trackCache.get(uri) ?? null
+        const contentTrack = this.trackCache.get(uri)
+        if (contentTrack) return contentTrack
+        for (const parentAds of this.adTracksByParent.values()) {
+            const adTrack = parentAds.get(uri)
+            if (adTrack) return adTrack
+        }
+        return null
     }
 
     getCachedTracks(): IterableIterator<ReadonlyTrack> {
@@ -508,12 +535,104 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     /**
-     * Ad preloading hook: when a main track's ads become known, its ad assets
-     * are preloaded so that entering an ad break incurs no load latency.
+     * Wires ad preloading for the given main track: whenever the track's ads
+     * become known (or change), the ad assets that carry a URI are created and
+     * preloaded so that entering an ad break does not incur load latency.
      *
-     * Not yet implemented; wired up in a follow-up change.
+     * Ad tracks are preloaded at a priority just below the parent track so the
+     * primary content prefetch always takes precedence. They live in a separate
+     * store keyed by the parent's URI (see {@link adTracksByParent}) rather
+     * than sharing the content cache — their lifetime is pegged to the parent.
+     *
+     * @param track The primary content track whose ads should be preloaded.
+     * @param basePriority The prefetch priority of the parent track; ad tracks
+     *   are preloaded just below this value.
      */
-    private preloadTrackAds(_track: Track, _basePriority: number): void {}
+    private preloadTrackAds(track: Track, basePriority: number): void {
+        // Only wire a track once — it is cached and may be re-activated or
+        // re-prefetched multiple times.
+        if (this.adPreloadWired.has(track)) return
+        this.adPreloadWired.add(track)
+        const refresh = () => this.refreshPreloadedAds(track, basePriority)
+        track.on('adsChange', refresh)
+        refresh()
+    }
+
+    /**
+     * Resolves the ads for the given track and preloads each ad asset that has
+     * a URI. Safe to call repeatedly; already-cached ad tracks are reused.
+     */
+    private refreshPreloadedAds(track: Track, basePriority: number): void {
+        const trackAds = track.ads
+        // A null value indicates the ads are still loading.
+        if (!trackAds) return
+        const { adTrackLoadOptionsProvider } = this.deps
+        let ordinal = 0
+        for (const adBreak of trackAds.adBreaks) {
+            resolveValueProvider(adBreak.ads)
+                .then((ads) => {
+                    for (const ad of ads) {
+                        if (!ad.uri || this.disposed) continue
+                        // Spread ad priorities just below the parent track,
+                        // preserving break/asset order.
+                        const prefetchPriority = basePriority - ++ordinal / 1000
+                        adTrackLoadOptionsProvider(ad)
+                            .then((loadOptions) => {
+                                if (this.disposed) return
+                                const adTrack = this.getOrCreateAdTrack(
+                                    track.uri,
+                                    loadOptions.uri,
+                                    loadOptions
+                                )
+                                adTrack.preload(
+                                    { prefetchPriority },
+                                    loadOptions.config ?? {}
+                                )
+                            })
+                            .catch((error) => {
+                                logWarn(
+                                    this,
+                                    'failed to resolve ad track load options for preload',
+                                    error
+                                )
+                            })
+                    }
+                })
+                .catch((error) => {
+                    logWarn(this, 'failed to resolve ads for preload', error)
+                })
+        }
+    }
+
+    /**
+     * Returns the ad track for the given parent + ad URI, creating and
+     * registering it under the parent's ad map on first request.
+     */
+    private getOrCreateAdTrack(
+        parentUri: TrackUri,
+        adUri: TrackUri,
+        loadOptions: TrackLoadOptionsType
+    ): Track {
+        const parentAds = getOrSet(
+            this.adTracksByParent,
+            parentUri,
+            () => new Map<TrackUri, Track>()
+        )
+        return getOrSet(parentAds, adUri, () =>
+            this.deps.trackFactory.createTrack(loadOptions)
+        )
+    }
+
+    /**
+     * Disposes all preloaded ad tracks belonging to the given parent content
+     * URI and drops the parent's entry from the ad map.
+     */
+    private disposeAdTracksFor(parentUri: TrackUri): void {
+        const adTracks = this.adTracksByParent.get(parentUri)
+        if (!adTracks) return
+        this.adTracksByParent.delete(parentUri)
+        for (const track of adTracks.values()) track.dispose()
+    }
 
     load(...loadOptionsList: readonly TrackLoadOptionsType[]): void {
         logDebug(this, `load ${loadOptionsList.length} items`)
@@ -547,6 +666,10 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
     clearTrackCache() {
         logDebug(this, 'clearTrackCache')
+        for (const parentAds of this.adTracksByParent.values()) {
+            for (const adTrack of parentAds.values()) adTrack.dispose()
+        }
+        this.adTracksByParent.clear()
         this.trackCache.forEach((track) => {
             track.dispose()
         })
@@ -559,6 +682,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     clearPrefetch(): void {
         for (const cachedTrack of this.trackCache.values()) {
             cachedTrack.clearPrefetch()
+        }
+        for (const parentAds of this.adTracksByParent.values()) {
+            for (const adTrack of parentAds.values()) adTrack.clearPrefetch()
         }
     }
 
@@ -624,10 +750,25 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 this._adParent = this._current
             }
             this._queue = queue
+            // fromAd distinguishes ad-track selection (adEntered) from content
+            // resume after an ad (adCompleted). Only the former routes into the
+            // parent-keyed ad store; the latter targets the content cache
+            // like any other content change.
+            const isAdTrack =
+                !!options?.fromAd &&
+                this._adParent != null &&
+                current != null &&
+                current.uri !== this._adParent.uri
             const newTrack =
                 current == null
                     ? null
-                    : this.getOrCreateTrack(current.uri, current)
+                    : isAdTrack
+                      ? this.getOrCreateAdTrack(
+                            this._adParent!.uri,
+                            current.uri,
+                            current
+                        )
+                      : this.getOrCreateTrack(current.uri, current)
             this.dispatch('currentTrackChanging', {
                 previous: previousTrack,
                 current: newTrack,
