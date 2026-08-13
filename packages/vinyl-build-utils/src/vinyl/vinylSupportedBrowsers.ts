@@ -52,12 +52,6 @@ export const vinylSupportedBrowsers: readonly WorkerInitOptions[] = [
     },
 
     {
-        device: 'iPhone 13',
-        os: 'ios',
-        os_version: '17',
-    },
-
-    {
         device: 'iPhone 15 Pro Max',
         os: 'ios',
         os_version: '17',
