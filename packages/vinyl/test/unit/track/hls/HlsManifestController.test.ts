@@ -5,7 +5,7 @@
 
 import type { ReadonlyAbort } from '@amazon/vinyl-util'
 import { Deferred } from '@amazon/vinyl-util'
-import { HlsManifestControllerImpl, type HlsManifestData } from '@amazon/vinyl'
+import { ManifestControllerImpl, type HlsManifestData } from '@amazon/vinyl'
 import { mockHlsManifestData } from '@amazon/vinyl/vinylTestUtil'
 import {
     expectNothing,
@@ -26,17 +26,17 @@ describe('HlsManifestController', () => {
     })
 
     function createManifestController() {
-        return new HlsManifestControllerImpl(manifestProvider)
+        return new ManifestControllerImpl<HlsManifestData>({ manifestProvider })
     }
 
     it('has a toStringTag', () => {
         const controller = createManifestController()
-        expect(String(controller)).toContain('HlsManifestControllerImpl')
+        expect(String(controller)).toContain('ManifestControllerImpl')
     })
 
     it('has a logPrefix', () => {
         const controller = createManifestController()
-        expect(controller.logPrefix).toBe('HlsManifestControllerImpl')
+        expect(controller.logPrefix).toBe('ManifestControllerImpl')
     })
 
     describe('refresh', () => {

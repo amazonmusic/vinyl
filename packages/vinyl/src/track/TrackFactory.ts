@@ -3,17 +3,24 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { AnyRecord, Maybe, ReadonlyRecord } from '@amazon/vinyl-util'
-import { ErrorOrigin, ownKeys } from '@amazon/vinyl-util'
-import type { ObjectSchema } from '@amazon/vinyl-validation'
 import {
+    ErrorOrigin,
+    type Maybe,
+    ownKeys,
+    type ReadonlyRecord,
+} from '@amazon/vinyl-util'
+import {
+    any,
     isOneOf,
+    number,
     object,
+    type ObjectSchema,
     string,
     type ValueSchema,
 } from '@amazon/vinyl-validation'
 
 import type { Track, TrackTypeId, TrackUri } from './Track'
+import { type DrmOptions, drmOptionsValidator } from '../drm/DrmOptions'
 
 export interface TrackLoadOptions {
     /**
@@ -29,14 +36,42 @@ export interface TrackLoadOptions {
     /**
      * The track configuration.
      */
-    readonly config?: Maybe<AnyRecord>
+    readonly config?: Maybe<TrackConfigOptions>
 }
+
+/**
+ * General configuration for tracks set in track load options.
+ */
+export interface TrackConfigOptions {
+    /**
+     * The time to seek to when the track has been activated.
+     * For MSE tracks this will affect pre-fetching.
+     */
+    readonly startTime?: Maybe<number>
+
+    /**
+     * Extra application data to associate with the track.
+     */
+    readonly extra?: any
+
+    /**
+     * DRM Configuration overrides for this track.
+     */
+    readonly drm?: Partial<DrmOptions>
+}
+
+export const trackConfigOptionsValidator: ObjectSchema<TrackConfigOptions> =
+    object({
+        extra: any().optional(),
+        startTime: number().maybe().optional(),
+        drm: drmOptionsValidator.partial().optional(),
+    })
 
 export const trackLoadOptionsValidator: ObjectSchema<TrackLoadOptions> = object(
     {
         type: string(),
         uri: string().notEmpty(),
-        config: object({}).maybe().optional(),
+        config: trackConfigOptionsValidator.maybe().optional(),
     }
 )
 

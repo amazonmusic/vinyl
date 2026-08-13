@@ -57,7 +57,7 @@ export function buildDashMediaTimeline(
     return {
         periods,
         minBufferTime: manifest.MPD.minBufferTime,
-        adBreaks: [],
+        getAdBreaks: () => Promise.resolve([]), // Dash ads are not yet supported
         getDuration: () => Promise.resolve(duration),
     }
 }

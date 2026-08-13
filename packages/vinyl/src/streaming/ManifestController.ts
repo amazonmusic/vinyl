@@ -4,6 +4,7 @@
  */
 
 import type { ObservableValue } from '@amazon/vinyl-observable'
+import type { ReadonlyAbort } from '@amazon/vinyl-util'
 
 export interface ManifestController<T> extends ObservableValue<T> {
     /**
@@ -17,3 +18,8 @@ export interface ManifestController<T> extends ObservableValue<T> {
      */
     reset(): void
 }
+
+/**
+ * Provides a manifest.
+ */
+export type ManifestProvider<T> = (abort?: ReadonlyAbort) => Promise<T>

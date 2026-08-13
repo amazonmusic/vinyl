@@ -9,15 +9,9 @@ import {
     type SegmentControllerImplOptions,
 } from '../../streaming/SegmentControllerImpl'
 import type { ContentType } from '../../streaming/MediaQualityMetadata'
-import type { SegmentController } from '../../streaming/SegmentController'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import type { MediaTimeline } from '../../streaming/MediaTimeline'
 import type { QualitySelector } from '../../streaming/abr/QualitySelector'
-
-export type SegmentControllerFactory = (deps: {
-    readonly mediaTimelineTransformed: ObservableValue<Promise<MediaTimeline>>
-    readonly qualitySelector: QualitySelector
-}) => SegmentController
 
 export interface SegmentControllerFactoryDeps {
     readonly playbackController: ReadonlyPlaybackController

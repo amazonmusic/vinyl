@@ -4,26 +4,31 @@
  */
 
 import {
+    AdControllerImpl,
     createVinylPlayer,
     type AdBreakInfo,
+    type TrackAds,
     type VinylDeps,
 } from '@amazon/vinyl'
 import { externalDependencies, type Factories } from '@amazon/vinyl-di'
-import {
-    createMockVinylDependencies,
-    type MockVinylDependencies,
-} from '@amazon/vinyl/vinylTestUtil'
+import { createMockVinylDependencies } from '@amazon/vinyl/vinylTestUtil'
 import { MockHTMLAudioElement } from '@amazon/vinyl-util/browserTestUtil'
 import { createEventSpy } from '@amazon/vinyl-util/testUtil'
 
 describe('VinylPlayer ad break API', () => {
-    let deps: MockVinylDependencies
+    let adController: AdControllerImpl
+    let base: ReturnType<typeof createMockVinylDependencies>
     let depFactories: Factories<VinylDeps>
     let player: ReturnType<typeof createVinylPlayer>
 
     beforeEach(() => {
-        deps = createMockVinylDependencies()
-        depFactories = externalDependencies(deps)
+        base = createMockVinylDependencies()
+        // Use a real ad controller so setAds drives state and events that the
+        // player getters and redispatch reflect.
+        adController = new AdControllerImpl({
+            playbackController: base.playbackController,
+        })
+        depFactories = externalDependencies({ ...base, adController })
         player = createVinylPlayer(
             { media: new MockHTMLAudioElement() },
             depFactories
@@ -40,17 +45,27 @@ describe('VinylPlayer ad break API', () => {
             startTime: 10,
             duration: 5,
             placement: 'midroll',
+            restrict: {},
             ads: () =>
                 Promise.resolve([
-                    { id: 'a1', startTime: 10, duration: 5, uri: 'ad.m3u8' },
+                    {
+                        id: 'a1',
+                        startTime: 10,
+                        duration: 5,
+                        uri: 'ad.m3u8',
+                    },
                 ]),
             ...overrides,
         }
     }
 
+    function trackAds(...adBreaks: readonly AdBreakInfo[]): TrackAds {
+        return { trackUri: 't1', adBreaks }
+    }
+
     function simulateTimeUpdate(time: number) {
-        deps.playbackController.currentTime = time
-        deps.playbackController.dispatch('timeUpdate', {
+        base.playbackController.currentTime = time
+        base.playbackController.dispatch('timeUpdate', {
             previous: 0,
             current: time,
         })
@@ -63,27 +78,26 @@ describe('VinylPlayer ad break API', () => {
     }
 
     it('returns empty defaults when no ad breaks are set', () => {
-        expect(player.adBreaks).toEqual([])
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentTrackAds).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
     })
 
     it('returns ad breaks from the player-level ad controller', () => {
-        const controller = deps.adController
-        controller.setAdBreaks([makeBreak()])
-        expect(player.adBreaks.map((b) => b.id)).toEqual(['b1'])
+        adController.setAds(trackAds(makeBreak()))
+        expect(player.currentTrackAds?.adBreaks.map((b) => b.id)).toEqual([
+            'b1',
+        ])
     })
 
-    it('redispatches adBreaksChange from the ad controller', () => {
-        const controller = deps.adController
-        const spy = createEventSpy(player, 'adBreaksChange')
-        controller.setAdBreaks([makeBreak()])
+    it('redispatches currentTrackAdsChange from the ad controller', () => {
+        const spy = createEventSpy(player, 'currentTrackAdsChange')
+        adController.setAds(trackAds(makeBreak()))
         expect(spy).toHaveBeenCalled()
     })
 
-    it('redispatches adBreakChange from the ad controller', async () => {
-        const controller = deps.adController
-        controller.setAdBreaks([makeBreak({ startTime: 10, duration: 5 })])
-        const change = createEventSpy(player, 'adBreakChange')
+    it('redispatches currentAdBreakChange from the ad controller', async () => {
+        adController.setAds(trackAds(makeBreak({ startTime: 10, duration: 5 })))
+        const change = createEventSpy(player, 'currentAdBreakChange')
         simulateTimeUpdate(11)
         await flush()
         expect(change).toHaveBeenCalledTimes(1)
@@ -94,31 +108,36 @@ describe('VinylPlayer ad break API', () => {
         expect(change.calls.mostRecent().args[0].current).toBeNull()
     })
 
-    it('reflects the active ad break through the player getter', async () => {
-        const controller = deps.adController
-        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+    it('reflects the current ad break through the player getter', async () => {
+        adController.setAds(trackAds(makeBreak({ startTime: 0, duration: 10 })))
         simulateTimeUpdate(5)
         await flush()
-        expect(player.activeAdBreak?.id).toBe('b1')
+        expect(player.currentAdBreak?.id).toBe('b1')
+    })
+
+    it('reflects the current ad through the player getter', async () => {
+        adController.setAds(trackAds(makeBreak({ startTime: 0, duration: 10 })))
+        expect(player.currentAd).toBeNull()
+        simulateTimeUpdate(5)
+        await flush()
+        expect(player.currentAd?.id).toBe('a1')
     })
 
     it('skipAd delegates to the ad controller', async () => {
-        const controller = deps.adController
-        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        adController.setAds(trackAds(makeBreak({ startTime: 0, duration: 10 })))
         simulateTimeUpdate(5)
         await flush()
-        expect(player.activeAdBreak).not.toBeNull()
+        expect(player.currentAdBreak).not.toBeNull()
         player.skipAd()
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
     })
 
     it('skipAdBreak delegates to the ad controller', async () => {
-        const controller = deps.adController
-        controller.setAdBreaks([makeBreak({ startTime: 0, duration: 10 })])
+        adController.setAds(trackAds(makeBreak({ startTime: 0, duration: 10 })))
         simulateTimeUpdate(5)
         await flush()
         player.skipAdBreak()
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
     })
 
     it('skipAd is a no-op without an active break', () => {

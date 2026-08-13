@@ -67,8 +67,8 @@ describe('SourceTrackBase', () => {
         expect(track.textTrackController).toBeNull()
     })
 
-    it('exposes a null adController by default', () => {
-        expect(track.adController).toBeNull()
+    it('exposes empty ad breaks by default', () => {
+        expect(track.ads).toEqual({ trackUri: 'uri', adBreaks: [] })
     })
 
     describe('when src promise rejects', () => {
@@ -315,6 +315,21 @@ describe('SourceTrackBase', () => {
         it('does nothing', () => {
             track.reset()
             expectNothing()
+        })
+    })
+
+    describe('when active and duration changes', () => {
+        it('updates the seek range to span the new duration', () => {
+            track.activate({})
+            const seekRangeChangeSpy = createEventSpy(track, 'seekRangeChange')
+            playbackController.dispatch('durationChange', {
+                previous: 0,
+                current: 120,
+            })
+            expect(track.seekRange).toEqual({ start: 0, end: 120 })
+            expect(seekRangeChangeSpy).toHaveBeenCalledOnceWith(
+                objectContaining({ current: { start: 0, end: 120 } })
+            )
         })
     })
 

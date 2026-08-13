@@ -3,19 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ReadonlyAbort } from '@amazon/vinyl-util'
-import type { MainPlaylist, MediaPlaylist } from '@amazon/vinyl-hls-parser'
-
-export type HlsManifestProvider = (
-    abort?: ReadonlyAbort
-) => Promise<HlsManifestData>
+import type {
+    HlsMainPlaylist,
+    HlsMediaPlaylist,
+} from '@amazon/vinyl-hls-parser'
 
 export interface HlsManifestData {
     /**
      * The main HLS playlist manifest.
      * Use getMediaPlaylist to resolve bitrate manifests.
      */
-    readonly mainPlaylist: MainPlaylist
+    readonly mainPlaylist: HlsMainPlaylist
 
     /**
      * The URL to be used for relative requests. Guaranteed to be absolute.
@@ -27,5 +25,5 @@ export interface HlsManifestData {
     /**
      * Lazily fetches and caches a media playlist by variant URI.
      */
-    readonly getMediaPlaylist: (uri: string) => Promise<MediaPlaylist>
+    readonly getMediaPlaylist: (uri: string) => Promise<HlsMediaPlaylist>
 }

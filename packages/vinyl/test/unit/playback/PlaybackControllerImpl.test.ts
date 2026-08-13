@@ -331,7 +331,8 @@ describe('PlaybackController', () => {
                     )
                     expect(loggingRef.value.warn).toHaveBeenCalledOnceWith(
                         controller,
-                        'seekTo: seek outside of seekable ranges, seek ignored'
+                        'seekTo: seek outside of seekable ranges, seek ignored',
+                        jasmine.anything()
                     )
                     loggingRef.value.warn.calls.reset()
                     expect(media.currentTime).toBe(unchangedTime)
@@ -351,7 +352,8 @@ describe('PlaybackController', () => {
                         )
                         expect(loggingRef.value.warn).toHaveBeenCalledOnceWith(
                             controller,
-                            'seekTo: seek outside of seekable ranges, seek ignored'
+                            'seekTo: seek outside of seekable ranges, seek ignored',
+                            jasmine.anything()
                         )
                     })
                 })
@@ -526,6 +528,11 @@ describe('PlaybackController', () => {
                     media.dispatchEvent(mockEvent('pause'))
                     expect(pauseSpy).toHaveBeenCalledWith({})
                     pauseSpy.calls.reset()
+
+                    const resizeSpy = createSpy('resize')
+                    controller.on('resize', resizeSpy)
+                    media.dispatchEvent(mockEvent('resize'))
+                    expect(resizeSpy).toHaveBeenCalledWith({})
                 })
 
                 describe('durationChange', () => {

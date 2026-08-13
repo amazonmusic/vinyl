@@ -225,6 +225,7 @@ export class PlaybackControllerImpl
             'pause',
             'play',
             'playing',
+            'resize',
             'seeking',
             'waiting',
             'waitingForKey',
@@ -639,7 +640,8 @@ export class PlaybackControllerImpl
         if (range == null) {
             logWarn(
                 this,
-                `seekTo: seek outside of seekable ranges, seek ignored`
+                `seekTo: seek outside of seekable ranges, seek ignored`,
+                seekable.ranges
             )
             throw new InvalidSeekError(time, seekable, tolerance)
         }

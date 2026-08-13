@@ -12,9 +12,10 @@
     "scripts": {
         "start": "vite",
         "build": "vite build",
-        "build:release": "npm run typedoc && vite build",
+        "build:release": "npm run typecheck && npm run typedoc && vite build",
         "prepreview": "npm run build",
         "preview": "vite preview",
+        "typecheck": "tsc --noEmit -p tsconfig.lint.json",
         "typedoc": "typedoc",
         "clean": "rimraf --glob dist public/tsdocs \"**/*.tsbuildinfo\"",
         "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",

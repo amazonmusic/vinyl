@@ -4,7 +4,7 @@
  */
 
 /**
- * The CLASS value that identifies an {@link DateRange} as an HLS Interstitial,
+ * The CLASS value that identifies an {@link HlsDateRange} as an HLS Interstitial,
  * the server-guided ad insertion (SGAI) primitive defined by Apple.
  *
  * @see https://developer.apple.com/streaming/GettingStartedWithHLSInterstitials.pdf
@@ -22,7 +22,7 @@ export const HLS_INTERSTITIAL_CLASS = 'com.apple.hls.interstitial'
  *
  * @see https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.7
  */
-export interface DateRange {
+export interface HlsDateRange {
     /** A unique identifier for this Date Range within the playlist (ID). */
     readonly id: string
 
@@ -38,7 +38,12 @@ export interface DateRange {
     /** The duration of the range in seconds (DURATION), if present. */
     readonly duration?: number
 
-    /** The expected duration of a still-open range in seconds (PLANNED-DURATION), if present. */
+    /**
+     * The expected duration of the Date Range in seconds.
+     * This attribute SHOULD be used to indicate the expected duration of a Date Range whose actual
+     * duration is not yet known.
+     * It must be positive.
+     */
     readonly plannedDuration?: number
 
     /**

@@ -97,11 +97,19 @@ export interface TextTrackEventMap {
     /**
      * Emitted when an error occurs while loading or activating a text track.
      */
-    readonly textTrackError: {
-        readonly track: TextTrackInfo
-        readonly error: Error
-    }
+    readonly textTrackError: TextTrackErrorEvent
 }
+
+export interface TextTrackErrorEvent {
+    readonly track: TextTrackInfo
+    readonly error: Error
+}
+
+export const ALL_TEXT_TRACK_EVENTS = [
+    'textTracksChange',
+    'activeTextTrackChange',
+    'textTrackError',
+] as const satisfies readonly (keyof TextTrackEventMap)[]
 
 /**
  * Read-only view of available text tracks and the active selection.

@@ -5,7 +5,7 @@
 
 import { createDefaultHlsManifestTransformer } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
-import type { MainPlaylist, VariantStream } from '@amazon/vinyl-hls-parser'
+import type { HlsMainPlaylist, VariantStream } from '@amazon/vinyl-hls-parser'
 import type { HlsManifestData } from '@amazon/vinyl'
 
 function variant(bandwidth: number): VariantStream {
@@ -17,7 +17,7 @@ function manifestData(variants: VariantStream[]): HlsManifestData {
         mainPlaylist: {
             variants,
             alternativeRenditions: [],
-        } as unknown as MainPlaylist,
+        } as unknown as HlsMainPlaylist,
         baseUrl: 'https://example.com/',
         getMediaPlaylist: () => Promise.resolve(null as any),
     }

@@ -4,7 +4,7 @@
  */
 
 import { windowEvents } from '../util/interaction'
-import { createErrorHandler } from '../errorHandler'
+import { handleError } from '../errorHandler'
 import {
     Abort,
     createDisposer,
@@ -109,7 +109,6 @@ export class RouterImpl
     }
 
     private routes: readonly Route[] | null = null
-    private readonly errorHandler = createErrorHandler()
 
     private setStageAbort = new Abort()
     private readonly disposer = createDisposer()
@@ -241,13 +240,13 @@ export class RouterImpl
             if (pushHistory) window.scrollTo(0, 0)
             else this.restoreScrollPosition()
         }
-        if (isFirst) doTransition().catch(this.errorHandler)
-        else startViewTransition(doTransition).catch(this.errorHandler)
+        if (isFirst) doTransition().catch(handleError)
+        else startViewTransition(doTransition).catch(handleError)
     }
 
     private clear() {
         logDebug(this, 'clear')
-        this.setStage(null).catch(this.errorHandler)
+        this.setStage(null).catch(handleError)
         this.currentPath = null
     }
 
@@ -325,7 +324,7 @@ export class RouterImpl
     }
 
     dispose() {
-        this.setStage(null).catch(this.errorHandler)
+        this.setStage(null).catch(handleError)
         this.clearRoutes()
         this.disposer.dispose()
     }

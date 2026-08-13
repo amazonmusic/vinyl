@@ -9,13 +9,19 @@ import {
     vinylTestAssets,
 } from '@amazon/vinyl/vinylTestUtil'
 import {
+    type HlsManifestData,
     PlaybackReadyState,
     supportsMse,
-    type HlsManifestData,
     type VinylTrackLoadOptions,
 } from '@amazon/vinyl'
 import { parseMainPlaylist, parseMediaPlaylist } from '@amazon/vinyl-hls-parser'
-import { poll, resolveUrl } from '@amazon/vinyl-util'
+import {
+    nextEventAsPromise,
+    noop,
+    poll,
+    resolveUrl,
+    resolveValueProvider,
+} from '@amazon/vinyl-util'
 
 /**
  * Integration tests for HLS Interstitial (SGAI) ad-break support.
@@ -189,25 +195,28 @@ describe('hls ad interstitials integ', () => {
         playlist: VinylTrackLoadOptions[] = makePlaylist()
     ): Promise<void> {
         suite.player.load(...playlist)
-        await poll(() => suite.player.adBreaks.length > 0, { timeout: 15 })
+        await poll(
+            () => (suite.player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+            { timeout: 15 }
+        )
     }
 
     // ─── Discovery ───────────────────────────────────────────────────────
     it('discovers the injected interstitial as an ad break', async () => {
         await loadAndAwaitAdBreaks()
-        const breaks = suite.player.adBreaks
+        const breaks = suite.player.currentTrackAds!.adBreaks
         expect(breaks.length).toBe(1)
         expect(breaks[0].id).toBe(AD_ID)
         expect(breaks[0].startTime).toBeCloseTo(MIDROLL_TIME, 1)
         expect(breaks[0].duration).toBe(MIDROLL_DURATION)
         expect(breaks[0].placement).toBe('midroll')
-        const ads = await breaks[0].ads()
+        const ads = await resolveValueProvider(breaks[0].ads)
         expect(ads[0].uri).toBe(AD_ASSET)
     })
 
     it('ad breaks have strongly typed fields (no metadata, no assetListUrl)', async () => {
         await loadAndAwaitAdBreaks()
-        const adBreak = suite.player.adBreaks[0]
+        const adBreak = suite.player.currentTrackAds!.adBreaks[0]
         expect('metadata' in adBreak).toBeFalse()
         expect('assetListUrl' in adBreak).toBeFalse()
         expect(typeof adBreak.ads).toBe('function')
@@ -215,22 +224,29 @@ describe('hls ad interstitials integ', () => {
 
     it('ad events come from the player-level controller (not per-track)', async () => {
         const player = suite.player
-        const spy = jasmine.createSpy('adBreaksChange')
-        const sub = player.on('adBreaksChange', spy)
+        const spy = jasmine.createSpy('currentTrackAdsChange')
+        const sub = player.on('currentTrackAdsChange', spy)
         player.load(...makePlaylist())
-        await poll(() => spy.calls.count() > 0, { timeout: 15 })
+        // TrackController fires currentTrackAdsChange with `current: null` as
+        // soon as the track's ads are `null` (still loading), and again when
+        // discovery resolves. Wait for the resolved event, not the initial one.
+        await poll(
+            () =>
+                spy.calls.count() > 0 &&
+                spy.calls.mostRecent().args[0].current != null,
+            { timeout: 15 }
+        )
         sub()
-        expect(spy).toHaveBeenCalled()
-        expect(spy.calls.mostRecent().args[0].current.length).toBe(1)
+        expect(spy.calls.mostRecent().args[0].current.adBreaks.length).toBe(1)
     })
 
     // ─── Model transitions ───────────────────────────────────────────────
-    it('emits adBreakChange as the playhead crosses into and out of the break', async () => {
+    it('emits currentAdBreakChange as the playhead crosses into and out of the break', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         const entered: string[] = []
         const exited: string[] = []
-        const sub = player.on('adBreakChange', (e) => {
+        const sub = player.on('currentAdBreakChange', (e) => {
             if (e.current) entered.push(e.current.id)
             else if (e.previous) exited.push(e.previous.id)
         })
@@ -255,32 +271,32 @@ describe('hls ad interstitials integ', () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + MIDROLL_DURATION / 2)
-        expect(await poll(() => player.activeAdBreak != null, { timeout: 30 }))
-            .withContext('player.activeAdBreak != null')
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('player.currentAdBreak != null')
             .toBeTrue()
-        expect(player.activeAdBreak?.id).toBe(AD_ID)
+        expect(player.currentAdBreak?.id).toBe(AD_ID)
     })
 
     it('skipAd clears the active ad break', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.activeAdBreak != null, { timeout: 30 }))
-            .withContext('player.activeAdBreak != null')
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('player.currentAdBreak != null')
             .toBeTrue()
         player.skipAd()
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
     })
 
     it('skipAdBreak clears the active ad break', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.activeAdBreak != null, { timeout: 30 }))
-            .withContext('player.activeAdBreak != null')
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('player.currentAdBreak != null')
             .toBeTrue()
         player.skipAdBreak()
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
     })
 
     it('exposes seekRange once the timeline resolves', async () => {
@@ -294,23 +310,29 @@ describe('hls ad interstitials integ', () => {
     })
 
     // ─── Real ad playback ────────────────────────────────────────────────
-    it('plays the ad track over the content and exposes currentAdTrack', async () => {
+    it('plays the ad track as the current track over the content', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
-        // The ad track becomes current and begins playing.
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        // The ad track becomes the current track and begins playing (the ad
+        // track replaces content as `currentTrack` while the break is active;
+        // the suspended content is restored when the break ends).
+        expect(
+            await poll(() => player.currentTrack?.uri === AD_ASSET, {
+                timeout: 30,
+            })
+        )
+            .withContext('player.currentTrack?.uri === AD_ASSET')
             .toBeTrue()
-        expect(player.currentAdTrack!.uri).toBe(AD_ASSET)
-        // The content track remains the current (suspended) track.
-        expect(player.currentTrack).not.toBeNull()
-        expect(player.currentTrack!.uri).toBe('integ-interstitial')
+        expect(player.currentTrack!.uri).toBe(AD_ASSET)
+        // The ad plays within the active break over the (suspended) content.
+        expect(player.currentAd).not.toBeNull()
+        expect(player.currentAdBreak?.id).toBe(AD_ID)
     })
 
     it('lets an application attribute ended events to ads vs content', async () => {
         // This is the contract documented in ADS.md: an `ended` observed while
-        // activeAdBreak is non-null originated from an ad, not from content.
+        // currentAdBreak is non-null originated from an ad, not from content.
         const player = suite.player
         // Two ads in the break so the first ad's natural `ended` fires while
         // the break is still active — the exact case that trips naive
@@ -330,40 +352,38 @@ describe('hls ad interstitials integ', () => {
                 },
             ]),
         })
-        await poll(() => player.adBreaks.length > 0, { timeout: 15 })
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
 
         // Record, for every `ended`, whether an ad was active at that moment.
         const endedDuringAd: boolean[] = []
         const sub = player.on('ended', () => {
-            endedDuringAd.push(player.activeAdBreak != null)
+            endedDuringAd.push(player.currentAdBreak != null)
         })
         try {
             await playThenSeek(MIDROLL_TIME + 1)
-            expect(
-                await poll(() => player.currentAdTrack != null, { timeout: 30 })
-            )
-                .withContext('player.currentAdTrack != null')
+            expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+                .withContext('player.currentAd != null')
                 .toBeTrue()
 
             // Advance through both ads; each advance stands in for the ad's
             // own `ended`, and the break stays active between ads.
-            expect(player.activeAdBreak).not.toBeNull()
+            expect(player.currentAdBreak).not.toBeNull()
             player.skipAd() // -> second ad
-            expect(
-                await poll(() => player.currentAdTrack != null, { timeout: 30 })
-            )
-                .withContext('player.currentAdTrack != null')
+            expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+                .withContext('player.currentAd != null')
                 .toBeTrue()
-            expect(player.activeAdBreak).not.toBeNull()
+            expect(player.currentAdBreak).not.toBeNull()
             player.skipAd() // -> break ends, content resumes
             expect(
-                await poll(() => player.activeAdBreak == null, { timeout: 30 })
+                await poll(() => player.currentAdBreak == null, { timeout: 30 })
             )
-                .withContext('player.activeAdBreak == null')
+                .withContext('player.currentAdBreak == null')
                 .toBeTrue()
 
             // Every `ended` that fired during the sequence was attributable to
-            // an ad (activeAdBreak was non-null); none was misread as content.
+            // an ad (currentAdBreak was non-null); none was misread as content.
             expect(endedDuringAd.every((wasAd) => wasAd)).toBeTrue()
         } finally {
             sub()
@@ -375,8 +395,8 @@ describe('hls ad interstitials integ', () => {
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
         // Ad is playing over the suspended content.
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
         // Confirm the ad actually plays (its playhead advances).
         expect(await poll(() => player.currentTime > 0, { timeout: 20 }))
@@ -384,18 +404,23 @@ describe('hls ad interstitials integ', () => {
             .toBeTrue()
         // End the break; content resumes at the saved position and plays on.
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
+        // The content resume is deferred a frame (TrackController delays the
+        // queue change past adCompleted), so wait for the content track to
+        // become current again and play, rather than asserting synchronously.
         expect(
-            await poll(() => !player.paused && player.currentTrack != null, {
-                timeout: 20,
-            })
+            await poll(
+                () =>
+                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    !player.paused,
+                { timeout: 20 }
+            )
         )
-            .withContext('!player.paused && player.currentTrack != null')
+            .withContext('content track resumed and playing')
             .toBeTrue()
-        expect(player.currentTrack!.uri).toBe('integ-interstitial')
     })
 
     it('resumes content playback when the ad ends naturally', async () => {
@@ -403,8 +428,8 @@ describe('hls ad interstitials integ', () => {
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
         // Ad is playing over the suspended content.
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
         expect(await poll(() => player.currentTime > 0, { timeout: 20 }))
             .withContext('player.currentTime > 0')
@@ -419,16 +444,23 @@ describe('hls ad interstitials integ', () => {
             .catch(() => undefined)
 
         // Content resumes and is playing (not left paused by the ad's end).
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 40 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 40 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
-        expect(player.activeAdBreak).toBeNull()
-        expect(player.currentTrack!.uri).toBe('integ-interstitial')
+        expect(player.currentAdBreak).toBeNull()
+        // The content resume is deferred a frame past adCompleted, so wait for
+        // the content track to become current again and play.
         expect(
-            await poll(() => !player.paused && player.currentTime > 0, {
-                timeout: 20,
-            })
-        ).toBeTrue()
+            await poll(
+                () =>
+                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    !player.paused &&
+                    player.currentTime > 0,
+                { timeout: 20 }
+            )
+        )
+            .withContext('content track resumed and playing')
+            .toBeTrue()
     })
 
     it('plays a preroll before content, then resumes content', async () => {
@@ -446,17 +478,19 @@ describe('hls ad interstitials integ', () => {
                 },
             ]),
         })
-        await poll(() => player.adBreaks.length > 0, { timeout: 15 })
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
         await player.play()
         // Preroll activates at time 0.
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
-        expect(player.activeAdBreak?.placement).toBe('preroll')
+        expect(player.currentAdBreak?.placement).toBe('preroll')
         // Skip it and confirm content resumes and plays.
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
         expect(
             await poll(() => !player.paused && player.currentTime >= 0, {
@@ -482,28 +516,32 @@ describe('hls ad interstitials integ', () => {
                 },
             ]),
         })
-        await poll(() => player.adBreaks.length > 0, { timeout: 15 })
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
         // Resolve the ad list and confirm two ads.
-        const ads = await player.adBreaks[0].ads()
+        const ads = await resolveValueProvider(
+            player.currentTrackAds!.adBreaks[0].ads
+        )
         expect(ads.length).toBe(2)
 
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
         // Skip the first ad → the second ad begins (break stays active).
         player.skipAd()
-        expect(await poll(() => player.activeAdBreak != null, { timeout: 30 }))
-            .withContext('player.activeAdBreak != null')
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('player.currentAdBreak != null')
             .toBeTrue()
-        expect(player.currentAdTrack).not.toBeNull()
+        expect(player.currentAd).not.toBeNull()
         // Skip the last ad → the break ends and content resumes.
         player.skipAd()
-        expect(await poll(() => player.activeAdBreak == null, { timeout: 30 }))
-            .withContext('player.activeAdBreak == null')
+        expect(await poll(() => player.currentAdBreak == null, { timeout: 30 }))
+            .withContext('player.currentAdBreak == null')
             .toBeTrue()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
     })
 
@@ -522,29 +560,46 @@ describe('hls ad interstitials integ', () => {
                 },
             ]),
         })
-        await poll(() => player.adBreaks.length > 0, { timeout: 15 })
-        await player.play()
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
+        // Tolerate the benign AbortError when the seek below pauses the element
+        // before this play() promise settles (more likely under throttling).
+        await player.play().catch(noop)
+        // A CUE="POST" range anchors at media time 0, so its resolved start
+        // time falls within content. The postroll must NOT activate while
+        // content is still playing — it is entered only once content ends.
+        expect(player.currentAdBreak)
+            .withContext('postroll not active during content')
+            .toBeNull()
         // Drive content to its end so the postroll triggers on `ended`.
         const contentDuration = player.duration
         await player
             .seekTo(Math.max(0, contentDuration - 1.5), 1)
             .catch(() => undefined)
         // The postroll takes over and plays.
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 40 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 40 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
-        expect(player.activeAdBreak?.placement).toBe('postroll')
+        expect(player.currentAdBreak?.placement).toBe('postroll')
         await poll(() => !player.paused, { timeout: 8 })
 
         // Skip the postroll while it is actively playing.
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 20 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 20 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
 
         // Content is loaded (not stuck loading), parked near the start; the
         // app-observable paused state (paused || ended) is true — no replay.
-        expect(player.currentTrack?.uri).toBe('integ-postroll')
+        // The resume is deferred a frame past adCompleted, so poll for it.
+        expect(
+            await poll(() => player.currentTrack?.uri === 'integ-postroll', {
+                timeout: 20,
+            })
+        )
+            .withContext('content track resumed after postroll')
+            .toBeTrue()
         expect(
             await poll(
                 () => player.readyState !== PlaybackReadyState.HAVE_NOTHING,
@@ -564,15 +619,15 @@ describe('hls ad interstitials integ', () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
 
         // Load different content while the ad is playing.
         player.load({ type: 'hls', uri: CONTENT_ASSET })
         // The ad track is torn down and the ad-break state is reset.
-        expect(player.currentAdTrack).toBeNull()
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentAd).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
         // New content plays.
         await player.play()
         expect(
@@ -603,14 +658,19 @@ describe('hls ad interstitials integ', () => {
                 },
             ]),
         })
-        await poll(() => player.adBreaks.length > 0, { timeout: 15 })
+        await nextEventAsPromise(player, 'currentTrackAdsChange', {
+            timeout: 15,
+        })
+        expect(player.currentTrackAds?.adBreaks.length ?? 0)
+            .withContext('adBreaks length')
+            .toBeGreaterThan(0)
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
 
         // Load Track B which reuses interstitial ID "1". Its ad must still play
@@ -627,14 +687,19 @@ describe('hls ad interstitials integ', () => {
                 },
             ]),
         })
-        expect(await poll(() => player.adBreaks.length > 0, { timeout: 15 }))
-            .withContext('player.adBreaks.length > 0')
+        expect(
+            await poll(
+                () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+                { timeout: 15 }
+            )
+        )
+            .withContext('(player.currentTrackAds?.adBreaks.length ?? 0) > 0')
             .toBeTrue()
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
-        expect(player.activeAdBreak?.id).toBe('1')
+        expect(player.currentAdBreak?.id).toBe('1')
     })
 
     it('plays a reused-id ad after advancing the queue (via next)', async () => {
@@ -666,14 +731,16 @@ describe('hls ad interstitials integ', () => {
                 ]),
             }
         )
-        await poll(() => player.adBreaks.length > 0, { timeout: 15 })
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
 
         // Advance to the next queued track (same reused ad ID "1").
@@ -685,36 +752,41 @@ describe('hls ad interstitials integ', () => {
         ).toBeTrue()
         // queue-b's break is rediscovered. Its shared id must NOT be
         // pre-suppressed by queue-a's skip (the collision regression).
-        expect(await poll(() => player.adBreaks.length > 0, { timeout: 15 }))
-            .withContext('player.adBreaks.length > 0')
+        expect(
+            await poll(
+                () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+                { timeout: 15 }
+            )
+        )
+            .withContext('(player.currentTrackAds?.adBreaks.length ?? 0) > 0')
             .toBeTrue()
-        expect(player.activeAdBreak).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
         // Crossing into the break activates it, proving the id was not treated
         // as already-skipped.
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.activeAdBreak != null, { timeout: 30 }))
-            .withContext('player.activeAdBreak != null')
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('player.currentAdBreak != null')
             .toBeTrue()
-        expect(player.activeAdBreak?.id).toBe('1')
+        expect(player.currentAdBreak?.id).toBe('1')
     })
 
     // ─── Codec-failure recovery path ─────────────────────────────────────
     // Reproduces the real-world case where an ad uses a codec that differs
     // from the content's. When content resumes after such an ad, a
-    // codecUnsupported event triggers reloadCurrentTrack. This must recover
-    // and keep playing content without leaving stale ad state behind.
-    it('recovers content playback when reloadCurrentTrack fires after an ad', async () => {
+    // codecUnsupported event triggers a hard reset. This must recover and keep
+    // playing content without leaving stale ad state behind.
+    it('recovers content playback when a hard reset fires after an ad', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
 
         // Skip the ad → content resumes and begins playing.
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
         expect(
             await poll(() => !player.paused && player.currentTime > 0, {
@@ -724,11 +796,11 @@ describe('hls ad interstitials integ', () => {
 
         // Simulate the codec-recovery reload that a mismatched ad codec would
         // trigger on the content track once it has resumed.
-        player.reloadCurrentTrack()
+        player.reset(/* hard */ true)
 
         // Content recovers and continues playing; no ad state lingers.
-        expect(player.activeAdBreak).toBeNull()
-        expect(player.currentAdTrack).toBeNull()
+        expect(player.currentAdBreak).toBeNull()
+        expect(player.currentAd).toBeNull()
         expect(
             await poll(() => !player.paused && player.currentTime > 0, {
                 timeout: 30,
@@ -736,7 +808,7 @@ describe('hls ad interstitials integ', () => {
         ).toBeTrue()
     })
 
-    // Note: the invariant that reloadCurrentTrack during an ad rebuilds the
+    // Note: the invariant that a hard reset during an ad rebuilds the
     // suspended content in place without disturbing the ad is verified
     // deterministically in the TrackController unit tests, where ad playback
     // timing is controlled. A real-browser version would race the ad's own
@@ -765,12 +837,12 @@ describe('hls ad interstitials integ', () => {
 
         // Play into the midroll ad and back out.
         await playThenSeek(MIDROLL_TIME + 1)
-        expect(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-            .withContext('player.currentAdTrack != null')
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('player.currentAd != null')
             .toBeTrue()
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
 
         // After resume the caption renders again on exactly one showing track —
@@ -803,18 +875,25 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
     it('discovers pre/mid/post-roll breaks with fully substituted ad URIs', async () => {
         const player = suite.player
         player.load({ type: 'hls', uri: STREAM })
-        if (!(await poll(() => player.adBreaks.length > 0, { timeout: 20 }))) {
+        if (
+            !(await poll(
+                () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+                { timeout: 20 }
+            ))
+        ) {
             pending('art19 stream unreachable')
             return
         }
-        const placements = player.adBreaks.map((b) => b.placement)
+        const placements = player.currentTrackAds!.adBreaks.map(
+            (b) => b.placement
+        )
         expect(placements).toContain('preroll')
         expect(placements).toContain('postroll')
 
         // Every break's resolved ad URIs must be fully substituted — no
         // leftover EXT-X-DEFINE tokens.
-        for (const adBreak of player.adBreaks) {
-            const ads = await adBreak.ads()
+        for (const adBreak of player.currentTrackAds?.adBreaks ?? []) {
+            const ads = await resolveValueProvider(adBreak.ads)
             for (const ad of ads) {
                 expect(ad.uri).withContext(adBreak.id).not.toContain('{$')
                 expect(ad.uri)
@@ -827,7 +906,12 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
     it('plays the preroll ad, then resumes content', async () => {
         const player = suite.player
         player.load({ type: 'hls', uri: STREAM })
-        if (!(await poll(() => player.adBreaks.length > 0, { timeout: 20 }))) {
+        if (
+            !(await poll(
+                () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+                { timeout: 20 }
+            ))
+        ) {
             pending('art19 stream unreachable')
             return
         }
@@ -835,9 +919,7 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
         // the initial play() as the ad takes over the element. That's expected.
         await player.play().catch(() => undefined)
         // The preroll is at time 0; its ad track should activate and advance.
-        if (
-            !(await poll(() => player.currentAdTrack != null, { timeout: 30 }))
-        ) {
+        if (!(await poll(() => player.currentAd != null, { timeout: 30 }))) {
             pending('art19 ad did not start (network/CDN)')
             return
         }
@@ -851,8 +933,8 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
         // Skipping the break resumes content (long real ads are impractical to
         // play through in a test).
         player.skipAd()
-        expect(await poll(() => player.currentAdTrack == null, { timeout: 30 }))
-            .withContext('player.currentAdTrack == null')
+        expect(await poll(() => player.currentAd == null, { timeout: 30 }))
+            .withContext('player.currentAd == null')
             .toBeTrue()
     })
 })

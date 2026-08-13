@@ -3,16 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ObjectSchema } from '@amazon/vinyl-validation'
-import { any, number, object } from '@amazon/vinyl-validation'
 import {
     createAbortSlot,
     createDisposer,
     emptyRanges,
+    equalDeep,
     EventHostImpl,
     isSilentError,
     logDebug,
-    type Maybe,
     noop,
     type ReadonlyRanges,
     type ReadonlySet,
@@ -31,9 +29,9 @@ import type {
     ContentType,
     MediaQualityMetadata,
 } from '../streaming/MediaQualityMetadata'
-import { type DrmOptions, drmOptionsValidator } from '../drm/DrmOptions'
 import type { TextTrackController } from '../text/TextTrack'
-import type { AdController } from '../ad/AdBreak'
+import type { AdBreakList, TrackAds } from '../ad/AdBreakInfo'
+import type { TrackConfigOptions } from './TrackFactory'
 
 /**
  * Dependencies for TrackBase.
@@ -51,43 +49,14 @@ export interface TrackBaseDeps {
 }
 
 /**
- * General configuration for tracks set in track load options.
- */
-export interface TrackBaseOptions {
-    /**
-     * The time to seek to when the track has been activated.
-     * For MSE tracks this will affect pre-fetching.
-     */
-    readonly startTime?: Maybe<number>
-
-    /**
-     * Extra application data to associate with the track.
-     */
-    readonly extra?: any
-
-    /**
-     * DRM Configuration overrides for this track.
-     */
-    readonly drm?: Partial<DrmOptions>
-}
-
-export const trackBaseOptionsValidator: ObjectSchema<TrackBaseOptions> = object(
-    {
-        extra: any().optional(),
-        startTime: number().maybe().optional(),
-        drm: drmOptionsValidator.partial().optional(),
-    }
-)
-
-/**
  * A base class for all tracks.
  */
 export abstract class TrackBase<
     EventMap extends TrackEventMap = TrackEventMap,
-    LoadOptionsType extends TrackBaseOptions = TrackBaseOptions,
+    ConfigType extends TrackConfigOptions = TrackConfigOptions,
 >
     extends EventHostImpl<EventMap>
-    implements Track<LoadOptionsType>
+    implements Track<ConfigType>
 {
     get [Symbol.toStringTag](): string {
         return 'TrackBase'
@@ -96,7 +65,7 @@ export abstract class TrackBase<
     /**
      * The current load options, if this is an active track.
      */
-    protected loadOptions: LoadOptionsType | null = null
+    protected loadOptions: ConfigType | null = null
 
     protected readonly errorHandler = (error: any): void => {
         if (this._error) return // Already in an error state
@@ -124,19 +93,12 @@ export abstract class TrackBase<
     }
 
     /**
-     * Default ad controller is null. Tracks that surface ad breaks
-     * (e.g. {@link MseTrack}) override this getter.
-     */
-    get adController(): AdController | null {
-        return null
-    }
-
-    /**
-     * Default seek range is null. Tracks that resolve a media timeline
-     * (e.g. {@link MseTrack}) override this getter.
+     * The presentation seek range of the media.
+     * Most often {start=0, end=duration} but may be different depending on the
+     * media timeline.
      */
     get seekRange(): SeekRange | null {
-        return null
+        return this._seekRange
     }
 
     abstract get contentTypes(): ReadonlySet<ContentType>
@@ -158,8 +120,9 @@ export abstract class TrackBase<
      * Sets on handleError, cleared on 'reset'.
      */
     protected _error: Error | null = null
-
     private _active = false
+    private _trackAds: TrackAds | null = null
+    private _seekRange: SeekRange | null = null
 
     protected constructor(
         /**
@@ -175,6 +138,13 @@ export abstract class TrackBase<
         protected readonly deps: TrackBaseDeps
     ) {
         super()
+        // Default to no ads, implementations can set this to null to indicate
+        // that ads are loading.
+        this.setAdBreaks([])
+    }
+
+    toString(): string {
+        return `[${this[Symbol.toStringTag]}#${this.uri}]`
     }
 
     get error(): Error | null {
@@ -183,7 +153,7 @@ export abstract class TrackBase<
 
     preload(
         _trackOptions: TrackPreloadOptions,
-        _loadOptions: LoadOptionsType
+        _loadOptions: ConfigType
     ): void {}
 
     get extra(): any {
@@ -198,7 +168,7 @@ export abstract class TrackBase<
         return this.disposer.disposed
     }
 
-    activate(loadOptions: LoadOptionsType): void {
+    activate(loadOptions: ConfigType): void {
         if (this._active) return
         this.loadOptions = loadOptions
         this.reset() // Reset error state on activate
@@ -217,7 +187,7 @@ export abstract class TrackBase<
      * track is currently active. For example if there is a loading operation before the
      * playback source is set, isActive must be checked before the property is changed.
      */
-    abstract onActivated(loadOptions: LoadOptionsType): void
+    abstract onActivated(loadOptions: ConfigType): void
 
     deactivate(): void {
         if (!this._active) return
@@ -231,15 +201,51 @@ export abstract class TrackBase<
 
     abstract onDeactivated(): void
 
-    toString(): string {
-        return `[${this[Symbol.toStringTag]}#${this.uri}]`
-    }
+    abstract clearPrefetch(): void
 
     protected closeDrmSessions() {
         this.drmSessionAbort.abort()
     }
 
-    abstract clearPrefetch(): void
+    get ads() {
+        return this._trackAds
+    }
+
+    /**
+     * Sets the ad breaks for this track, emitting an `adsChange` event.
+     * `TrackController` will update the ad manager and manage the ad tracks.
+     * For tracks with no ads this is expected to be called with an empty array.
+     *
+     * @param value
+     * @protected
+     */
+    protected setAdBreaks(value: AdBreakList | null) {
+        const previous = this._trackAds
+        if (equalDeep(previous?.adBreaks ?? null, value)) return // no-op
+        this._trackAds =
+            value == null
+                ? null
+                : {
+                      trackUri: this.uri,
+                      adBreaks: value,
+                  }
+        this.dispatch('adsChange', {
+            previous,
+            current: this._trackAds,
+        })
+    }
+
+    protected setSeekRange(value: SeekRange): void {
+        const prev = this._seekRange
+        if (equalDeep(prev, value)) return
+        const previous = this._seekRange
+        this._seekRange = value
+        logDebug(this, `seekRangeChange start=${value.start}, end=${value.end}`)
+        this.dispatch('seekRangeChange', {
+            previous,
+            current: value,
+        })
+    }
 
     /**
      * Resets the track to recover from error states.
@@ -247,12 +253,30 @@ export abstract class TrackBase<
      *
      * Overrides should dispatch 'reset' after resetting error state.
      */
-    reset(): void {
-        if (this._error == null) {
+    reset(hard = false): void {
+        if (!hard && !this._error) {
             logDebug(this, 'reset no-op')
             return
         }
-        logDebug(this, 'reset')
+        if (hard) {
+            // On a hard reset, deactivate/activate the track,
+            // restore playback seek and playing state.
+            const loadOptions = this.loadOptions
+            if (loadOptions) {
+                const { playbackController } = this.deps
+                const wasPaused =
+                    playbackController.paused || playbackController.ended
+                const time = playbackController.currentTime
+                this.onDeactivated()
+                // Clear the prefetch on a hard reset, in the case of codecs unsupported, the prefetch would
+                // otherwise contain unsupported segments.
+                this.clearPrefetch()
+                this.onActivated(loadOptions)
+                playbackController.seekTo(time).catch(noop)
+                if (!wasPaused) playbackController.play().catch(noop)
+            }
+        }
+        logDebug(this, 'reset, hard:', hard)
         this._error = null
         this.dispatch('reset', {})
     }

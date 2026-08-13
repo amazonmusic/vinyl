@@ -4,12 +4,12 @@
  */
 
 import { expectTypeStrictlyEquals } from '@amazon/vinyl-util/browserTestUtil'
-import type { ALL_STREAMING_EVENTS, TrackEventMap } from '@amazon/vinyl'
+import type { ALL_STREAMING_EVENTS, StreamingEventMap } from '@amazon/vinyl'
 
-describe('ALL_TRACK_EVENTS', () => {
-    it('provides a comprehensive list of all track events', () => {
+describe('ALL_STREAMING_EVENTS', () => {
+    it('provides a comprehensive list of all streaming events', () => {
         expectTypeStrictlyEquals<
-            keyof TrackEventMap,
+            keyof StreamingEventMap,
             (typeof ALL_STREAMING_EVENTS)[number]
         >(true)
     })

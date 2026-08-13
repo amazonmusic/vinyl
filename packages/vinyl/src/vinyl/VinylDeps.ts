@@ -13,7 +13,7 @@ import type { DrmController } from '../drm/DrmController'
 import type { AutoResetController } from '../track/AutoResetController'
 import type { MutableValue } from '@amazon/vinyl-observable'
 import type { VinylOptions } from './VinylOptions'
-import type { AdController } from '../ad/AdBreak'
+import type { AdController } from '../ad/AdController'
 
 export interface VinylDeps<
     TrackLoadOptionsType extends TrackLoadOptions = VinylTrackLoadOptions,

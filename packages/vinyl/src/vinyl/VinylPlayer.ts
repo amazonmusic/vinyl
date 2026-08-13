@@ -13,6 +13,7 @@ import {
     EventHostImpl,
     logDebug,
     logInfo,
+    logWarn,
     type ReadonlyRanges,
     type ReadonlySet,
     redispatchEvents,
@@ -63,15 +64,17 @@ import {
     ALL_STREAMING_EVENTS,
     type StreamingEventMap,
 } from '../streaming/StreamingEventMap'
-import type {
-    InferObservableValueType,
-    MutableValue,
-} from '@amazon/vinyl-observable'
+import type { InferObservableValueType } from '@amazon/vinyl-observable'
 import type { VinylOptions } from './VinylOptions'
 import type { AutoResetController } from '../track/AutoResetController'
 import type { ChangeEvent } from '../event/ChangeEvent'
-import type { TextTrackEventMap, TextTrackInfo } from '../text/TextTrack'
-import type { AdBreakInfo, AdEventMap } from '../ad/AdBreak'
+import {
+    ALL_TEXT_TRACK_EVENTS,
+    type TextTrackEventMap,
+    type TextTrackInfo,
+} from '../text/TextTrack'
+import { type AdEventMap, ALL_AD_EVENTS } from '../ad/AdController'
+import type { AdBreakInfo, AdInfo, TrackAds } from '../ad/AdBreakInfo'
 
 /**
  * Events the Vinyl Player emits.
@@ -99,17 +102,6 @@ export interface VinylPlayerEventMap<
      */
     readonly resetPendingChange: ChangeEvent<boolean>
 }
-
-const ALL_TEXT_TRACK_EVENTS = [
-    'textTracksChange',
-    'activeTextTrackChange',
-    'textTrackError',
-] as const satisfies readonly (keyof TextTrackEventMap)[]
-
-const ALL_AD_EVENTS = [
-    'adBreaksChange',
-    'adBreakChange',
-] as const satisfies readonly (keyof AdEventMap)[]
 
 /**
  * A Vinyl Media Player.
@@ -182,7 +174,6 @@ export class VinylPlayer<
         this.redispatchCurrentTrackEvents()
         this.initializeAutoResetHandling()
         this.initializePreferredLanguageHandling()
-        this.initializeAllowedContentTypesHandling()
     }
 
     protected redispatchSubControllerEvents(): void {
@@ -202,6 +193,7 @@ export class VinylPlayer<
             )
         )
         add(redispatchEvents(this, this.drmController, ['error']))
+        add(redispatchEvents(this, this.deps.adController, ALL_AD_EVENTS))
 
         this.on('error', (event) => {
             this._error = event.error
@@ -212,13 +204,15 @@ export class VinylPlayer<
         // already been denylisted, so the reload selects a codec that decodes.
         add(
             this.on('codecUnsupported', (event) => {
-                if (this.deps.adController.adPlaying) return
-                logInfo(
+                // While an ad is playing, the ad track owns the media pipeline;
+                // do not rebuild the content track out from under it.
+                if (this.deps.adController.currentAdBreak) return
+                logWarn(
                     this,
                     'codec unsupported, reloading track:',
                     event.mimeType
                 )
-                this.trackController.reloadCurrentTrack()
+                this.trackController.reset(/* hard */ true)
             })
         )
     }
@@ -230,7 +224,6 @@ export class VinylPlayer<
         let sub: Unsubscribe | null = null
         let textSub: Unsubscribe | null = null
         const add = this.disposer.add
-        add(redispatchEvents(this, this.deps.adController, ALL_AD_EVENTS))
         add(
             this.trackController.on('currentTrackChange', (event) => {
                 // The previous track may stay cached, so its text track
@@ -264,6 +257,10 @@ export class VinylPlayer<
                 }
                 this.emitTextTrackChangeEventsFor(event.previous, event.current)
                 this.dispatch('fetchedRangesChange', {})
+                this.dispatch('seekRangeChange', {
+                    previous: event.previous?.seekRange ?? null,
+                    current: event.current?.seekRange ?? null,
+                })
 
                 // Emit a quality change event for every stream that has changed
                 // for streaming, buffering, and playback
@@ -327,29 +324,22 @@ export class VinylPlayer<
         const { add } = this.disposer
         // When the preferred language changes, clear the prefetch to immediately switch.
         add(
-            (this.deps.options as MutableValue<VinylOptions>)
+            this.deps.options
                 .pick('preferredAudioLanguage')
                 .onData((_value, previous) => {
                     if (previous !== undefined) this.clearPrefetch()
                 })
         )
-    }
-
-    private initializeAllowedContentTypesHandling() {
-        const { add } = this.disposer
-        // Changing the allowed content types adds or removes whole media
-        // streams (and their SourceBuffers). SourceBuffers can only be created
-        // while the MediaSource is open, so the streams cannot be rebuilt in
-        // place on the current track. Instead, fully reload the current track
-        // (which recreates the MediaSource) and drop any prefetched tracks so
-        // they rebuild with the new content types.
+        // When the allowed content types change, the current track's streams
+        // must be rebuilt so the new allow list takes effect immediately.
         add(
-            (this.deps.options as MutableValue<VinylOptions>)
+            this.deps.options
                 .pick('allowedContentTypes')
                 .onData((_value, previous) => {
-                    if (previous === undefined) return
-                    this.clearPrefetch()
-                    this.reloadCurrentTrack()
+                    if (previous !== undefined) {
+                        this.clearPrefetch()
+                        this.trackController.reset(/* hard */ true)
+                    }
                 })
         )
     }
@@ -537,7 +527,7 @@ export class VinylPlayer<
         return this.playbackController.seekTo(time, tolerance)
     }
 
-    reset() {
+    reset(hard = false) {
         if (!this._error) {
             logDebug(this, 'reset no-op')
             return
@@ -546,7 +536,7 @@ export class VinylPlayer<
         this._error = null
         this.drmController.reset()
         this.playbackController.reset()
-        this.trackController.reset()
+        this.trackController.reset(hard)
         this.autoResetController.clear()
         this.dispatch('reset', {})
     }
@@ -557,10 +547,6 @@ export class VinylPlayer<
 
     get currentTrack(): ReadonlyTrack | null {
         return this.trackController.currentTrack
-    }
-
-    get currentAdTrack(): ReadonlyTrack | null {
-        return this.trackController.currentAdTrack
     }
 
     get queue(): readonly TrackLoadOptionsType[] {
@@ -581,10 +567,6 @@ export class VinylPlayer<
 
     unload(): void {
         this.trackController.unload()
-    }
-
-    reloadCurrentTrack(): void {
-        this.trackController.reloadCurrentTrack()
     }
 
     hasNext(): boolean {
@@ -764,16 +746,12 @@ export class VinylPlayer<
         // track's controller (deactivated on switch) and the current track's
         // controller. Here we only bridge the list-of-tracks difference,
         // which doesn't have its own redispatched signal at track boundaries.
-        const prevList =
-            previous?.textTrackController?.textTracks ??
-            ([] as readonly TextTrackInfo[])
-        const curList =
-            current?.textTrackController?.textTracks ??
-            ([] as readonly TextTrackInfo[])
+        const prevList = previous?.textTrackController?.textTracks
+        const curList = current?.textTrackController?.textTracks
         if (prevList !== curList) {
             this.dispatch('textTracksChange', {
-                previous: prevList,
-                current: curList,
+                previous: prevList ?? [],
+                current: curList ?? [],
             })
         }
     }
@@ -783,24 +761,32 @@ export class VinylPlayer<
     //----------------------------------------------------
 
     /**
-     * The ad breaks (e.g. HLS Interstitials) discovered for the active media,
-     * ordered by start time. Empty when there is no current track or the
-     * current track surfaces no ads.
+     * The current track's ad breaks.
      *
-     * Listen to {@link AdEventMap.adBreaksChange} for changes.
+     * Listen to {@link AdEventMap.currentTrackAdsChange} for changes.
      */
-    get adBreaks(): readonly AdBreakInfo[] {
-        return this.deps.adController.adBreaks
+    get currentTrackAds(): TrackAds | null {
+        return this.deps.adController.currentTrackAds
     }
 
     /**
      * The ad break currently containing the playhead, or null when the
      * playhead is in primary content.
      *
-     * Listen to {@link AdEventMap.adBreakChange} for transitions.
+     * Listen to {@link AdEventMap.currentAdBreakChange} for transitions.
      */
-    get activeAdBreak(): AdBreakInfo | null {
-        return this.deps.adController.activeAdBreak
+    get currentAdBreak(): AdBreakInfo | null {
+        return this.deps.adController.currentAdBreak
+    }
+
+    /**
+     * The ad currently playing within the active break, or null when the
+     * playhead is in primary content.
+     *
+     * Listen to {@link AdEventMap.adEntered} and {@link AdEventMap.adCompleted} for transitions.
+     */
+    get currentAd(): AdInfo | null {
+        return this.deps.adController.currentAd
     }
 
     /**
@@ -809,7 +795,7 @@ export class VinylPlayer<
      * No-op when no ad break is active.
      */
     skipAd(): void {
-        this.deps.adController.advanceOrSkipAd()
+        this.deps.adController.skipAd()
     }
 
     /**

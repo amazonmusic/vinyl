@@ -4,19 +4,41 @@
  */
 
 import {
-    createVinylPlayer,
+    AbrStrategy,
     type AdBreakInfo,
+    type AdBreakList,
+    createVinylPlayer,
+    inferTrackTypeFromUrl,
     type SeekRange,
     type TextTrackInfo,
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
+import { initializeLogging } from './initializeLogging'
+import { handleError } from './errorHandler'
+
+initializeLogging()
+
+interface AdEventIndex {
+    readonly index: number
+    readonly totalAds: number
+}
+
+const noAds: AdEventIndex = {
+    index: -1,
+    totalAds: 0,
+}
 
 const media = document.createElement('video')
 media.playsInline = true
 
 const player = createVinylPlayer({ media })
+player.configure({
+    abr: {
+        strategy: AbrStrategy.BEST,
+    },
+})
 
 // Observables for Vinyl State to use in TSX bindings.
 export const playerState = {
@@ -36,36 +58,36 @@ export const playerState = {
     textTracks$: data<readonly TextTrackInfo[]>([]),
     activeTextTrack$: data<TextTrackInfo | null>(null),
     captionsEnabled$: data(false),
-    // The identity of the chosen caption track, retained so the same variant
-    // is re-selected when captions carry across a track change (e.g. off an
-    // ad). Language alone is ambiguous when a language has both a full and a
-    // forced track, so forced and characteristics are part of the identity.
     preferredTextTrack$: data<CaptionPreference | null>(null),
-    activeAdBreak$: data<AdBreakInfo | null>(null),
-    adBreaks$: data<readonly AdBreakInfo[]>([]),
-    adRemaining$: data(0),
+    currentAdBreak$: data<AdBreakInfo | null>(null),
+    currentAdIndex$: data<AdEventIndex>(noAds),
+    adBreaks$: data<AdBreakList>([]),
+    adTimeRemaining$: data(0),
     seekRange$: data<SeekRange | null>(null),
 }
 
-// Safari's loadedmetadata fires before videoWidth is populated for HLS; the
+// Safari's loadedMetadata fires before videoWidth is populated for HLS; the
 // `resize` event covers that case (and any later dimension change).
 const updateHasVideo = () => {
-    playerState.hasVideo$.value = media.videoWidth > 0
+    playerState.hasVideo$.value =
+        media.videoWidth > 0 || player.contentTypes.has('video')
 }
-media.addEventListener('loadedmetadata', updateHasVideo)
-media.addEventListener('resize', updateHasVideo)
+onAny(
+    player,
+    ['loadedMetadata', 'resize', 'contentTypesChange'],
+    updateHasVideo
+)
 
 // Paused when the element is paused or ended. `ended` is not guaranteed to be
 // preceded by `pause` (e.g. a postroll playing to its end), so listen for it too.
 const refreshPaused = () => {
     playerState.paused$.value = player.paused || player.ended
 }
-onAny(player, ['play', 'pause', 'ended'], refreshPaused)
+onAny(player, ['play', 'played', 'pause'], refreshPaused)
 
 player.on('timeUpdate', () => {
     playerState.currentTime$.value = player.currentTime
     playerState.currentTimePercent$.value = player.currentTimePercent
-    updateAdRemaining()
 })
 player.on('durationChange', ({ current }) => {
     playerState.duration$.value = current
@@ -99,45 +121,40 @@ player.on('textTracksChange', ({ current }) => {
 player.on('activeTextTrackChange', ({ current }) => {
     playerState.activeTextTrack$.value = current
 })
-// Reloading the same track (or loading a cached track) may not emit a fresh
-// textTracksChange because the list reference is unchanged. Poll on every
-// currentTrackChange so the session's captions preference still applies.
-player.on('currentTrackChange', () => {
-    playerState.textTracks$.value = player.textTracks
-    playerState.activeTextTrack$.value = player.activeTextTrack
-    playerState.activeAdBreak$.value = player.activeAdBreak
-    updateAdRemaining()
-    applyCaptionsPreference()
-})
 
-player.on('adBreakChange', (event) => {
-    playerState.activeAdBreak$.value = event.current
-    if (event.current) {
-        updateAdRemaining()
-    } else {
-        playerState.adRemaining$.value = 0
+player.on('currentTrackChange', () => {
+    playerState.activeTextTrack$.value = player.activeTextTrack
+    playerState.currentAdBreak$.value = player.currentAdBreak
+})
+player.on('currentTrackAdsChange', ({ current }) => {
+    playerState.adBreaks$.value = current?.adBreaks ?? []
+})
+player.on('currentAdBreakChange', (event) => {
+    playerState.currentAdBreak$.value = event.current
+})
+onAny(player, ['adEntered', 'adCompleted'], (event) => {
+    playerState.currentAdIndex$.value = {
+        index: event.index,
+        totalAds: event.totalAds,
     }
 })
-player.on('adBreaksChange', ({ current }) => {
-    playerState.adBreaks$.value = current
-})
+
 player.on('seekRangeChange', ({ current }) => {
     playerState.seekRange$.value = current
 })
 
+onAny(player, ['timeUpdate', 'adPlaying', 'adEnded'], updateAdTimeRemaining)
+
 // Recomputes the seconds remaining in the active ad break from the playhead.
-function updateAdRemaining() {
-    const adBreak = playerState.activeAdBreak$.value
-    if (!adBreak) {
-        playerState.adRemaining$.value = 0
+function updateAdTimeRemaining() {
+    if (!player.currentAd) {
+        playerState.adTimeRemaining$.value = 0
         return
     }
     const dur = player.duration
-    if (!dur || !isFinite(dur)) {
-        playerState.adRemaining$.value = 0
-        return
-    }
-    playerState.adRemaining$.value = Math.max(0, dur - player.currentTime)
+    playerState.adTimeRemaining$.value = !isFinite(dur)
+        ? 0
+        : Math.max(0, dur - player.currentTime)
 }
 
 /**
@@ -192,6 +209,10 @@ function sameCharacteristics(
 function pickPreferredTrack(
     tracks: readonly TextTrackInfo[]
 ): TextTrackInfo | null {
+    // The identity of the chosen caption track, retained so the same variant
+    // is re-selected when captions carry across a track change (e.g. off an
+    // ad). Language alone is ambiguous when a language has both a full and a
+    // forced track, so forced and characteristics are part of the identity.
     if (tracks.length === 0) return null
     const pref = playerState.preferredTextTrack$.value
     if (pref) {
@@ -223,41 +244,19 @@ export function loadContent(track: Track) {
     playerState.track$.value = track
     playerState.hasVideo$.value = track.contentType === 'video'
     player.load({ type: track.type, uri: track.url })
-    player.play().catch(() => {})
+    player.play().catch(handleError)
 }
 
 export async function createTrackFromUrl(url: string): Promise<Track | null> {
     if (!url) return null
-    const type = inferTypeFromUrl(url) ?? (await probeType(url))
+    const type = await inferTrackTypeFromUrl(url)
     if (!type) return null
     return { url, type }
 }
 
-function inferTypeFromUrl(url: string): TrackType | null {
-    if (url.endsWith('.mpd') || url.includes('.mpd?')) return 'dash'
-    if (url.endsWith('.m3u8') || url.includes('.m3u8?')) return 'hls'
-    if (/\.(mp3|mp4|m4a|m4v|aac|ogg|opus|wav|webm)(\?|$)/i.test(url))
-        return 'src'
-    return null
-}
-
-async function probeType(url: string): Promise<TrackType | null> {
-    try {
-        const res = await fetch(url, { method: 'HEAD' })
-        if (!res.ok) return null
-        const mime = (res.headers.get('content-type') ?? '').toLowerCase()
-        if (mime.includes('dash+xml')) return 'dash'
-        if (mime.includes('mpegurl')) return 'hls'
-        if (mime.startsWith('video/') || mime.startsWith('audio/')) return 'src'
-        return null
-    } catch {
-        return null
-    }
-}
-
 export function togglePlayPause() {
     if (player.paused) {
-        player.play().catch(() => {})
+        player.play().catch(handleError)
     } else {
         player.pause()
     }
@@ -267,10 +266,8 @@ export function togglePlayPause() {
  * Seeks to a fraction of the duration.
  * @param pct A 0-1 value where 1 is duration
  */
-export function seekToPercent(pct: number) {
-    if (player.duration > 0) {
-        player.seekTo(pct * player.duration).catch(() => {})
-    }
+export function seekToPercent(pct: number): Promise<void> {
+    return player.seekTo(pct * player.duration).catch(handleError)
 }
 
 export function skipAd() {

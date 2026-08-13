@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MainPlaylist, MediaPlaylist } from '@amazon/vinyl-hls-parser'
+import type {
+    HlsMainPlaylist,
+    HlsMediaPlaylist,
+} from '@amazon/vinyl-hls-parser'
 import type { HlsManifestData } from '@amazon/vinyl'
 
-export const mockMediaPlaylist: MediaPlaylist = {
+export const mockMediaPlaylist: HlsMediaPlaylist = {
     version: 7,
     targetDuration: 6,
     mediaSequence: 1,
@@ -31,7 +34,7 @@ export const mockMediaPlaylist: MediaPlaylist = {
     dateRanges: [],
 }
 
-export const mockMainPlaylist: MainPlaylist = {
+export const mockMainPlaylist: HlsMainPlaylist = {
     variants: [
         {
             bandwidth: 500000,

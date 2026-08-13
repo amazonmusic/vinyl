@@ -8,7 +8,7 @@ import {
     type HlsContentTypesValueDeps,
     type HlsManifestData,
 } from '@amazon/vinyl'
-import type { MainPlaylist } from '@amazon/vinyl-hls-parser'
+import type { HlsMainPlaylist } from '@amazon/vinyl-hls-parser'
 import { data } from '@amazon/vinyl-observable'
 import { mockHlsManifestData } from '@amazon/vinyl/vinylTestUtil'
 
@@ -23,7 +23,7 @@ describe('createHlsContentTypesValue', () => {
         deps = { manifestTransformed: manifestData }
     })
 
-    function setMainPlaylist(mainPlaylist: MainPlaylist) {
+    function setMainPlaylist(mainPlaylist: HlsMainPlaylist) {
         manifestData.value = Promise.resolve({
             ...mockHlsManifestData,
             mainPlaylist,

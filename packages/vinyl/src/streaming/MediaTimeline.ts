@@ -7,7 +7,7 @@ import type { SegmentReference } from './SegmentReference'
 import type { SegmentDataProvider } from './SegmentDataSlot'
 import type { MediaQualityMetadata } from './MediaQualityMetadata'
 import { sortedInsertionIndex } from '@amazon/vinyl-util'
-import type { AdBreakInfo } from '../ad/AdBreak'
+import type { AdBreakList } from '../ad/AdBreakInfo'
 
 /**
  * Represents a single quality within a period, providing access to its metadata
@@ -52,7 +52,7 @@ export interface MediaTimeline {
      * Ad breaks discovered from the media presentation (e.g. HLS Interstitials,
      * DASH SCTE-35). Empty when the stream carries no ad signals.
      */
-    readonly adBreaks: readonly AdBreakInfo[]
+    getAdBreaks(): Promise<AdBreakList>
 
     /**
      * The total duration of the media, in seconds.

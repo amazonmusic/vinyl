@@ -5,7 +5,7 @@
 
 import { createVinylSuite, vinylTestAssets } from '@amazon/vinyl/vinylTestUtil'
 import { supportsMse, type VinylTrackLoadOptions } from '@amazon/vinyl'
-import { nextEventAsPromise } from '@amazon/vinyl-util'
+import { poll } from '@amazon/vinyl-util'
 import { expectTrackPlaysUntil } from '../../vinylTestUtil/util/playback/expectTrackPlaysUntil'
 import { onDuration } from '../../vinylTestUtil/util/playback/eventPromises'
 
@@ -13,12 +13,12 @@ import { onDuration } from '../../vinylTestUtil/util/playback/eventPromises'
  * Integration tests for switching `allowedContentTypes` during playback.
  *
  * Changing the allow list adds or removes whole media streams (and their
- * SourceBuffers). SourceBuffers can only be created while the MediaSource is
- * open, so the streams cannot be rebuilt in place on the current track;
- * instead the player fully reloads the current track, recreating the
- * MediaSource. These tests assert that switching works without errors, that
- * the reload preserves the playhead and play state, and that the resulting
- * track exposes only the allowed content types.
+ * SourceBuffers). The current track is hard-reset in place: its MediaSource is
+ * torn down and recreated with the new set of streams, preserving the playhead
+ * and play state. The track object itself is retained (no currentTrackChange).
+ * These tests assert that switching works without errors, that playback
+ * resumes at the prior playhead, and that the track exposes only the allowed
+ * content types.
  *
  * The suite fails the test on any player `error` event (the default), so a
  * regression that throws a create-source-buffer error surfaces as a failure.
@@ -47,14 +47,18 @@ describe('allowedContentTypes switching integ', () => {
         allowedContentTypes: readonly ('audio' | 'video')[] | null
     ): Promise<void> {
         const player = suite.player
-        // Reloading the current track fires a currentTrackChange as the stale
-        // track is torn down and a fresh one is activated.
-        const trackChange = nextEventAsPromise(player, 'currentTrackChange', {
-            timeout: 30,
-            timeoutMessage: 'currentTrackChange timed out after {time}s',
-        })
+        const wantsVideo =
+            allowedContentTypes == null || allowedContentTypes.includes('video')
         player.configure({ allowedContentTypes })
-        await trackChange
+        // The current track is hard-reset in place (no currentTrackChange);
+        // wait until its content types reflect the new allow list.
+        expect(
+            await poll(() => player.contentTypes.has('video') === wantsVideo, {
+                timeout: 30,
+            })
+        )
+            .withContext(`content types reflect allowedContentTypes`)
+            .toBeTrue()
     }
 
     async function playThenSwitch(

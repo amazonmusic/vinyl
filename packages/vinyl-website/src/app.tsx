@@ -1,7 +1,7 @@
 import './polyfill'
 import './styles/index.scss'
-import { initializeLogging } from './initializeLogging'
-import { jsx, Fragment, initializeConnectedObserver } from '@amazon/vinyl-tsx'
+
+import { Fragment, initializeConnectedObserver, jsx } from '@amazon/vinyl-tsx'
 import { vinylVersion } from '@amazon/vinyl'
 import { Sidebar } from './components/Sidebar'
 import { TransportBar } from './components/TransportBar'
@@ -11,7 +11,6 @@ import { routes } from './routes'
 import { Icon } from './components/icons'
 import { playerState } from './player'
 
-initializeLogging()
 initializeConnectedObserver()
 
 function getInitialTheme(): 'light' | 'dark' {

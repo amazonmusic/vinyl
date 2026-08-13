@@ -4,12 +4,16 @@
  */
 
 import type {
-    AnyRecord,
+    Covariant,
     Disposable,
+    EventHandler,
     LogTarget,
+    Maybe,
     ReadonlyEventHost,
     ReadonlyRanges,
     ReadonlySet,
+    SignalOptions,
+    Unsubscribe,
 } from '@amazon/vinyl-util'
 import type {
     ContentType,
@@ -20,8 +24,10 @@ import type {
     ReadonlyTextTrackController,
     TextTrackController,
 } from '../text/TextTrack'
-import type { AdController, ReadonlyAdController } from '../ad/AdBreak'
 import type { SeekRange } from './SeekRange'
+import type { ChangeEvent } from '../event/ChangeEvent'
+import type { TrackAds } from '../ad/AdBreakInfo'
+import type { TrackConfigOptions } from './TrackFactory'
 
 export type { SeekRange } from './SeekRange'
 
@@ -29,7 +35,9 @@ export type { SeekRange } from './SeekRange'
  * All events a track may emit.
  * Streaming-related events are separated as they will be bubbled by the player.
  */
-export type TrackEventMap = StreamingEventMap
+export type TrackEventMap = StreamingEventMap & {
+    readonly adsChange: ChangeEvent<TrackAds | null>
+}
 
 /**
  * An identifier for a Track, used for referencing a track.
@@ -129,11 +137,18 @@ export interface StreamingState extends ReadonlyStreamingState {
     /**
      * Resets the track to recover from error states.
      * This will reset failed segments and clear error conditions to allow streaming to resume.
+     *
+     * @param hard If true, the track will reset the playback state and
+     * recreate media sources.
      */
-    reset(): void
+    reset(hard?: boolean): void
 }
 
-export interface ReadonlyTrack extends ReadonlyStreamingState, LogTarget {
+export interface ReadonlyTrack
+    extends
+        ReadonlyEventHost<TrackEventMap>,
+        ReadonlyStreamingState,
+        LogTarget {
     /**
      * The track identifier.
      */
@@ -172,23 +187,35 @@ export interface ReadonlyTrack extends ReadonlyStreamingState, LogTarget {
     readonly textTrackController: ReadonlyTextTrackController | null
 
     /**
-     * Controller for ad breaks (e.g. HLS Interstitials) discovered for this
-     * track, or null if the track type does not surface ads.
-     */
-    readonly adController: ReadonlyAdController | null
-
-    /**
      * The seekable range on the media timeline, or null when not yet known
      * (e.g. before the manifest is loaded). Based on the media timeline, not
      * the element's native seekable ranges.
      */
     readonly seekRange: SeekRange | null
+
+    /**
+     * The ads for this track.
+     * A null value indicates the track ads are loading.
+     *
+     * @see {@link TrackEventMap.adsChange}
+     */
+    readonly ads: TrackAds | null
+
+    readonly __eventMapType: Covariant<TrackEventMap>
+    hasListeners(type: keyof TrackEventMap): boolean
+    on<K extends keyof TrackEventMap>(
+        type: K,
+        handler: EventHandler<TrackEventMap[K]>,
+        options?: SignalOptions
+    ): Unsubscribe
 }
 
 /**
  * One track is active on the track controller at a time.
  */
-export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
+export interface Track<
+    ConfigType extends TrackConfigOptions = TrackConfigOptions,
+>
     extends ReadonlyTrack, StreamingState, Disposable {
     /**
      * Mutable view of {@link ReadonlyTrack.textTrackController} that allows
@@ -197,11 +224,6 @@ export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
     readonly textTrackController: TextTrackController | null
 
     /**
-     * Mutable view of {@link ReadonlyTrack.adController} that allows feeding
-     * playhead updates and replacing the discovered ad breaks.
-     */
-    readonly adController: AdController | null
-    /**
      * Provides configuration to the track and begins preloading (if applicable).
      *
      * @param trackOptions Configuration provided by the TrackController.
@@ -209,7 +231,7 @@ export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
      */
     preload(
         trackOptions: TrackPreloadOptions,
-        loadOptions: LoadOptionsType
+        loadOptions: Maybe<ConfigType>
     ): void
 
     /**
@@ -219,7 +241,7 @@ export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
      *
      * @param loadOptions Configuration from `TrackLoadOptions.config`, provided by the Application.
      */
-    activate(loadOptions: LoadOptionsType): void
+    activate(loadOptions: Maybe<ConfigType>): void
 
     /**
      * Sets this track as inactive.
@@ -228,4 +250,17 @@ export interface Track<LoadOptionsType extends AnyRecord = AnyRecord>
      * are no longer references to the track.
      */
     deactivate(): void
+
+    /**
+     * True if this track is disposed.
+     */
+    readonly disposed: boolean
+
+    readonly __eventMapType: Covariant<TrackEventMap>
+    hasListeners(type: keyof TrackEventMap): boolean
+    on<K extends keyof TrackEventMap>(
+        type: K,
+        handler: EventHandler<TrackEventMap[K]>,
+        options?: SignalOptions
+    ): Unsubscribe
 }

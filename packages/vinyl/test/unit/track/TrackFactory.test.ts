@@ -97,7 +97,6 @@ describe('InferLoadOptionsFromFactory', () => {
             InferLoadOptionsFromFactory<{
                 validate(options: LoadOptions): void
                 createTrack: (options: LoadOptions) => Track
-                createAdTrack: (options: LoadOptions) => Track
             }>,
             LoadOptions
         >(true)

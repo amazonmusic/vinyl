@@ -17,11 +17,6 @@ import {
     type MediaSourceControllerImplDeps,
 } from '../../streaming/buffering/MediaSourceController'
 import type { PlaybackController } from '../../playback/PlaybackController'
-import {
-    type DashManifestController,
-    DashManifestControllerImpl,
-    type DashManifestControllerImplDeps,
-} from './DashManifestController'
 import { createDashContentStreamFactories } from './createDashContentStreamFactories'
 import type { DrmKeySystemResolver } from '../../drm/DrmKeySystemResolver'
 import type { DrmController } from '../../drm/DrmController'
@@ -52,7 +47,11 @@ import { createDefaultMediaTimelineTransformer } from '../../streaming/createDef
 import type { DashManifestData } from './DashManifestProvider'
 import { SidecarTextTrackController } from '../../text/SidecarTextTrackController'
 import { discoverDashTextTracks } from '../../text/discoverDashTextTracks'
-import type { AdController } from '../../ad/AdBreak'
+import type { AdController } from '../../ad/AdController'
+import {
+    ManifestControllerImpl,
+    type ManifestControllerImplDeps,
+} from '../../streaming/ManifestControllerImpl'
 
 /**
  * Player-level dependencies needed for the Dash-specific factories.
@@ -97,8 +96,7 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
     ) => {
         return (loadOptions: DashTrackLoadOptions) =>
             validateFactories({
-                // Spreads all player-level deps (including adController) as
-                // external, non-owned dependencies so disposing this track's
+                // Spreads all player-level deps so disposing this track's
                 // container never disposes the shared player-level controllers.
                 ...externalDependencies(deps),
 
@@ -108,9 +106,8 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                 segmentRequestInit: () => loadOptions.segmentRequestInit,
                 manifestProvider: createDashManifestProvider(loadOptions),
                 manifestController: (
-                    deps: DashManifestControllerImplDeps
-                ): DashManifestController =>
-                    new DashManifestControllerImpl(deps),
+                    deps: ManifestControllerImplDeps<DashManifestData>
+                ) => new ManifestControllerImpl(deps),
                 mediaSourceFactory: () => createMediaSource,
                 mediaQualityMetadataResolver: (
                     deps: DashMediaQualityMetadataResolverDeps

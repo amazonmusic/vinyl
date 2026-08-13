@@ -6,8 +6,8 @@
 import {
     createDashFactories,
     type DashFactoryDeps,
-    DashManifestControllerImpl,
     type DashManifestProvider,
+    ManifestControllerImpl,
     MediaSourceControllerImpl,
     pickFirstBaseUrlSelector,
     QualitySelectorImpl,
@@ -78,7 +78,7 @@ describe('createDashFactories', () => {
                 baseUrlSelector: pickFirstBaseUrlSelector,
                 segmentRequestInit: undefined,
                 manifestProvider: any(Function),
-                manifestController: any(DashManifestControllerImpl),
+                manifestController: any(ManifestControllerImpl),
                 mediaSourceFactory: any(Function),
                 mediaQualityMetadataResolver: any(Function),
                 mediaSourceController: any(MediaSourceControllerImpl),

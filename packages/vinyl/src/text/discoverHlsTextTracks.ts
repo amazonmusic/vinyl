@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MainPlaylist } from '@amazon/vinyl-hls-parser'
+import type { HlsMainPlaylist } from '@amazon/vinyl-hls-parser'
 import { resolveUrl } from '@amazon/vinyl-util'
 import type { TextTrackInfo } from './TextTrack'
 
@@ -23,7 +23,7 @@ import type { TextTrackInfo } from './TextTrack'
  * @param baseUrl The URL of the main playlist, used to resolve relative URIs.
  */
 export function discoverHlsTextTracks(
-    mainPlaylist: MainPlaylist,
+    mainPlaylist: HlsMainPlaylist,
     baseUrl: string
 ): readonly TextTrackInfo[] {
     const out: TextTrackInfo[] = []

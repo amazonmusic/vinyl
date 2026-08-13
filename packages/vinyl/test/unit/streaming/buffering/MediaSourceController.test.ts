@@ -12,7 +12,12 @@ import {
     type MediaSourceControllerImplDeps,
     MediaSourceError,
 } from '@amazon/vinyl'
-import { AbortError, Deferred, type ReadonlySet } from '@amazon/vinyl-util'
+import {
+    AbortError,
+    Deferred,
+    IllegalStateError,
+    type ReadonlySet,
+} from '@amazon/vinyl-util'
 import {
     flushPromises,
     implementEventFakes,
@@ -31,14 +36,14 @@ function createVodTimeline(duration: number = VOD_DURATION): MediaTimeline {
     return {
         periods: [],
         minBufferTime: 0,
-        adBreaks: [],
+        getAdBreaks: () => Promise.resolve([]),
         getDuration: () => Promise.resolve(duration),
     }
 }
 const liveTimeline: MediaTimeline = {
     periods: [],
     minBufferTime: 0,
-    adBreaks: [],
+    getAdBreaks: () => Promise.resolve([]),
     getDuration: () => Promise.resolve(Infinity),
 }
 
@@ -49,6 +54,7 @@ describe('MediaSourceControllerImpl', () => {
     let mockMediaSource: MockMediaSource
     let deps: MediaSourceControllerImplDeps
     let controller: MediaSourceControllerImpl
+    let objectUrl: string
 
     function open(): void {
         mockMediaSource.readyState = 'open'
@@ -77,16 +83,27 @@ describe('MediaSourceControllerImpl', () => {
             mediaTimelineTransformed,
         }
 
+        // activate() now owns media source creation and the object URL, so the
+        // real URL APIs (which reject non-Blob args under Node) are stubbed.
+        spyOn(URL, 'createObjectURL').and.returnValue('blob:test-url')
+        spyOn(URL, 'revokeObjectURL')
+
         controller = new MediaSourceControllerImpl(deps)
+        objectUrl = controller.activate()
     })
 
     afterEach(() => {
         controller.dispose()
     })
 
-    describe('constructor', () => {
+    describe('activate', () => {
         it('creates media source using factory', () => {
             expect(mediaSourceFactory).toHaveBeenCalledOnceWith()
+        })
+
+        it('returns an object url for the media source', () => {
+            expect(URL.createObjectURL).toHaveBeenCalledWith(mockMediaSource)
+            expect(objectUrl).toBe('blob:test-url')
         })
     })
 
@@ -94,6 +111,26 @@ describe('MediaSourceControllerImpl', () => {
         it('returns media source ready state', () => {
             mockMediaSource.readyState = 'open'
             expect(controller.readyState).toBe('open')
+        })
+
+        it("returns 'closed' when there is no active media source", () => {
+            const freshController = new MediaSourceControllerImpl(deps)
+            expect(freshController.readyState).toBe('closed')
+        })
+    })
+
+    describe('deactivate', () => {
+        it('returns early and does not throw when never activated', () => {
+            const freshController = new MediaSourceControllerImpl(deps)
+            expect(() => freshController.deactivate()).not.toThrow()
+            expect(URL.revokeObjectURL).not.toHaveBeenCalled()
+        })
+
+        it('swallows errors thrown while revoking the object url', () => {
+            ;(URL.revokeObjectURL as Spy).and.throwError(
+                new Error('revoke failed')
+            )
+            expect(() => controller.deactivate()).not.toThrow()
         })
     })
 
@@ -137,7 +174,7 @@ describe('MediaSourceControllerImpl', () => {
             mediaTimelineTransformed.value = Promise.resolve({
                 periods: [],
                 minBufferTime: 0,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.reject(error),
             })
             open()
@@ -153,7 +190,7 @@ describe('MediaSourceControllerImpl', () => {
             mediaTimelineTransformed.value = Promise.resolve({
                 periods: [],
                 minBufferTime: 0,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.reject(new AbortError()),
             })
             open()
@@ -166,7 +203,7 @@ describe('MediaSourceControllerImpl', () => {
             mediaTimelineTransformed.value = Promise.resolve({
                 periods: [],
                 minBufferTime: 0,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => deferred,
             })
             open()
@@ -253,6 +290,16 @@ describe('MediaSourceControllerImpl', () => {
             })
         })
 
+        it('throws IllegalStateError when not active', () => {
+            const freshController = new MediaSourceControllerImpl(deps)
+            expect(() =>
+                freshController.createSourceBuffer('audio', 'audio/mp4')
+            ).toThrowError(
+                IllegalStateError,
+                'cannot create a source buffer when not active'
+            )
+        })
+
         it('throws MediaSourceError when addSourceBuffer fails', () => {
             const error = new Error('test error')
             mockMediaSource.addSourceBuffer.and.throwError(error)
@@ -295,15 +342,6 @@ describe('MediaSourceControllerImpl', () => {
         it('passes error to media source', () => {
             controller.endOfStream('decode')
             expect(mockMediaSource.endOfStream).toHaveBeenCalledWith('decode')
-        })
-    })
-
-    describe('createUrl', () => {
-        it('creates object URL for media source', () => {
-            spyOn(URL, 'createObjectURL').and.returnValue('blob:test-url')
-            const url = controller.createUrl()
-            expect(URL.createObjectURL).toHaveBeenCalledWith(mockMediaSource)
-            expect(url).toBe('blob:test-url')
         })
     })
 })

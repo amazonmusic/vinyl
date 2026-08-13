@@ -3,7 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { MainPlaylist, MediaPlaylist } from '@amazon/vinyl-hls-parser'
+import type {
+    HlsMainPlaylist,
+    HlsMediaPlaylist,
+} from '@amazon/vinyl-hls-parser'
 import { parseMainPlaylist, parseMediaPlaylist } from '@amazon/vinyl-hls-parser'
 import type {
     Maybe,
@@ -11,10 +14,8 @@ import type {
     RequestInitOptions,
 } from '@amazon/vinyl-util'
 import { memoize, requestWithRetry, resolveUrl } from '@amazon/vinyl-util'
-import type {
-    HlsManifestData,
-    HlsManifestProvider,
-} from './HlsManifestProvider'
+import type { HlsManifestData } from './HlsManifestData'
+import type { HlsManifestProvider } from './createHlsManifestProvider'
 
 export function createUrlHlsManifestProvider(
     url: string,
@@ -60,7 +61,7 @@ export interface FetchMediaPlaylistOptions {
     /** The base URL for resolving relative URIs. */
     readonly baseUrl: string
     /** Variable definitions from the main playlist. */
-    readonly defines: MainPlaylist['defines']
+    readonly defines: HlsMainPlaylist['defines']
     /** Optional request configuration. */
     readonly requestInit?: Maybe<RequestInitOptions>
     /** Optional abort signal. */
@@ -72,7 +73,7 @@ export interface FetchMediaPlaylistOptions {
  */
 export async function fetchMediaPlaylist(
     options: FetchMediaPlaylistOptions
-): Promise<MediaPlaylist> {
+): Promise<HlsMediaPlaylist> {
     const { uri, baseUrl, defines, requestInit, abort } = options
     const variantUrl = resolveUrl(uri, baseUrl)
     const response = await requestWithRetry(variantUrl, requestInit, { abort })

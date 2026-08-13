@@ -10,6 +10,7 @@ import {
     type SeekRange,
     type TextTrackController,
     type Track,
+    type TrackAds,
     type TrackEventMap,
 } from '@amazon/vinyl'
 import { RangesImpl } from '@amazon/vinyl-util'
@@ -23,6 +24,7 @@ export class MockTrack extends MockEventHost<TrackEventMap> implements Track {
         return `MockTrack(${this.uri})`
     }
 
+    ads: TrackAds | null = null
     uri = ''
     type = ''
     active = false

@@ -39,5 +39,4 @@ export class MockTrackController<
     preload = spyFactory('preload')
     unload = spyFactory('unload')
     reset = spyFactory('reset')
-    reloadCurrentTrack = spyFactory('reloadCurrentTrack')
 }

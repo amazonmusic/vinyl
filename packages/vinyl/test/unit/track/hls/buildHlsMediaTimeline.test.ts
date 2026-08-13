@@ -10,8 +10,8 @@ import {
 } from '@amazon/vinyl'
 import { noop } from '@amazon/vinyl-util'
 import type {
-    MainPlaylist,
-    MediaPlaylist,
+    HlsMainPlaylist,
+    HlsMediaPlaylist,
     VariantStream,
 } from '@amazon/vinyl-hls-parser'
 
@@ -27,7 +27,7 @@ describe('buildHlsMediaTimeline', () => {
     function createMediaPlaylist(
         durations: number[],
         ended = true
-    ): MediaPlaylist {
+    ): HlsMediaPlaylist {
         return {
             targetDuration: durations.length ? Math.max(...durations) : 0,
             ended,
@@ -36,18 +36,18 @@ describe('buildHlsMediaTimeline', () => {
                 uri: `seg${i}.m4s`,
                 map: { uri: 'init.mp4' },
             })),
-        } as unknown as MediaPlaylist
+        } as unknown as HlsMediaPlaylist
     }
 
     function createManifestData(
         variants: VariantStream[],
-        playlist: MediaPlaylist
+        playlist: HlsMediaPlaylist
     ): HlsManifestData {
         return {
             mainPlaylist: {
                 variants,
                 alternativeRenditions: [],
-            } as unknown as MainPlaylist,
+            } as unknown as HlsMainPlaylist,
             baseUrl: 'https://example.com/',
             getMediaPlaylist: () => Promise.resolve(playlist),
         }
@@ -156,7 +156,7 @@ describe('buildHlsMediaTimeline', () => {
                         language: 'en',
                     },
                 ],
-            } as unknown as MainPlaylist,
+            } as unknown as HlsMainPlaylist,
             baseUrl: 'https://example.com/',
             getMediaPlaylist: (uri: string) => {
                 requestedUris.push(uri)
@@ -190,7 +190,7 @@ describe('buildHlsMediaTimeline', () => {
                         language: 'en',
                     },
                 ],
-            } as unknown as MainPlaylist,
+            } as unknown as HlsMainPlaylist,
             baseUrl: 'https://example.com/',
             getMediaPlaylist: (uri: string) => {
                 requestedUris.push(uri)
@@ -218,7 +218,7 @@ describe('buildHlsMediaTimeline', () => {
         const playlist = {
             targetDuration: 10,
             segments: [{ duration: 10, uri: 'seg0.ts' }],
-        } as unknown as MediaPlaylist
+        } as unknown as HlsMediaPlaylist
         const manifestData = createManifestData([variant], playlist)
 
         // Build a minimal ADTS frame for the transmuxer
@@ -275,7 +275,7 @@ describe('buildHlsMediaTimeline', () => {
             mainPlaylist: {
                 variants: [variant],
                 alternativeRenditions: [],
-            } as unknown as MainPlaylist,
+            } as unknown as HlsMainPlaylist,
             baseUrl: 'https://example.com/',
             getMediaPlaylist: () => Promise.reject(new Error('disposed')),
         }
@@ -291,7 +291,7 @@ describe('buildHlsMediaTimeline', () => {
             mainPlaylist: {
                 variants: [variant],
                 alternativeRenditions: [],
-            } as unknown as MainPlaylist,
+            } as unknown as HlsMainPlaylist,
             baseUrl: 'https://example.com/',
             getMediaPlaylist: () => {
                 calls++
@@ -328,7 +328,7 @@ describe('buildHlsMediaTimeline', () => {
                     },
                 },
             ],
-        } as unknown as MediaPlaylist
+        } as unknown as HlsMediaPlaylist
         const manifestData = createManifestData([variant], playlist)
 
         const fetchSpy = spyOn(globalThis, 'fetch').and.callFake(

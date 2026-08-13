@@ -6,8 +6,8 @@
 import {
     createHlsFactories,
     type HlsFactoryDeps,
-    HlsManifestControllerImpl,
     type HlsManifestProvider,
+    ManifestControllerImpl,
     MediaSourceControllerImpl,
     QualitySelectorImpl,
 } from '@amazon/vinyl'
@@ -66,7 +66,7 @@ describe('createHlsFactories', () => {
         expect(deps).toEqual(
             objectContaining<typeof deps>({
                 segmentRequestInit: undefined,
-                manifestController: any(HlsManifestControllerImpl),
+                manifestController: any(ManifestControllerImpl),
                 mediaSourceFactory: any(Function),
                 mediaQualityMetadataResolver: any(Function),
                 mediaSourceController: any(MediaSourceControllerImpl),
@@ -79,6 +79,14 @@ describe('createHlsFactories', () => {
 
     it('exposes the shared adController without owning it', () => {
         const factoryCreator = createHlsFactories(null)
+        // Make the shared controller Disposable: if the track container owned
+        // it, container.dispose() would tear it down. Marking it external must
+        // prevent that. Otherwise a codec-recovery reloadCurrentTrack would
+        // dispose the player-level ad controller.
+        const disposeSpy = createSpy('dispose')
+        ;(
+            hlsFactoryDeps.adController as unknown as { dispose(): void }
+        ).dispose = disposeSpy
         const factories = factoryCreator(hlsFactoryDeps)({
             uri: 'https://example.com/main.m3u8',
             type: 'hls',
@@ -89,14 +97,6 @@ describe('createHlsFactories', () => {
         expect(container.dependencies.adController).toBe(
             hlsFactoryDeps.adController
         )
-        // Disposing the track container must NOT dispose the shared
-        // controller (it is an external, non-owned dependency). Otherwise a
-        // codec-recovery reloadCurrentTrack would tear down the player-level
-        // ad controller.
-        const disposeSpy = spyOn(
-            hlsFactoryDeps.adController as unknown as { dispose(): void },
-            'dispose'
-        ).and.callThrough()
         container.dispose()
         expect(disposeSpy).not.toHaveBeenCalled()
     })
@@ -127,7 +127,7 @@ describe('createHlsFactories', () => {
             type: 'hls',
         })
         const deps = createContainer(factories).dependencies
-        expect(deps.manifestController).toEqual(any(HlsManifestControllerImpl))
+        expect(deps.manifestController).toEqual(any(ManifestControllerImpl))
     })
 
     it('creates a sidecar text track controller and populates from manifest', async () => {
@@ -223,8 +223,9 @@ describe('createHlsFactories', () => {
             })
             const deps = createContainer(factories).dependencies
             const timeline = await deps.mediaTimeline.value
-            expect(timeline.adBreaks.length).toBe(1)
-            expect(timeline.adBreaks[0].id).toBe('ad1')
+            const adBreaks = await timeline.getAdBreaks()
+            expect(adBreaks.length).toBe(1)
+            expect(adBreaks[0].id).toBe('ad1')
         })
 
         it('omits ad breaks when the playlist has none', async () => {
@@ -236,7 +237,7 @@ describe('createHlsFactories', () => {
             })
             const deps = createContainer(factories).dependencies
             const timeline = await deps.mediaTimeline.value
-            expect(timeline.adBreaks).toEqual([])
+            expect(await timeline.getAdBreaks()).toEqual([])
         })
 
         it('discovers ads against a live (non-ended) playlist', async () => {
@@ -251,7 +252,7 @@ describe('createHlsFactories', () => {
             })
             const deps = createContainer(factories).dependencies
             const timeline = await deps.mediaTimeline.value
-            expect(timeline.adBreaks.length).toBe(1)
+            expect((await timeline.getAdBreaks()).length).toBe(1)
         })
 
         it('returns no ad breaks when there are no variants', async () => {
@@ -272,10 +273,10 @@ describe('createHlsFactories', () => {
             })
             const deps = createContainer(factories).dependencies
             const timeline = await deps.mediaTimeline.value
-            expect(timeline.adBreaks).toEqual([])
+            expect(await timeline.getAdBreaks()).toEqual([])
         })
 
-        it('swallows errors from the media playlist fetch during discovery', async () => {
+        it('surfaces media playlist fetch errors from getAdBreaks', async () => {
             const factoryCreator = createHlsFactories(null)
             const provider = createSpy<HlsManifestProvider>(
                 'throwingMedia'
@@ -290,7 +291,12 @@ describe('createHlsFactories', () => {
             })
             const deps = createContainer(factories).dependencies
             const timeline = await deps.mediaTimeline.value
-            expect(timeline.adBreaks).toEqual([])
+            // Discovery is now lazy: getAdBreaks() rejects on a failed media
+            // playlist fetch, leaving error handling to the caller (e.g.
+            // MseTrack swallows it via its errorHandler).
+            await expectAsync(timeline.getAdBreaks()).toBeRejectedWithError(
+                'media down'
+            )
         })
     })
 })

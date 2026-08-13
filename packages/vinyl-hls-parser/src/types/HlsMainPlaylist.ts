@@ -8,14 +8,14 @@ import type { SessionData } from './SessionData'
 import type { VariantStream } from './VariantStream'
 
 /**
- * A parsed HLS Master Playlist (also called Multivariant Playlist) as defined by RFC 8216.
+ * A parsed HLS Main Playlist (also called Multivariant Playlist) as defined by RFC 8216.
  *
- * A Master Playlist provides a set of variant streams, each representing the same content at
+ * A Main Playlist provides a set of variant streams, each representing the same content at
  * different bitrates or resolutions, along with alternative renditions and session-level metadata.
  *
  * @see https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.4
  */
-export interface MainPlaylist {
+export interface HlsMainPlaylist {
     /** The variant streams available in this presentation (EXT-X-STREAM-INF). */
     readonly variants: readonly VariantStream[]
 

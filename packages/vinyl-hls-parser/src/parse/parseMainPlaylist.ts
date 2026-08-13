@@ -6,7 +6,7 @@
 import { StringReader, substitute, ValidationError } from '@amazon/vinyl-util'
 import type { AlternativeRendition } from '../types/AlternativeRendition'
 import { renditionTypeValidator } from '../types/AlternativeRendition'
-import type { MainPlaylist } from '../types/MainPlaylist'
+import type { HlsMainPlaylist } from '../types/HlsMainPlaylist'
 import type { SessionData } from '../types/SessionData'
 import type { VariantStream } from '../types/VariantStream'
 import { HLS_VARIABLE_PATTERN } from './parseMediaPlaylist'
@@ -25,16 +25,16 @@ const EXT_X_DEFINE = '#EXT-X-DEFINE:'
  * @param text The raw M3U8 manifest string.
  * @param queryParams Optional query parameters from the playlist's own URL,
  *   used to resolve `#EXT-X-DEFINE:QUERYPARAM="name"` entries (RFC 8216
- *   §4.4.5.1). Resolved values are exposed via {@link MainPlaylist.defines} so
+ *   §4.4.5.1). Resolved values are exposed via {@link HlsMainPlaylist.defines} so
  *   child media playlists can `IMPORT` them. Interstitial ad manifests (e.g.
  *   AWS MediaTailor) carry session tokens this way.
- * @returns A readonly MainPlaylist structure.
+ * @returns A readonly HlsMainPlaylist structure.
  * @throws StringParseError if the manifest is malformed.
  */
 export function parseMainPlaylist(
     text: string,
     queryParams?: Readonly<Record<string, string>>
-): MainPlaylist {
+): HlsMainPlaylist {
     const reader = new StringReader(text)
 
     reader.white()

@@ -3,15 +3,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DateRange, MediaPlaylist } from '@amazon/vinyl-hls-parser'
+import type { HlsDateRange, HlsMediaPlaylist } from '@amazon/vinyl-hls-parser'
 import { HLS_INTERSTITIAL_CLASS } from '@amazon/vinyl-hls-parser'
-import { resolveUrl, type Maybe } from '@amazon/vinyl-util'
+import {
+    type Maybe,
+    type MaybePromise,
+    memoize,
+    requestWithRetry,
+    resolveUrl,
+} from '@amazon/vinyl-util'
 import type {
     AdBreakInfo,
+    AdBreakList,
     AdBreakPlacement,
     AdInfo,
+    AdList,
     AdRestriction,
-} from './AdBreak'
+} from './AdBreakInfo'
 
 /**
  * How close to the start or end of content a break must be to be classified as
@@ -38,10 +46,10 @@ const ROLL_EPSILON = 0.5
  *   to classify post-rolls. Pass null/undefined for live or unknown durations.
  */
 export function discoverHlsInterstitials(
-    playlist: MediaPlaylist,
+    playlist: HlsMediaPlaylist,
     baseUrl: string,
     contentDuration?: number | null
-): readonly AdBreakInfo[] {
+): Promise<AdBreakList> {
     const anchor = findProgramDateTimeAnchor(playlist)
 
     const breaks: AdBreakInfo[] = []
@@ -51,22 +59,14 @@ export function discoverHlsInterstitials(
         const startTime = resolveStartTime(range, anchor)
         if (startTime == null) continue
 
-        const duration = resolveDuration(range)
+        const playoutLimit = resolvePlayoutLimit(range)
+        let duration = resolveDuration(range)
+        if (playoutLimit && duration)
+            duration = Math.min(playoutLimit, duration)
         const cue = range.clientAttributes['CUE'] ?? ''
-        const placement = classifyPlacement(
-            startTime,
-            duration,
-            contentDuration,
-            cue
-        )
+        const placement = classifyPlacement(startTime, contentDuration, cue)
         const effectiveStartTime =
             cue === 'PRE' ? 0 : placement === 'preroll' ? 0 : startTime
-        const ads = createAdsResolver(
-            range,
-            effectiveStartTime,
-            duration,
-            baseUrl
-        )
 
         const restrictStr = range.clientAttributes['X-RESTRICT'] ?? ''
         const restrict = parseRestrict(restrictStr)
@@ -76,13 +76,23 @@ export function discoverHlsInterstitials(
             startTime: effectiveStartTime,
             duration,
             placement,
-            ads,
-            ...(restrict && { restrict }),
+            ads: memoize(() =>
+                resolveHlsAds({
+                    range: range,
+                    startTime: effectiveStartTime,
+                    duration: duration,
+                    baseUrl: baseUrl,
+                })
+            ),
+            restrict,
         })
     }
 
     breaks.sort((a, b) => a.startTime - b.startTime)
-    return breaks
+    // Discovery is synchronous; ad assets resolve lazily via each break's
+    // `ads` ValueProvider. The Promise return keeps the provider-agnostic
+    // contract stable for future async discovery (e.g. DASH).
+    return Promise.resolve(breaks)
 }
 
 /**
@@ -96,7 +106,7 @@ interface ProgramDateTimeAnchor {
 }
 
 function findProgramDateTimeAnchor(
-    playlist: MediaPlaylist
+    playlist: HlsMediaPlaylist
 ): ProgramDateTimeAnchor | null {
     let mediaTime = 0
     for (const seg of playlist.segments) {
@@ -117,7 +127,7 @@ function findProgramDateTimeAnchor(
  * present (best-effort pre-roll), or null when the start-date is unusable.
  */
 function resolveStartTime(
-    range: DateRange,
+    range: HlsDateRange,
     anchor: ProgramDateTimeAnchor | null
 ): number | null {
     if (!range.startDate) {
@@ -137,17 +147,10 @@ function resolveStartTime(
 }
 
 /**
- * Determines a break's duration in seconds. Uses X-PLAYOUT-LIMIT when present
- * (caps actual playback time), else DURATION, else END-DATE span, else
+ * Determines a break's duration in seconds. Uses DURATION, else END-DATE span, else
  * PLANNED-DURATION, else null.
  */
-function resolveDuration(range: DateRange): number | null {
-    const playoutLimit = parseFloat(
-        range.clientAttributes['X-PLAYOUT-LIMIT'] ?? ''
-    )
-    if (Number.isFinite(playoutLimit) && playoutLimit > 0) {
-        return playoutLimit
-    }
+function resolveDuration(range: HlsDateRange): number | null {
     if (range.duration != null && !Number.isNaN(range.duration)) {
         return range.duration
     }
@@ -164,9 +167,18 @@ function resolveDuration(range: DateRange): number | null {
     return null
 }
 
+function resolvePlayoutLimit(range: HlsDateRange): number | null {
+    const playoutLimit = parseFloat(
+        range.clientAttributes['X-PLAYOUT-LIMIT'] ?? ''
+    )
+    if (Number.isFinite(playoutLimit) && playoutLimit > 0) {
+        return playoutLimit
+    }
+    return null
+}
+
 function classifyPlacement(
     startTime: number,
-    duration: number | null,
     contentDuration: Maybe<number>,
     cue: string
 ): AdBreakPlacement {
@@ -176,7 +188,7 @@ function classifyPlacement(
     if (
         contentDuration != null &&
         Number.isFinite(contentDuration) &&
-        startTime + (duration ?? 0) >= contentDuration - ROLL_EPSILON
+        startTime >= contentDuration - ROLL_EPSILON
     ) {
         return 'postroll'
     }
@@ -191,23 +203,29 @@ interface AssetListDocument {
         readonly URI: string
         readonly DURATION?: number
     }[]
+    readonly ['SKIP-CONTROL']?: {
+        OFFSET: number
+        DURATION: number
+    }
 }
 
 /**
- * Creates the {@link AdBreakInfo.ads} resolver for a break. An `X-ASSET-URI`
- * yields a single ad resolved immediately. An `X-ASSET-LIST` yields a resolver
- * that fetches the list JSON on first call and caches the result. When neither
- * is present the resolver yields an empty list.
+ *
  */
-function createAdsResolver(
-    range: DateRange,
-    startTime: number,
-    duration: number | null,
-    baseUrl: string
-): () => Promise<readonly AdInfo[]> {
+function resolveHlsAds({
+    range,
+    startTime,
+    duration,
+    baseUrl,
+}: {
+    readonly range: HlsDateRange
+    readonly startTime: number
+    readonly duration: number | null
+    readonly baseUrl: string
+}): MaybePromise<AdList> {
     const assetUri = range.clientAttributes['X-ASSET-URI']
     if (assetUri) {
-        const ads: readonly AdInfo[] = [
+        return [
             {
                 id: `${range.id}-0`,
                 startTime,
@@ -215,45 +233,46 @@ function createAdsResolver(
                 uri: resolveUrl(assetUri, baseUrl),
             },
         ]
-        return () => Promise.resolve(ads)
     }
-
     const assetListUrl = range.clientAttributes['X-ASSET-LIST']
     if (assetListUrl) {
-        const url = resolveUrl(assetListUrl, baseUrl)
-        let cached: Promise<readonly AdInfo[]> | null = null
-        return () => {
-            if (cached) return cached
-            cached = fetch(url)
-                .then((res) => res.json())
-                .then((json: AssetListDocument) =>
-                    (json.ASSETS ?? []).map(
-                        (asset, i): AdInfo => ({
-                            id: `${range.id}-${i}`,
-                            startTime,
-                            duration: asset.DURATION ?? null,
-                            uri: resolveUrl(asset.URI, baseUrl),
-                        })
-                    )
-                )
-                .catch((error) => {
-                    // Allow a later retry by clearing the cached rejection.
-                    cached = null
-                    throw error
-                })
-            return cached
-        }
+        return resolveHlsAssetList({
+            assetListUrl,
+            rangeId: range.id,
+            startTime,
+            baseUrl,
+        })
     }
-
-    return () => Promise.resolve([])
+    return []
 }
 
-function parseRestrict(str: string): AdRestriction | undefined {
+async function resolveHlsAssetList({
+    assetListUrl,
+    rangeId,
+    startTime,
+    baseUrl,
+}: {
+    readonly assetListUrl: string
+    readonly rangeId: string
+    readonly startTime: number
+    readonly baseUrl: string
+}): Promise<AdList> {
+    const url = resolveUrl(assetListUrl, baseUrl)
+    const response = await requestWithRetry(url)
+    const json: AssetListDocument = await response.json()
+    const assets = json.ASSETS ?? []
+    return assets.map((asset, i): AdInfo => {
+        return {
+            id: `${rangeId}-${i}`,
+            startTime,
+            duration: asset.DURATION ?? null,
+            uri: resolveUrl(asset.URI, baseUrl),
+        }
+    })
+}
+
+function parseRestrict(str: string): AdRestriction {
     const skip = str.includes('SKIP')
     const jump = str.includes('JUMP')
-    if (!skip && !jump) return undefined
-    const result: { skip?: boolean; jump?: boolean } = {}
-    if (skip) result.skip = true
-    if (jump) result.jump = true
-    return result
+    return { skip, jump }
 }
