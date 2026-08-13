@@ -33,10 +33,10 @@ follow-up.
 
 ```typescript
 // The ad breaks discovered for the current media, ordered by start time.
-player.adBreaks // readonly AdBreakInfo[]
+player.currentTrackAds // readonly AdBreakInfo[]
 
 // The break currently containing the playhead, or null in primary content.
-player.activeAdBreak // AdBreakInfo | null
+player.currentAdBreak // AdBreakInfo | null
 
 // The ad track currently playing over the (suspended) content track, or null.
 // This is exposed separately from `currentTrack`, which keeps referencing the
@@ -55,14 +55,14 @@ player.skipAdBreak()
 
 ```typescript
 // The set of known ad breaks changed (e.g. a live manifest revealed one).
-player.on('adBreaksChange', ({ current }) => {
+player.on('currentTrackAdsChange', ({ current }) => {
     /* current: AdBreakInfo[] */
 })
 
 // The break containing the playhead changed. `current` is the newly active
 // break, or null when the playhead moved back into primary content (the break
 // played through, was skipped, or the media changed).
-player.on('adBreakChange', ({ previous, current }) => {
+player.on('currentAdBreakChange', ({ previous, current }) => {
     /* … */
 })
 ```
@@ -100,7 +100,7 @@ A break may carry restrictions (from an HLS `X-RESTRICT`) describing what the
 break's rules so applications can decide whether to expose those controls:
 
 ```typescript
-const activeBreak = player.activeAdBreak
+const activeBreak = player.currentAdBreak
 const canSkip = !activeBreak?.restrict?.skip // hide the Skip button when true
 const canSeek = !activeBreak?.restrict?.jump // disable seeking past the ad
 ```
@@ -122,12 +122,12 @@ ad-originated `ended` from a content-originated one. **Treating an ad's `ended`
 as content completion is the classic bug**: you would advance your queue while
 an ad is still playing.
 
-Use `player.activeAdBreak` (or the convenience `currentAdTrack`) to tell them
+Use `player.currentAdBreak` (or the convenience `currentAdTrack`) to tell them
 apart:
 
 ```typescript
 player.on('ended', () => {
-    if (player.activeAdBreak != null) {
+    if (player.currentAdBreak != null) {
         // An ad ended. The player handles sequencing to the next ad or
         // resuming content — do NOT advance your own queue here.
         return
@@ -137,9 +137,9 @@ player.on('ended', () => {
 })
 ```
 
-The rule of thumb: **an `ended` (or `emptied`) while `activeAdBreak` is non-null
-originated from an ad, not from content.** `currentAdTrack` is equivalent and
-reads more directly if you think in terms of tracks:
+The rule of thumb: **an `ended` (or `emptied`) while `currentAdBreak` is
+non-null originated from an ad, not from content.** `currentAdTrack` is
+equivalent and reads more directly if you think in terms of tracks:
 
 ```typescript
 player.on('ended', () => {
@@ -170,7 +170,7 @@ import { createVinylPlayer } from '@amazon/vinyl'
 const player = createVinylPlayer({ media: videoElement })
 
 // Reflect ad state in your UI.
-player.on('adBreakChange', ({ current }) => {
+player.on('currentAdBreakChange', ({ current }) => {
     if (current) {
         showAdOverlay({
             canSkip: !current.restrict?.skip,
@@ -182,7 +182,7 @@ player.on('adBreakChange', ({ current }) => {
 
 // If you drive your own queue off `ended`, guard against ad ends.
 player.on('ended', () => {
-    if (player.activeAdBreak != null) return
+    if (player.currentAdBreak != null) return
     playNextInMyQueue()
 })
 
