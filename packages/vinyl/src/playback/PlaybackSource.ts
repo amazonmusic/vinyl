@@ -38,7 +38,7 @@ export interface PlaybackSource {
 
     /**
      * Determines whether the media element is allowed to have a remote playback UI.
-     * (Note: AirPlay does not support remote playback for Dash)
+     * (Note: AirPlay does not support remote playback for MSE)
      */
     disableRemotePlayback: boolean
 }

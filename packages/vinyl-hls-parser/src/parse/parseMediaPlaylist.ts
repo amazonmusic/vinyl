@@ -4,11 +4,11 @@
  */
 
 import { StringReader, substitute } from '@amazon/vinyl-util'
-import type { DateRange } from '../types/DateRange'
+import type { HlsDateRange } from '../types/HlsDateRange'
 import type { EncryptionKey } from '../types/EncryptionKey'
 import { encryptionMethodValidator } from '../types/EncryptionKey'
 import type { HlsSegment, HlsMap } from '../types/HlsSegment'
-import type { MediaPlaylist } from '../types/MediaPlaylist'
+import type { HlsMediaPlaylist } from '../types/HlsMediaPlaylist'
 import { parseAttributes } from './parseAttributes'
 import { readLine, skipWhitespaceLine, addIfPresent } from './parseUtil'
 
@@ -41,14 +41,14 @@ const EXT_X_DATERANGE = '#EXT-X-DATERANGE:'
  *   used to resolve `#EXT-X-DEFINE:QUERYPARAM="name"` entries (RFC 8216
  *   §4.4.5.1). Interstitial ad manifests (e.g. AWS MediaTailor) commonly carry
  *   session tokens this way and reference them as `{$name}` in child URIs.
- * @returns A readonly MediaPlaylist structure.
+ * @returns A readonly HlsMediaPlaylist structure.
  * @throws StringParseError if the manifest is malformed.
  */
 export function parseMediaPlaylist(
     text: string,
     variables?: Readonly<Record<string, string>>,
     queryParams?: Readonly<Record<string, string>>
-): MediaPlaylist {
+): HlsMediaPlaylist {
     const defines: Record<string, string> = { ...(variables ?? {}) }
     const substituteVars = (v: string): string =>
         Object.keys(defines).length === 0
@@ -76,7 +76,7 @@ export function parseMediaPlaylist(
     let pendingDateTime: string | undefined
 
     const segments: HlsSegment[] = []
-    const dateRanges: DateRange[] = []
+    const dateRanges: HlsDateRange[] = []
     let sequenceCounter = 0
 
     while (reader.hasNext()) {
@@ -223,7 +223,7 @@ export function parseMediaPlaylist(
                 defines[attrs['NAME']] = attrs['VALUE']
             }
         } else if (trimmed.startsWith(EXT_X_DATERANGE)) {
-            const dateRange = parseDateRange(
+            const dateRange = parseHlsDateRange(
                 trimmed.substring(EXT_X_DATERANGE.length),
                 substituteVars
             )
@@ -244,8 +244,8 @@ export function parseMediaPlaylist(
 }
 
 /**
- * Attribute names that map to typed {@link DateRange} fields and are therefore
- * excluded from the free-form {@link DateRange.clientAttributes} bag.
+ * Attribute names that map to typed {@link HlsDateRange} fields and are therefore
+ * excluded from the free-form {@link HlsDateRange.clientAttributes} bag.
  */
 const DATERANGE_RESERVED_ATTRS = new Set([
     'ID',
@@ -264,14 +264,14 @@ const DATERANGE_RESERVED_ATTRS = new Set([
  * skipped rather than throwing.
  *
  * The `X-` client-defined attributes are collected verbatim into
- * {@link DateRange.clientAttributes}. Interstitial attributes such as
+ * {@link HlsDateRange.clientAttributes}. Interstitial attributes such as
  * `X-ASSET-URI` frequently reference EXT-X-DEFINE variables, so string values
  * are passed through the same substitution applied to segment URIs.
  */
-function parseDateRange(
+function parseHlsDateRange(
     attrStr: string,
     substituteVars: (v: string) => string
-): DateRange | undefined {
+): HlsDateRange | undefined {
     const attrs = parseAttributes(new StringReader(attrStr))
 
     const id = attrs['ID']
@@ -308,8 +308,8 @@ function parseDateRange(
  * Parses a byte range string (e.g. "1000@500" or "1000") into length and offset.
  */
 function parseByteRangeString(str: string): {
-    length: number
-    offset: number
+    readonly length: number
+    readonly offset: number
 } {
     const parts = str.split('@')
     return {

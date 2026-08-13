@@ -4,8 +4,9 @@
  */
 
 import type { ReadonlyEventHost } from '@amazon/vinyl-util'
-import type { TrackEventMap, ReadonlyStreamingState } from '../track/Track'
+import type { ReadonlyStreamingState } from '../track/Track'
 import type { SeekRange } from '../track/SeekRange'
+import type { StreamingEventMap } from '../streaming/StreamingEventMap'
 
 /**
  * Represents the streaming state of the currently active track.
@@ -24,7 +25,7 @@ import type { SeekRange } from '../track/SeekRange'
  */
 
 export interface ReadonlyPlaybackStreamingState
-    extends ReadonlyEventHost<TrackEventMap>, ReadonlyStreamingState {
+    extends ReadonlyEventHost<StreamingEventMap>, ReadonlyStreamingState {
     /**
      * Returns the time of the prefetch end.
      * If no data has been prefetched for the current track, 0 will be returned.

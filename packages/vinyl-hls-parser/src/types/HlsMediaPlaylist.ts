@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { DateRange } from './DateRange'
+import type { HlsDateRange } from './HlsDateRange'
 import type { HlsSegment } from './HlsSegment'
 
 /**
@@ -13,7 +13,7 @@ import type { HlsSegment } from './HlsSegment'
  *
  * @see https://datatracker.ietf.org/doc/html/rfc8216#section-4
  */
-export interface MediaPlaylist {
+export interface HlsMediaPlaylist {
     /** The HLS protocol version required by this playlist (EXT-X-VERSION). */
     readonly version: number
 
@@ -24,7 +24,7 @@ export interface MediaPlaylist {
     readonly mediaSequence: number
 
     /** The mutability type of the playlist: VOD (static), EVENT (append-only), or LIVE (sliding window). */
-    readonly playlistType: MediaPlaylistType
+    readonly playlistType: HlsMediaPlaylistType
 
     /** Whether the playlist is complete, indicated by the presence of EXT-X-ENDLIST. */
     readonly ended: boolean
@@ -37,8 +37,8 @@ export interface MediaPlaylist {
      * they appear. HLS Interstitials (SGAI ad breaks) are carried as Date Ranges
      * whose classId is `com.apple.hls.interstitial`.
      */
-    readonly dateRanges: readonly DateRange[]
+    readonly dateRanges: readonly HlsDateRange[]
 }
 
 /** The mutability type of Media Playlist. */
-export type MediaPlaylistType = 'VOD' | 'EVENT' | 'LIVE'
+export type HlsMediaPlaylistType = 'VOD' | 'EVENT' | 'LIVE'

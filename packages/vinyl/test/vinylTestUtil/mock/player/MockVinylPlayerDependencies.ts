@@ -4,7 +4,6 @@
  */
 
 import {
-    AdControllerImpl,
     type DashFactoryDeps,
     defaultVinylOptions,
     type DrmKeySystemResolver,
@@ -22,6 +21,7 @@ import { MockAutoResetController } from '../track/MockAutoResetController'
 import { externalDependencies } from '@amazon/vinyl-di'
 import { noop } from '@amazon/vinyl-util'
 import { data } from '@amazon/vinyl-observable'
+import { MockAdController } from '../ad/MockAdController'
 import createSpy = jasmine.createSpy
 
 export type MockVinylDependencies = ReturnType<
@@ -46,7 +46,7 @@ export function createMockVinylDependencies() {
         createHlsFactories: (_loadOptions) =>
             externalDependencies(createMockDashDependencies()) as any,
         autoResetController: new MockAutoResetController(),
-        adController: new AdControllerImpl({ playbackController }),
+        adController: new MockAdController(),
         requestInterceptor: noop,
         drmKeySystemResolver: createSpy<DrmKeySystemResolver>(
             'drmKeySystemResolver'

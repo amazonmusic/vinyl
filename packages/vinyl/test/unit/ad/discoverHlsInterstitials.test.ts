@@ -4,15 +4,16 @@
  */
 
 import { discoverHlsInterstitials } from '@amazon/vinyl'
-import type { DateRange, MediaPlaylist } from '@amazon/vinyl-hls-parser'
+import type { HlsDateRange, HlsMediaPlaylist } from '@amazon/vinyl-hls-parser'
+import { resolveValueProvider } from '@amazon/vinyl-util'
 
 describe('discoverHlsInterstitials', () => {
     const BASE = 'https://cdn.example.com/media/index.m3u8'
     const INTERSTITIAL = 'com.apple.hls.interstitial'
 
     function makePlaylist(
-        overrides: Partial<MediaPlaylist> = {}
-    ): MediaPlaylist {
+        overrides: Partial<HlsMediaPlaylist> = {}
+    ): HlsMediaPlaylist {
         return {
             version: 7,
             targetDuration: 6,
@@ -25,7 +26,7 @@ describe('discoverHlsInterstitials', () => {
         }
     }
 
-    function makeRange(overrides: Partial<DateRange> = {}): DateRange {
+    function makeRange(overrides: Partial<HlsDateRange> = {}): HlsDateRange {
         return {
             id: 'ad1',
             classId: INTERSTITIAL,
@@ -35,29 +36,42 @@ describe('discoverHlsInterstitials', () => {
         }
     }
 
-    it('returns empty when there are no date ranges', () => {
-        expect(discoverHlsInterstitials(makePlaylist(), BASE)).toEqual([])
+    /**
+     * A minimal `fetch` Response stand-in that satisfies `requestWithRetry`
+     * (which reads `ok`/`status`/`headers` and rejects on non-ok responses).
+     */
+    function okJsonResponse(body: unknown) {
+        return {
+            ok: true,
+            status: 200,
+            headers: { get: () => null },
+            json: () => Promise.resolve(body),
+        }
+    }
+
+    it('returns empty when there are no date ranges', async () => {
+        expect(await discoverHlsInterstitials(makePlaylist(), BASE)).toEqual([])
     })
 
-    it('ignores non-interstitial date ranges', () => {
+    it('ignores non-interstitial date ranges', async () => {
         const playlist = makePlaylist({
             dateRanges: [makeRange({ classId: 'com.example.other' })],
         })
-        expect(discoverHlsInterstitials(playlist, BASE)).toEqual([])
+        expect(await discoverHlsInterstitials(playlist, BASE)).toEqual([])
     })
 
-    it('anchors a pre-roll to time 0 when no program-date-time exists', () => {
+    it('anchors a pre-roll to time 0 when no program-date-time exists', async () => {
         const playlist = makePlaylist({
             dateRanges: [makeRange({ duration: 15 })],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
         expect(breaks.length).toBe(1)
         expect(breaks[0].startTime).toBe(0)
         expect(breaks[0].duration).toBe(15)
         expect(breaks[0].placement).toBe('preroll')
     })
 
-    it('correlates START-DATE against EXT-X-PROGRAM-DATE-TIME for a mid-roll', () => {
+    it('correlates START-DATE against EXT-X-PROGRAM-DATE-TIME for a mid-roll', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -81,12 +95,12 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 20)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 20)
         expect(breaks[0].startTime).toBe(12)
         expect(breaks[0].placement).toBe('midroll')
     })
 
-    it('uses a later segment program-date-time as the anchor', () => {
+    it('uses a later segment program-date-time as the anchor', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -111,12 +125,12 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 20)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 20)
         // 10 (anchor media time) + (15 - 10) = 15
         expect(breaks[0].startTime).toBe(15)
     })
 
-    it('resolves duration from END-DATE when DURATION is absent', () => {
+    it('resolves duration from END-DATE when DURATION is absent', async () => {
         const playlist = makePlaylist({
             dateRanges: [
                 makeRange({
@@ -125,21 +139,21 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
         expect(breaks[0].duration).toBe(8)
     })
 
-    it('falls back to PLANNED-DURATION when neither DURATION nor END-DATE exist', () => {
+    it('falls back to PLANNED-DURATION when neither DURATION nor END-DATE exist', async () => {
         const playlist = makePlaylist({
             dateRanges: [makeRange({ plannedDuration: 12 })],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
         expect(breaks[0].duration).toBe(12)
     })
 
-    it('reports null duration when unresolvable', () => {
+    it('reports null duration when unresolvable', async () => {
         const playlist = makePlaylist({ dateRanges: [makeRange()] })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
         expect(breaks[0].duration).toBeNull()
     })
 
@@ -152,8 +166,8 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
-        const ads = await breaks[0].ads()
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
+        const ads = await resolveValueProvider(breaks[0].ads)
         expect(ads.length).toBe(1)
         expect(ads[0].uri).toBe('https://cdn.example.com/ads/ad.m3u8')
         expect(ads[0].startTime).toBe(0)
@@ -164,11 +178,11 @@ describe('discoverHlsInterstitials', () => {
         const playlist = makePlaylist({
             dateRanges: [makeRange({ duration: 10 })],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
-        expect(await breaks[0].ads()).toEqual([])
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
+        expect(await resolveValueProvider(breaks[0].ads)).toEqual([])
     })
 
-    it('parses X-RESTRICT into typed restrict field', () => {
+    it('parses X-RESTRICT into typed restrict field', async () => {
         const playlist = makePlaylist({
             dateRanges: [
                 makeRange({
@@ -177,21 +191,21 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
         expect(breaks[0].restrict).toEqual({ skip: true, jump: true })
     })
 
     it('resolves X-ASSET-LIST ads by fetching the list JSON', async () => {
         const origFetch = globalThis.fetch
-        globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
-            json: () =>
-                Promise.resolve({
-                    ASSETS: [
-                        { URI: 'mid1.m3u8', DURATION: 10 },
-                        { URI: 'https://cdn.example.com/mid2.m3u8' },
-                    ],
-                }),
-        })
+        const fetchSpy = jasmine.createSpy('fetch').and.resolveTo(
+            okJsonResponse({
+                ASSETS: [
+                    { URI: 'mid1.m3u8', DURATION: 10 },
+                    { URI: 'https://cdn.example.com/mid2.m3u8' },
+                ],
+            })
+        )
+        globalThis.fetch = fetchSpy
         try {
             const playlist = makePlaylist({
                 dateRanges: [
@@ -203,9 +217,9 @@ describe('discoverHlsInterstitials', () => {
                     }),
                 ],
             })
-            const breaks = discoverHlsInterstitials(playlist, BASE)
-            const ads = await breaks[0].ads()
-            expect(globalThis.fetch).toHaveBeenCalledWith(
+            const breaks = await discoverHlsInterstitials(playlist, BASE)
+            const ads = await resolveValueProvider(breaks[0].ads)
+            expect(fetchSpy.calls.argsFor(0)[0]).toBe(
                 'https://example.com/ads.json'
             )
             expect(ads.length).toBe(2)
@@ -220,9 +234,9 @@ describe('discoverHlsInterstitials', () => {
 
     it('caches the X-ASSET-LIST fetch across calls', async () => {
         const origFetch = globalThis.fetch
-        const fetchSpy = jasmine.createSpy('fetch').and.resolveTo({
-            json: () => Promise.resolve({ ASSETS: [{ URI: 'x.m3u8' }] }),
-        })
+        const fetchSpy = jasmine
+            .createSpy('fetch')
+            .and.resolveTo(okJsonResponse({ ASSETS: [{ URI: 'x.m3u8' }] }))
         globalThis.fetch = fetchSpy
         try {
             const playlist = makePlaylist({
@@ -235,16 +249,20 @@ describe('discoverHlsInterstitials', () => {
                     }),
                 ],
             })
-            const resolver = discoverHlsInterstitials(playlist, BASE)[0].ads
-            await resolver()
-            await resolver()
+            const breaks = await discoverHlsInterstitials(playlist, BASE)
+            const resolver = breaks[0].ads
+            await resolveValueProvider(resolver)
+            await resolveValueProvider(resolver)
             expect(fetchSpy).toHaveBeenCalledTimes(1)
         } finally {
             globalThis.fetch = origFetch
         }
     })
 
-    it('allows retry after an X-ASSET-LIST fetch failure', async () => {
+    it('memoizes the X-ASSET-LIST resolution, including failures, within a discovery', async () => {
+        // The per-break ads resolver is memoized, so a failed asset-list fetch
+        // is cached for the lifetime of the discovered break (a fresh discovery
+        // re-fetches). This documents the shipped behavior.
         const origFetch = globalThis.fetch
         const fetchSpy = jasmine
             .createSpy('fetch')
@@ -261,12 +279,14 @@ describe('discoverHlsInterstitials', () => {
                     }),
                 ],
             })
-            const resolver = discoverHlsInterstitials(playlist, BASE)[0].ads
-            await expectAsync(resolver()).toBeRejected()
-            // A subsequent call retries rather than returning the cached
-            // rejection.
-            await expectAsync(resolver()).toBeRejected()
-            expect(fetchSpy).toHaveBeenCalledTimes(2)
+            const breaks = await discoverHlsInterstitials(playlist, BASE)
+            const resolver = breaks[0].ads
+            await expectAsync(resolveValueProvider(resolver)).toBeRejected()
+            // The rejected resolution is memoized: a second call reuses the
+            // cached (rejected) result and does not fetch again.
+            const callsAfterFirst = fetchSpy.calls.count()
+            await expectAsync(resolveValueProvider(resolver)).toBeRejected()
+            expect(fetchSpy.calls.count()).toBe(callsAfterFirst)
         } finally {
             globalThis.fetch = origFetch
         }
@@ -274,9 +294,9 @@ describe('discoverHlsInterstitials', () => {
 
     it('yields empty ads when X-ASSET-LIST JSON has no ASSETS', async () => {
         const origFetch = globalThis.fetch
-        globalThis.fetch = jasmine.createSpy('fetch').and.resolveTo({
-            json: () => Promise.resolve({}),
-        })
+        globalThis.fetch = jasmine
+            .createSpy('fetch')
+            .and.resolveTo(okJsonResponse({}))
         try {
             const playlist = makePlaylist({
                 dateRanges: [
@@ -288,14 +308,14 @@ describe('discoverHlsInterstitials', () => {
                     }),
                 ],
             })
-            const breaks = discoverHlsInterstitials(playlist, BASE)
-            expect(await breaks[0].ads()).toEqual([])
+            const breaks = await discoverHlsInterstitials(playlist, BASE)
+            expect(await resolveValueProvider(breaks[0].ads)).toEqual([])
         } finally {
             globalThis.fetch = origFetch
         }
     })
 
-    it('classifies a break at the end of content as a post-roll', () => {
+    it('classifies a break at the end of content as a post-roll', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -313,27 +333,27 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 30)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 30)
         expect(breaks[0].placement).toBe('postroll')
     })
 
-    it('skips an interstitial with no START-DATE (e.g. END-ON-NEXT)', () => {
+    it('skips an interstitial with no START-DATE (e.g. END-ON-NEXT)', async () => {
         const playlist = makePlaylist({
             dateRanges: [
                 makeRange({ startDate: '', endOnNext: true, duration: 5 }),
             ],
         })
-        expect(discoverHlsInterstitials(playlist, BASE)).toEqual([])
+        expect(await discoverHlsInterstitials(playlist, BASE)).toEqual([])
     })
 
-    it('skips an interstitial with an unparseable START-DATE', () => {
+    it('skips an interstitial with an unparseable START-DATE', async () => {
         const playlist = makePlaylist({
             dateRanges: [makeRange({ startDate: 'not-a-date', duration: 5 })],
         })
-        expect(discoverHlsInterstitials(playlist, BASE)).toEqual([])
+        expect(await discoverHlsInterstitials(playlist, BASE)).toEqual([])
     })
 
-    it('clamps a slightly-negative correlated start time to 0', () => {
+    it('clamps a slightly-negative correlated start time to 0', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -352,12 +372,12 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 30)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 30)
         expect(breaks[0].startTime).toBe(0)
         expect(breaks[0].placement).toBe('preroll')
     })
 
-    it('ignores a program-date-time that cannot be parsed', () => {
+    it('ignores a program-date-time that cannot be parsed', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -376,11 +396,11 @@ describe('discoverHlsInterstitials', () => {
             ],
         })
         // No usable anchor → treated as a best-effort pre-roll at time 0.
-        const breaks = discoverHlsInterstitials(playlist, BASE, 30)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 30)
         expect(breaks[0].startTime).toBe(0)
     })
 
-    it('ignores an END-DATE that precedes START-DATE', () => {
+    it('ignores an END-DATE that precedes START-DATE', async () => {
         const playlist = makePlaylist({
             dateRanges: [
                 makeRange({
@@ -390,10 +410,11 @@ describe('discoverHlsInterstitials', () => {
             ],
         })
         // Invalid span → duration falls through to null.
-        expect(discoverHlsInterstitials(playlist, BASE)[0].duration).toBeNull()
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
+        expect(breaks[0].duration).toBeNull()
     })
 
-    it('classifies a null-duration break near content end as a post-roll', () => {
+    it('classifies a null-duration break near content end as a post-roll', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -406,12 +427,12 @@ describe('discoverHlsInterstitials', () => {
             ],
             dateRanges: [makeRange({ startDate: '2024-01-01T00:00:30.000Z' })],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 30)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 30)
         expect(breaks[0].duration).toBeNull()
         expect(breaks[0].placement).toBe('postroll')
     })
 
-    it('sorts breaks by start time', () => {
+    it('sorts breaks by start time', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -435,11 +456,11 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 60)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 60)
         expect(breaks.map((b) => b.id)).toEqual(['early', 'late'])
     })
 
-    it('uses CUE=PRE to classify preroll and set startTime to 0', () => {
+    it('uses CUE=PRE to classify preroll and set startTime to 0', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -459,12 +480,12 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 60)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 60)
         expect(breaks[0].placement).toBe('preroll')
         expect(breaks[0].startTime).toBe(0)
     })
 
-    it('uses CUE=POST to classify postroll', () => {
+    it('uses CUE=POST to classify postroll', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -484,11 +505,11 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE, 60)
+        const breaks = await discoverHlsInterstitials(playlist, BASE, 60)
         expect(breaks[0].placement).toBe('postroll')
     })
 
-    it('uses X-PLAYOUT-LIMIT to cap duration', () => {
+    it('uses X-PLAYOUT-LIMIT to cap duration', async () => {
         const playlist = makePlaylist({
             segments: [
                 {
@@ -511,7 +532,7 @@ describe('discoverHlsInterstitials', () => {
                 }),
             ],
         })
-        const breaks = discoverHlsInterstitials(playlist, BASE)
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
         expect(breaks[0].duration).toBe(10)
     })
 })

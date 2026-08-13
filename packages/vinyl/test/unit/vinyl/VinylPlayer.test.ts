@@ -188,9 +188,6 @@ describe('VinylPlayer', () => {
         player.unload()
         expect(trackController.unload).toHaveBeenCalledOnceWith()
 
-        player.reloadCurrentTrack()
-        expect(trackController.reloadCurrentTrack).toHaveBeenCalledOnceWith()
-
         trackController.hasNext.and.returnValue(true)
         expect(player.hasNext()).toBeTrue()
 
@@ -272,32 +269,20 @@ describe('VinylPlayer', () => {
             mimeType: 'video/mp4; codecs="hvc1.1"',
             contentType: 'video',
         })
-        expect(trackController.reloadCurrentTrack).toHaveBeenCalledOnceWith()
+        expect(trackController.reset).toHaveBeenCalledOnceWith(true)
     })
 
-    it('does not reload the current track on codecUnsupported while an ad is playing', async () => {
+    it('does not reload the current track on codecUnsupported while an ad is playing', () => {
         const trackController = deps.trackController
-        // Drive the ad controller into an active break so adPlaying is true.
-        deps.adController.setAdBreaks([
-            {
-                id: 'b1',
-                startTime: 0,
-                duration: 10,
-                placement: 'preroll',
-                ads: () =>
-                    Promise.resolve([
-                        { id: 'a1', startTime: 0, duration: 5, uri: 'ad.m3u8' },
-                    ]),
-            },
-        ])
-        deps.playbackController.currentTime = 1
-        deps.playbackController.dispatch('timeUpdate', {
-            previous: 0,
-            current: 1,
-        })
-        await Promise.resolve()
-        await Promise.resolve()
-        expect(deps.adController.adPlaying).toBeTrue()
+        // An ad break currently contains the playhead.
+        deps.adController.currentAdBreak = {
+            id: 'b1',
+            startTime: 0,
+            duration: 10,
+            placement: 'preroll',
+            ads: () => Promise.resolve([]),
+            restrict: {},
+        }
 
         const mockTrack = new MockTrack()
         trackController.dispatch('currentTrackChange', {
@@ -308,7 +293,7 @@ describe('VinylPlayer', () => {
             mimeType: 'video/mp4; codecs="hvc1.1"',
             contentType: 'video',
         })
-        expect(trackController.reloadCurrentTrack).not.toHaveBeenCalled()
+        expect(trackController.reset).not.toHaveBeenCalled()
     })
 
     describe('allowedContentTypes', () => {
@@ -316,42 +301,38 @@ describe('VinylPlayer', () => {
             const trackController = deps.trackController
             // Sanity: the handler must not fire on the initial (undefined
             // previous) emission during construction.
-            expect(trackController.reloadCurrentTrack).not.toHaveBeenCalled()
+            expect(trackController.reset).not.toHaveBeenCalled()
             expect(trackController.clearPrefetch).not.toHaveBeenCalled()
 
             player.configure({ allowedContentTypes: ['audio'] })
 
             expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
-            expect(
-                trackController.reloadCurrentTrack
-            ).toHaveBeenCalledOnceWith()
+            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
         })
 
         it('does not reload when the allow list is unchanged', () => {
             const trackController = deps.trackController
             player.configure({ allowedContentTypes: ['audio'] })
-            trackController.reloadCurrentTrack.calls.reset()
+            trackController.reset.calls.reset()
             trackController.clearPrefetch.calls.reset()
 
             // Re-applying the same value is a no-op (configure diffs deeply).
             player.configure({ allowedContentTypes: ['audio'] })
 
-            expect(trackController.reloadCurrentTrack).not.toHaveBeenCalled()
+            expect(trackController.reset).not.toHaveBeenCalled()
             expect(trackController.clearPrefetch).not.toHaveBeenCalled()
         })
 
         it('reloads again when the allow list is later cleared', () => {
             const trackController = deps.trackController
             player.configure({ allowedContentTypes: ['audio'] })
-            trackController.reloadCurrentTrack.calls.reset()
+            trackController.reset.calls.reset()
             trackController.clearPrefetch.calls.reset()
 
             player.configure({ allowedContentTypes: null })
 
             expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
-            expect(
-                trackController.reloadCurrentTrack
-            ).toHaveBeenCalledOnceWith()
+            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
         })
     })
 
@@ -367,16 +348,6 @@ describe('VinylPlayer', () => {
             expect(player.currentTrack).toBe(mockTrackA)
             deps.trackController.currentTrack = mockTrackB
             expect(player.currentTrack).toBe(mockTrackB)
-        })
-    })
-
-    describe('currentAdTrack', () => {
-        it('returns the currently playing ad track', () => {
-            expect(player.currentAdTrack).toBeNull()
-            const adTrack = new MockTrack()
-            adTrack.uri = 'ad'
-            deps.trackController.currentAdTrack = adTrack
-            expect(player.currentAdTrack).toBe(adTrack)
         })
     })
 
@@ -780,7 +751,7 @@ describe('VinylPlayer', () => {
 
             expect(deps.drmController.reset).toHaveBeenCalledOnceWith()
             expect(deps.playbackController.reset).toHaveBeenCalledOnceWith()
-            expect(deps.trackController.reset).toHaveBeenCalledOnceWith()
+            expect(deps.trackController.reset).toHaveBeenCalledOnceWith(false)
         })
 
         it('clears the error state', () => {
@@ -886,7 +857,7 @@ describe('VinylPlayer', () => {
             expect(player.error).toBeNull()
             expect(deps.drmController.reset).toHaveBeenCalledOnceWith()
             expect(deps.playbackController.reset).toHaveBeenCalledOnceWith()
-            expect(deps.trackController.reset).toHaveBeenCalledOnceWith()
+            expect(deps.trackController.reset).toHaveBeenCalledOnceWith(false)
         })
 
         it('clears auto reset controller on reset', () => {

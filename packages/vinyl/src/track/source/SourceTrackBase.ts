@@ -3,12 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-    TrackBase,
-    type TrackBaseDeps,
-    type TrackBaseOptions,
-    trackBaseOptionsValidator,
-} from '../TrackBase'
+import { TrackBase, type TrackBaseDeps } from '../TrackBase'
 import type {
     TrackEventMap,
     TrackPreloadOptions,
@@ -17,10 +12,12 @@ import type {
 } from '../Track'
 import { FixedPlaybackQuality } from './FixedPlaybackQuality'
 import {
+    createDisposer,
     logDebug,
     type Maybe,
     type ReadonlySet,
     redispatchEvents,
+    type Unsubscribe,
 } from '@amazon/vinyl-util'
 import {
     type ContentType,
@@ -29,8 +26,12 @@ import {
     mediaQualityMetadataValidator,
 } from '../../streaming/MediaQualityMetadata'
 import type { ObjectSchema } from '@amazon/vinyl-validation'
+import {
+    type TrackConfigOptions,
+    trackConfigOptionsValidator,
+} from '../TrackFactory'
 
-export interface SourceTrackBaseOptions extends TrackBaseOptions {
+export interface SourceTrackConfigOptions extends TrackConfigOptions {
     /**
      * Quality metadata.
      * May be used to configure DRM (for native HLS), codec, or other track metadata.
@@ -38,8 +39,8 @@ export interface SourceTrackBaseOptions extends TrackBaseOptions {
     readonly qualityMetadata?: Maybe<Partial<MediaQualityMetadata>>
 }
 
-export const sourceTrackBaseOptionsValidator: ObjectSchema<SourceTrackBaseOptions> =
-    trackBaseOptionsValidator.extend({
+export const sourceTrackBaseOptionsValidator: ObjectSchema<SourceTrackConfigOptions> =
+    trackConfigOptionsValidator.extend({
         qualityMetadata: mediaQualityMetadataValidator
             .partial()
             .maybe()
@@ -52,10 +53,11 @@ const emptyMediaQualityMetadata: MediaQualityMetadata =
 export abstract class SourceTrackBase<
     SrcType,
     EventMap extends TrackEventMap = TrackEventMap,
-    LoadOptionsType extends SourceTrackBaseOptions = SourceTrackBaseOptions,
+    LoadOptionsType extends SourceTrackConfigOptions = SourceTrackConfigOptions,
 > extends TrackBase<EventMap, LoadOptionsType> {
     private readonly fixedPlaybackQuality: FixedPlaybackQuality
     private _resolvedSrc: SrcType | null = null
+    private activeSub: Unsubscribe | null = null
 
     protected constructor(
         uri: TrackUri,
@@ -120,20 +122,34 @@ export abstract class SourceTrackBase<
     }
 
     onActivated(): void {
+        const { add, dispose } = createDisposer()
+        this.activeSub = dispose
+        add(
+            this.deps.playbackController.on('durationChange', (event) => {
+                this.setSeekRange({
+                    start: 0,
+                    end: event.current,
+                })
+            })
+        )
         this.fixedPlaybackQuality.activate()
         this.deps.drmController.initializeForPlayback(
             this.fixedPlaybackQuality.fixedQuality,
             this.drmSessionAbort.value
         )
         if (this._resolvedSrc != null) this.setSrc(this._resolvedSrc)
+        add(() => {
+            if (this._resolvedSrc != null) this.clearSrc()
+            this.fixedPlaybackQuality.deactivate()
+        })
     }
 
     protected abstract setSrc(src: SrcType): void
     protected abstract clearSrc(): void
 
     onDeactivated(): void {
-        if (this._resolvedSrc != null) this.clearSrc()
-        this.fixedPlaybackQuality.deactivate()
+        this.activeSub?.()
+        this.activeSub = null
     }
 
     clearPrefetch() {

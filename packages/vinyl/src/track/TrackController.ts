@@ -11,20 +11,22 @@ import {
     EventHostImpl,
     first,
     getOrSet,
+    IllegalStateError,
     logDebug,
     logInfo,
+    logWarn,
     LruCache,
     type Maybe,
     noop,
     type ReadonlyEventHost,
-    type TimeoutId,
+    type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { PlaybackController } from '../playback/PlaybackController'
 import type { ReadonlyTrack, Track, TrackUri } from './Track'
 import type { TrackFactory, TrackLoadOptions } from './TrackFactory'
 import type { ChangeEvent } from '../event/ChangeEvent'
-import type { AdBreakPlacement, AdController, AdInfo } from '../ad/AdBreak'
-import { inferTrackType } from '../ad/inferTrackType'
+import type { AdController } from '../ad/AdController'
+import type { AdInfo } from '../ad/AdBreakInfo'
 
 export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,
@@ -46,6 +48,8 @@ export interface TrackControllerEventMap<
 
     /**
      * Dispatched when the queue has changed.
+     *
+     * Will be emitted before currentTrackChange.
      */
     readonly queueChange: ChangeEvent<readonly TrackLoadOptionsType[]>
 
@@ -74,14 +78,6 @@ export interface ReadonlyTrackController<
      * Returns the current track.
      */
     readonly currentTrack: ReadonlyTrack | null
-
-    /**
-     * Returns the ad track currently playing over the content track, or null
-     * when no ad is playing. This is exposed separately from
-     * {@link currentTrack}: while an ad plays, {@link currentTrack} continues
-     * to reference the (suspended) content track and the queue is unchanged.
-     */
-    readonly currentAdTrack: ReadonlyTrack | null
 
     /**
      * Returns the current queue of TrackLoadOptions.
@@ -178,7 +174,7 @@ export interface TrackController<
     clearPrefetch(): void
 
     /**
-     * Clears the track cache and unloads the current track.
+     * Clears the track cache, unloads the current track, and clears the queue.
      */
     clearTrackCache(): void
 
@@ -190,17 +186,11 @@ export interface TrackController<
 
     /**
      * Resets the current track's error state.
+     *
+     * @param hard If true, the track will reset the playback state and
+     * recreate media sources.
      */
-    reset(): void
-
-    /**
-     * Disposes and re-creates the current track from scratch, then reactivates
-     * it, preserving the current playback position. Unlike {@link reset}, this
-     * rebuilds the underlying MediaSource, which is required to recover from
-     * failures that poison the media pipeline (e.g. a decode/append failure).
-     * No-op when there is no current track.
-     */
-    reloadCurrentTrack(): void
+    reset(hard?: boolean): void
 }
 
 export interface TrackControllerImplDeps<
@@ -210,8 +200,14 @@ export interface TrackControllerImplDeps<
 
     readonly playbackController: PlaybackController
 
-    readonly adController?: AdController | null
+    readonly adController: AdController
+
+    readonly adTrackLoadOptionsProvider: AdTrackLoadOptionsProvider<TrackLoadOptionsType>
 }
+
+export type AdTrackLoadOptionsProvider<
+    TrackLoadOptionsType extends TrackLoadOptions,
+> = (adInfo: AdInfo) => Promise<TrackLoadOptionsType>
 
 export interface TrackControllerImplOptions {
     /**
@@ -219,13 +215,6 @@ export interface TrackControllerImplOptions {
      * Default: 2
      */
     readonly trackPrefetchCount: number
-
-    /**
-     * The number of seconds before load calls will time out if the first track's metadata is not loaded within
-     * this time.
-     * Default: 60
-     */
-    readonly loadTimeout: number
 
     /**
      * The number of tracks that may be preloaded at one time (not counting queue prefetch).
@@ -239,7 +228,6 @@ export interface TrackControllerImplOptions {
 
 const defaultTrackControllerImplOptions = {
     trackPrefetchCount: 2,
-    loadTimeout: 60,
     preloadCapacity: 2,
 } as const satisfies TrackControllerImplOptions
 
@@ -263,30 +251,18 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     // When tracks are preloaded, the cache capacity may expand automatically to accommodate.
     private _autoPreloadCapacity = 0
     private readonly trackCache = new LruCache<string, Track>(0)
+    // A monotonically increasing id for a queue change, to allow for queue changes during events.
+    private queueIdx = 0
     private _queue: readonly TrackLoadOptionsType[] = []
     private _current: TrackLoadOptionsType | null = null
+    private _adParent: TrackLoadOptionsType | null = null
+    private _currentTrack: Track | null = null
+    // Active track listeners
+    private activeTrackSub: Unsubscribe | null = null
+
     private readonly disposer = createDisposer()
     private _options: TrackControllerImplOptions =
         defaultTrackControllerImplOptions
-
-    private trackEndedTimeoutId: TimeoutId | null = null
-    // Ad playback state. The ad track plays "over" the suspended content track;
-    // it is not part of the queue or the track cache.
-    private _adTrack: Track | null = null
-    private _adTrackAdId: string | null = null
-    private _adResumeTime: number = 0
-    private _adTimeoutId: TimeoutId | null = null
-    // The placement of the break currently playing. A postroll finalizes the
-    // queue on completion (content is over) rather than resuming content.
-    private _activeBreakPlacement: AdBreakPlacement | null = null
-    // True while an ad ends naturally (its `ended` fired). Content should resume
-    // playing in that case; a natural end leaves the element paused, which must
-    // not be mistaken for the user having paused during the ad.
-    private _adEndedNaturally = false
-    // Ad tracks that have been created for preloading, keyed by ad id, so they
-    // can be reused on activation and disposed when content changes.
-    private readonly _adTrackCache = new Map<string, Track>()
-    private readonly _preloadedAdIds = new Set<string>()
 
     constructor(
         private readonly deps: TrackControllerImplDeps<TrackLoadOptionsType>,
@@ -294,11 +270,13 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     ) {
         super()
         const { add } = this.disposer
+        const { playbackController } = deps
 
         this.trackCache.onEvicting = (track) => {
             // Do not evict tracks within the prefetch range.
             return (
-                this.prefetched.find((value) => value.uri === track.uri) == null
+                this.getPrefetched().find((value) => value.uri === track.uri) ==
+                null
             )
         }
 
@@ -308,256 +286,110 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             return true
         }
 
-        add(
-            deps.playbackController.on('ended', () => {
-                if (deps.adController?.adPlaying) {
-                    // The current ad played to its end. Advancing to the next
-                    // ad or resuming content should continue playing (the
-                    // natural end leaves the element paused).
-                    this._adEndedNaturally = true
-                    deps.adController.advanceOrSkipAd()
-                    this._adEndedNaturally = false
-                    return
-                }
-                // A postroll's start sits at the content end, so the playhead
-                // rarely emits a timeUpdate inside it before `ended`. Give the
-                // ad controller a chance to activate a pending postroll. Mark
-                // the break as a postroll up front so that even if it resolves
-                // to no ads, its completion still finalizes the queue instead
-                // of stalling.
-                if (deps.adController?.enterPostrollIfPending()) {
-                    this._activeBreakPlacement = 'postroll'
-                    return
-                }
-                this.finishContent()
-            })
-        )
+        add(playbackController.on('ended', this.onTrackEnded))
 
-        const adController = deps.adController
-        if (adController) {
-            add(
-                adController.on('adBreakChange', (event) => {
-                    if (event.current) {
-                        // A break is active (entering or advancing an ad).
-                        // Switch playback to the current ad's track.
-                        this._activeBreakPlacement = event.current.placement
-                        const ad = adController.currentAd
-                        if (ad) this.playAdTrack(ad)
-                    } else if (this._activeBreakPlacement === 'postroll') {
-                        // A postroll finished: content is over, so finalize the
-                        // queue rather than replaying the content track.
-                        this._activeBreakPlacement = null
-                        this.finishPostroll()
-                    } else if (this._adTrack) {
-                        // The break ended — resume the content track.
-                        this._activeBreakPlacement = null
-                        this.resumeContent()
-                    }
-                })
-            )
-            add(
-                deps.playbackController.on('timeUpdate', () => {
-                    this.preloadUpcomingAds(
-                        adController,
-                        deps.playbackController.currentTime
-                    )
-                })
-            )
-        }
-
+        this.initializeAdHandling()
         this.configure(initialOptions)
     }
 
-    /**
-     * Creates (or reuses a preloaded) ad track for the given ad and switches
-     * playback to it, suspending the content track on the first ad of a break.
-     */
-    private playAdTrack(ad: AdInfo): void {
-        if (this._adTrackAdId === ad.id && this._adTrack) return
-        const track = this.getOrCreateAdTrack(ad)
-        if (!track) {
-            // No playable track for this ad — advance past it.
-            this.deps.adController?.advanceOrSkipAd()
-            return
-        }
-        if (this._adTrack) {
-            // Advancing to the next ad within the same break.
-            this._adTrack.deactivate()
-        } else if (this._currentTrack?.active) {
-            // First ad of the break — save the resume position, then suspend
-            // content.
-            this._adResumeTime = this.deps.playbackController.currentTime
-            this._currentTrack.deactivate()
-        }
-        this._adTrack = track
-        this._adTrackAdId = ad.id
-        track.activate({})
-        this.deps.playbackController.play().catch(() => {
-            if (this.disposer.disposed) return
-            this.deps.adController?.advanceOrSkipAd()
-        })
-        // Timeout: if the ad doesn't start within 10s, skip it. The timeout is
-        // cleared on resume/advance and on dispose (via clearAdTracks).
-        if (this._adTimeoutId) clearTimeout(this._adTimeoutId)
-        this._adTimeoutId = setTimeout(() => {
-            this._adTimeoutId = null
-            if (
-                this._adTrack === track &&
-                this.deps.playbackController.currentTime === 0
-            ) {
-                logDebug(this, 'ad playback timeout, skipping')
-                this.deps.adController?.advanceOrSkipAd()
-            }
-        }, AD_PLAYBACK_TIMEOUT_MS)
-    }
-
-    private resumeContent(): void {
-        // Decide whether to resume playing:
-        //  - Ad ended naturally: continue playing (the ended element is paused,
-        //    but the user was watching and expects content to follow).
-        //  - User skipped: honor the current intent — stay paused if the user
-        //    had paused during the ad, otherwise resume playing. Read this
-        //    BEFORE clearAdPlayback(), whose deactivate() pauses the element.
-        const playback = this.deps.playbackController
-        const shouldPlay =
-            this._adEndedNaturally || !playback.paused || playback.playIsPending
-        this.clearAdPlayback()
-        if (this._currentTrack && !this._currentTrack.active) {
-            // Reactivate with the resume time as startTime so the track seeks
-            // there as part of its normal activation (which waits for the
-            // MediaSource to be ready before seeking).
-            const config = this._current?.config ?? {}
-            this._currentTrack.activate({
-                ...config,
-                startTime: this._adResumeTime,
-            })
-            if (shouldPlay) playback.play().catch(() => {})
-        }
-    }
-
-    /**
-     * Handles the end of a postroll break. Content is over, so advance to the
-     * next queued track if there is one; otherwise reset the content track to
-     * its start (loaded and paused) and finalize the queue.
-     */
-    private finishPostroll(): void {
-        if (this.hasNext()) {
-            this.clearAdPlayback()
-            // next() reactivates the upcoming track and preserves play state.
-            this.next()
-            return
-        }
-        // Content is over. Tear down the ad and reactivate the content track at
-        // its start so the element keeps a source (parked at 0, not replaying
-        // the end) without auto-playing.
-        this.clearAdPlayback()
-        if (this._currentTrack && !this._currentTrack.active) {
-            this._currentTrack.activate(this._current?.config ?? {})
-        }
-        logInfo(this, 'queueEnded')
-        this.dispatch('queueEnded', {})
-    }
-
-    /**
-     * Tears down the active ad track and its timeout without touching the
-     * content track or the preload cache.
-     */
-    private clearAdPlayback(): void {
-        if (this._adTimeoutId) {
-            clearTimeout(this._adTimeoutId)
-            this._adTimeoutId = null
-        }
-        if (this._adTrack) {
-            this._adTrack.deactivate()
-            this._adTrack = null
-            this._adTrackAdId = null
-        }
-    }
-
-    /**
-     * Finalizes end-of-content: advances to the next queued track after a frame
-     * delay, or dispatches `queueEnded` when the queue is empty.
-     */
-    private finishContent(): void {
-        this.trackEndedTimeoutId = setTimeout(() => {
-            this.trackEndedTimeoutId = null
-            if (this.hasNext()) {
-                this.next()
-            } else {
-                logInfo(this, 'queueEnded')
-                this.dispatch('queueEnded', {})
-            }
-        })
-    }
-
-    /**
-     * Returns the ad track for the given ad, creating and caching it if needed.
-     * Returns null when no track type can be inferred from the ad URI.
-     */
-    private getOrCreateAdTrack(ad: AdInfo): Track | null {
-        const cached = this._adTrackCache.get(ad.id)
-        if (cached) return cached
-        if (!ad.uri) return null
-        const type = inferTrackType(ad.uri)
-        if (!type) return null
-        const track = this.deps.trackFactory.createTrack({
-            type,
-            uri: ad.uri,
-        } as unknown as TrackLoadOptionsType)
-        this._adTrackCache.set(ad.id, track)
-        return track
-    }
-
-    /**
-     * Preloads ad tracks for any break the playhead is approaching (within
-     * {@link AD_PRELOAD_SECONDS}), resolving each break's ad list lazily.
-     */
-    private preloadUpcomingAds(adController: AdController, time: number): void {
-        for (const adBreak of adController.adBreaks) {
-            if (time < adBreak.startTime - AD_PRELOAD_SECONDS) continue
-            if (time > adBreak.startTime) continue
-            void adBreak.ads().then((ads) => {
-                if (this.disposer.disposed) return
-                for (const ad of ads) {
-                    if (this._preloadedAdIds.has(ad.id)) continue
-                    const track = this.getOrCreateAdTrack(ad)
-                    if (!track) continue
-                    this._preloadedAdIds.add(ad.id)
-                    track.preload({ prefetchPriority: 0 }, {})
+    private initializeAdHandling() {
+        const { add } = this.disposer
+        const { adController, adTrackLoadOptionsProvider } = this.deps
+        add(
+            adController.on('adEntered', (event) => {
+                const interrupted = this.getQueueInterrupted()
+                if (event.ad.uri) {
+                    // Infer the track load options from the ad.
+                    adTrackLoadOptionsProvider(event.ad)
+                        .then((adTrack) => {
+                            if (!interrupted()) {
+                                this.setQueue(adTrack, this._queue, {
+                                    fromAd: true,
+                                    shouldPlay: true,
+                                })
+                            }
+                        })
+                        .catch((error) => {
+                            if (!interrupted()) adController.failAd(error)
+                        })
                 }
             })
-        }
+        )
+
+        add(
+            adController.on('adCompleted', (event) => {
+                const adParent = this._adParent
+                if (!adParent) {
+                    logWarn(this, 'ad completed without a parent media track')
+                    return
+                }
+                logDebug(this, 'adCompleted')
+                const isPreroll = event.adBreak.placement === 'preroll'
+                const isPostroll = event.adBreak.placement === 'postroll'
+                const interrupted = this.getQueueInterrupted()
+                setTimeout(() => {
+                    // Delay a frame before changing the queue to allow other handlers of adCompleted
+                    // to query the current ad track.
+                    if (interrupted()) return
+                    if (isPostroll && this.hasNext()) {
+                        this.next()
+                    } else {
+                        const startTime = isPreroll
+                            ? adParent.config?.startTime
+                            : event.resumeOffset
+                        // Resume the main track.
+                        this.setQueue(
+                            {
+                                ...adParent,
+                                config: {
+                                    ...adParent.config,
+                                    startTime,
+                                },
+                            },
+                            this._queue,
+                            {
+                                fromAd: true,
+                                shouldPlay: !isPostroll,
+                            }
+                        )
+                        if (isPostroll) {
+                            logInfo(this, 'queueEnded after postroll ad(s)')
+                            this.dispatch('queueEnded', {})
+                        }
+                    }
+                })
+            })
+        )
     }
 
     /**
-     * Disposes all ad tracks and clears ad playback state. Called when the
-     * content track changes so ads owned by the previous content don't linger.
+     * The current track has ended naturally. On the next tick advance the queue or emit queue ended.
      */
-    private clearAdTracks(): void {
-        if (this._adTimeoutId) {
-            clearTimeout(this._adTimeoutId)
-            this._adTimeoutId = null
-        }
-        if (this._adTrack) {
-            this._adTrack.deactivate()
-            this._adTrack = null
-            this._adTrackAdId = null
-        }
-        for (const track of this._adTrackCache.values()) track.dispose()
-        this._adTrackCache.clear()
-        this._preloadedAdIds.clear()
-        this._activeBreakPlacement = null
-        // Fully reset the ad controller: break and ad ids are only unique
-        // within a single presentation, so retaining any state (including skip
-        // history) across a content change would let the previous content's
-        // ids collide with the new one's.
-        this.deps.adController?.reset()
-    }
+    private onTrackEnded = () => {
+        const { adController } = this.deps
 
-    private clearTrackEndedTimeout() {
-        if (this.trackEndedTimeoutId) {
-            clearTimeout(this.trackEndedTimeoutId)
-            this.trackEndedTimeoutId = null
+        const interrupted = this.getQueueInterrupted()
+        const ad = adController.currentAd
+
+        if (!ad) {
+            adController.enterPostroll()
+            if (adController.currentAdBreak) {
+                // There is a pending postroll, do not advance the queue,
+                // a new adEntered event will fire.
+                return
+            }
+
+            // Adds a frame delay to allow applications an opportunity to respond to 'ended' events before the
+            // queue is advanced.
+            setTimeout(() => {
+                if (interrupted()) return
+                if (this.hasNext()) {
+                    this.next()
+                } else {
+                    logInfo(this, 'queueEnded')
+                    this.dispatch('queueEnded', {})
+                }
+            })
         }
     }
 
@@ -602,7 +434,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
      * Returns the subset of the queue that should be prefetched.
      * @private
      */
-    private get prefetched(): readonly TrackLoadOptionsType[] {
+    private getPrefetched(): readonly TrackLoadOptionsType[] {
         const tracks: TrackLoadOptionsType[] = []
         if (this._current) tracks.push(this._current)
         tracks.push(...this._queue.slice(0, this.options.trackPrefetchCount))
@@ -642,7 +474,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     private _preload(loadOptionsList: readonly TrackLoadOptionsType[]): void {
-        const prefetched = this.prefetched
+        const prefetched = this.getPrefetched()
         // Calculate the required preload capacity as the number of tracks requested that are not within the
         // prefetch window. If this value is greater than the current preloadCapacity, increase the cache size.
         const requiredPreloadCapacity = countElements(
@@ -671,23 +503,22 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 },
                 loadOptions.config ?? {}
             )
+            this.preloadTrackAds(track, priority)
         }
     }
+
+    /**
+     * Ad preloading hook: when a main track's ads become known, its ad assets
+     * are preloaded so that entering an ad break incurs no load latency.
+     *
+     * Not yet implemented; wired up in a follow-up change.
+     */
+    private preloadTrackAds(_track: Track, _basePriority: number): void {}
 
     load(...loadOptionsList: readonly TrackLoadOptionsType[]): void {
         logDebug(this, `load ${loadOptionsList.length} items`)
         loadOptionsList.forEach(this.validateLoadOptions)
-        this.clearTrackEndedTimeout()
-        this.clearAdTracks()
-        this._current = loadOptionsList[0] ?? null
-        const previousQueue = this._queue
-        this._queue = loadOptionsList.slice(1)
-        this._preload(this.prefetched)
-        this.activateCurrent()
-        this.dispatch('queueChange', {
-            previous: previousQueue,
-            current: this._queue,
-        })
+        this.setQueue(loadOptionsList[0], loadOptionsList.slice(1))
     }
 
     unload() {
@@ -697,14 +528,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     enqueue(...loadOptionsList: readonly TrackLoadOptionsType[]): void {
         logDebug(this, `enqueue ${loadOptionsList.length} items`)
         loadOptionsList.forEach(this.validateLoadOptions)
-        const previousQueue = this._queue
-        this._queue = this._queue.concat(loadOptionsList)
-        this._preload(this.prefetched)
+        this.setQueue(this._current, this._queue.concat(loadOptionsList))
         if (this.currentTrack == null && this.hasNext()) this.next()
-        this.dispatch('queueChange', {
-            previous: previousQueue,
-            current: this._queue,
-        })
     }
 
     hasNext(): boolean {
@@ -712,47 +537,23 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     next(): void {
-        this.clearTrackEndedTimeout()
-        this.clearAdTracks()
         const playbackController = this.deps.playbackController
         const shouldPlay =
             playbackController.ended || !playbackController.paused
         const next = first(this._queue)
-        const previousQueue = this._queue
-        this._queue = this._queue.slice(1)
-        this._current = next ?? null
-        logDebug(this, 'next, nextTrack:', this._current)
-        if (
-            this.options.trackPrefetchCount > 0 &&
-            this._queue.length >= this.options.trackPrefetchCount
-        ) {
-            this._preload([this._queue[this.options.trackPrefetchCount - 1]])
-        }
-        this.activateCurrent()
-        if (shouldPlay) void playbackController.play().catch(noop)
-        this.dispatch('queueChange', {
-            previous: previousQueue,
-            current: this._queue,
-        })
+        logDebug(this, 'next, nextTrack:', next)
+        this.setQueue(next, this._queue.slice(1), { shouldPlay })
     }
 
     clearTrackCache() {
         logDebug(this, 'clearTrackCache')
-        this.clearTrackEndedTimeout()
-        this.clearAdTracks()
-        const previousQueue = this._queue
-        this._queue = []
         this.trackCache.forEach((track) => {
             track.dispose()
         })
         this.trackCache.clear()
         this._autoPreloadCapacity = 0
         this.checkCacheCapacity()
-        this.clearCurrentTrack()
-        this.dispatch('queueChange', {
-            previous: previousQueue,
-            current: this._queue,
-        })
+        this.setQueue(null, [])
     }
 
     clearPrefetch(): void {
@@ -762,13 +563,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     clearQueue(): void {
-        this.clearTrackEndedTimeout()
-        const previous = this._queue
-        this._queue = []
-        this.dispatch('queueChange', {
-            previous,
-            current: this._queue,
-        })
+        // Clears the upcoming queue without unloading the current track.
+        this.setQueue(this._current, [])
     }
 
     /**
@@ -791,108 +587,159 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     /**
-     * Get the current track from cache or create a new track, then activates that track.
+     * Sets the current track and following queue.
+     *
+     * If the given track is already current, it will be de-activated and re-activated and the currentTrackChange
+     * event will still be emitted. The same track may be in the queue multiple times.
      */
-    private activateCurrent(): void {
-        const loadOptions = this._current
-        if (!loadOptions) {
-            this.clearCurrentTrack()
-            return
+    private setQueue(
+        current: Maybe<TrackLoadOptionsType>,
+        queue: readonly TrackLoadOptionsType[],
+        options?: {
+            /**
+             * True if the queue change is from an ad event.
+             */
+            readonly fromAd?: boolean
+
+            /**
+             * If true, starts playback after the track has changed.
+             */
+            readonly shouldPlay?: boolean
         }
-        this.setCurrentTrack(
-            this.getOrCreateTrack(loadOptions.uri, loadOptions),
-            loadOptions
+    ): void {
+        const { adController, playbackController } = this.deps
+        ++this.queueIdx
+        const interrupted = this.getQueueInterrupted()
+        const previousQueue = this._queue
+        const previous = this._current
+        const previousTrack = this._currentTrack
+        if (previous !== current) {
+            this.activeTrackSub?.()
+            this.activeTrackSub = null
+            // Update the current/queue pointers before materializing the track,
+            // so cache eviction inside getOrCreateTrack protects the incoming
+            // track and its prefetch window rather than the outgoing one.
+            this._current = current ?? null
+            if (!options?.fromAd) {
+                this._adParent = this._current
+            }
+            this._queue = queue
+            const newTrack =
+                current == null
+                    ? null
+                    : this.getOrCreateTrack(current.uri, current)
+            this.dispatch('currentTrackChanging', {
+                previous: previousTrack,
+                current: newTrack,
+            })
+            if (interrupted()) return
+            this._currentTrack = newTrack
+            if (previousTrack) {
+                if (!options?.fromAd) {
+                    adController.setAds(null)
+                }
+                previousTrack.deactivate()
+            }
+            if (newTrack) {
+                const { add, dispose } = createDisposer()
+                this.activeTrackSub = dispose
+
+                // Re-baseline after the setAds(null) above: clearing the outgoing
+                // track's ads nulls the active ad, which the top-level interrupted()
+                // would otherwise read as an interruption and skip activation.
+                const activateInterrupted = this.getQueueInterrupted()
+
+                // Activates and optionally plays the new track. This is not invoked until after potential preroll
+                // ads have been resolved.
+                const activate = () => {
+                    if (newTrack.active || activateInterrupted()) return
+                    newTrack.activate(current!.config ?? {})
+                    if (options?.shouldPlay) {
+                        playbackController.play().catch(noop)
+                    }
+                }
+
+                if (!options?.fromAd) {
+                    adController.clearCompletedAds()
+                    add(
+                        newTrack.on('error', (event) => {
+                            adController.failAd(event.error)
+                        })
+                    )
+
+                    const refreshAds = () => {
+                        adController.setAds(newTrack.ads)
+                        if (newTrack.ads && !adController.currentAdBreak) {
+                            activate()
+                        }
+                    }
+                    add(newTrack.on('adsChange', refreshAds))
+                    refreshAds()
+                    // Ad preloading for the current track is wired by the
+                    // _preload(getPrefetched()) call below (the current track is
+                    // always in the prefetch window), at a priority just below
+                    // the track itself.
+                } else {
+                    activate()
+                }
+            }
+        } else {
+            // The current track is unchanged but the queue may have (e.g. an
+            // enqueue while a track is playing, or an enqueue into an empty
+            // controller). Keep the queue in sync so hasNext()/next() work.
+            this._queue = queue
+        }
+        this._preload(this.getPrefetched())
+        logDebug(
+            this,
+            `currentTrackChange, previous: ${previous?.uri} current: ${current?.uri}`
         )
+        if (previousQueue !== this._queue) {
+            // Re-baseline the interruption check here: setQueue may itself have
+            // changed the active ad (e.g. a content change clears it via
+            // adController.setAds(null)). Only a queueChange *handler* that
+            // re-enters and mutates the queue/ad should count as illegal.
+            const queueChangeInterrupted = this.getQueueInterrupted()
+            this.dispatch('queueChange', {
+                previous: previousQueue,
+                current: this._queue,
+            })
+            if (queueChangeInterrupted())
+                throw new IllegalStateError(
+                    `cannot change the queue on a 'queueChange' event`
+                )
+        }
+        if (previousTrack !== this._currentTrack) {
+            this.dispatch('currentTrackChange', {
+                previous: previousTrack,
+                current: this._currentTrack,
+            })
+        }
     }
 
-    private _currentTrack: Track | null = null
+    /**
+     * Returns a callback that returns true if the queue or current ad has changed or the controller disposed.
+     */
+    private getQueueInterrupted(): () => boolean {
+        const { adController } = this.deps
+        const ad = adController.currentAd
+        const idx = this.queueIdx
+        return () =>
+            this.disposed ||
+            this.queueIdx !== idx ||
+            ad !== adController.currentAd
+    }
+
     get currentTrack(): ReadonlyTrack | null {
         return this._currentTrack
     }
 
-    get currentAdTrack(): ReadonlyTrack | null {
-        return this._adTrack
+    reset(hard = false) {
+        this._currentTrack?.reset(hard)
     }
 
-    /**
-     * Sets the current track. If the given track is already current, it will be de-activated and re-activated and
-     * the currentTrackChange event will still be emitted.
-     * The same track may be in the queue multiple times.
-     */
-    private setCurrentTrack(
-        value: Track | null,
-        loadOptions: TrackLoadOptionsType | null
-    ) {
-        const previousTrack = this._currentTrack
-        this.dispatch('currentTrackChanging', {
-            previous: previousTrack,
-            current: value,
-        })
-        this._currentTrack = value
-        if (previousTrack?.active === true) previousTrack.deactivate()
-        const loadOptionsConfig = loadOptions?.config ?? {}
-        if (value?.active === false) value.activate(loadOptionsConfig)
-        logDebug(
-            this,
-            `currentTrackChange, previous: ${previousTrack} current: ${value}`
-        )
-        this.dispatch('currentTrackChange', {
-            previous: previousTrack,
-            current: value,
-        })
-    }
-
-    private clearCurrentTrack() {
-        this.setCurrentTrack(null, null)
-    }
-
-    reset() {
-        this._currentTrack?.reset()
-    }
-
-    reloadCurrentTrack() {
-        const loadOptions = this._current
-        if (!loadOptions || !this._currentTrack) {
-            logDebug(this, 'reloadCurrentTrack no-op')
-            return
-        }
-        logDebug(this, 'reloadCurrentTrack', loadOptions.uri)
-        // While an ad is playing the content track is suspended and the ad
-        // owns the media element. Rebuild the content track in place without
-        // reactivating it (or touching playback); it will be reactivated at
-        // the saved resume time when the break ends.
-        if (this._adTrack) {
-            const stale = this._currentTrack
-            this.setCurrentTrack(null, null)
-            this.trackCache.delete(loadOptions.uri)
-            stale.dispose()
-            this._currentTrack = this.getOrCreateTrack(
-                loadOptions.uri,
-                loadOptions
-            )
-            return
-        }
-        // Preserve the playhead and play state across the rebuild.
-        const resumeTime = this.deps.playbackController.currentTime
-        const wasPlaying =
-            !this.deps.playbackController.paused ||
-            this.deps.playbackController.playIsPending
-        // Deactivate, evict, and dispose the poisoned track so a fresh one
-        // (with a new MediaSource) is created on reactivation.
-        const stale = this._currentTrack
-        this.setCurrentTrack(null, null)
-        this.trackCache.delete(loadOptions.uri)
-        stale.dispose()
-        // Recreate and reactivate from the retained load options.
-        this.activateCurrent()
-        if (resumeTime > 0) {
-            this.deps.playbackController.seekTo(resumeTime).catch(() => {})
-        }
-        // Reactivation attaches a fresh MediaSource but does not resume
-        // playback; restore the prior play state.
-        if (wasPlaying) {
-            this.deps.playbackController.play().catch(() => {})
-        }
+    get disposed(): boolean {
+        return this.disposer.disposed
     }
 
     dispose() {
@@ -902,14 +749,3 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         this.disposer.dispose()
     }
 }
-
-/**
- * How long to wait for an ad to begin playing before skipping it, in ms.
- */
-const AD_PLAYBACK_TIMEOUT_MS = 10_000
-
-/**
- * How far ahead of a break's start to begin preloading its ad tracks, in
- * seconds.
- */
-const AD_PRELOAD_SECONDS = 20

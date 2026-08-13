@@ -11,16 +11,11 @@ import {
     trackLoadOptionsValidator,
 } from '../TrackFactory'
 import { ErrorOrigin, type Maybe } from '@amazon/vinyl-util'
-import {
-    func,
-    isOneOf,
-    type ObjectSchema,
-    string,
-} from '@amazon/vinyl-validation'
+import { func, isOneOf, type ObjectSchema } from '@amazon/vinyl-validation'
 import {
     SourceTrackBase,
-    type SourceTrackBaseOptions,
     sourceTrackBaseOptionsValidator,
+    type SourceTrackConfigOptions,
 } from './SourceTrackBase'
 import type { PlaybackSource } from '../../playback/PlaybackSource'
 
@@ -44,7 +39,7 @@ export interface SourceTrackLoadOptions extends TrackLoadOptions {
      * Configuration options for the SourceTrack.
      * Will be provided on preload and activate.
      */
-    readonly config?: Maybe<SourceTrackBaseOptions>
+    readonly config?: Maybe<SourceTrackConfigOptions>
 }
 
 const loadOptionsValidator: ObjectSchema<SourceTrackLoadOptions> =
@@ -52,7 +47,6 @@ const loadOptionsValidator: ObjectSchema<SourceTrackLoadOptions> =
         config: sourceTrackBaseOptionsValidator.maybe().optional(),
         srcProvider: func().maybe().optional(),
         type: isOneOf('src'),
-        uri: string().notEmpty(),
     })
 
 export function createSourceTrackFactory(

@@ -19,6 +19,7 @@ export class MockMediaSourceController
     readyState: ReadyState = 'closed'
     createSourceBuffer = spyFactory('createSourceBuffer')
     endOfStream = spyFactory('endOfStream')
-    createUrl = spyFactory('createUrl')
+    activate = spyFactory('activate')
+    deactivate = spyFactory('deactivate')
     readyToAppend = false
 }

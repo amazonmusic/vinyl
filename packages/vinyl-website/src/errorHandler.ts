@@ -4,14 +4,12 @@
  */
 
 import { toastError } from './components/toast'
+import { isSilentError } from '@amazon/vinyl-util'
 
 export function handleError(error: unknown): void {
+    if (isSilentError(error)) return
     const message = error instanceof Error ? error.message : String(error)
     toastError(message)
-}
-
-export function createErrorHandler(): (error: unknown) => void {
-    return handleError
 }
 
 window.addEventListener('unhandledrejection', (event) => {

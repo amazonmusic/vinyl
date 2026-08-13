@@ -132,7 +132,7 @@ describe('SegmentControllerImpl', () => {
                 },
             ],
             minBufferTime: 10,
-            adBreaks: [],
+            getAdBreaks: () => Promise.resolve([]),
             getDuration: () => Promise.resolve(100),
         }
 
@@ -321,7 +321,7 @@ describe('SegmentControllerImpl', () => {
                         },
                     ],
                     minBufferTime: 10,
-                    adBreaks: [],
+                    getAdBreaks: () => Promise.resolve([]),
                     getDuration: () => Promise.resolve(110),
                 }
                 timelineData.value = Promise.resolve(extendedTimeline)
@@ -464,7 +464,7 @@ describe('SegmentControllerImpl', () => {
                     },
                 ],
                 minBufferTime: 10,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(100),
             })
             // segmentController is for 'audio', but only 'video' qualities exist

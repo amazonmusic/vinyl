@@ -58,6 +58,7 @@ import {
 } from './VinylOptions'
 import { playerConfigFactory } from './playerConfigFactory'
 import type { ObservableValue } from '@amazon/vinyl-observable'
+import { defaultAdLoadOptionsResolver } from '../ad/defaultAdLoadOptionsResolver'
 
 /**
  * Configuration used by the default dependency factories for Vinyl.
@@ -149,6 +150,7 @@ export function createVinylFactories(options: VinylDependencyOptions) {
         requestInterceptor: () => noop,
         trackFactory: (deps: VinylTrackFactoryDeps) =>
             createTrackFactory(createVinylTrackFactories(deps)),
+        adTrackLoadOptionsProvider: () => defaultAdLoadOptionsResolver,
         trackController: (deps: TrackControllerImplDeps<any>) =>
             new TrackControllerImpl<any>(deps, options.trackController),
         drmKeySystemResolver: () => defaultDrmKeySystemResolver,

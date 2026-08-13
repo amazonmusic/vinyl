@@ -8,14 +8,17 @@ import {
     closeTo,
     createDisposer,
     type Disposable,
+    type Disposer,
     DomEventHost,
     ErrorLevel,
     ErrorOrigin,
     EventHostImpl,
+    IllegalStateError,
     isSilentError,
     type Json,
     logDebug,
     type LogTarget,
+    logWarn,
     type ReadonlyEventHost,
     type ReadonlySet,
     ReportableError,
@@ -100,9 +103,18 @@ export interface MediaSourceController extends ReadonlyMediaSourceController {
     endOfStream(error?: EndOfStreamError): void
 
     /**
-     * Creates an Object URL to use as the source for this stream.
+     * Creates the internal media source.
+     * Returns an Object URL to use as the source for this stream.
+     *
+     * Implementation note:
+     * Only the first
      */
-    createUrl(): string
+    activate(): string
+
+    /**
+     * Deactivates the controller, disposing underlying resources.
+     */
+    deactivate(): void
 }
 
 export interface MediaSourceControllerImplDeps {
@@ -132,8 +144,9 @@ export class MediaSourceControllerImpl
 
     private readonly sourceBuffers = new Set<SourceBuffer>()
 
-    private readonly mediaSource: MediaSource
-    private readonly disposer = createDisposer()
+    private mediaSource: MediaSource | null = null
+    private objectUrl: string | null = null
+    private activateDisposer: Disposer | null = null
     private contentTypes: ReadonlySet<ContentType> | null = null
     private durationSet = false
 
@@ -145,19 +158,77 @@ export class MediaSourceControllerImpl
 
     constructor(private readonly deps: MediaSourceControllerImplDeps) {
         super()
-        this.mediaSource = deps.mediaSourceFactory()
-        this.initializeEvents()
-        this.disposer.add(
-            deps.contentTypesValue.onData((value) => {
+    }
+
+    get active(): boolean {
+        return this.activateDisposer != null
+    }
+
+    activate(): string {
+        this.activateDisposer = createDisposer()
+        const add = this.activateDisposer.add
+
+        const mediaSource = this.deps.mediaSourceFactory()
+        this.mediaSource = mediaSource
+
+        const domEvents = add(
+            new DomEventHost<MediaSourceEventMap>(mediaSource)
+        )
+        domEvents.on('sourceopen', () => {
+            this.refreshDuration().catch(this.errorHandler)
+        })
+        domEvents.on('sourceclose', () => {
+            this.durationSet = false
+            ++this.durationToken
+        })
+
+        // Redispatch events from the media source:
+        for (const key of [
+            'sourceClose',
+            'sourceOpen',
+            'sourceEnded',
+        ] as const) {
+            domEvents.on(toLowerCase(key), () => this.dispatch(key, {}))
+        }
+        add(
+            this.deps.mediaTimelineTransformed.onData(() => {
+                this.refreshDuration().catch(this.errorHandler)
+            })
+        )
+
+        // React to content type changes (fires immediately with the current
+        // value and again whenever the timeline reveals new content types).
+        add(
+            this.deps.contentTypesValue.onData((contentTypesPromise) => {
+                // The pending content types are unknown until the new promise
+                // resolves, so the controller is not ready to append until then.
                 this.contentTypes = null
-                value
+                contentTypesPromise
                     .then((contentTypes) => {
+                        if (
+                            this.deps.contentTypesValue.value !==
+                            contentTypesPromise
+                        )
+                            return // Stale
                         this.contentTypes = contentTypes
                         this.checkReady()
                     })
                     .catch(this.errorHandler)
             })
         )
+        this.objectUrl = URL.createObjectURL(mediaSource)
+        return this.objectUrl
+    }
+
+    deactivate() {
+        if (!this.active) return
+        this.activateDisposer!.dispose()
+        this.activateDisposer = null
+        try {
+            URL.revokeObjectURL(this.objectUrl!)
+        } catch (error) {
+            logWarn(this, 'error revoking object url', error)
+        }
     }
 
     private get sourceBufferCount(): number {
@@ -173,35 +244,6 @@ export class MediaSourceControllerImpl
     }
 
     /**
-     * Subscription to mediaTimelineTransformed; only attached while the media source is open
-     * so the timeline pipeline isn't forced to evaluate before the source has opened.
-     */
-    private timelineSub: (() => void) | null = null
-
-    private initializeEvents(): void {
-        const domEvents = new DomEventHost<MediaSourceEventMap>(
-            this.mediaSource
-        )
-        for (const key of [
-            'sourceClose',
-            'sourceOpen',
-            'sourceEnded',
-        ] as const) {
-            domEvents.on(toLowerCase(key), () => this.dispatch(key, {}))
-        }
-        this.timelineSub = this.deps.mediaTimelineTransformed.onData(() => {
-            this.refreshDuration().catch(this.errorHandler)
-        })
-        this.on('sourceOpen', () => {
-            this.refreshDuration().catch(this.errorHandler)
-        })
-        this.on('sourceClose', () => {
-            this.durationSet = false
-            ++this.durationToken
-        })
-    }
-
-    /**
      * Sets the duration on the media source from the current media timeline.
      * Live streams use LIVE_DURATION since not all browsers support +Infinity duration.
      *
@@ -209,6 +251,7 @@ export class MediaSourceControllerImpl
      * so we wait for all tracked source buffers to be idle first.
      */
     private async refreshDuration(): Promise<void> {
+        const mediaSource = this.mediaSource!
         const timelinePromise = this.deps.mediaTimelineTransformed.value
         const token = ++this.durationToken
         const timeline = await timelinePromise
@@ -218,25 +261,30 @@ export class MediaSourceControllerImpl
         await Promise.all(Array.from(this.sourceBuffers, nextSourceBufferIdle))
         if (
             token !== this.durationToken ||
-            this.mediaSource.readyState !== 'open' ||
-            closeTo(this.mediaSource.duration, value, 0.1)
+            mediaSource.readyState !== 'open' ||
+            closeTo(mediaSource.duration, value, 0.1)
         )
             return
         logDebug(this, `setting duration: ${value}`)
-        this.mediaSource.duration = value
+        mediaSource.duration = value
         this.durationSet = true
         this.checkReady()
     }
 
     get readyState(): ReadyState {
-        return this.mediaSource.readyState
+        return this.mediaSource?.readyState ?? 'closed'
     }
 
     createSourceBuffer(
         contentType: ContentType,
         mimeType: string
     ): SourceBufferRef {
-        const mediaSource = this.mediaSource
+        if (!this.active) {
+            throw new IllegalStateError(
+                'cannot create a source buffer when not active'
+            )
+        }
+        const mediaSource = this.mediaSource!
         logDebug(
             this,
             'create source buffer',
@@ -256,21 +304,19 @@ export class MediaSourceControllerImpl
         this.sourceBuffers.add(sourceBuffer)
         this.checkReady()
 
-        const dispose = () => {
-            logDebug(
-                this,
-                'removing source buffer from media source',
-                mediaSource.readyState
-            )
-            if (mediaSource.readyState !== 'closed') {
-                mediaSource.removeSourceBuffer(sourceBuffer)
-            }
-            this.sourceBuffers.delete(sourceBuffer)
-        }
-
         return {
             value: sourceBuffer,
-            dispose,
+            dispose: () => {
+                logDebug(
+                    this,
+                    'removing source buffer from media source',
+                    mediaSource.readyState
+                )
+                if (mediaSource.readyState !== 'closed') {
+                    mediaSource.removeSourceBuffer(sourceBuffer)
+                }
+                this.sourceBuffers.delete(sourceBuffer)
+            },
         }
     }
 
@@ -284,11 +330,7 @@ export class MediaSourceControllerImpl
 
     endOfStream(error?: EndOfStreamError) {
         logDebug(this, 'endOfStream, error:', error)
-        this.mediaSource.endOfStream(error)
-    }
-
-    createUrl(): string {
-        return URL.createObjectURL(this.mediaSource)
+        this.mediaSource?.endOfStream(error)
     }
 
     get readyToAppend(): boolean {
@@ -300,9 +342,7 @@ export class MediaSourceControllerImpl
 
     dispose() {
         super.dispose()
-        this.timelineSub?.()
-        this.timelineSub = null
-        this.disposer.dispose()
+        this.deactivate()
     }
 }
 

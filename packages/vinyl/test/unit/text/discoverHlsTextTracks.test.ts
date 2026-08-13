@@ -4,10 +4,12 @@
  */
 
 import { discoverHlsTextTracks } from '@amazon/vinyl'
-import type { MainPlaylist } from '@amazon/vinyl-hls-parser'
+import type { HlsMainPlaylist } from '@amazon/vinyl-hls-parser'
 
 describe('discoverHlsTextTracks', () => {
-    function makePlaylist(overrides: Partial<MainPlaylist> = {}): MainPlaylist {
+    function makePlaylist(
+        overrides: Partial<HlsMainPlaylist> = {}
+    ): HlsMainPlaylist {
         return {
             variants: [],
             alternativeRenditions: [],

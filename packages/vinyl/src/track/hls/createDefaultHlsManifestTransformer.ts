@@ -4,7 +4,7 @@
  */
 
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { HlsManifestData } from './HlsManifestProvider'
+import type { HlsManifestData } from './HlsManifestData'
 
 export interface HlsManifestTransformerDeps {
     readonly manifestController: ObservableValue<Promise<HlsManifestData>>

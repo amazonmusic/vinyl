@@ -27,7 +27,7 @@ describe('createDashContentStreamFactories', () => {
     const emptyTimeline: MediaTimeline = {
         periods: [],
         minBufferTime: 0,
-        adBreaks: [],
+        getAdBreaks: () => Promise.resolve([]),
         getDuration: () => Promise.resolve(Infinity),
     }
 

@@ -1,7 +1,9 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "noEmit": true
+        "noEmit": true,
+        // Type-check against dependencies' built declarations, not their source.
+        "customConditions": []
     },
     "include": [
         "src/**/*",

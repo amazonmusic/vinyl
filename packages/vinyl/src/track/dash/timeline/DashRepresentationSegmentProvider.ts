@@ -119,11 +119,12 @@ export function createDashRepresentationSegmentProvider(
     }
 
     const commonSegmentBase = segmentTemplate ?? segmentList ?? segmentBase
-    if (!commonSegmentBase)
+    if (!commonSegmentBase) {
         throw new ValidationError(
             'Manifest must have one of SegmentList, SegmentTemplate, or SegmentBase',
             ErrorOrigin.MEDIA
         )
+    }
 
     if (commonSegmentBase.Initialization) {
         initUri = commonSegmentBase.Initialization.sourceURL

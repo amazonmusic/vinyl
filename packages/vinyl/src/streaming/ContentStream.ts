@@ -7,6 +7,7 @@ import {
     createDisposer,
     type Disposable,
     EventHostImpl,
+    logDebug,
     type Maybe,
     type ReadonlyEventHost,
     type ReadonlyRanges,
@@ -78,7 +79,7 @@ export interface ContentStream
     /**
      * Activates the content stream, activating sub-controllers.
      */
-    activate(options: ContentStreamActivateOptions): void
+    activate(options: Maybe<ContentStreamActivateOptions>): void
 
     /**
      * Deactivates the content stream, deactivating sub-controllers.
@@ -115,6 +116,10 @@ export class ContentStreamImpl
     extends EventHostImpl<StreamingEventMap>
     implements ContentStream
 {
+    get [Symbol.toStringTag](): string {
+        return `ContentStreamImpl ${this.contentType}`
+    }
+
     private disposer = createDisposer()
     private readonly segmentController: SegmentController
     private readonly bufferingController: BufferingController
@@ -180,6 +185,7 @@ export class ContentStreamImpl
      * for example, changing streaming quality from SD to HD.
      */
     clearPrefetch() {
+        logDebug(this, 'clearPrefetch')
         this.segmentController.clear()
         this.bufferingController.clear()
     }
@@ -194,6 +200,7 @@ export class ContentStreamImpl
     }
 
     activate(options: ContentStreamActivateOptions): void {
+        logDebug(this, 'activate')
         this.segmentController.configure({
             startTime: options.startTime ?? 0,
         })

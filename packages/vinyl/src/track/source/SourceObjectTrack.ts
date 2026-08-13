@@ -15,7 +15,7 @@ import { ErrorOrigin, type Maybe } from '@amazon/vinyl-util'
 import { func, isOneOf, type ObjectSchema } from '@amazon/vinyl-validation'
 import {
     SourceTrackBase,
-    type SourceTrackBaseOptions,
+    type SourceTrackConfigOptions,
     sourceTrackBaseOptionsValidator,
 } from './SourceTrackBase'
 
@@ -40,7 +40,7 @@ export interface SourceObjectTrackLoadOptions extends TrackLoadOptions {
      * Configuration options for the SourceObjectTrack.
      * Will be provided on preload and activate.
      */
-    readonly config?: Maybe<SourceTrackBaseOptions>
+    readonly config?: Maybe<SourceTrackConfigOptions>
 }
 
 const loadOptionsValidator: ObjectSchema<SourceObjectTrackLoadOptions> =

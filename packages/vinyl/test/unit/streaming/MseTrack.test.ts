@@ -4,11 +4,12 @@
  */
 
 import {
+    type AdBreakList,
     type ContentType,
     createEmptyMediaQualityMetadata,
     type MediaTimeline,
     MseTrack,
-    type TrackBaseOptions,
+    type TrackConfigOptions,
     type TrackPreloadOptions,
 } from '@amazon/vinyl'
 import type { MockContentStream } from '@amazon/vinyl/vinylTestUtil'
@@ -190,7 +191,7 @@ describe('MseTrack', () => {
             const trackOptions: TrackPreloadOptions = {
                 prefetchPriority: 3,
             }
-            const loadOptions: TrackBaseOptions = {
+            const loadOptions: TrackConfigOptions = {
                 startTime: 4,
             }
             track.preload(trackOptions, loadOptions)
@@ -227,7 +228,7 @@ describe('MseTrack', () => {
         })
 
         it('sets the src', async () => {
-            deps.mediaSourceController.createUrl.and.returnValue('test1')
+            deps.mediaSourceController.activate.and.returnValue('test1')
             track = createTrack()
             await awaitContentTypes()
             expect(deps.playbackSource.src).toBeNull()
@@ -630,7 +631,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -654,7 +655,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -691,7 +692,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(Infinity),
             }
             setTimeline(timeline)
@@ -728,7 +729,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -817,7 +818,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(120),
             })
             track = createTrack()
@@ -835,7 +836,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(60),
             })
             track = createTrack()
@@ -859,7 +860,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(Infinity),
             })
             track = createTrack()
@@ -877,7 +878,7 @@ describe('MseTrack', () => {
                     },
                 ],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(60),
             }
             ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
@@ -900,7 +901,7 @@ describe('MseTrack', () => {
             const timeline: MediaTimeline = {
                 periods: [{ startTime: 0, endTime: 60, qualities: [] }],
                 minBufferTime: 2,
-                adBreaks: [],
+                getAdBreaks: () => Promise.resolve([]),
                 getDuration: () =>
                     new Promise((r) => {
                         resolveDuration = r
@@ -920,7 +921,7 @@ describe('MseTrack', () => {
         })
     })
 
-    describe('adController', () => {
+    describe('ads', () => {
         function setTimeline(timeline: MediaTimeline) {
             ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
             ;(deps as any).mediaTimelineTransformed = data(
@@ -928,28 +929,22 @@ describe('MseTrack', () => {
             )
         }
 
-        function makeTimeline(
-            adBreaks: MediaTimeline['adBreaks']
-        ): MediaTimeline {
+        function makeTimeline(adBreaks: AdBreakList): MediaTimeline {
             return {
                 periods: [],
                 minBufferTime: 2,
-                adBreaks,
+                getAdBreaks: () => Promise.resolve(adBreaks),
                 getDuration: () => Promise.resolve(Infinity),
             }
         }
 
-        it('returns null when no ad controller is provided', () => {
-            track = createTrack()
-            expect(track.adController).toBeNull()
-        })
-
-        const sampleAdBreaks: MediaTimeline['adBreaks'] = [
+        const sampleAdBreaks: AdBreakList = [
             {
                 id: 'b1',
                 startTime: 10,
                 duration: 5,
-                placement: 'midroll' as const,
+                placement: 'midroll',
+                restrict: {},
                 ads: () =>
                     Promise.resolve([
                         {
@@ -962,64 +957,68 @@ describe('MseTrack', () => {
             },
         ]
 
-        it('publishes discovered ad breaks to the controller once active', async () => {
-            const setAdBreaks = jasmine.createSpy('setAdBreaks')
-            ;(deps as any).adController = {
-                setAdBreaks,
-                activeAdBreak: null,
-                adBreaks: [],
-            }
+        it('reports null ads while the timeline is still loading', () => {
             setTimeline(makeTimeline(sampleAdBreaks))
             track = createTrack()
-            expect(track.adController).toBe((deps as any).adController)
-            track.activate({})
-            await flushPromises()
-            expect(setAdBreaks).toHaveBeenCalledWith(sampleAdBreaks)
+            // Ads are marked loading (null) until the timeline resolves.
+            expect(track.ads).toBeNull()
         })
 
-        it('does not publish ad breaks while inactive (prefetched)', async () => {
-            const setAdBreaks = jasmine.createSpy('setAdBreaks')
-            ;(deps as any).adController = {
-                setAdBreaks,
-                activeAdBreak: null,
-                adBreaks: [],
-            }
-            setTimeline(makeTimeline(sampleAdBreaks))
-            // Created but never activated (as when prefetched): must not touch
-            // the shared controller.
-            track = createTrack()
-            await flushPromises()
-            expect(setAdBreaks).not.toHaveBeenCalled()
-        })
-
-        it('publishes ad breaks discovered before activation on activate', async () => {
-            const setAdBreaks = jasmine.createSpy('setAdBreaks')
-            ;(deps as any).adController = {
-                setAdBreaks,
-                activeAdBreak: null,
-                adBreaks: [],
-            }
+        it('surfaces discovered ad breaks via ads once the timeline resolves', async () => {
             setTimeline(makeTimeline(sampleAdBreaks))
             track = createTrack()
             await flushPromises()
-            expect(setAdBreaks).not.toHaveBeenCalled()
-            // Activating a track whose timeline already resolved publishes now.
-            track.activate({})
-            expect(setAdBreaks).toHaveBeenCalledWith(sampleAdBreaks)
+            expect(track.ads?.adBreaks).toEqual(sampleAdBreaks)
+            expect(track.ads?.trackUri).toBe(track.uri)
         })
 
-        it('does not call setAdBreaks when the timeline has no ad breaks', async () => {
-            const setAdBreaks = jasmine.createSpy('setAdBreaks')
-            ;(deps as any).adController = {
-                setAdBreaks,
-                activeAdBreak: null,
-                adBreaks: [],
-            }
+        it('dispatches adsChange when discovered ad breaks resolve', async () => {
+            setTimeline(makeTimeline(sampleAdBreaks))
+            track = createTrack()
+            const spy = createEventSpy(track, 'adsChange')
+            await flushPromises()
+            expect(spy).toHaveBeenCalledWith(
+                jasmine.objectContaining({
+                    current: jasmine.objectContaining({
+                        adBreaks: sampleAdBreaks,
+                    }),
+                })
+            )
+        })
+
+        it('surfaces an empty ad break list when the timeline has none', async () => {
             setTimeline(makeTimeline([]))
             track = createTrack()
-            track.activate({})
             await flushPromises()
-            expect(setAdBreaks).not.toHaveBeenCalled()
+            expect(track.ads?.adBreaks).toEqual([])
+        })
+
+        it('discards ad breaks that resolve after the timeline changes', async () => {
+            let resolveAds!: (value: AdBreakList) => void
+            const timeline: MediaTimeline = {
+                periods: [],
+                minBufferTime: 2,
+                getAdBreaks: () =>
+                    new Promise((r) => {
+                        resolveAds = r
+                    }),
+                getDuration: () => Promise.resolve(Infinity),
+            }
+            setTimeline(timeline)
+            track = createTrack()
+            // Reaches the pending getAdBreaks() promise; ads remain loading.
+            await flushPromises()
+            expect(track.ads).toBeNull()
+
+            const adsSpy = createEventSpy(track, 'adsChange')
+            // Swap the media timeline so the in-flight resolution is stale.
+            ;(deps as any).mediaTimeline.value = Promise.resolve(timeline)
+            resolveAds(sampleAdBreaks)
+            await flushPromises()
+
+            // The stale result is dropped: ads are not applied.
+            expect(adsSpy).not.toHaveBeenCalled()
+            expect(track.ads).toBeNull()
         })
     })
 })

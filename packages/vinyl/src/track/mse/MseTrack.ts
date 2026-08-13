@@ -3,14 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-    TrackBase,
-    type TrackBaseDeps,
-    type TrackBaseOptions,
-} from '../TrackBase'
+import { TrackBase, type TrackBaseDeps } from '../TrackBase'
 import {
     Abort,
     equalDeep,
+    first,
     type Fun,
     IntersectionRanges,
     logDebug,
@@ -20,7 +17,6 @@ import {
     type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { TrackPreloadOptions, TrackTypeId, TrackUri } from '../Track'
-import type { SeekRange } from '../SeekRange'
 import type {
     ContentType,
     MediaQualityMetadata,
@@ -28,7 +24,6 @@ import type {
 import { createContainer, type Factories } from '@amazon/vinyl-di'
 import type {
     ContentStream,
-    ContentStreamActivateOptions,
     ContentStreamPreloadOptions,
 } from '../../streaming/ContentStream'
 import type { MediaSourceController } from '../../streaming/buffering/MediaSourceController'
@@ -42,7 +37,7 @@ import {
     type MediaPeriod,
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
-import type { AdBreakInfo, AdController } from '../../ad/AdBreak'
+import type { TrackConfigOptions } from '../TrackFactory'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -58,13 +53,6 @@ export type MseTrackDeps = TrackBaseDeps & {
      * disposed when the track itself is disposed.
      */
     readonly textTrackController?: TextTrackController | null
-
-    /**
-     * The player-level ad controller. MseTrack sets ad breaks on it when
-     * the media timeline resolves and listens for ad break changes to
-     * switch playback to/from ad tracks.
-     */
-    readonly adController?: AdController | null
 }
 
 type FunctionKeys<T> = {
@@ -85,18 +73,9 @@ export class MseTrack extends TrackBase {
         return this.deps.textTrackController ?? null
     }
 
-    override get adController(): AdController | null {
-        return this.deps.adController ?? null
-    }
-
-    override get seekRange(): SeekRange | null {
-        return this._seekRange
-    }
-
     private readonly streams: ContentStream[] = []
     private readonly disposeAbort = new Abort()
     private lastPreloadOptions: ContentStreamPreloadOptions | null = null
-    private activateOptions: ContentStreamActivateOptions | null = null
     private readonly allFetchedRanges: ReadonlyRanges[] = []
     private readonly _fetchedRanges = new IntersectionRanges(
         this.allFetchedRanges,
@@ -108,10 +87,6 @@ export class MseTrack extends TrackBase {
     private _qualitiesUnfiltered: readonly MediaQualityMetadata[] | null = null
     private timeUpdateSub: Unsubscribe | null = null
     private _cachedPeriod: MediaPeriod | null = null
-    private _seekRange: SeekRange | null = null
-    // The most recently resolved ad breaks, published to the shared ad
-    // controller only while this track is active (see publishAdBreaks).
-    private _adBreaks: readonly AdBreakInfo[] = []
 
     constructor(
         uri: TrackUri,
@@ -126,27 +101,19 @@ export class MseTrack extends TrackBase {
         add(depsContainer)
         this.deps = deps
 
+        // Set ad breaks to null to indicate they are loading TODO: clean this up
+        this.setAdBreaks(null)
         add(
             deps.contentTypesValue.onData((contentTypesPromise) => {
                 contentTypesPromise
-                    .then((contentTypes) => {
-                        if (this.disposer.disposed) return
-                        if (equalDeep(this.contentTypes, contentTypes)) return // no-op
-                        logDebug(this, 'content types:', contentTypes)
-                        this.clearStreams()
-                        for (const contentType of contentTypes) {
-                            this.createStream(contentType)
-                        }
-                        // Sets the content types and dispatches a change event:
-                        this.contentTypes = contentTypes
-                    })
+                    .then((value) => this.setContentTypes(value))
                     .catch(this.errorHandler)
             })
         )
 
         // DRM
         this.on('streamingQualityChange', (event) => {
-            if (this.activateOptions) {
+            if (this.active) {
                 this.deps.drmController.initializeForPlayback(
                     event.current,
                     this.disposeAbort
@@ -161,55 +128,19 @@ export class MseTrack extends TrackBase {
             )
         })
 
-        // Listen for timeline changes to update qualities.
+        // Listen for timeline changes to update qualities seek ranges and ads.
         add(
             deps.mediaTimelineTransformed.onData(() => {
                 this._cachedPeriod = null
                 this.updateQualities()
+                this.updateAdBreaks()
+                this.updateSeekRanges()
             })
         )
         add(
-            deps.mediaTimeline.onData((timelinePromise) => {
+            deps.mediaTimeline.onData(() => {
                 this._cachedPeriod = null
                 this.updateQualitiesUnfiltered()
-                timelinePromise
-                    .then((timeline) => {
-                        if (this.disposer.disposed) return
-                        // Publish ad breaks to the shared controller only while
-                        // this track is active — a prefetched track's timeline
-                        // resolves too, and must not clobber the playing track's
-                        // breaks on the shared controller.
-                        this._adBreaks = timeline.adBreaks
-                        this.publishAdBreaks()
-                        return timeline.getDuration().then((duration) => {
-                            if (this.disposer.disposed) return
-                            const start =
-                                timeline.periods.length > 0
-                                    ? timeline.periods[0].startTime
-                                    : 0
-                            const newRange: SeekRange = {
-                                start,
-                                end:
-                                    duration === Infinity
-                                        ? Infinity
-                                        : start + duration,
-                            }
-                            const prev = this._seekRange
-                            if (
-                                prev == null ||
-                                prev.start !== newRange.start ||
-                                prev.end !== newRange.end
-                            ) {
-                                const previous = this._seekRange
-                                this._seekRange = newRange
-                                this.dispatch('seekRangeChange', {
-                                    previous,
-                                    current: newRange,
-                                })
-                            }
-                        })
-                    })
-                    .catch(this.errorHandler)
             })
         )
     }
@@ -218,51 +149,94 @@ export class MseTrack extends TrackBase {
      * Updates the cached qualities list from the transformed timeline for the current period.
      */
     private updateQualities(): void {
-        const time = this.deps.playbackController.currentTime
-        this.deps.mediaTimelineTransformed.value
-            .then((timeline) => {
-                if (this.disposer.disposed) return
-                const period = getMediaPeriodAtTime(timeline, time)
-                this._cachedPeriod = period
-                const newQualities = period
-                    ? period.qualities.map((q) => q.metadata)
-                    : null
-                if (!equalDeep(newQualities, this._qualities)) {
-                    const previous = this._qualities
-                    this._qualities = newQualities
-                    if (newQualities) {
-                        this.dispatch('qualitiesChange', {
-                            previous: previous ?? [],
-                            current: newQualities,
-                        })
-                    }
+        this.withTimeline((timeline) => {
+            const time = this.deps.playbackController.currentTime
+            const period = getMediaPeriodAtTime(timeline, time)
+            this._cachedPeriod = period
+            const newQualities = period
+                ? period.qualities.map((q) => q.metadata)
+                : null
+            if (!equalDeep(newQualities, this._qualities)) {
+                const previous = this._qualities
+                this._qualities = newQualities
+                if (newQualities) {
+                    this.dispatch('qualitiesChange', {
+                        previous: previous ?? [],
+                        current: newQualities,
+                    })
                 }
-            })
-            .catch(this.errorHandler)
+            }
+        })
+    }
+
+    private updateAdBreaks() {
+        this.withTimeline((timeline, interrupted) => {
+            timeline
+                .getAdBreaks()
+                .then((adBreaks) => {
+                    if (interrupted()) return
+                    this.setAdBreaks(adBreaks)
+                })
+                .catch(this.errorHandler)
+        })
     }
 
     /**
      * Updates the cached unfiltered qualities list from the raw timeline for the current period.
      */
     private updateQualitiesUnfiltered(): void {
-        const time = this.deps.playbackController.currentTime
-        this.deps.mediaTimeline.value
-            .then((timeline) => {
-                if (this.disposer.disposed) return
-                const period = getMediaPeriodAtTime(timeline, time)
-                const newQualities = period
-                    ? period.qualities.map((q) => q.metadata)
-                    : null
-                if (!equalDeep(newQualities, this._qualitiesUnfiltered)) {
-                    const previous = this._qualitiesUnfiltered
-                    this._qualitiesUnfiltered = newQualities
-                    if (newQualities) {
-                        this.dispatch('qualitiesUnfilteredChange', {
-                            previous: previous ?? [],
-                            current: newQualities,
-                        })
-                    }
+        this.withTimeline((timeline) => {
+            const time = this.deps.playbackController.currentTime
+            const period = getMediaPeriodAtTime(timeline, time)
+            const newQualities = period
+                ? period.qualities.map((q) => q.metadata)
+                : null
+            if (!equalDeep(newQualities, this._qualitiesUnfiltered)) {
+                const previous = this._qualitiesUnfiltered
+                this._qualitiesUnfiltered = newQualities
+                if (newQualities) {
+                    this.dispatch('qualitiesUnfilteredChange', {
+                        previous: previous ?? [],
+                        current: newQualities,
+                    })
                 }
+            }
+        })
+    }
+
+    private updateSeekRanges(): void {
+        this.withTimeline((timeline, interrupted) => {
+            timeline
+                .getDuration()
+                .then((duration) => {
+                    if (interrupted()) return
+                    const start = first(timeline.periods)?.startTime ?? 0
+                    this.setSeekRange({
+                        start,
+                        end: start + duration,
+                    })
+                })
+                .catch(this.errorHandler)
+        })
+    }
+
+    /**
+     * Invokes a callback when the media timeline promise resolves and was not
+     * interrupted by a timeline change or track disposal.
+     *
+     * @param callback The function to call when the media timeline resolves.
+     * This will not be invoked if the
+     */
+    private withTimeline(
+        callback: (timeline: MediaTimeline, interrupted: () => boolean) => void
+    ) {
+        const mediaTimelinePromise = this.deps.mediaTimeline.value
+        const interrupted = () =>
+            this.disposed ||
+            mediaTimelinePromise !== this.deps.mediaTimeline.value
+        this.deps.mediaTimelineTransformed.value
+            .then((timeline) => {
+                if (!interrupted()) callback(timeline, interrupted)
             })
             .catch(this.errorHandler)
     }
@@ -306,13 +280,16 @@ export class MseTrack extends TrackBase {
         if (this.lastPreloadOptions) {
             stream.preload(this.lastPreloadOptions)
         }
-        if (this.activateOptions) {
-            stream.activate(this.activateOptions)
+        if (this.loadOptions) {
+            stream.activate(this.loadOptions)
         }
     }
 
-    preload(trackOptions: TrackPreloadOptions, loadOptions: TrackBaseOptions) {
-        const options = {
+    preload(
+        trackOptions: TrackPreloadOptions,
+        loadOptions: TrackConfigOptions
+    ) {
+        const options: ContentStreamPreloadOptions = {
             startTime: loadOptions.startTime,
             prefetchPriority: trackOptions.prefetchPriority,
         }
@@ -322,15 +299,6 @@ export class MseTrack extends TrackBase {
 
     get contentTypes(): ReadonlySet<ContentType> {
         return this._contentTypes
-    }
-
-    set contentTypes(value: ReadonlySet<ContentType>) {
-        const previous = this._contentTypes
-        this._contentTypes = value
-        this.dispatch('contentTypesChange', {
-            previous,
-            current: value,
-        })
     }
 
     get qualities(): readonly MediaQualityMetadata[] | null {
@@ -359,32 +327,17 @@ export class MseTrack extends TrackBase {
      * Resets the track to recover from error states.
      * Resets both the segment controller and buffering controller to clear failed segments and error conditions.
      */
-    reset(): void {
-        if (!this.error) {
+    reset(hard = false): void {
+        if (!hard && !this.error) {
             logDebug(this, 'reset no-op')
             return
         }
+        super.reset(hard)
         this.deps.manifestController.reset()
         this.callOnStreams('reset')
-        super.reset()
     }
 
-    /**
-     * Publishes this track's discovered ad breaks to the shared ad controller,
-     * but only while the track is active. Prefetched (inactive) tracks resolve
-     * their timelines too; publishing from them would clobber the currently
-     * playing track's breaks on the shared, player-level controller.
-     */
-    private publishAdBreaks(): void {
-        if (!this.activateOptions) return
-        if (this._adBreaks.length === 0) return
-        this.deps.adController?.setAdBreaks(this._adBreaks)
-    }
-
-    onActivated(loadOptions: TrackBaseOptions): void {
-        this.activateOptions = loadOptions
-        // Publish any ad breaks already discovered before activation.
-        this.publishAdBreaks()
+    onActivated(loadOptions: TrackConfigOptions): void {
         // Rebuild the DOM text track. The element's added TextTracks are
         // dropped when the source is reset on deactivation (e.g. suspended for
         // an ad), so the active selection must be re-rendered on reactivation.
@@ -399,7 +352,7 @@ export class MseTrack extends TrackBase {
             )
         })
         this.deps.playbackSource.src =
-            this.deps.mediaSourceController.createUrl()
+            this.deps.mediaSourceController.activate()
         this.callOnStreams('activate', loadOptions)
 
         // Listen for timeUpdate to detect period changes.
@@ -413,6 +366,7 @@ export class MseTrack extends TrackBase {
                     time >= cached.startTime &&
                     time < cached.endTime
                 ) {
+                    // The period hasn't changed
                     return
                 }
                 this.updateQualities()
@@ -422,7 +376,6 @@ export class MseTrack extends TrackBase {
     }
 
     onDeactivated(): void {
-        this.activateOptions = null
         this.timeUpdateSub?.()
         this.timeUpdateSub = null
         this.callOnStreams('deactivate')
@@ -433,6 +386,7 @@ export class MseTrack extends TrackBase {
 
         this.deps.playbackSource.src = null
         this.deps.playbackSource.load()
+        this.deps.mediaSourceController.deactivate()
     }
 
     getStreamingQuality(contentType: ContentType): MediaQualityMetadata | null {
@@ -474,10 +428,30 @@ export class MseTrack extends TrackBase {
         return this.streams.every((stream) => stream.bufferingEnded)
     }
 
+    private setContentTypes(contentTypes: ReadonlySet<ContentType>) {
+        if (this.disposed) return
+        const previous = this.contentTypes
+        if (equalDeep(previous, contentTypes)) return // no-op
+        logDebug(this, 'content types:', contentTypes)
+        if (previous.size) {
+            // Content types were previously set, hard reset this track
+            // so the media source is recreated
+            this.reset(/* hard */ true)
+        }
+        this.clearStreams()
+        for (const contentType of contentTypes) {
+            this.createStream(contentType)
+        }
+        // Sets the content types and dispatches a change event:
+        this._contentTypes = contentTypes
+        this.dispatch('contentTypesChange', {
+            previous,
+            current: contentTypes,
+        })
+    }
+
     dispose(): void {
         logDebug(this, 'dispose')
-        this.timeUpdateSub?.()
-        this.timeUpdateSub = null
         this.clearStreams()
         super.dispose()
     }

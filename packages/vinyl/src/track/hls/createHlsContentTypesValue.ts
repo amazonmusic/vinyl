@@ -6,8 +6,8 @@
 import type { ContentType } from '../../streaming/MediaQualityMetadata'
 import type { ContentTypesValue } from '../../streaming/ContentTypesValue'
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { HlsManifestData } from './HlsManifestProvider'
-import type { MainPlaylist } from '@amazon/vinyl-hls-parser'
+import type { HlsManifestData } from './HlsManifestData'
+import type { HlsMainPlaylist } from '@amazon/vinyl-hls-parser'
 import { codecsToContentTypes } from '../mse/codec'
 
 export interface HlsContentTypesValueDeps {
@@ -29,7 +29,7 @@ export function createHlsContentTypesValue(
     })
 }
 
-function getContentTypes(mainPlaylist: MainPlaylist): Set<ContentType> {
+function getContentTypes(mainPlaylist: HlsMainPlaylist): Set<ContentType> {
     const contentTypes = new Set<ContentType>()
 
     // Derive content types from variant CODECS attributes.

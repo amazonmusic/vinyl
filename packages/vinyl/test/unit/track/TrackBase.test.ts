@@ -4,11 +4,13 @@
  */
 
 import {
+    type AdBreakList,
     type ContentType,
+    type SeekRange,
     type StreamingEventMap,
     TrackBase,
     type TrackBaseDeps,
-    trackBaseOptionsValidator,
+    trackConfigOptionsValidator,
     type TrackUri,
 } from '@amazon/vinyl'
 import {
@@ -52,6 +54,14 @@ describe('TrackBase', () => {
 
         simulateError(error: Error) {
             this.errorHandler(error)
+        }
+
+        simulateSetAdBreaks(value: AdBreakList | null) {
+            this.setAdBreaks(value)
+        }
+
+        simulateSetSeekRange(value: SeekRange) {
+            this.setSeekRange(value)
         }
     }
 
@@ -199,17 +209,17 @@ describe('TrackBase', () => {
         })
     })
 
-    describe('trackBaseOptionsValidator', () => {
-        it('validates the track layout options config shape', () => {
+    describe('trackConfigOptionsValidator', () => {
+        it('validates the track config options shape', () => {
             expect(
-                trackBaseOptionsValidator.isValid({
+                trackConfigOptionsValidator.isValid({
                     startTime: 44,
                     extra: {},
                 })
             ).toBeTrue()
 
             expect(
-                trackBaseOptionsValidator.isValid({
+                trackConfigOptionsValidator.isValid({
                     startTime: '44',
                     extra: {},
                 })
@@ -240,6 +250,25 @@ describe('TrackBase', () => {
         })
     })
 
+    describe('setAdBreaks', () => {
+        it('does not re-emit adsChange when the ad breaks are unchanged', () => {
+            const adBreaks: AdBreakList = []
+            track.simulateSetAdBreaks(adBreaks)
+            const adsSpy = createEventSpy(track, 'adsChange')
+            track.simulateSetAdBreaks([])
+            expect(adsSpy).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('setSeekRange', () => {
+        it('does not re-emit seekRangeChange when the range is unchanged', () => {
+            track.simulateSetSeekRange({ start: 0, end: 60 })
+            const seekRangeSpy = createEventSpy(track, 'seekRangeChange')
+            track.simulateSetSeekRange({ start: 0, end: 60 })
+            expect(seekRangeSpy).not.toHaveBeenCalled()
+        })
+    })
+
     describe('reset', () => {
         let resetSpy: EventSpy<StreamingEventMap, 'reset'>
 
@@ -259,6 +288,44 @@ describe('TrackBase', () => {
             track.reset()
             expect(track.error).toBeNull()
             expect(resetSpy).toHaveBeenCalledOnceWith({})
+        })
+
+        describe('hard reset of an active track', () => {
+            beforeEach(() => {
+                playbackController.play.and.resolveTo(void 0)
+                track.activate({ startTime: 5 })
+                // Clear calls captured during activate so assertions only
+                // observe the reset behavior.
+                track.onActivated.calls.reset()
+                track.onDeactivated.calls.reset()
+                track.clearPrefetch.calls.reset()
+                playbackController.seekTo.calls.reset()
+            })
+
+            it('deactivates, activates, and restores the playback time', () => {
+                playbackController.currentTime = 42
+                track.reset(true)
+                expect(track.onDeactivated).toHaveBeenCalledOnceWith()
+                expect(track.clearPrefetch).toHaveBeenCalledOnceWith()
+                expect(track.onActivated).toHaveBeenCalledOnceWith({
+                    startTime: 5,
+                })
+                expect(playbackController.seekTo).toHaveBeenCalledOnceWith(42)
+                expect(resetSpy).toHaveBeenCalledOnceWith({})
+            })
+
+            it('resumes playback when it was not paused', () => {
+                playbackController.paused = false
+                playbackController.ended = false
+                track.reset(true)
+                expect(playbackController.play).toHaveBeenCalledOnceWith()
+            })
+
+            it('does not resume playback when it was paused', () => {
+                playbackController.paused = true
+                track.reset(true)
+                expect(playbackController.play).not.toHaveBeenCalled()
+            })
         })
     })
 })

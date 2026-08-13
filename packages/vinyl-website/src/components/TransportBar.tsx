@@ -30,35 +30,26 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         fetchedTimePercent$,
         loading$,
         paused$,
-        seeking$,
         track$,
         volume$,
         muted$,
         hasVideo$,
-        activeAdBreak$,
+        currentAdBreak$,
         adBreaks$,
-        adRemaining$,
+        adTimeRemaining$,
         seekRange$,
+        currentAdIndex$,
     } = playerState
 
-    const adActive$ = activeAdBreak$.map((b) => b != null)
-    const adRemainingLabel$ = adRemaining$.map(formatTime)
-    const canSkipAd$ = activeAdBreak$.map((b) => {
+    const adActive$ = currentAdBreak$.map((b) => b != null)
+    const adRemainingLabel$ = adTimeRemaining$.map(formatTime)
+    const canSkipAd$ = currentAdBreak$.map((b) => {
         if (!b) return false
-        return !b.restrict?.skip
+        return !b.restrict.skip
     })
-    const adLabel$ = activeAdBreak$.map((activeBreak) => {
-        if (!activeBreak) return ''
-        const breakAds = activeBreak.ads
-        if (breakAds.length <= 1) return 'Ad'
-        const time = player.currentTime
-        const idx =
-            breakAds.findIndex(
-                (a) =>
-                    a.startTime <= time &&
-                    (a.duration == null || a.startTime + a.duration > time)
-            ) + 1
-        return `Ad ${idx || 1} / ${breakAds.length}`
+    const adLabel$ = currentAdIndex$.map((v) => {
+        if (v.totalAds <= 1) return 'Ad'
+        return `Ad ${v.index + 1} / ${v.totalAds}`
     })
 
     const elapsed$ = currentTime$.map(formatTime)
@@ -162,7 +153,6 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                         <ScrubBar
                             currentTimePercent$={currentTimePercent$}
                             fetchedTimePercent$={fetchedTimePercent$}
-                            seeking$={seeking$}
                             adBreaks$={adBreaks$}
                             seekRange$={seekRange$}
                             onSeek={seekToPercent}

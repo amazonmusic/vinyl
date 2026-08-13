@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { HlsManifestData } from './HlsManifestProvider'
+import type { HlsManifestData } from './HlsManifestData'
 import type { HlsMediaQualityMetadataResolver } from './HlsMediaQualityMetadataResolver'
 import type {
     ContentType,
@@ -26,6 +26,8 @@ import {
 } from '../createSegmentDataProvider'
 import { hlsByteRangeToMediaRange } from './util/hlsByteRangeToMediaRange'
 import { createTransmuxer } from '@amazon/vinyl-transmux'
+import type { AdBreakList } from '../../ad/AdBreakInfo'
+import { discoverHlsInterstitials } from '../../ad/discoverHlsInterstitials'
 
 export interface BuildHlsMediaTimelineDeps extends CreateSegmentDataProviderDeps {
     readonly mediaQualityMetadataResolver: HlsMediaQualityMetadataResolver
@@ -173,7 +175,7 @@ export function buildHlsMediaTimeline(
     return {
         periods: [period],
         minBufferTime: DEFAULT_MIN_BUFFER_TIME,
-        adBreaks: [],
+        getAdBreaks: () => discoverAdsFromManifest(data),
         async getDuration() {
             if (cachedDuration != null) return cachedDuration
             if (mainPlaylist.variants.length === 0) {
@@ -195,4 +197,19 @@ export function buildHlsMediaTimeline(
             return cachedDuration
         },
     }
+}
+
+async function discoverAdsFromManifest(
+    data: HlsManifestData
+): Promise<AdBreakList> {
+    if (data.mainPlaylist.variants.length === 0) return []
+    // Use the first variant for the date range timeline
+    // https://gist.github.com/bkataru/1fb67181ddf0edfc60c04f6f02518e74?utm_source=chatgpt.com#file-hls-specification-txt-L3449
+    const variant = data.mainPlaylist.variants[0]
+    const media = await data.getMediaPlaylist(variant.uri)
+    const contentDuration = media.ended
+        ? media.segments.reduce((sum, s) => sum + s.duration, 0)
+        : null
+    const playlistBaseUrl = resolveUrl(variant.uri, data.baseUrl)
+    return discoverHlsInterstitials(media, playlistBaseUrl, contentDuration)
 }
