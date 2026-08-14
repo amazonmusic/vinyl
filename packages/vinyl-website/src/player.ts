@@ -13,7 +13,7 @@ import {
     type TextTrackInfo,
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
-import { toastError } from './components/toast'
+import { toast, toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
 import { initializeLogging } from './initializeLogging'
 import { handleError } from './errorHandler'
@@ -252,6 +252,20 @@ export async function createTrackFromUrl(url: string): Promise<Track | null> {
     const type = await inferTrackTypeFromUrl(url)
     if (!type) return null
     return { url, type }
+}
+
+/**
+ * Adds a track to the play queue. With nothing loaded there is no queue to add
+ * to yet, so playback simply starts; otherwise the track plays after the
+ * current one (and anything already queued) finishes.
+ */
+export function enqueueContent(track: Track) {
+    if (playerState.track$.value == null) {
+        loadContent(track)
+        return
+    }
+    player.enqueue({ type: track.type, uri: track.url })
+    toast(`Queued ${track.title ?? track.url}`)
 }
 
 export function togglePlayPause() {
