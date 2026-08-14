@@ -1311,6 +1311,44 @@ describe('TrackControllerImpl', () => {
             expect(adTrack.dispose).toHaveBeenCalled()
         })
 
+        it('keeps the parent (and its playing ad) while its ad break is on screen', async () => {
+            // Minimum cache: one content track fits. Entering the break must
+            // not evict the parent, or its pegged (playing) ad is disposed.
+            trackController.configure({
+                preloadCapacity: 0,
+                trackPrefetchCount: 0,
+            })
+            const [a] = createLoadOptionsList(1)
+
+            trackController.load(a)
+            const trackA = trackController.currentTrack as MockTrack
+            const adsA = trackAdsWith(a.uri, 'https://ads/a1.m3u8')
+            trackA.ads = adsA
+            trackA.dispatch('adsChange', { previous: null, current: adsA })
+            await flushAds()
+            const adTrack = trackController.getCachedTrack(
+                'https://ads/a1.m3u8'
+            ) as MockTrack
+
+            const ad = {
+                id: 'a1',
+                startTime: 5,
+                duration: 10,
+                uri: 'https://ads/a1.m3u8',
+            }
+            deps.adController.currentAd = ad
+            deps.adController.dispatch('adEntered', {
+                ad,
+                index: 0,
+                totalAds: 1,
+            })
+            await flushAds()
+
+            expect(trackController.currentTrack).toBe(adTrack)
+            expect(adTrack.dispose).not.toHaveBeenCalled()
+            expect(trackController.isTrackCached(a.uri)).toBeTrue()
+        })
+
         it("continues without throwing when a break's ads fail to resolve", async () => {
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
