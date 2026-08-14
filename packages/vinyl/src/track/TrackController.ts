@@ -352,7 +352,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     } else {
                         const startTime = isPreroll
                             ? adParent.config?.startTime
-                            : event.resumeOffset
+                            : event.resumePosition
                         // Resume the main track.
                         this.setQueue(
                             {

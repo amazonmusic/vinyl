@@ -54,7 +54,12 @@ describe('hls ad interstitials integ', () => {
         readonly assetUri?: string
         /** Multiple ads via X-ASSET-LIST (served through a blob/data URL). */
         readonly assetList?: readonly { uri: string; duration: number }[]
-        readonly cue?: 'PRE' | 'POST'
+        /** The raw CUE token list, e.g. 'PRE', 'ONCE', 'POST,ONCE'. */
+        readonly cue?: string
+        /** X-RESUME-OFFSET in seconds (signed). */
+        readonly resumeOffset?: number
+        /** X-PLAYOUT-LIMIT in seconds. */
+        readonly playoutLimit?: number
     }
 
     /**
@@ -113,11 +118,19 @@ describe('hls ad interstitials integ', () => {
                 asset = `X-ASSET-URI="${it.assetUri}"`
             }
             const cue = it.cue ? `,CUE="${it.cue}"` : ''
+            const resumeOffset =
+                it.resumeOffset == null
+                    ? ''
+                    : `,X-RESUME-OFFSET=${it.resumeOffset}`
+            const playoutLimit =
+                it.playoutLimit == null
+                    ? ''
+                    : `,X-PLAYOUT-LIMIT=${it.playoutLimit}`
             return (
                 `#EXT-X-DATERANGE:ID="${it.id}",` +
                 `CLASS="com.apple.hls.interstitial",` +
                 `START-DATE="${startDate}",DURATION=${it.duration},` +
-                `${asset}${cue}`
+                `${asset}${cue}${resumeOffset}${playoutLimit}`
             )
         })
         const lines = text.split(/\r?\n/)
@@ -461,6 +474,129 @@ describe('hls ad interstitials integ', () => {
         )
             .withContext('content track resumed and playing')
             .toBeTrue()
+    })
+
+    // ─── CUE hints and X-RESUME-OFFSET ───────────────────────────────────
+    /** Loads the standard single-midroll playlist, with per-break overrides. */
+    async function loadMidroll(
+        extra: Partial<Interstitial> = {}
+    ): Promise<void> {
+        suite.player.load({
+            type: 'hls',
+            uri: 'integ-interstitial',
+            manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                {
+                    id: AD_ID,
+                    startTime: MIDROLL_TIME,
+                    duration: MIDROLL_DURATION,
+                    assetUri: AD_ASSET,
+                    ...extra,
+                },
+            ]),
+        })
+        await poll(
+            () => (suite.player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+            { timeout: 15 }
+        )
+    }
+
+    it('resumes content at the X-RESUME-OFFSET position after a midroll', async () => {
+        const player = suite.player
+        await loadMidroll({ resumeOffset: 10 })
+        await playThenSeek(MIDROLL_TIME + 1)
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('ad playing')
+            .toBeTrue()
+        expect(await poll(() => player.currentTime > 0, { timeout: 20 }))
+            .withContext('ad advanced')
+            .toBeTrue()
+        player.skipAd()
+        // Content resumes at start (20) + offset (10) = 30, skipping content,
+        // rather than resuming in place at the break start.
+        expect(
+            await poll(
+                () =>
+                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    !player.paused &&
+                    player.currentTime >= MIDROLL_TIME + 10 - 1,
+                { timeout: 20 }
+            )
+        )
+            .withContext('content resumed at ~start+offset')
+            .toBeTrue()
+    })
+
+    it('replays a non-ONCE midroll after seeking back across it', async () => {
+        const player = suite.player
+        await loadMidroll() // no CUE → replayable
+        // First crossing: enter the break, then skip back to content.
+        await playThenSeek(MIDROLL_TIME + 1)
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('entered on the first crossing')
+            .toBeTrue()
+        player.skipAd()
+        expect(
+            await poll(
+                () =>
+                    player.currentAdBreak == null &&
+                    player.currentTrack?.uri === 'integ-interstitial',
+                { timeout: 20 }
+            )
+        )
+            .withContext('content resumed')
+            .toBeTrue()
+        // Seek back before the break to re-arm it, then play forward across it.
+        await seekTolerant(MIDROLL_TIME - 5)
+        await player.play().catch(() => undefined)
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('non-ONCE break re-entered on the second crossing')
+            .toBeTrue()
+    })
+
+    it('does not replay a CUE=ONCE midroll after seeking back across it', async () => {
+        const player = suite.player
+        await loadMidroll({ cue: 'ONCE' })
+        await playThenSeek(MIDROLL_TIME + 1)
+        expect(await poll(() => player.currentAdBreak != null, { timeout: 30 }))
+            .withContext('entered on the first crossing')
+            .toBeTrue()
+        player.skipAd()
+        expect(
+            await poll(
+                () =>
+                    player.currentAdBreak == null &&
+                    player.currentTrack?.uri === 'integ-interstitial',
+                { timeout: 20 }
+            )
+        )
+            .withContext('content resumed')
+            .toBeTrue()
+        // Seek back before the ONCE break and play forward across its start; it
+        // must NOT re-enter. If it (incorrectly) did, currentAdBreak would go
+        // non-null and the playhead would stall below the break start, timing
+        // this poll out.
+        const reentered: string[] = []
+        const sub = player.on('currentAdBreakChange', (e) => {
+            if (e.current) reentered.push(e.current.id)
+        })
+        try {
+            await seekTolerant(MIDROLL_TIME - 5)
+            await player.play().catch(() => undefined)
+            expect(
+                await poll(
+                    () =>
+                        player.currentAdBreak == null &&
+                        player.currentTrack?.uri === 'integ-interstitial' &&
+                        player.currentTime >= MIDROLL_TIME + 1,
+                    { timeout: 30 }
+                )
+            )
+                .withContext('crossed the ONCE break start without re-entering')
+                .toBeTrue()
+            expect(reentered).toEqual([])
+        } finally {
+            sub()
+        }
     })
 
     it('plays a preroll before content, then resumes content', async () => {

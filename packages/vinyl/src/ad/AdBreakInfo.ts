@@ -89,6 +89,37 @@ export interface AdBreakInfo {
      * Restrictions on user interaction during this ad break.
      */
     readonly restrict: AdRestriction
+
+    /**
+     * When true, this break plays at most once for the presentation and is not
+     * replayed even if the playhead re-crosses it (e.g. after a seek back). When
+     * false, the break may replay each time the playhead re-enters its region.
+     *
+     * (An HLS interstitial sets this from a `CUE=ONCE` hint.)
+     */
+    readonly once: boolean
+
+    /**
+     * The offset, in seconds, from this break's scheduled {@link startTime} at
+     * which primary content resumes after the break. A signed value: 0 resumes
+     * in place (the break is purely additive). `null` means no resume offset was
+     * specified, in which case content resumes advanced by the break's actual
+     * playout duration (i.e. the break replaces that much primary content) —
+     * this is distinct from an explicit 0.
+     *
+     * (An HLS interstitial sets this from `X-RESUME-OFFSET`.)
+     */
+    readonly resumeOffset: number | null
+
+    /**
+     * The maximum total playout time of the whole break, in seconds, summed
+     * across all of its ads, or `null` when the break's playout is uncapped.
+     * Distinct from {@link duration} (the break's timeline span) and from an
+     * individual {@link AdInfo.duration}.
+     *
+     * (An HLS interstitial sets this from `X-PLAYOUT-LIMIT`.)
+     */
+    readonly playoutLimit: number | null
 }
 
 /**

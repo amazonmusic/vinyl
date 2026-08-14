@@ -781,6 +781,9 @@ describe('TrackControllerImpl', () => {
                         duration: 10,
                         placement: 'midroll' as const,
                         restrict: {},
+                        once: false,
+                        resumeOffset: null,
+                        playoutLimit: null,
                         ads: () =>
                             Promise.resolve([
                                 {
@@ -1126,6 +1129,9 @@ describe('TrackControllerImpl', () => {
                         duration: 10,
                         placement: 'midroll' as const,
                         restrict: {},
+                        once: false,
+                        resumeOffset: null,
+                        playoutLimit: null,
                         ads: () =>
                             Promise.resolve([
                                 {
@@ -1197,6 +1203,9 @@ describe('TrackControllerImpl', () => {
                         duration: 10,
                         placement: 'midroll' as const,
                         restrict: {},
+                        once: false,
+                        resumeOffset: null,
+                        playoutLimit: null,
                         ads: () =>
                             Promise.resolve([
                                 {
@@ -1300,6 +1309,9 @@ describe('TrackControllerImpl', () => {
                         duration: 10,
                         placement: 'midroll' as const,
                         restrict: {},
+                        once: false,
+                        resumeOffset: null,
+                        playoutLimit: null,
                         ads: () => Promise.reject(new Error('ad list down')),
                     },
                 ],
@@ -1347,6 +1359,9 @@ describe('TrackControllerImpl', () => {
                 duration: 10,
                 placement,
                 restrict: {},
+                once: false,
+                resumeOffset: null,
+                playoutLimit: null,
                 ads: () => Promise.resolve([]),
             }
         }
@@ -1409,7 +1424,7 @@ describe('TrackControllerImpl', () => {
                     adBreak: adBreak('midroll'),
                     ad,
                     reason: 'ended',
-                    resumeOffset: 0,
+                    resumePosition: 0,
                     index: 0,
                     totalAds: 1,
                 })
@@ -1417,14 +1432,14 @@ describe('TrackControllerImpl', () => {
             expect(trackController.currentTrack).toBeNull()
         })
 
-        it('resumes the parent track at the resume offset after a midroll ad', async () => {
+        it('resumes the parent track at the resume position after a midroll ad', async () => {
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
             deps.adController.dispatch('adCompleted', {
                 adBreak: adBreak('midroll'),
                 ad,
                 reason: 'ended',
-                resumeOffset: 7,
+                resumePosition: 7,
                 index: 0,
                 totalAds: 1,
             })
@@ -1444,7 +1459,7 @@ describe('TrackControllerImpl', () => {
                 adBreak: adBreak('preroll'),
                 ad,
                 reason: 'ended',
-                resumeOffset: 99,
+                resumePosition: 99,
                 index: 0,
                 totalAds: 1,
             })
@@ -1466,7 +1481,7 @@ describe('TrackControllerImpl', () => {
                 adBreak: adBreak('midroll'),
                 ad,
                 reason: 'ended',
-                resumeOffset: 5,
+                resumePosition: 5,
                 index: 0,
                 totalAds: 1,
             })
@@ -1484,7 +1499,7 @@ describe('TrackControllerImpl', () => {
                 adBreak: adBreak('postroll'),
                 ad,
                 reason: 'ended',
-                resumeOffset: 0,
+                resumePosition: 0,
                 index: 0,
                 totalAds: 1,
             })
@@ -1499,7 +1514,7 @@ describe('TrackControllerImpl', () => {
                 adBreak: adBreak('postroll'),
                 ad,
                 reason: 'ended',
-                resumeOffset: 0,
+                resumePosition: 0,
                 index: 0,
                 totalAds: 1,
             })

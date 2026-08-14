@@ -535,4 +535,217 @@ describe('discoverHlsInterstitials', () => {
         const breaks = await discoverHlsInterstitials(playlist, BASE)
         expect(breaks[0].duration).toBe(10)
     })
+
+    // ─── CUE token list / X-RESUME-OFFSET / X-PLAYOUT-LIMIT field ─────────
+    const ANCHOR_SEG = {
+        uri: 's0.ts',
+        duration: 60,
+        sequenceNumber: 0,
+        discontinuity: false,
+        programDateTime: '2024-01-01T00:00:00.000Z',
+    }
+
+    /** A playlist anchored at t=0 carrying a single interstitial range. */
+    function anchored(range: Partial<HlsDateRange>): HlsMediaPlaylist {
+        return makePlaylist({
+            segments: [ANCHOR_SEG],
+            dateRanges: [makeRange(range)],
+        })
+    }
+
+    function attrs(cue?: string, extra: Record<string, string> = {}) {
+        return {
+            'X-ASSET-URI': 'ad.m3u8',
+            ...(cue == null ? {} : { CUE: cue }),
+            ...extra,
+        }
+    }
+
+    it('tokenizes a CUE list, honoring PRE and ONCE together', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs('PRE,ONCE'),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].placement).toBe('preroll')
+        expect(breaks[0].startTime).toBe(0)
+        expect(breaks[0].once).toBeTrue()
+    })
+
+    it('marks a bare CUE=ONCE break once, leaving placement to the heuristic', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs('ONCE'),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].placement).toBe('midroll')
+        expect(breaks[0].once).toBeTrue()
+    })
+
+    it('honors POST together with ONCE', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:30.000Z',
+                duration: 6,
+                clientAttributes: attrs('POST,ONCE'),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].placement).toBe('postroll')
+        expect(breaks[0].once).toBeTrue()
+    })
+
+    it('ignores unknown CUE tokens', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs('PRE,FOO'),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].placement).toBe('preroll')
+        expect(breaks[0].once).toBeFalse()
+    })
+
+    it('lets PRE win when CUE illegally lists both PRE and POST', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs('PRE,POST'),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].placement).toBe('preroll')
+    })
+
+    it('tokenizes CUE case- and whitespace-insensitively', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(' once , pre '),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].once).toBeTrue()
+        expect(breaks[0].placement).toBe('preroll')
+    })
+
+    it('defaults once to false when there is no CUE', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].once).toBeFalse()
+    })
+
+    it('parses X-RESUME-OFFSET, distinguishing a present 0 from absent', async () => {
+        const zero = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(undefined, { 'X-RESUME-OFFSET': '0' }),
+            }),
+            BASE,
+            60
+        )
+        expect(zero[0].resumeOffset).toBe(0)
+
+        const absent = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(),
+            }),
+            BASE,
+            60
+        )
+        expect(absent[0].resumeOffset).toBeNull()
+    })
+
+    it('parses a signed / fractional X-RESUME-OFFSET and rejects garbage', async () => {
+        const neg = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(undefined, { 'X-RESUME-OFFSET': '-5' }),
+            }),
+            BASE,
+            60
+        )
+        expect(neg[0].resumeOffset).toBe(-5)
+
+        const frac = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(undefined, {
+                    'X-RESUME-OFFSET': '15.0',
+                }),
+            }),
+            BASE,
+            60
+        )
+        expect(frac[0].resumeOffset).toBe(15)
+
+        const garbage = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(undefined, {
+                    'X-RESUME-OFFSET': 'nope',
+                }),
+            }),
+            BASE,
+            60
+        )
+        expect(garbage[0].resumeOffset).toBeNull()
+    })
+
+    it('carries X-PLAYOUT-LIMIT as its own field, even without a DURATION', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                clientAttributes: attrs(undefined, { 'X-PLAYOUT-LIMIT': '8' }),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].playoutLimit).toBe(8)
+        // No DURATION/END-DATE/PLANNED-DURATION → duration unresolved, but the
+        // pod-total cap survives (previously it was dropped).
+        expect(breaks[0].duration).toBeNull()
+    })
+
+    it('reports a null playoutLimit when X-PLAYOUT-LIMIT is absent', async () => {
+        const breaks = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(),
+            }),
+            BASE,
+            60
+        )
+        expect(breaks[0].playoutLimit).toBeNull()
+    })
 })
