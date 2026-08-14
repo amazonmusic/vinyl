@@ -99,14 +99,67 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         )
     })
 
+    // The transport root, so fullscreen covers the video AND the custom controls
+    // (fullscreening the bare video would hide them and show native controls).
+    let root: HTMLElement | null = null
+    const HIDE_CONTROLS_MS = 3000
+
+    function toggleFullscreen() {
+        if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {})
+        } else {
+            root?.requestFullscreen().catch(() => {})
+        }
+    }
+
     return (
         <footer
             className="transport"
             onConnect={(element) => {
+                root = element
                 resizeObserver.observe(element)
 
+                // In fullscreen, keep the custom controls visible but auto-hide
+                // them after a period without user interaction (each interaction
+                // debounces the hide by restarting the timer).
+                let hideTimer: ReturnType<typeof setTimeout> | undefined
+                const showControls = () => {
+                    element.classList.remove('controlsHidden')
+                    clearTimeout(hideTimer)
+                    if (document.fullscreenElement === element) {
+                        hideTimer = setTimeout(
+                            () => element.classList.add('controlsHidden'),
+                            HIDE_CONTROLS_MS
+                        )
+                    }
+                }
+                const onFullscreenChange = () => {
+                    if (document.fullscreenElement === element) {
+                        showControls()
+                    } else {
+                        clearTimeout(hideTimer)
+                        element.classList.remove('controlsHidden')
+                    }
+                }
+                element.addEventListener('pointermove', showControls)
+                element.addEventListener('pointerdown', showControls)
+                element.addEventListener('keydown', showControls)
+                document.addEventListener(
+                    'fullscreenchange',
+                    onFullscreenChange
+                )
+
                 return () => {
+                    root = null
                     resizeObserver.unobserve(element)
+                    clearTimeout(hideTimer)
+                    element.removeEventListener('pointermove', showControls)
+                    element.removeEventListener('pointerdown', showControls)
+                    element.removeEventListener('keydown', showControls)
+                    document.removeEventListener(
+                        'fullscreenchange',
+                        onFullscreenChange
+                    )
                     document.documentElement.style.setProperty(
                         '--transport-height',
                         '0px'
@@ -201,13 +254,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                         className="transportBtn"
                         title="Fullscreen"
                         visible={hasVideo$}
-                        onclick={() => {
-                            if (document.fullscreenElement) {
-                                document.exitFullscreen().catch(() => {})
-                            } else {
-                                media.requestFullscreen().catch(() => {})
-                            }
-                        }}
+                        onclick={toggleFullscreen}
                     >
                         <Icon name="fullscreen" />
                     </button>
