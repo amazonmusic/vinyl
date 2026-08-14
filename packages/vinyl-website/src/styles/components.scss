@@ -219,6 +219,10 @@
         color: var(--color-text-tertiary);
         margin-top: 2px;
     }
+
+    .btnIcon {
+        flex-shrink: 0;
+    }
 }
 
 // Toggle switch

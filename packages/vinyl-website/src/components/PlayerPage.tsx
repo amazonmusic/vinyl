@@ -1,5 +1,10 @@
 import { jsx } from '@amazon/vinyl-tsx'
-import { createTrackFromUrl, loadContent, type Track } from '../player'
+import {
+    createTrackFromUrl,
+    enqueueContent,
+    loadContent,
+    type Track,
+} from '../player'
 import { data } from '@amazon/vinyl-observable'
 import { Icon } from './icons'
 import { toastError } from './toast'
@@ -46,8 +51,9 @@ const demoTracks: Track[] = [
 
 export function PlayerPage() {
     const url$ = data('')
-    // Loads the currently typed URL.
-    const loadUrl = () => {
+    // Resolves the currently typed URL to a track, then hands it to `sink`
+    // (play now or enqueue).
+    const withUrlTrack = (sink: (track: Track) => void) => {
         const url = url$.value.trim()
         if (!url) return
         createTrackFromUrl(url)
@@ -56,10 +62,12 @@ export function PlayerPage() {
                     toastError('Could not determine media type for URL')
                     return
                 }
-                loadContent(track)
+                sink(track)
             })
             .catch(toastError)
     }
+    const loadUrl = () => withUrlTrack(loadContent)
+    const enqueueUrl = () => withUrlTrack(enqueueContent)
 
     return (
         <div className="page">
@@ -91,6 +99,14 @@ export function PlayerPage() {
                     <button className="btn btnPrimary" onclick={loadUrl}>
                         <Icon name="play_arrow" />
                         Play
+                    </button>
+                    <button
+                        className="btnIcon"
+                        title="Add to queue"
+                        aria-label="Add to queue"
+                        onclick={enqueueUrl}
+                    >
+                        <Icon name="add" />
                     </button>
                 </div>
             </div>
@@ -142,6 +158,18 @@ function DemoCard(props: { readonly track: Track }) {
                 <div className="demoCardDesc">{track.description ?? ''}</div>
             </div>
             <span className="badge">{track.type}</span>
+            <button
+                className="btnIcon"
+                title="Add to queue"
+                aria-label={`Add ${track.title ?? track.url} to queue`}
+                onclick={(e: MouseEvent) => {
+                    // Don't also trigger the card's play-on-click.
+                    e.stopPropagation()
+                    enqueueContent(track)
+                }}
+            >
+                <Icon name="add" />
+            </button>
         </div>
     )
 }
