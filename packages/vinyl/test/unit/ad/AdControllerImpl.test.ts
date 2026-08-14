@@ -895,6 +895,118 @@ describe('AdControllerImpl', () => {
         })
     })
 
+    describe('adTimeUpdate', () => {
+        interface AdTiming {
+            adCurrentTime: number
+            adTimeRemaining: number | null
+            breakCurrentTime: number
+            breakTimeRemaining: number | null
+        }
+        function timingsOf(c: AdControllerImpl): AdTiming[] {
+            const seen: AdTiming[] = []
+            c.on('adTimeUpdate', (e) =>
+                seen.push({
+                    adCurrentTime: e.adCurrentTime,
+                    adTimeRemaining: e.adTimeRemaining,
+                    breakCurrentTime: e.breakCurrentTime,
+                    breakTimeRemaining: e.breakTimeRemaining,
+                })
+            )
+            return seen
+        }
+
+        it('reports elapsed and remaining time for the ad and the break', async () => {
+            const c = createController()
+            const seen = timingsOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 30,
+                        playoutLimit: 20,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: 10,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            updateTime(4)
+            const last = seen.at(-1)!
+            expect(last.adCurrentTime).toBe(4)
+            expect(last.adTimeRemaining).toBe(6) // ad.duration 10 - 4
+            expect(last.breakCurrentTime).toBe(4)
+            expect(last.breakTimeRemaining).toBe(16) // playoutLimit 20 - 4
+        })
+
+        it('falls back to the media duration when the ad duration is unknown', async () => {
+            const c = createController()
+            const seen = timingsOf(c)
+            playbackController.duration = 12
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 12,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(5)
+            const last = seen.at(-1)!
+            expect(last.adTimeRemaining).toBe(7) // media duration 12 - 5
+            expect(last.breakTimeRemaining).toBe(7) // break duration 12 - 5
+        })
+
+        it('reports null remaining when the ad and break durations are unknown', async () => {
+            const c = createController()
+            const seen = timingsOf(c)
+            playbackController.duration = Infinity
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: null,
+                        playoutLimit: null,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(3)
+            const last = seen.at(-1)!
+            expect(last.adCurrentTime).toBe(3)
+            expect(last.adTimeRemaining).toBeNull()
+            expect(last.breakTimeRemaining).toBeNull()
+        })
+    })
+
     describe('dispose', () => {
         it('stops responding to time updates', async () => {
             const c = createController()

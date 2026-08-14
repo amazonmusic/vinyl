@@ -444,6 +444,30 @@ export class AdControllerImpl
             // Ad progress events
             const ad = this.currentAd
             const stats = this.adStats
+            if (ad) {
+                // Surface elapsed/remaining time for the ad and the break as a
+                // whole so applications don't derive it from the media duration.
+                const adPlayed = this.adElapsed()
+                const adTotal =
+                    ad.duration ?? (isFinite(pC.duration) ? pC.duration : null)
+                const breakPlayed = this.breakPlayoutElapsed + adPlayed
+                const breakTotal = adBreak.playoutLimit ?? adBreak.duration
+                this.dispatch('adTimeUpdate', {
+                    ad,
+                    index: this._currentAdIndex,
+                    totalAds: this._totalAds,
+                    adCurrentTime: adPlayed,
+                    adTimeRemaining:
+                        adTotal != null
+                            ? Math.max(0, adTotal - adPlayed)
+                            : null,
+                    breakCurrentTime: breakPlayed,
+                    breakTimeRemaining:
+                        breakTotal != null
+                            ? Math.max(0, breakTotal - breakPlayed)
+                            : null,
+                })
+            }
             if (ad && isFinite(pC.duration)) {
                 // Take a running average of the playback rate. Applications can
                 // use this to detect tampering when emitting metrics.
