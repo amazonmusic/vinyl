@@ -49,6 +49,7 @@ describe('VinylPlayer ad break API', () => {
             once: false,
             resumeOffset: null,
             playoutLimit: null,
+            skipControl: () => null,
             ads: () =>
                 Promise.resolve([
                     {

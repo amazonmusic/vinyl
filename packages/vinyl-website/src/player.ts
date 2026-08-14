@@ -63,6 +63,8 @@ export const playerState = {
     currentAdIndex$: data<AdEventIndex>(noAds),
     adBreaks$: data<AdBreakList>([]),
     adTimeRemaining$: data(0),
+    canSkipAd$: data(false),
+    skipIn$: data<number | null>(null),
     seekRange$: data<SeekRange | null>(null),
 }
 
@@ -131,8 +133,12 @@ player.on('currentTrackAdsChange', ({ current }) => {
 })
 player.on('currentAdBreakChange', (event) => {
     playerState.currentAdBreak$.value = event.current
-    // The break ended; clear any lingering remaining-time readout.
-    if (!event.current) playerState.adTimeRemaining$.value = 0
+    // The break ended; clear any lingering ad readouts.
+    if (!event.current) {
+        playerState.adTimeRemaining$.value = 0
+        playerState.canSkipAd$.value = false
+        playerState.skipIn$.value = null
+    }
 })
 onAny(player, ['adEntered', 'adCompleted'], (event) => {
     playerState.currentAdIndex$.value = {
@@ -145,10 +151,13 @@ player.on('seekRangeChange', ({ current }) => {
     playerState.seekRange$.value = current
 })
 
-// Ad timing comes straight from the ad controller (which knows the ad and
-// break durations) rather than being derived from the media element's duration.
-player.on('adTimeUpdate', ({ adTimeRemaining }) => {
+// Ad timing (and the skip window) come straight from the ad controller, which
+// knows the ad and break durations, rather than being derived from the media
+// element's duration.
+player.on('adTimeUpdate', ({ adTimeRemaining, canSkip, skipIn }) => {
     playerState.adTimeRemaining$.value = adTimeRemaining ?? 0
+    playerState.canSkipAd$.value = canSkip
+    playerState.skipIn$.value = skipIn
 })
 
 /**

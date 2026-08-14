@@ -137,6 +137,19 @@ export interface AdTimeUpdateEvent extends AdEvent {
      * break's total duration is unknown.
      */
     readonly breakTimeRemaining: number | null
+
+    /**
+     * Whether the current ad may be skipped right now — false while skipping is
+     * restricted or the break's skip window has not yet opened. Applications
+     * should gate their skip control on this.
+     */
+    readonly canSkip: boolean
+
+    /**
+     * Seconds until the ad becomes skippable, or null when there is no pending
+     * skip window (it is already skippable, or skipping is never offered).
+     */
+    readonly skipIn: number | null
 }
 
 export interface AdCompleteEvent extends AdEvent {

@@ -784,6 +784,7 @@ describe('TrackControllerImpl', () => {
                         once: false,
                         resumeOffset: null,
                         playoutLimit: null,
+                        skipControl: () => null,
                         ads: () =>
                             Promise.resolve([
                                 {
@@ -1132,6 +1133,7 @@ describe('TrackControllerImpl', () => {
                         once: false,
                         resumeOffset: null,
                         playoutLimit: null,
+                        skipControl: () => null,
                         ads: () =>
                             Promise.resolve([
                                 {
@@ -1206,6 +1208,7 @@ describe('TrackControllerImpl', () => {
                         once: false,
                         resumeOffset: null,
                         playoutLimit: null,
+                        skipControl: () => null,
                         ads: () =>
                             Promise.resolve([
                                 {
@@ -1312,6 +1315,7 @@ describe('TrackControllerImpl', () => {
                         once: false,
                         resumeOffset: null,
                         playoutLimit: null,
+                        skipControl: () => null,
                         ads: () => Promise.reject(new Error('ad list down')),
                     },
                 ],
@@ -1362,6 +1366,7 @@ describe('TrackControllerImpl', () => {
                 once: false,
                 resumeOffset: null,
                 playoutLimit: null,
+                skipControl: () => null,
                 ads: () => Promise.resolve([]),
             }
         }

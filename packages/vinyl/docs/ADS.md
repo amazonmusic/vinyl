@@ -21,10 +21,12 @@ through the player; they never deal with HLS- or DASH-specific tags.
   that govern replay and resumption: `once` (play the break at most once, never
   replaying it when the playhead re-crosses), `resumeOffset` (where primary
   content resumes relative to the break start; `null` advances by the break's
-  actual playout duration, `0` resumes in place), and `playoutLimit` (a cap on
-  the break's total playout, or `null` when uncapped). These are
-  provider-agnostic; an HLS interstitial, for example, populates them from its
-  `CUE=ONCE`, `X-RESUME-OFFSET`, and `X-PLAYOUT-LIMIT` signals.
+  actual playout duration, `0` resumes in place), `playoutLimit` (a cap on the
+  break's total playout, or `null` when uncapped), and `skipControl()` (a
+  resolver for the window during which the ad may be skipped, or `null` when the
+  break carries none). These are provider-agnostic; an HLS interstitial, for
+  example, populates them from its `CUE=ONCE`, `X-RESUME-OFFSET`,
+  `X-PLAYOUT-LIMIT`, and `X-ASSET-LIST` `SKIP-CONTROL` signals.
 - **`AdInfo`** — a single ad within a break, with its own `id`, `startTime`,
   `duration`, and asset `uri`. Playback of an ad is capped at its `duration`
   when that is known.
@@ -73,7 +75,18 @@ player.on('currentTrackAdsChange', ({ current }) => {
 player.on('currentAdBreakChange', ({ previous, current }) => {
     /* … */
 })
+
+// Per-tick ad timing while a break plays. Carries elapsed/remaining time for
+// the current ad and the whole break, plus the skip state — `canSkip` (whether
+// the ad may be skipped right now) and `skipIn` (seconds until it can be, or
+// null). Prefer this over deriving ad timing from the media element.
+player.on('adTimeUpdate', (e) => {
+    /* e.adTimeRemaining, e.breakTimeRemaining, e.canSkip, e.skipIn */
+})
 ```
+
+Gate a Skip control on `canSkip` and show a countdown from `skipIn` until the
+skip window opens.
 
 ## How playback works
 
