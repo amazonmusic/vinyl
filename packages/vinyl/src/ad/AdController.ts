@@ -36,6 +36,14 @@ export interface AdEventMap {
     readonly adPlaying: AdEvent
 
     /**
+     * Dispatched on each playback progress tick while an ad is active, carrying
+     * the elapsed and remaining time for both the current ad and the whole ad
+     * break. Applications should prefer this over deriving ad timing from the
+     * media element's duration.
+     */
+    readonly adTimeUpdate: AdTimeUpdateEvent
+
+    /**
      * Dispatched when an ad has played through 25%.
      */
     readonly adFirstQuartile: AdProgressEvent
@@ -108,6 +116,29 @@ export interface AdProgressEvent extends AdEvent {
     readonly playbackRateAvg: number
 }
 
+export interface AdTimeUpdateEvent extends AdEvent {
+    /** Seconds the current ad has played. */
+    readonly adCurrentTime: number
+
+    /**
+     * Seconds remaining in the current ad, or null when the ad's duration is
+     * unknown.
+     */
+    readonly adTimeRemaining: number | null
+
+    /**
+     * Seconds the current ad break has played, summed across all of its ads so
+     * far (including the current one).
+     */
+    readonly breakCurrentTime: number
+
+    /**
+     * Seconds remaining in the current ad break as a whole, or null when the
+     * break's total duration is unknown.
+     */
+    readonly breakTimeRemaining: number | null
+}
+
 export interface AdCompleteEvent extends AdEvent {
     /** The current ad break. */
     readonly adBreak: AdBreakInfo
@@ -131,6 +162,7 @@ export const ALL_AD_EVENTS = [
     'adFirstQuartile',
     'adEntered',
     'adPlaying',
+    'adTimeUpdate',
     'adMidpoint',
     'adThirdQuartile',
     'adEnded',

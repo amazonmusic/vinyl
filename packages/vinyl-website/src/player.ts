@@ -131,6 +131,8 @@ player.on('currentTrackAdsChange', ({ current }) => {
 })
 player.on('currentAdBreakChange', (event) => {
     playerState.currentAdBreak$.value = event.current
+    // The break ended; clear any lingering remaining-time readout.
+    if (!event.current) playerState.adTimeRemaining$.value = 0
 })
 onAny(player, ['adEntered', 'adCompleted'], (event) => {
     playerState.currentAdIndex$.value = {
@@ -143,19 +145,11 @@ player.on('seekRangeChange', ({ current }) => {
     playerState.seekRange$.value = current
 })
 
-onAny(player, ['timeUpdate', 'adPlaying', 'adEnded'], updateAdTimeRemaining)
-
-// Recomputes the seconds remaining in the active ad break from the playhead.
-function updateAdTimeRemaining() {
-    if (!player.currentAd) {
-        playerState.adTimeRemaining$.value = 0
-        return
-    }
-    const dur = player.duration
-    playerState.adTimeRemaining$.value = !isFinite(dur)
-        ? 0
-        : Math.max(0, dur - player.currentTime)
-}
+// Ad timing comes straight from the ad controller (which knows the ad and
+// break durations) rather than being derived from the media element's duration.
+player.on('adTimeUpdate', ({ adTimeRemaining }) => {
+    playerState.adTimeRemaining$.value = adTimeRemaining ?? 0
+})
 
 /**
  * The identity used to re-select the user's chosen caption track across track
