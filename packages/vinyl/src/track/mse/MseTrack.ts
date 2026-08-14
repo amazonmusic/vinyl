@@ -70,6 +70,9 @@ export class MseTrack extends TrackBase {
     declare protected readonly deps: MseTrackDeps
 
     override get textTrackController(): TextTrackController | null {
+        // Reading a dep on a disposed track throws DisposedError (its DI
+        // container's lazies are disposed); a stale reference has no controller.
+        if (this.disposed) return null
         return this.deps.textTrackController ?? null
     }
 
@@ -338,6 +341,8 @@ export class MseTrack extends TrackBase {
     }
 
     onActivated(loadOptions: TrackConfigOptions): void {
+        // A disposed track's deps throw DisposedError on access; never touch them.
+        if (this.disposed) return
         // Rebuild the DOM text track. The element's added TextTracks are
         // dropped when the source is reset on deactivation (e.g. suspended for
         // an ad), so the active selection must be re-rendered on reactivation.
@@ -376,6 +381,8 @@ export class MseTrack extends TrackBase {
     }
 
     onDeactivated(): void {
+        // A disposed track's deps throw DisposedError on access; never touch them.
+        if (this.disposed) return
         this.timeUpdateSub?.()
         this.timeUpdateSub = null
         this.callOnStreams('deactivate')

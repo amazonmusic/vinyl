@@ -16,6 +16,7 @@ import { MockPlaybackSource } from '../../playback/MockPlaybackSource'
 import { MockContentStream } from '../../streaming/MockContentStream'
 import { MockPlaybackController } from '../../playback/MockPlaybackController'
 import { MockDrmController } from '../../drm/MockDrmController'
+import { MockTextTrackController } from '../../text/MockTextTrackController'
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
 import { data } from '@amazon/vinyl-observable'
 
@@ -36,6 +37,7 @@ export function createMockDashDependencies() {
     const manifestController = new MockDashManifestController()
 
     return {
+        textTrackController: new MockTextTrackController(),
         contentTypesValue: data(Promise.resolve(new Set<ContentType>())),
         contentStreamFactory: spyFactory('contentStreamFactory').and.callFake(
             (contentType) => {

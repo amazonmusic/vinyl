@@ -70,6 +70,7 @@ import type { AutoResetController } from '../track/AutoResetController'
 import type { ChangeEvent } from '../event/ChangeEvent'
 import {
     ALL_TEXT_TRACK_EVENTS,
+    type TextTrackController,
     type TextTrackEventMap,
     type TextTrackInfo,
 } from '../text/TextTrack'
@@ -238,11 +239,10 @@ export class VinylPlayer<
                 // must survive so `resume()` can restore the cues. Track
                 // deactivation already suspends the DOM output via
                 // MseTrack.onDeactivated → textTrackController.suspend().
+                // currentTrackChange exposes ReadonlyTrack, but the concrete
+                // controller is a full TextTrackController.
                 const prevTextController = event.previous
-                    ?.textTrackController as
-                    | { setActiveTextTrack(id: string | null): void }
-                    | null
-                    | undefined
+                    ?.textTrackController as TextTrackController | null
                 if (!this.deps.adController.currentAdBreak) {
                     prevTextController?.setActiveTextTrack(null)
                 }
@@ -739,11 +739,10 @@ export class VinylPlayer<
      * surface text tracks or the id is unknown.
      */
     setActiveTextTrack(id: string | null): void {
+        // currentTrack exposes ReadonlyTrack, but the concrete controller is a
+        // full TextTrackController.
         const controller = this.deps.trackController.currentTrack
-            ?.textTrackController as
-            | { setActiveTextTrack(id: string | null): void }
-            | null
-            | undefined
+            ?.textTrackController as TextTrackController | null
         controller?.setActiveTextTrack(id)
     }
 

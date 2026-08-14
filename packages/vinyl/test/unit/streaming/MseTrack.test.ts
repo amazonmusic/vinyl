@@ -751,47 +751,44 @@ describe('MseTrack', () => {
 
     describe('textTrackController', () => {
         it('returns null when no controller is provided', () => {
-            track = createTrack()
+            track = new MseTrack(
+                'uri',
+                'mse',
+                externalDependencies({ ...deps, textTrackController: null })
+            )
             expect(track.textTrackController).toBeNull()
         })
 
         it('returns the dependency-provided controller', () => {
-            const controller = {
-                textTracks: [],
-                activeTextTrack: null,
-                setActiveTextTrack: () => undefined,
-                suspend: () => undefined,
-                resume: () => undefined,
-                on: () => () => undefined,
-                hasAnyListeners: () => false,
-                hasListeners: () => false,
-                __eventMapType: {} as never,
-            }
-            ;(deps as unknown as Record<string, unknown>).textTrackController =
-                controller
             track = createTrack()
-            expect(track.textTrackController).toBe(controller)
+            expect(track.textTrackController).toBe(deps.textTrackController)
         })
 
         it('suspends the controller on deactivate and resumes it on activate', () => {
-            const controller = {
-                textTracks: [],
-                activeTextTrack: null,
-                setActiveTextTrack: () => undefined,
-                suspend: jasmine.createSpy('suspend'),
-                resume: jasmine.createSpy('resume'),
-                on: () => () => undefined,
-                hasAnyListeners: () => false,
-                hasListeners: () => false,
-                __eventMapType: {} as never,
-            }
-            ;(deps as unknown as Record<string, unknown>).textTrackController =
-                controller
             track = createTrack()
             track.activate({})
-            expect(controller.resume).toHaveBeenCalled()
+            expect(deps.textTrackController.resume).toHaveBeenCalled()
             track.deactivate()
-            expect(controller.suspend).toHaveBeenCalled()
+            expect(deps.textTrackController.suspend).toHaveBeenCalled()
+        })
+
+        // Regression: reading a disposed track's controller threw DisposedError
+        // (disposed DI-container lazy). An ad track evicted mid-break is still
+        // the outgoing track on the currentTrackChange that resumes content, and
+        // the player reads its textTrackController — the throw stalled the ad.
+        it('returns null (not throw) when read after disposal', () => {
+            const t = (track = createTrack())
+            expect(t.textTrackController).toBe(deps.textTrackController)
+            t.dispose()
+            expect(() => t.textTrackController).not.toThrow()
+            expect(t.textTrackController).toBeNull()
+        })
+
+        it('does not throw when its activate/deactivate hooks run after disposal', () => {
+            const t = (track = createTrack())
+            t.dispose()
+            expect(() => t.onDeactivated()).not.toThrow()
+            expect(() => t.onActivated({})).not.toThrow()
         })
     })
 
