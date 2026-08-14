@@ -268,10 +268,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     private readonly adPreloadWired = new WeakSet<Track>()
     // The primary content track cache. Bounded by preloadCapacity + prefetch.
     private readonly trackCache = new LruCache<string, Track>(0)
-    // Ad tracks kept separate from the content cache and keyed by their parent
-    // content URI. Their presence is pegged to the parent: when the parent is
-    // evicted from `trackCache`, its ad tracks are disposed here. This avoids
-    // flexing the content cache's capacity to accommodate ads.
+    // Ad tracks keyed by parent content URI, kept out of the content cache.
+    // Pegged to the parent: disposed when the parent is evicted (see onEvict).
     private readonly adTracksByParent = new Map<
         TrackUri,
         Map<TrackUri, Track>
@@ -298,6 +296,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         const { playbackController } = deps
 
         this.trackCache.onEvicting = (track) => {
+            // Keep the parent of the playing ad: its ad tracks are pegged to
+            // it, so evicting it would dispose the ad on screen.
+            if (this._adParent?.uri === track.uri) return false
             // Do not evict tracks within the prefetch range.
             return (
                 this.getPrefetched().find((value) => value.uri === track.uri) ==
@@ -761,18 +762,15 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         if (previous !== current) {
             this.activeTrackSub?.()
             this.activeTrackSub = null
-            // Update the current/queue pointers before materializing the track,
-            // so cache eviction inside getOrCreateTrack protects the incoming
-            // track and its prefetch window rather than the outgoing one.
+            // Update the pointers before materializing the track, so eviction
+            // protects the incoming track and its window, not the outgoing one.
             this._current = current ?? null
             if (!options?.fromAd) {
                 this._adParent = this._current
             }
             this._queue = queue
-            // fromAd distinguishes ad-track selection (adEntered) from content
-            // resume after an ad (adCompleted). Only the former routes into the
-            // parent-keyed ad store; the latter targets the content cache
-            // like any other content change.
+            // fromAd distinguishes ad selection (adEntered) from content resume
+            // (adCompleted); only the former routes to the parent-keyed store.
             const isAdTrack =
                 !!options?.fromAd &&
                 this._adParent != null &&
@@ -804,9 +802,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 const { add, dispose } = createDisposer()
                 this.activeTrackSub = dispose
 
-                // Re-baseline after the setAds(null) above: clearing the outgoing
-                // track's ads nulls the active ad, which the top-level interrupted()
-                // would otherwise read as an interruption and skip activation.
+                // Re-baseline after setAds(null): clearing the outgoing track's
+                // ads nulls the active ad, which interrupted() would misread.
                 const activateInterrupted = this.getQueueInterrupted()
 
                 // Activates and optionally plays the new track. This is not invoked until after potential preroll
@@ -836,17 +833,14 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     add(newTrack.on('adsChange', refreshAds))
                     refreshAds()
                     // Ad preloading for the current track is wired by the
-                    // _preload(getPrefetched()) call below (the current track is
-                    // always in the prefetch window), at a priority just below
-                    // the track itself.
+                    // _preload(getPrefetched()) call below, just under its priority.
                 } else {
                     activate()
                 }
             }
         } else {
-            // The current track is unchanged but the queue may have (e.g. an
-            // enqueue while a track is playing, or an enqueue into an empty
-            // controller). Keep the queue in sync so hasNext()/next() work.
+            // Current track unchanged but the queue may have (e.g. enqueue).
+            // Keep it in sync so hasNext()/next() work.
             this._queue = queue
         }
         this._preload(this.getPrefetched())
@@ -855,10 +849,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             `currentTrackChange, previous: ${previous?.uri} current: ${current?.uri}`
         )
         if (previousQueue !== this._queue) {
-            // Re-baseline the interruption check here: setQueue may itself have
-            // changed the active ad (e.g. a content change clears it via
-            // adController.setAds(null)). Only a queueChange *handler* that
-            // re-enters and mutates the queue/ad should count as illegal.
+            // Re-baseline: setQueue itself may have changed the active ad (a
+            // content change clears it). Only a re-entrant handler is illegal.
             const queueChangeInterrupted = this.getQueueInterrupted()
             this.dispatch('queueChange', {
                 previous: previousQueue,
