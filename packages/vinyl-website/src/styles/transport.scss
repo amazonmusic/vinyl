@@ -10,6 +10,50 @@
     flex-direction: column;
 }
 
+// In fullscreen the transport root fills the screen: the video occupies the
+// space and the custom controls overlay the bottom (light-on-dark), auto-hiding
+// after a period of no interaction.
+.transport:fullscreen {
+    background: black;
+    border-top: none;
+    // Render the controls light-on-dark over the fullscreen video.
+    --color-text-primary: #fff;
+    --color-text-secondary: rgba(255, 255, 255, 0.75);
+    --color-text-tertiary: rgba(255, 255, 255, 0.55);
+    --color-bg-tertiary: rgba(255, 255, 255, 0.18);
+
+    .transportVideo {
+        flex: 1;
+        min-height: 0;
+    }
+
+    .transportVideo video {
+        max-height: none;
+        height: 100%;
+    }
+
+    .transportControlsRow {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+        transition:
+            opacity var(--transition-fast),
+            transform var(--transition-fast);
+    }
+
+    &.controlsHidden {
+        cursor: none;
+    }
+
+    &.controlsHidden .transportControlsRow {
+        opacity: 0;
+        transform: translateY(100%);
+        pointer-events: none;
+    }
+}
+
 .transportVideo {
     position: relative;
     background: black;
