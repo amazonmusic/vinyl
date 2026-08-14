@@ -285,6 +285,7 @@ describe('VinylPlayer', () => {
             once: false,
             resumeOffset: null,
             playoutLimit: null,
+            skipControl: () => null,
         }
 
         const mockTrack = new MockTrack()

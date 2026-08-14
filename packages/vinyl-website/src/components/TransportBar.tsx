@@ -37,16 +37,20 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         currentAdBreak$,
         adBreaks$,
         adTimeRemaining$,
+        canSkipAd$,
+        skipIn$,
         seekRange$,
         currentAdIndex$,
     } = playerState
 
     const adActive$ = currentAdBreak$.map((b) => b != null)
     const adRemainingLabel$ = adTimeRemaining$.map(formatTime)
-    const canSkipAd$ = currentAdBreak$.map((b) => {
-        if (!b) return false
-        return !b.restrict.skip
-    })
+    // The ad controller decides skippability (respecting the skip window and any
+    // restriction); until the window opens, show a countdown instead of a button.
+    const skipCountdown$ = skipIn$.map((s) =>
+        s != null && s > 0 ? `Skip in ${Math.ceil(s)}s` : ''
+    )
+    const showSkipCountdown$ = skipIn$.map((s) => s != null && s > 0)
     const adLabel$ = currentAdIndex$.map((v) => {
         if (v.totalAds <= 1) return 'Ad'
         return `Ad ${v.index + 1} / ${v.totalAds}`
@@ -116,6 +120,12 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                 <div className="adOverlay" visible={adActive$}>
                     <span className="adBadge">{adLabel$}</span>
                     <span className="adRemaining">{adRemainingLabel$}</span>
+                    <span
+                        className="adSkipCountdown"
+                        visible={showSkipCountdown$}
+                    >
+                        {skipCountdown$}
+                    </span>
                     <button
                         className="adSkipBtn"
                         visible={canSkipAd$}

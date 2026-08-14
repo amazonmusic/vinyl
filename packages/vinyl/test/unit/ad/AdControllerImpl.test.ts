@@ -70,6 +70,7 @@ describe('AdControllerImpl', () => {
             once: false,
             resumeOffset: null,
             playoutLimit: null,
+            skipControl: () => null,
             ads: adsResolver,
             ...rest,
         }
@@ -1004,6 +1005,141 @@ describe('AdControllerImpl', () => {
             expect(last.adCurrentTime).toBe(3)
             expect(last.adTimeRemaining).toBeNull()
             expect(last.breakTimeRemaining).toBeNull()
+        })
+    })
+
+    describe('skip window', () => {
+        interface SkipState {
+            canSkip: boolean
+            skipIn: number | null
+        }
+        function skipStatesOf(c: AdControllerImpl): SkipState[] {
+            const seen: SkipState[] = []
+            c.on('adTimeUpdate', (e) =>
+                seen.push({ canSkip: e.canSkip, skipIn: e.skipIn })
+            )
+            return seen
+        }
+
+        /** A break whose (async) skip window opens `offset`s in for `duration`s. */
+        function breakWithSkip(offset: number, duration: number | null) {
+            return makeBreak({
+                startTime: 0,
+                duration: 60,
+                ads: [{ id: 'a1', startTime: 0, duration: null, uri: 'ad' }],
+                skipControl: () => Promise.resolve({ offset, duration }),
+            })
+        }
+
+        it('is not skippable before the window and counts down to it', async () => {
+            const c = createController()
+            const seen = skipStatesOf(c)
+            c.setAds(trackAds(breakWithSkip(6, null)))
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            updateTime(2)
+            const last = seen.at(-1)!
+            expect(last.canSkip).toBeFalse()
+            expect(last.skipIn).toBe(4) // offset 6 - played 2
+        })
+
+        it('becomes skippable once inside the window', async () => {
+            const c = createController()
+            const seen = skipStatesOf(c)
+            c.setAds(trackAds(breakWithSkip(6, 5)))
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(8) // within [6, 11)
+            const last = seen.at(-1)!
+            expect(last.canSkip).toBeTrue()
+            expect(last.skipIn).toBeNull()
+        })
+
+        it('stays skippable for the rest of the break when the window is open-ended', async () => {
+            const c = createController()
+            const seen = skipStatesOf(c)
+            c.setAds(trackAds(breakWithSkip(6, null)))
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(10) // past offset 6, no window end
+            const last = seen.at(-1)!
+            expect(last.canSkip).toBeTrue()
+            expect(last.skipIn).toBeNull()
+        })
+
+        it('stops being skippable after the window closes', async () => {
+            const c = createController()
+            const seen = skipStatesOf(c)
+            c.setAds(trackAds(breakWithSkip(6, 5)))
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(12) // past 6 + 5 = 11
+            const last = seen.at(-1)!
+            expect(last.canSkip).toBeFalse()
+            expect(last.skipIn).toBeNull()
+        })
+
+        it('never allows skipping when the break restricts it', async () => {
+            const c = createController()
+            const seen = skipStatesOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 60,
+                        restrict: { skip: true },
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(3)
+            const last = seen.at(-1)!
+            expect(last.canSkip).toBeFalse()
+            expect(last.skipIn).toBeNull()
+        })
+
+        it('leaves the break with no skip window if the control fails to resolve', async () => {
+            const c = createController()
+            const seen = skipStatesOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 60,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad',
+                            },
+                        ],
+                        skipControl: () => Promise.reject(new Error('boom')),
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(3)
+            const last = seen.at(-1)!
+            // No resolved window → freely skippable.
+            expect(last.canSkip).toBeTrue()
+            expect(last.skipIn).toBeNull()
         })
     })
 

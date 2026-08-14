@@ -20,6 +20,7 @@ import {
     type AdBreakList,
     type AdBreakPlacement,
     type AdInfo,
+    type SkipControl,
     type TrackAds,
 } from './AdBreakInfo'
 import type {
@@ -140,6 +141,9 @@ export class AdControllerImpl
     // enforce the break's playout limit and to default an unspecified resume
     // offset.
     private breakPlayoutElapsed = 0
+    // The resolved skip window for the current break, or null when it has none
+    // (or has not resolved yet).
+    private _currentSkipControl: SkipControl | null = null
     private readonly disposer = createDisposer()
     private adStats: AdStats = createAdStats()
 
@@ -237,6 +241,31 @@ export class AdControllerImpl
             : 0
     }
 
+    /**
+     * Computes whether the current ad may be skipped and, when not yet, how many
+     * seconds remain until it can. A `skip` restriction blocks it outright;
+     * otherwise a resolved skip window gates it by the elapsed break playout, and
+     * with no window the ad is freely skippable.
+     */
+    private resolveSkipState(
+        adBreak: AdBreakInfo,
+        breakPlayed: number
+    ): { readonly canSkip: boolean; readonly skipIn: number | null } {
+        if (adBreak.restrict.skip === true) {
+            return { canSkip: false, skipIn: null }
+        }
+        const skip = this._currentSkipControl
+        if (!skip) {
+            return { canSkip: true, skipIn: null }
+        }
+        if (breakPlayed < skip.offset) {
+            return { canSkip: false, skipIn: skip.offset - breakPlayed }
+        }
+        const end =
+            skip.duration != null ? skip.offset + skip.duration : Infinity
+        return { canSkip: breakPlayed < end, skipIn: null }
+    }
+
     setAds(value: Maybe<TrackAds>): void {
         const previous = this._trackAds
         const current = value ?? null
@@ -324,6 +353,17 @@ export class AdControllerImpl
         this.pendingAds = []
         this._currentAdIndex = -1
         this._totalAds = 0
+        this._currentSkipControl = null
+        // Resolve the break's skip window alongside its ads (both share one
+        // memoized fetch). A failure just leaves the break with no skip window;
+        // the ads resolution below reports the error.
+        resolveValueProvider(value?.skipControl)
+            .then((skipControl) => {
+                if (this._currentAdBreak === value) {
+                    this._currentSkipControl = skipControl ?? null
+                }
+            })
+            .catch(() => undefined)
         resolveValueProvider(value?.ads)
             .then((ads) => {
                 if (this._currentAdBreak !== value) return
@@ -452,6 +492,10 @@ export class AdControllerImpl
                     ad.duration ?? (isFinite(pC.duration) ? pC.duration : null)
                 const breakPlayed = this.breakPlayoutElapsed + adPlayed
                 const breakTotal = adBreak.playoutLimit ?? adBreak.duration
+                const { canSkip, skipIn } = this.resolveSkipState(
+                    adBreak,
+                    breakPlayed
+                )
                 this.dispatch('adTimeUpdate', {
                     ad,
                     index: this._currentAdIndex,
@@ -466,6 +510,8 @@ export class AdControllerImpl
                         breakTotal != null
                             ? Math.max(0, breakTotal - breakPlayed)
                             : null,
+                    canSkip,
+                    skipIn,
                 })
             }
             if (ad && isFinite(pC.duration)) {

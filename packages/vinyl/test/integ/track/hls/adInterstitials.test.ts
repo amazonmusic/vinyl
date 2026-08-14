@@ -60,6 +60,8 @@ describe('hls ad interstitials integ', () => {
         readonly resumeOffset?: number
         /** X-PLAYOUT-LIMIT in seconds. */
         readonly playoutLimit?: number
+        /** X-ASSET-LIST SKIP-CONTROL window (requires `assetList`). */
+        readonly skipControl?: { offset: number; duration?: number }
     }
 
     /**
@@ -111,6 +113,14 @@ describe('hls ad interstitials integ', () => {
                         URI: a.uri,
                         DURATION: a.duration,
                     })),
+                    ...(it.skipControl && {
+                        'SKIP-CONTROL': {
+                            OFFSET: it.skipControl.offset,
+                            ...(it.skipControl.duration != null && {
+                                DURATION: it.skipControl.duration,
+                            }),
+                        },
+                    }),
                 })
                 const dataUrl = 'data:application/json;base64,' + btoa(json)
                 asset = `X-ASSET-LIST="${dataUrl}"`
@@ -679,6 +689,30 @@ describe('hls ad interstitials integ', () => {
         expect(await poll(() => player.currentAd == null, { timeout: 30 }))
             .withContext('player.currentAd == null')
             .toBeTrue()
+    })
+
+    it('surfaces the X-ASSET-LIST skip window on the ad break', async () => {
+        const player = suite.player
+        player.load({
+            type: 'hls',
+            uri: 'integ-skip',
+            manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                {
+                    id: 'skip-1',
+                    startTime: MIDROLL_TIME,
+                    duration: MIDROLL_DURATION,
+                    assetList: [{ uri: AD_ASSET, duration: 6 }],
+                    skipControl: { offset: 3, duration: 5 },
+                },
+            ]),
+        })
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
+        const skip = await resolveValueProvider(
+            player.currentTrackAds!.adBreaks[0].skipControl
+        )
+        expect(skip).toEqual({ offset: 3, duration: 5 })
     })
 
     it('parks content loaded and paused after a postroll finishes (no stuck loading)', async () => {

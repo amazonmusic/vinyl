@@ -19,7 +19,22 @@ import type {
     AdInfo,
     AdList,
     AdRestriction,
+    SkipControl,
 } from './AdBreakInfo'
+
+/** The ads and skip window resolved from a break's asset source. */
+interface AssetContent {
+    readonly ads: AdList
+    readonly skipControl: SkipControl | null
+}
+
+/** Maps over a value that may be a promise, preserving synchronicity. */
+function mapResolved<T, R>(
+    value: MaybePromise<T>,
+    fn: (value: T) => R
+): MaybePromise<R> {
+    return value instanceof Promise ? value.then(fn) : fn(value as T)
+}
 
 /**
  * How close to the start or end of content a break must be to be classified as
@@ -70,6 +85,16 @@ export function discoverHlsInterstitials(
         const restrictStr = range.clientAttributes['X-RESTRICT'] ?? ''
         const restrict = parseRestrict(restrictStr)
 
+        // The ads and skip window share one (memoized) asset-list resolution.
+        const resolveContent = memoize(() =>
+            resolveHlsAssetContent({
+                range,
+                startTime: effectiveStartTime,
+                duration,
+                baseUrl,
+            })
+        )
+
         breaks.push({
             id: range.id,
             startTime: effectiveStartTime,
@@ -78,14 +103,9 @@ export function discoverHlsInterstitials(
             once: cues.has('ONCE'),
             resumeOffset: parseResumeOffset(range),
             playoutLimit,
-            ads: memoize(() =>
-                resolveHlsAds({
-                    range: range,
-                    startTime: effectiveStartTime,
-                    duration: duration,
-                    baseUrl: baseUrl,
-                })
-            ),
+            ads: () => mapResolved(resolveContent(), (c) => c.ads),
+            skipControl: () =>
+                mapResolved(resolveContent(), (c) => c.skipControl),
             restrict,
         })
     }
@@ -234,15 +254,12 @@ interface AssetListDocument {
         readonly DURATION?: number
     }[]
     readonly ['SKIP-CONTROL']?: {
-        OFFSET: number
-        DURATION: number
+        readonly OFFSET?: number
+        readonly DURATION?: number
     }
 }
 
-/**
- *
- */
-function resolveHlsAds({
+function resolveHlsAssetContent({
     range,
     startTime,
     duration,
@@ -252,17 +269,21 @@ function resolveHlsAds({
     readonly startTime: number
     readonly duration: number | null
     readonly baseUrl: string
-}): MaybePromise<AdList> {
+}): MaybePromise<AssetContent> {
     const assetUri = range.clientAttributes['X-ASSET-URI']
     if (assetUri) {
-        return [
-            {
-                id: `${range.id}-0`,
-                startTime,
-                duration,
-                uri: resolveUrl(assetUri, baseUrl),
-            },
-        ]
+        // A single inline asset carries no skip window.
+        return {
+            ads: [
+                {
+                    id: `${range.id}-0`,
+                    startTime,
+                    duration,
+                    uri: resolveUrl(assetUri, baseUrl),
+                },
+            ],
+            skipControl: null,
+        }
     }
     const assetListUrl = range.clientAttributes['X-ASSET-LIST']
     if (assetListUrl) {
@@ -273,7 +294,7 @@ function resolveHlsAds({
             baseUrl,
         })
     }
-    return []
+    return { ads: [], skipControl: null }
 }
 
 async function resolveHlsAssetList({
@@ -286,12 +307,12 @@ async function resolveHlsAssetList({
     readonly rangeId: string
     readonly startTime: number
     readonly baseUrl: string
-}): Promise<AdList> {
+}): Promise<AssetContent> {
     const url = resolveUrl(assetListUrl, baseUrl)
     const response = await requestWithRetry(url)
     const json: AssetListDocument = await response.json()
     const assets = json.ASSETS ?? []
-    return assets.map((asset, i): AdInfo => {
+    const ads = assets.map((asset, i): AdInfo => {
         return {
             id: `${rangeId}-${i}`,
             startTime,
@@ -299,6 +320,20 @@ async function resolveHlsAssetList({
             uri: resolveUrl(asset.URI, baseUrl),
         }
     })
+    return { ads, skipControl: parseSkipControl(json['SKIP-CONTROL']) }
+}
+
+/**
+ * Maps an X-ASSET-LIST `SKIP-CONTROL` object to a {@link SkipControl}, or null
+ * when absent or missing a usable offset.
+ */
+function parseSkipControl(
+    control: AssetListDocument['SKIP-CONTROL']
+): SkipControl | null {
+    if (!control) return null
+    const offset = Number(control.OFFSET)
+    if (!Number.isFinite(offset) || offset < 0) return null
+    return { offset, duration: control.DURATION ?? null }
 }
 
 function parseRestrict(str: string): AdRestriction {

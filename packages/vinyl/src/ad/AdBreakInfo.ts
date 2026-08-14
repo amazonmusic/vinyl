@@ -120,6 +120,32 @@ export interface AdBreakInfo {
      * (An HLS interstitial sets this from `X-PLAYOUT-LIMIT`.)
      */
     readonly playoutLimit: number | null
+
+    /**
+     * The window during which the user may skip this break, or a provider
+     * resolving to `null` when the break carries no skip window (skippability is
+     * then governed by {@link AdRestriction.skip}). Resolved lazily because, like
+     * {@link ads}, it may require fetching the break's asset list.
+     *
+     * (An HLS interstitial sets this from the `X-ASSET-LIST` `SKIP-CONTROL`.)
+     */
+    readonly skipControl: ValueProvider<SkipControl | null>
+}
+
+/**
+ * Describes when a user may skip an ad break: skipping becomes available
+ * {@link offset} seconds into the break and remains offered for {@link duration}
+ * seconds (or the rest of the break when null).
+ */
+export interface SkipControl {
+    /** Seconds from the break start at which skipping becomes available. */
+    readonly offset: number
+
+    /**
+     * Seconds the skip control remains offered after {@link offset}, or `null`
+     * to offer it for the remainder of the break.
+     */
+    readonly duration: number | null
 }
 
 /**

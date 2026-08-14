@@ -259,6 +259,143 @@ describe('discoverHlsInterstitials', () => {
         }
     })
 
+    /** Runs `body` with a stubbed global fetch returning `json`. */
+    async function withFetch(
+        json: unknown,
+        body: (fetchSpy: jasmine.Spy) => Promise<void>
+    ) {
+        const origFetch = globalThis.fetch
+        const fetchSpy = jasmine
+            .createSpy('fetch')
+            .and.resolveTo(okJsonResponse(json))
+        globalThis.fetch = fetchSpy
+        try {
+            await body(fetchSpy)
+        } finally {
+            globalThis.fetch = origFetch
+        }
+    }
+
+    // Distinct URLs per case so requestWithRetry's per-URL caching does not make
+    // one case's asset list bleed into the next within a single spec.
+    function assetListRange(url = 'https://example.com/ads.json') {
+        return makePlaylist({
+            dateRanges: [
+                makeRange({
+                    duration: 10,
+                    clientAttributes: { 'X-ASSET-LIST': url },
+                }),
+            ],
+        })
+    }
+
+    it('parses the X-ASSET-LIST SKIP-CONTROL into a skip window', async () => {
+        await withFetch(
+            {
+                ASSETS: [{ URI: 'a.m3u8', DURATION: 10 }],
+                'SKIP-CONTROL': { OFFSET: 6, DURATION: 5 },
+            },
+            async () => {
+                const breaks = await discoverHlsInterstitials(
+                    assetListRange(),
+                    BASE
+                )
+                expect(
+                    await resolveValueProvider(breaks[0].skipControl)
+                ).toEqual({ offset: 6, duration: 5 })
+            }
+        )
+    })
+
+    it('treats a SKIP-CONTROL without DURATION as open-ended', async () => {
+        await withFetch(
+            {
+                ASSETS: [{ URI: 'a.m3u8' }],
+                'SKIP-CONTROL': { OFFSET: 4 },
+            },
+            async () => {
+                const breaks = await discoverHlsInterstitials(
+                    assetListRange(),
+                    BASE
+                )
+                expect(
+                    await resolveValueProvider(breaks[0].skipControl)
+                ).toEqual({ offset: 4, duration: null })
+            }
+        )
+    })
+
+    it('reports no skip window when SKIP-CONTROL is absent', async () => {
+        await withFetch({ ASSETS: [{ URI: 'a.m3u8' }] }, async () => {
+            const breaks = await discoverHlsInterstitials(
+                assetListRange('https://example.com/absent.json'),
+                BASE
+            )
+            expect(await resolveValueProvider(breaks[0].skipControl)).toBeNull()
+        })
+    })
+
+    it('rejects a SKIP-CONTROL with a missing offset', async () => {
+        await withFetch(
+            { ASSETS: [{ URI: 'a.m3u8' }], 'SKIP-CONTROL': { DURATION: 5 } },
+            async () => {
+                const breaks = await discoverHlsInterstitials(
+                    assetListRange('https://example.com/missing.json'),
+                    BASE
+                )
+                expect(
+                    await resolveValueProvider(breaks[0].skipControl)
+                ).toBeNull()
+            }
+        )
+    })
+
+    it('rejects a SKIP-CONTROL with a negative offset', async () => {
+        await withFetch(
+            { ASSETS: [{ URI: 'a.m3u8' }], 'SKIP-CONTROL': { OFFSET: -2 } },
+            async () => {
+                const breaks = await discoverHlsInterstitials(
+                    assetListRange('https://example.com/negative.json'),
+                    BASE
+                )
+                expect(
+                    await resolveValueProvider(breaks[0].skipControl)
+                ).toBeNull()
+            }
+        )
+    })
+
+    it('reports no skip window for an inline X-ASSET-URI', async () => {
+        const playlist = makePlaylist({
+            dateRanges: [
+                makeRange({
+                    duration: 10,
+                    clientAttributes: { 'X-ASSET-URI': 'ad.m3u8' },
+                }),
+            ],
+        })
+        const breaks = await discoverHlsInterstitials(playlist, BASE)
+        expect(await resolveValueProvider(breaks[0].skipControl)).toBeNull()
+    })
+
+    it('shares one asset-list fetch between the ads and skip window', async () => {
+        await withFetch(
+            {
+                ASSETS: [{ URI: 'a.m3u8' }],
+                'SKIP-CONTROL': { OFFSET: 1 },
+            },
+            async (fetchSpy) => {
+                const breaks = await discoverHlsInterstitials(
+                    assetListRange(),
+                    BASE
+                )
+                await resolveValueProvider(breaks[0].ads)
+                await resolveValueProvider(breaks[0].skipControl)
+                expect(fetchSpy).toHaveBeenCalledTimes(1)
+            }
+        )
+    })
+
     it('memoizes the X-ASSET-LIST resolution, including failures, within a discovery', async () => {
         // The per-break ads resolver is memoized, so a failed asset-list fetch
         // is cached for the lifetime of the discovered break (a fresh discovery

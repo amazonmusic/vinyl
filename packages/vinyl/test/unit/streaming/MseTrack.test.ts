@@ -948,6 +948,7 @@ describe('MseTrack', () => {
                 once: false,
                 resumeOffset: null,
                 playoutLimit: null,
+                skipControl: () => null,
                 ads: () =>
                     Promise.resolve([
                         {
