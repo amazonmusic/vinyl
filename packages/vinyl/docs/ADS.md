@@ -17,9 +17,17 @@ through the player; they never deal with HLS- or DASH-specific tags.
 - **`AdBreakInfo`** — a span of the timeline that carries advertising instead of
   primary content. It has an `id`, a `startTime` and `duration` (in seconds on
   the media timeline), a `placement` (`preroll` | `midroll` | `postroll`),
-  optional `restrict` rules, and an `ads()` resolver.
+  optional `restrict` rules, and an `ads()` resolver. It also carries fields
+  that govern replay and resumption: `once` (play the break at most once, never
+  replaying it when the playhead re-crosses), `resumeOffset` (where primary
+  content resumes relative to the break start; `null` advances by the break's
+  actual playout duration, `0` resumes in place), and `playoutLimit` (a cap on
+  the break's total playout, or `null` when uncapped). These are
+  provider-agnostic; an HLS interstitial, for example, populates them from its
+  `CUE=ONCE`, `X-RESUME-OFFSET`, and `X-PLAYOUT-LIMIT` signals.
 - **`AdInfo`** — a single ad within a break, with its own `id`, `startTime`,
-  `duration`, and asset `uri`.
+  `duration`, and asset `uri`. Playback of an ad is capped at its `duration`
+  when that is known.
 - **`ads()`** — a function returning `Promise<readonly AdInfo[]>`. Asset lists
   that are fetched lazily (e.g. an HLS `X-ASSET-LIST`) resolve on first call and
   cache; breaks whose assets are known up front resolve immediately.

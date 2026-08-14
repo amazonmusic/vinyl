@@ -61,12 +61,11 @@ export function discoverHlsInterstitials(
 
         const playoutLimit = resolvePlayoutLimit(range)
         let duration = resolveDuration(range)
-        if (playoutLimit && duration)
+        if (playoutLimit != null && duration != null)
             duration = Math.min(playoutLimit, duration)
-        const cue = range.clientAttributes['CUE'] ?? ''
-        const placement = classifyPlacement(startTime, contentDuration, cue)
-        const effectiveStartTime =
-            cue === 'PRE' ? 0 : placement === 'preroll' ? 0 : startTime
+        const cues = parseCues(range)
+        const placement = classifyPlacement(startTime, contentDuration, cues)
+        const effectiveStartTime = placement === 'preroll' ? 0 : startTime
 
         const restrictStr = range.clientAttributes['X-RESTRICT'] ?? ''
         const restrict = parseRestrict(restrictStr)
@@ -76,6 +75,9 @@ export function discoverHlsInterstitials(
             startTime: effectiveStartTime,
             duration,
             placement,
+            once: cues.has('ONCE'),
+            resumeOffset: parseResumeOffset(range),
+            playoutLimit,
             ads: memoize(() =>
                 resolveHlsAds({
                     range: range,
@@ -177,13 +179,41 @@ function resolvePlayoutLimit(range: HlsDateRange): number | null {
     return null
 }
 
+/**
+ * Tokenizes the DATERANGE `CUE` attribute, an enumerated-string list of trigger
+ * identifiers (e.g. `"PRE,ONCE"`), into an uppercased, trimmed Set. Unknown
+ * tokens are preserved but ignored by callers.
+ */
+function parseCues(range: HlsDateRange): ReadonlySet<string> {
+    return new Set(
+        (range.clientAttributes['CUE'] ?? '')
+            .split(',')
+            .map((token) => token.trim().toUpperCase())
+            .filter(Boolean)
+    )
+}
+
+/**
+ * Parses the signed `X-RESUME-OFFSET` (seconds). Returns null when the attribute
+ * is absent (so the controller substitutes the actual playout duration) — a
+ * present value of 0 is distinct from absent and is returned as 0.
+ */
+function parseResumeOffset(range: HlsDateRange): number | null {
+    if (!('X-RESUME-OFFSET' in range.clientAttributes)) return null
+    const value = parseFloat(range.clientAttributes['X-RESUME-OFFSET'])
+    return Number.isFinite(value) ? value : null
+}
+
 function classifyPlacement(
     startTime: number,
     contentDuration: Maybe<number>,
-    cue: string
+    cues: ReadonlySet<string>
 ): AdBreakPlacement {
-    if (cue === 'PRE') return 'preroll'
-    if (cue === 'POST') return 'postroll'
+    // PRE/POST trigger identifiers are authoritative over the proximity
+    // heuristic (they may fire outside the range's START-DATE/duration). PRE
+    // wins the illegal PRE+POST combination.
+    if (cues.has('PRE')) return 'preroll'
+    if (cues.has('POST')) return 'postroll'
     if (startTime <= ROLL_EPSILON) return 'preroll'
     if (
         contentDuration != null &&

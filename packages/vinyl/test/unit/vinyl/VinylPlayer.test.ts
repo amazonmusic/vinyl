@@ -282,6 +282,9 @@ describe('VinylPlayer', () => {
             placement: 'preroll',
             ads: () => Promise.resolve([]),
             restrict: {},
+            once: false,
+            resumeOffset: null,
+            playoutLimit: null,
         }
 
         const mockTrack = new MockTrack()

@@ -129,7 +129,17 @@ export class AdControllerImpl
     private pendingAds: AdInfo[] = []
     private _currentAdBreak: AdBreakInfo | null = null
     private _currentAd: AdInfo | null = null
+    // Breaks permanently suppressed for this presentation (play-once breaks and
+    // prerolls). Cleared only on a content change (clearCompletedAds).
     private readonly completeAdBreakIds = new Set<string>()
+    // Replayable (non-play-once) midroll breaks that have played and are "spent"
+    // until the playhead moves back before their start, at which point they are
+    // re-armed and replay on the next forward crossing.
+    private readonly spentBreakIds = new Set<string>()
+    // Cumulative media-time playout across the ads of the current break, used to
+    // enforce the break's playout limit and to default an unspecified resume
+    // offset.
+    private breakPlayoutElapsed = 0
     private readonly disposer = createDisposer()
     private adStats: AdStats = createAdStats()
 
@@ -161,9 +171,26 @@ export class AdControllerImpl
             })
         )
         add(
-            playbackController.on('seeked', () => {
+            playbackController.on('seeked', (event) => {
                 if (this.currentAd) {
                     this.adStats.timeStart = playbackController.currentTime
+                    return
+                }
+                // A genuine seek back before a spent (replayable) break re-arms
+                // it so it fires again on the next forward crossing. Gated on a
+                // real user seek (reason 'seeked') — an 'emptied'/'playing'
+                // settle from the ad→content source swap (or a hard reset's
+                // MediaSource re-init) transiently reports an early currentTime
+                // and would otherwise replay the break (an in-place, offset-0
+                // resume would loop).
+                if (event.reason !== 'seeked') return
+                const time = playbackController.currentTime
+                if (this.spentBreakIds.size) {
+                    for (const midroll of this.groupedByPlacement.midroll) {
+                        if (time < midroll.startTime) {
+                            this.spentBreakIds.delete(midroll.id)
+                        }
+                    }
                 }
             })
         )
@@ -177,6 +204,37 @@ export class AdControllerImpl
 
     clearCompletedAds(): void {
         this.completeAdBreakIds.clear()
+        this.spentBreakIds.clear()
+    }
+
+    /**
+     * Records a break as complete when it has played. Play-once breaks (and
+     * prerolls, which are one-shot per presentation) are suppressed permanently;
+     * replayable midrolls are only marked "spent" so they can re-arm on a
+     * seek-back. Postrolls are event-driven ({@link enterPostroll}) and need no
+     * suppression.
+     */
+    private markBreakComplete(adBreak: AdBreakInfo): void {
+        if (adBreak.once || adBreak.placement === 'preroll') {
+            this.completeAdBreakIds.add(adBreak.id)
+        } else if (adBreak.placement === 'midroll') {
+            this.spentBreakIds.add(adBreak.id)
+        }
+    }
+
+    private isBreakSuppressed(id: string): boolean {
+        return this.completeAdBreakIds.has(id) || this.spentBreakIds.has(id)
+    }
+
+    /** The media-time the current ad has actually played, or 0 if not playing. */
+    private adElapsed(): number {
+        const stats = this.adStats
+        return stats.playing
+            ? Math.max(
+                  0,
+                  this.deps.playbackController.currentTime - stats.timeStart
+              )
+            : 0
     }
 
     setAds(value: Maybe<TrackAds>): void {
@@ -223,7 +281,7 @@ export class AdControllerImpl
             return
         }
         logDebug(this, 'skipAdBreak, active break id:', adBreak.id)
-        this.completeAdBreakIds.add(adBreak.id)
+        this.markBreakComplete(adBreak)
         this.completeAd('skipped')
         this.setCurrentAdBreak(null)
         this.pollPendingAds()
@@ -236,7 +294,7 @@ export class AdControllerImpl
             return
         }
         logDebug(this, 'completeAdBreak, active break id:', adBreak.id)
-        this.completeAdBreakIds.add(adBreak.id)
+        this.markBreakComplete(adBreak)
         this.setCurrentAdBreak(null)
     }
 
@@ -249,6 +307,8 @@ export class AdControllerImpl
         const current = value ?? null
         if (previous?.id === value?.id) return
         this._currentAdBreak = current
+        // Each break accounts its own playout independently.
+        this.breakPlayoutElapsed = 0
         logDebug(
             this,
             'currentAdBreak changed previous:',
@@ -293,7 +353,7 @@ export class AdControllerImpl
             this.startAd(nextAd)
         } else {
             if (this._currentAdBreak) {
-                this.completeAdBreakIds.add(this._currentAdBreak.id)
+                this.markBreakComplete(this._currentAdBreak)
             }
             const nextAdBreak = this.pendingAdBreaks.shift()
             this.setCurrentAdBreak(nextAdBreak)
@@ -334,15 +394,36 @@ export class AdControllerImpl
     private completeAd(reason: AdChangeReason) {
         const ad = this._currentAd
         if (!ad) return
+        const adBreak = this._currentAdBreak!
         logDebug(this, 'adCompleted', ad, 'reason:', reason)
+        // Fold this ad's actual playout into the break total before clearing it.
+        this.breakPlayoutElapsed += this.adElapsed()
         this._currentAd = null
         const index = this._currentAdIndex++
+        // Resume at the scheduled break start plus its resume offset, defaulting
+        // to the actual playout when the offset is unspecified (bounded by the
+        // playout limit). max() keeps a forward seek from being rewound.
+        const playout =
+            adBreak.playoutLimit != null
+                ? Math.min(this.breakPlayoutElapsed, adBreak.playoutLimit)
+                : this.breakPlayoutElapsed
+        // The resume offset only advances the primary timeline for midrolls: a
+        // preroll resumes at the content's own start (TrackController uses
+        // adParent.config) and a postroll parks at the content end, so applying
+        // the offset there would push the resume past the content duration.
+        const effectiveOffset =
+            adBreak.placement === 'midroll'
+                ? (adBreak.resumeOffset ?? playout)
+                : 0
+        const resumePosition = Math.max(
+            this.lastPlaybackTime,
+            adBreak.startTime + effectiveOffset
+        )
         this.dispatch('adCompleted', {
-            adBreak: this._currentAdBreak!,
+            adBreak,
             ad,
             reason,
-            // TODO: Ads can have an ad offset that this needs to max against
-            resumeOffset: this.lastPlaybackTime,
+            resumePosition,
             index,
             totalAds: this._totalAds,
         })
@@ -358,7 +439,8 @@ export class AdControllerImpl
         // Don't re-evaluate while a break is active — the playhead reflects the
         // ad track's time, not the content timeline.
         const pC = this.deps.playbackController
-        if (this.currentAdBreak) {
+        const adBreak = this.currentAdBreak
+        if (adBreak) {
             // Ad progress events
             const ad = this.currentAd
             const stats = this.adStats
@@ -405,9 +487,25 @@ export class AdControllerImpl
                         this.createAdProgressEvent(ad, stats)
                     )
                 }
-                // TODO: restrict playback to adinfo duration
-                // TODO: ad X-RESUME-OFFSET
                 // adEnded is not on progress but on a call to `endAd()`.
+            }
+            // Enforce playout limits independent of a finite content duration so
+            // live ads with a declared duration are still bounded.
+            if (ad && stats.playing) {
+                const elapsed = Math.max(0, pC.currentTime - stats.timeStart)
+                const limit = adBreak.playoutLimit
+                if (
+                    limit != null &&
+                    this.breakPlayoutElapsed + elapsed >= limit
+                ) {
+                    // The break's total playout limit is reached: end the whole
+                    // break, dropping any ads that have not started.
+                    this.pendingAds = []
+                    this.endAd()
+                } else if (ad.duration != null && elapsed >= ad.duration) {
+                    // This ad reached its declared duration: advance to the next.
+                    this.endAd()
+                }
             }
             return
         }
@@ -420,7 +518,7 @@ export class AdControllerImpl
             for (let i = index; i < midrolls.length; i++) {
                 const midroll = midrolls[i]
                 if (time < midroll.startTime) break
-                if (this.completeAdBreakIds.has(midroll.id)) continue
+                if (this.isBreakSuppressed(midroll.id)) continue
                 const duration =
                     midroll.duration == null || midroll.restrict.jump
                         ? Number.MAX_VALUE
@@ -438,7 +536,7 @@ export class AdControllerImpl
 
     private setPendingBreaks(newPending: AdBreakList): void {
         this.pendingAdBreaks = newPending.filter(
-            (adBreak) => !this.completeAdBreakIds.has(adBreak.id)
+            (adBreak) => !this.isBreakSuppressed(adBreak.id)
         )
         this._currentAdIndex = 0
         logDebug(this, `setPendingBreaks len=${newPending.length}`)

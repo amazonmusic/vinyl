@@ -27,6 +27,17 @@ describe('AdControllerImpl', () => {
         })
     }
 
+    /** Simulates a user seek: moves the playhead and fires `seeked`. */
+    function seekTo(time: number) {
+        playbackController.currentTime = time
+        playbackController.dispatch('seeked', {
+            started: 0,
+            ended: 0,
+            duration: 0,
+            reason: 'seeked',
+        })
+    }
+
     const defaultAd: AdInfo = {
         id: 'a1',
         startTime: 10,
@@ -56,6 +67,9 @@ describe('AdControllerImpl', () => {
             duration: 5,
             placement: 'midroll',
             restrict: {},
+            once: false,
+            resumeOffset: null,
+            playoutLimit: null,
             ads: adsResolver,
             ...rest,
         }
@@ -529,6 +543,355 @@ describe('AdControllerImpl', () => {
             updateTime(6)
             await flush()
             expect(c.currentAdBreak?.id).toBe('near')
+        })
+    })
+
+    describe('X-RESUME-OFFSET resume position', () => {
+        function resumesOf(c: AdControllerImpl): number[] {
+            const resumes: number[] = []
+            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            return resumes
+        }
+
+        it('resumes at the scheduled start plus a present offset', async () => {
+            const c = createController()
+            const resumes = resumesOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({ startTime: 10, duration: 6, resumeOffset: 5 })
+                )
+            )
+            updateTime(10)
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            c.skipAd()
+            expect(resumes.at(-1)).toBe(15)
+        })
+
+        it('treats a present offset of 0 as resume-in-place', async () => {
+            const c = createController()
+            const resumes = resumesOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({ startTime: 10, duration: 6, resumeOffset: 0 })
+                )
+            )
+            updateTime(10)
+            await flush()
+            c.skipAd()
+            expect(resumes.at(-1)).toBe(10)
+        })
+
+        it('clamps a negative offset to the natural resume position', async () => {
+            const c = createController()
+            const resumes = resumesOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({ startTime: 10, duration: 6, resumeOffset: -4 })
+                )
+            )
+            updateTime(10)
+            await flush()
+            c.skipAd()
+            expect(resumes.at(-1)).toBe(10)
+        })
+
+        it('defaults an absent offset to the actual playout duration', async () => {
+            const c = createController()
+            const resumes = resumesOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 10,
+                        duration: 20,
+                        // Null per-ad duration so the per-ad cap does not end it.
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(10)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 10
+            updateTime(16) // played 6s; no per-ad/pod cap applies
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            expect(resumes.at(-1)).toBe(16)
+        })
+
+        it('re-baselines ad playout timing on a seek within the ad', async () => {
+            const c = createController()
+            const resumes: number[] = []
+            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 10,
+                        duration: 20,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(10)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 10
+            seekTo(14) // seek within the ad → playout timing re-baselines to 14
+            updateTime(18) // 4s played since the seek
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            // Absent offset → resume at start (10) + playout measured from the
+            // seek (18 - 14 = 4) = 14.
+            expect(resumes.at(-1)).toBe(14)
+        })
+
+        it('parks a postroll resume at the content end, not past it', async () => {
+            const c = createController()
+            const resumes: number[] = []
+            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            playbackController.duration = 100
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        id: 'post',
+                        startTime: 100,
+                        duration: 10,
+                        placement: 'postroll',
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            c.enterPostroll() // lastPlaybackTime = duration (100)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            playbackController.currentTime = 8 // ad played 8s
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            // The offset math must not apply to a postroll: it parks at the
+            // content end (100), not startTime + playout (108).
+            expect(resumes.at(-1)).toBe(100)
+        })
+
+        it('preserves a forward seek into the break over the offset', async () => {
+            const c = createController()
+            const resumes = resumesOf(c)
+            c.setAds(
+                trackAds(
+                    makeBreak({ startTime: 10, duration: 6, resumeOffset: 2 })
+                )
+            )
+            updateTime(13) // seek/enter at 13; natural resume = 13 > 10 + 2
+            await flush()
+            c.skipAd()
+            expect(resumes.at(-1)).toBe(13)
+        })
+    })
+
+    describe('ad duration and playout limits', () => {
+        it('advances to the next ad when one reaches its declared duration', async () => {
+            const c = createController()
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 30,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: 5,
+                                uri: 'ad1.m3u8',
+                            },
+                            {
+                                id: 'a2',
+                                startTime: 0,
+                                duration: 20,
+                                uri: 'ad2.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            updateTime(6) // elapsed 6 >= a1.duration 5 → advance
+            expect(c.currentAd?.id).toBe('a2')
+        })
+
+        it('ends the whole break when the playout limit is reached, dropping remaining ads', async () => {
+            const c = createController()
+            const resumes: number[] = []
+            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: null,
+                        playoutLimit: 8,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: 20,
+                                uri: 'ad1.m3u8',
+                            },
+                            {
+                                id: 'a2',
+                                startTime: 0,
+                                duration: 20,
+                                uri: 'ad2.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            updateTime(4) // under the limit and under a1.duration → keep playing
+            expect(c.currentAd?.id).toBe('a1')
+            updateTime(8) // cumulative 8 >= playoutLimit 8 → end break
+            expect(c.currentAdBreak).toBeNull()
+            // Absent offset → resume at start + capped playout (8).
+            expect(resumes.at(-1)).toBe(8)
+        })
+    })
+
+    describe('CUE=ONCE and replay', () => {
+        it('replays a non-ONCE break after the playhead seeks back before it', async () => {
+            const c = createController()
+            c.setAds(trackAds(makeBreak({ startTime: 10, duration: 6 })))
+            updateTime(11)
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            c.skipAd() // completes → "spent"
+            expect(c.currentAdBreak).toBeNull()
+            seekTo(5) // seek back before start → re-arm
+            await flush()
+            updateTime(11) // forward crossing → re-enter
+            await flush()
+            expect(c.currentAdBreak?.id).toBe('b1')
+        })
+
+        it('does not replay a ONCE break after a seek back', async () => {
+            const c = createController()
+            c.setAds(
+                trackAds(makeBreak({ startTime: 10, duration: 6, once: true }))
+            )
+            updateTime(11)
+            await flush()
+            c.skipAd()
+            seekTo(5)
+            await flush()
+            updateTime(11)
+            await flush()
+            expect(c.currentAdBreak).toBeNull()
+        })
+
+        it('does not replay a spent break on a non-user seek settle', async () => {
+            const c = createController()
+            c.setAds(trackAds(makeBreak({ startTime: 10, duration: 6 })))
+            updateTime(11)
+            await flush()
+            c.skipAd() // spent
+            // The ad→content source swap fires a 'seeked' with reason 'emptied'
+            // while the MediaSource re-inits and transiently reports time 0.
+            // This must NOT re-arm the break (only a real user seek does).
+            playbackController.currentTime = 0
+            playbackController.dispatch('seeked', {
+                started: 0,
+                ended: 0,
+                duration: 0,
+                reason: 'emptied',
+            })
+            await flush()
+            updateTime(11) // forward crossing again
+            await flush()
+            expect(c.currentAdBreak).toBeNull()
+        })
+
+        it('does not replay a non-ONCE break when a seek stays at or after its start', async () => {
+            const c = createController()
+            c.setAds(trackAds(makeBreak({ startTime: 10, duration: 6 })))
+            updateTime(11)
+            await flush()
+            c.skipAd()
+            seekTo(12) // seek, but not before start → not re-armed
+            await flush()
+            updateTime(13) // forward: still suppressed
+            await flush()
+            expect(c.currentAdBreak).toBeNull()
+        })
+
+        it('permanently suppresses a completed preroll within the presentation', async () => {
+            const c = createController()
+            c.setAds(
+                trackAds(
+                    makeBreak({ id: 'pre', startTime: 0, placement: 'preroll' })
+                )
+            )
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            c.skipAd() // completes preroll → permanent suppression
+            expect(c.currentAdBreak).toBeNull()
+            // A live manifest refresh re-sets the same ads; the preroll must not
+            // replay within the same presentation.
+            c.setAds(
+                trackAds(
+                    makeBreak({ id: 'pre', startTime: 0, placement: 'preroll' })
+                )
+            )
+            await flush()
+            expect(c.currentAdBreak).toBeNull()
+        })
+
+        it('does not suppress a postroll, letting enterPostroll replay it', async () => {
+            const c = createController()
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        id: 'post',
+                        startTime: 60,
+                        duration: 10,
+                        placement: 'postroll',
+                    })
+                )
+            )
+            c.enterPostroll()
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            c.skipAd() // completes postroll → no permanent/transient suppression
+            expect(c.currentAdBreak).toBeNull()
+            c.enterPostroll()
+            await flush()
+            expect(c.currentAdBreak?.id).toBe('post')
         })
     })
 

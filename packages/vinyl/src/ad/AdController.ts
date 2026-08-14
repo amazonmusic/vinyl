@@ -115,8 +115,12 @@ export interface AdCompleteEvent extends AdEvent {
     /** The reason the ad changed, e.g. 'ended' for completed naturally, or 'skipped' */
     readonly reason: AdChangeReason
 
-    /** The playhead time (in seconds) to resume playback from. */
-    readonly resumeOffset: number
+    /**
+     * The absolute media-timeline position, in seconds, at which primary content
+     * resumes after this break. The controller has already resolved the break's
+     * resume offset and playout, so consumers use this position directly.
+     */
+    readonly resumePosition: number
 }
 
 export type AdChangeReason = 'ended' | 'skipped' | 'contentChange' | 'error'
