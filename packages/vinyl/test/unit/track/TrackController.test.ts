@@ -931,6 +931,19 @@ describe('TrackControllerImpl', () => {
     })
 
     describe('when last track in the queue ends', () => {
+        it('dispatches trackEnded for each track as the queue advances', async () => {
+            const trackEnded = createEventSpy(trackController, 'trackEnded')
+            trackController.load(...createLoadOptionsList(2))
+            // First track ends (no postroll): trackEnded, then advance.
+            deps.playbackController.dispatch('ended', {})
+            await clock.tick()
+            expect(trackEnded).toHaveBeenCalledTimes(1)
+            // Last track ends: trackEnded again (queueEnded also fires).
+            deps.playbackController.dispatch('ended', {})
+            await clock.tick()
+            expect(trackEnded).toHaveBeenCalledTimes(2)
+        })
+
         it('dispatches a queueEnded event', async () => {
             const queueEndedSpy = createEventSpy(trackController, 'queueEnded')
             trackController.load(...createLoadOptionsList(1))
@@ -1500,6 +1513,7 @@ describe('TrackControllerImpl', () => {
         it('advances to the next track after a postroll ad when one exists', async () => {
             const list = createLoadOptionsList(2)
             trackController.load(...list)
+            const trackEnded = createEventSpy(trackController, 'trackEnded')
             deps.adController.dispatch('adCompleted', {
                 adBreak: adBreak('postroll'),
                 ad,
@@ -1510,11 +1524,14 @@ describe('TrackControllerImpl', () => {
             })
             await clock.tick()
             expect(trackController.currentTrack?.uri).toBe(list[1].uri)
+            // The completed postroll ends the whole track.
+            expect(trackEnded).toHaveBeenCalledWith({})
         })
 
         it('ends the queue after a postroll ad when there is no next track', async () => {
             trackController.load(...createLoadOptionsList(1))
             const queueEnded = createEventSpy(trackController, 'queueEnded')
+            const trackEnded = createEventSpy(trackController, 'trackEnded')
             deps.adController.dispatch('adCompleted', {
                 adBreak: adBreak('postroll'),
                 ad,
@@ -1524,7 +1541,23 @@ describe('TrackControllerImpl', () => {
                 totalAds: 1,
             })
             await clock.tick()
+            expect(trackEnded).toHaveBeenCalledWith({})
             expect(queueEnded).toHaveBeenCalled()
+        })
+
+        it('does not treat a completed midroll ad as the track ending', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            const trackEnded = createEventSpy(trackController, 'trackEnded')
+            deps.adController.dispatch('adCompleted', {
+                adBreak: adBreak('midroll'),
+                ad,
+                reason: 'ended',
+                resumePosition: 5,
+                index: 0,
+                totalAds: 1,
+            })
+            await clock.tick()
+            expect(trackEnded).not.toHaveBeenCalled()
         })
 
         it('does not advance the queue when a postroll is pending on track end', async () => {

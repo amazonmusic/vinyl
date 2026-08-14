@@ -169,6 +169,23 @@ player.on('ended', () => {
 })
 ```
 
+### The simpler signal: `trackEnded`
+
+The `ended` dance above still misses a subtlety: when a track has a
+**postroll**, the content's own `ended` fires _before_ the postroll plays, so
+treating it as track completion is premature. To avoid all of this, the player
+emits **`trackEnded`** — it fires once when the current track has fully
+finished, _after_ its postroll if any, and never for an ad or for the content
+ending ahead of a postroll. Prefer it when you mean "this track is done":
+
+```typescript
+player.on('trackEnded', () => {
+    // The track (including any postroll) finished. Safe to log a completed play
+    // or advance your own queue. Fires for every track as the queue advances;
+    // `queueEnded` additionally fires only after the final track.
+})
+```
+
 ## Manifest variable substitution
 
 HLS ad manifests (e.g. AWS MediaTailor) frequently rely on `EXT-X-DEFINE`

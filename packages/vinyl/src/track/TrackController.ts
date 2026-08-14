@@ -55,6 +55,17 @@ export interface TrackControllerEventMap<
     readonly queueChange: ChangeEvent<readonly TrackLoadOptionsType[]>
 
     /**
+     * Emitted when the current track — including any postroll ads — has finished
+     * playing. Fires once per track: as the queue advances it precedes the
+     * resulting `currentTrackChange`, and for the final track it precedes
+     * `queueEnded`. Distinct from the media element's `ended` (which also fires
+     * for each ad) and from an individual ad's `adEnded`, so applications can act
+     * on true track completion (e.g. logging a play) without confusing it with
+     * an ad ending or the content ending before its postroll plays.
+     */
+    readonly trackEnded: AnyRecord
+
+    /**
      * Emitted when the last track of the playback queue has ended.
      * When the last track in a queue has ended, the track will not change and therefore a `currentTrackChange`
      * event will not be emitted.
@@ -66,6 +77,7 @@ export const ALL_TRACK_CONTROLLER_EVENTS = [
     'currentTrackChanging',
     'currentTrackChange',
     'queueChange',
+    'trackEnded',
     'queueEnded',
 ] as const satisfies readonly (keyof TrackControllerEventMap<any>)[]
 
@@ -347,6 +359,11 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     // Delay a frame before changing the queue to allow other handlers of adCompleted
                     // to query the current ad track.
                     if (interrupted()) return
+                    // A completed postroll marks the end of the whole track
+                    // (content + postroll); preroll/midroll only resume content.
+                    if (isPostroll) {
+                        this.dispatch('trackEnded', {})
+                    }
                     if (isPostroll && this.hasNext()) {
                         this.next()
                     } else {
@@ -399,6 +416,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             // queue is advanced.
             setTimeout(() => {
                 if (interrupted()) return
+                // The content ended with no postroll: the track is done.
+                this.dispatch('trackEnded', {})
                 if (this.hasNext()) {
                     this.next()
                 } else {
