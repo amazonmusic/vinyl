@@ -27,8 +27,8 @@ export interface PollOptions {
     readonly abort?: Maybe<ReadonlyAbort>
 
     /**
-     * How often to re-evaluate the predicate, in seconds. Defaults to
-     * {@link DEFAULT_POLL_INTERVAL}.
+     * How often to re-evaluate the predicate, in seconds. Defaults to `0.05`
+     * (50ms).
      */
     readonly pollInterval?: number
 }

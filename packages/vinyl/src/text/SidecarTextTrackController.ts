@@ -38,7 +38,7 @@ export interface SidecarTextTrackControllerDeps {
  *
  *  - holds a discovered list of {@link TextTrackInfo}
  *  - on activation, fetches the chosen track's WebVTT and pushes cues to a
- *    {@link TextTrack} created on the {@link HTMLMediaElement}
+ *    `TextTrack` created on the `HTMLMediaElement`
  *  - clears any previously activated cues when switching tracks
  *
  * The controller is intentionally agnostic of HLS/DASH discovery details. Its

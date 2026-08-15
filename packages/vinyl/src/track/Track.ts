@@ -197,7 +197,7 @@ export interface ReadonlyTrack
      * The ads for this track.
      * A null value indicates the track ads are loading.
      *
-     * @see {@link TrackEventMap.adsChange}
+     * @see {@link TrackEventMap} — the `adsChange` event.
      */
     readonly ads: TrackAds | null
 

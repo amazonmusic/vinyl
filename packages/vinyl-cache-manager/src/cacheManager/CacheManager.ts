@@ -26,9 +26,9 @@ export type CacheManagerOptions = {
     readonly name?: string
 
     /**
-     * The Fetch from network method. Defaults to window.fetch.
+     * The fetch-from-network method. Defaults to `window.fetch`.
      */
-    readonly requestFromNetwork?: Fetch
+    readonly requestFromNetwork?: (request: RequestInfo) => Promise<Response>
 }
 
 type Fetch = (request: RequestInfo) => Promise<Response>
