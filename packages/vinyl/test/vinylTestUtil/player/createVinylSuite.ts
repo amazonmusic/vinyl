@@ -11,9 +11,12 @@ import {
 import type { Unsubscribe } from '@amazon/vinyl-util'
 import {
     createLogPrefix,
+    createRequester,
     getGlobalRegistry,
     IllegalStateError,
     logDebug,
+    requesterWithRetryRef,
+    RetryStrategy,
 } from '@amazon/vinyl-util'
 import { setTestTimeout } from '@amazon/vinyl-util/browserTestUtil'
 import { mediaRef } from './mediaRef'
@@ -69,6 +72,13 @@ export class VinylSuite<T extends VinylPlayer<any, any> = VinylPlayer> {
         let playerErrorSub: Unsubscribe | null = null
         setTestTimeout(this.options?.timeout ?? 60)
         beforeEach(() => {
+            // Browserstack's network is flaky and prone to transient drops;
+            // give integ requests more retries than the production default.
+            requesterWithRetryRef.set(() =>
+                createRequester({
+                    retryOptions: { ...RetryStrategy.ONE_RETRY, retries: 3 },
+                })
+            )
             document.addEventListener(
                 'visibilitychange',
                 this.visibilityChangeHandler
