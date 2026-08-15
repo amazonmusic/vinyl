@@ -363,6 +363,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     // A completed postroll marks the end of the whole track
                     // (content + postroll); preroll/midroll only resume content.
                     if (isPostroll) {
+                        logDebug(this, 'trackEnded after postroll')
                         this.dispatch('trackEnded', {})
                     }
                     if (isPostroll && this.hasNext()) {
@@ -418,6 +419,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             setTimeout(() => {
                 if (interrupted()) return
                 // The content ended with no postroll: the track is done.
+                logDebug(this, 'trackEnded')
                 this.dispatch('trackEnded', {})
                 if (this.hasNext()) {
                     this.next()
