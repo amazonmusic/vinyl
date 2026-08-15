@@ -115,20 +115,21 @@ export type ValidFactory<Dm, K extends keyof Dm> = Dm[K] extends (
           : NeverWrongReturnType<ExpectedInputType<Dm, K>, R>
     : NeverInvalidFactoryType
 
-type _ExpectedInputUnion<Dm, K extends keyof Dm> = Dm[keyof Dm] extends (
-    deps: infer Deps,
-    add: AddDisposable
-) => any
-    ? K extends keyof Deps
-        ? Deps[K]
-        : never
-    : never
-
 export type ExpectedInputType<Dm, K extends keyof Dm> =
-    // If the union provides `never`, it isn't a required dependency for any other factory, allow `any`
-    IsNever<_ExpectedInputUnion<Dm, K>> extends true
-        ? any
-        : _ExpectedInputUnion<Dm, K>
+    // The union of the K-typed dependency across every other factory's inputs.
+    (
+        Dm[keyof Dm] extends (deps: infer Deps, add: AddDisposable) => any
+            ? K extends keyof Deps
+                ? Deps[K]
+                : never
+            : never
+    ) extends infer Union
+        ? // If the union is `never`, K isn't a required dependency for any other
+          // factory, so allow `any`.
+          IsNever<Union> extends true
+            ? any
+            : Union
+        : never
 
 /**
  * A type validating dependency overrides when merged with existing dependency factories.

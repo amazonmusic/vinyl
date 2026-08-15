@@ -144,6 +144,11 @@ const playReadyMessageRules: XmlRules<PlayReadyMessage> = {
  */
 const playReadyXmlHandler = parseXmlHandler(playReadyMessageRules)
 
+/**
+ * Parses a PlayReady SOAP key message.
+ *
+ * @internal Exported for unit testing; not part of the public API.
+ */
 export function parsePlayReadyKeyMessage(
     xmlStr: string
 ): PlayReadyMessage & XmlElement<PlayReadyMessage> {
