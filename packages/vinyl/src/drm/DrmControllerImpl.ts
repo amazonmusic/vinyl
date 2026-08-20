@@ -170,6 +170,7 @@ export class DrmControllerImpl
                     params.keySystem,
                     [params.config]
                 )
+                this.abortIfDisposed()
                 logVerbose(
                     this,
                     'requestMediaKeySystemAccess supported',
@@ -181,7 +182,12 @@ export class DrmControllerImpl
                         params.config.persistentState === 'required',
                 }
             } catch (_) {
-                logVerbose(this, 'requestMediaKeySystemAccess rejected', params)
+                if (!this.disposed)
+                    logVerbose(
+                        this,
+                        'requestMediaKeySystemAccess rejected',
+                        params
+                    )
                 return { supported: false, persistentState: false }
             }
         },
@@ -236,6 +242,7 @@ export class DrmControllerImpl
                 this.abortIfDisposed()
                 this.mediaKeys = mediaKeys
                 await mediaKeys.setOnElement(this.deps.media)
+                this.abortIfDisposed()
                 logDebug(this, `set media keys on element`)
                 this.dispatch('mediaKeysSet', {
                     keySystem: mediaKeys.keySystem,
@@ -293,6 +300,7 @@ export class DrmControllerImpl
             })
             newSession.on('closed', () => this.closeSession(newSession))
             abort?.onAborted(() => {
+                if (this.disposed) return
                 logDebug(this, 'abort session')
                 this.closeSession(newSession)
             })
@@ -372,11 +380,13 @@ export class DrmControllerImpl
                         keySystem,
                         [config]
                     )
-                logDebug(
-                    this,
-                    `created media key system access for keySystem: ${access.keySystem}}`,
-                    config
-                )
+                if (!this.disposed) {
+                    logDebug(
+                        this,
+                        `created media key system access for keySystem: ${access.keySystem}}`,
+                        config
+                    )
+                }
                 return access
             } catch (_) {
                 // ignore
@@ -491,6 +501,7 @@ export class DrmControllerImpl
             defaultInitDataTransformer(mediaKeys.keySystem, certBytes)
         initData = transform(bufferToByteArray(initData), initDataType, drmInfo)
 
+        this.abortIfDisposed()
         logDebug(this, 'createSession', drmInfo.mimeType, initDataType)
         const session = mediaKeys.createSession(
             drmInfo.mimeType,
@@ -535,6 +546,7 @@ export class DrmControllerImpl
         const licenseServerOptions =
             clone(await resolveValueProvider(licenseServerOptionsProvider)) ??
             {}
+        this.abortIfDisposed()
 
         let challenge: BodyInit = event.message
         if (isPlayReady(keySystem)) {
@@ -574,6 +586,10 @@ export class DrmControllerImpl
     }
 
     private closeSession(session: CommonMediaKeySession) {
+        // Sessions are closed synchronously during dispose() (before the
+        // disposer flips `disposed`), but a session's own async 'closed'/'error'
+        // can arrive after teardown.
+        if (this.disposed) return
         logDebug(this, 'closeSession')
         session.dispose()
         remove(this.sessions, session)

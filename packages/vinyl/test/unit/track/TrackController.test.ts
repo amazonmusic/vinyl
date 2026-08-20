@@ -1404,6 +1404,70 @@ describe('TrackControllerImpl', () => {
 
             expect(tc.isTrackCached('https://ads/late.m3u8')).toBeFalse()
         })
+
+        it('does not throw when ad options reject after disposal', async () => {
+            // The HEAD-probe provider isn't cancelled on dispose; a rejection
+            // after teardown must hit the guard, not log.
+            let rejectOptions: (error: Error) => void = () => {}
+            const tc = new TrackControllerImpl<TrackLoadOptions>({
+                ...deps,
+                adTrackLoadOptionsProvider: () =>
+                    new Promise<TrackLoadOptions>((_resolve, reject) => {
+                        rejectOptions = reject
+                    }),
+            })
+            const [main] = createLoadOptionsList(1)
+            tc.load(main)
+            const track = tc.currentTrack as MockTrack
+            const ads = trackAdsWith(main.uri, 'https://ads/late.m3u8')
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            tc.dispose()
+            rejectOptions(new Error('boom'))
+            await flushAds()
+
+            expect(tc.disposed).toBeTrue()
+            expect(tc.isTrackCached('https://ads/late.m3u8')).toBeFalse()
+        })
+
+        it("does not throw when a break's ad list rejects after disposal", async () => {
+            let rejectAds: (error: Error) => void = () => {}
+            const tc = new TrackControllerImpl<TrackLoadOptions>(deps)
+            const [main] = createLoadOptionsList(1)
+            tc.load(main)
+            const track = tc.currentTrack as MockTrack
+            const ads = {
+                trackUri: main.uri,
+                adBreaks: [
+                    {
+                        id: 'b1',
+                        startTime: 5,
+                        duration: 10,
+                        placement: 'midroll' as const,
+                        restrict: {},
+                        once: false,
+                        resumeOffset: null,
+                        playoutLimit: null,
+                        skipControl: () => null,
+                        ads: () =>
+                            new Promise<readonly []>((_resolve, reject) => {
+                                rejectAds = reject
+                            }),
+                    },
+                ],
+            }
+            track.ads = ads
+            track.dispatch('adsChange', { previous: null, current: ads })
+            await flushAds()
+
+            tc.dispose()
+            rejectAds(new Error('ad list down'))
+            await flushAds()
+
+            expect(tc.disposed).toBeTrue()
+        })
     })
 
     describe('ad track lifecycle', () => {

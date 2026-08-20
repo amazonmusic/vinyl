@@ -612,6 +612,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                                 )
                             })
                             .catch((error) => {
+                                // The provider (a HEAD probe) isn't canceled on
+                                // dispose; don't log after teardown.
+                                if (this.disposed) return
                                 logWarn(
                                     this,
                                     'failed to resolve ad track load options for preload',
@@ -621,6 +624,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     }
                 })
                 .catch((error) => {
+                    // The ads provider may fetch and isn't canceled on dispose;
+                    // don't log after teardown.
+                    if (this.disposed) return
                     logWarn(this, 'failed to resolve ads for preload', error)
                 })
         }

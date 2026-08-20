@@ -444,6 +444,21 @@ describe('DrmControllerImpl', () => {
                 ).toEqual([1, 1, 1, 1, 1, 1]) // Expect all sessions to have been disposed
                 expect(drmController.activeSessions).toEqual(0)
             })
+
+            it('ignores a session that closes or aborts after disposal', async () => {
+                const abort = new Abort()
+                drmController.setBufferingDrmInfo(drmInfo, abort)
+                await emitEncrypted(new Uint8Array([1]))
+                const session = mediaKeys.createSession.calls.mostRecent()
+                    .returnValue as MockCommonMediaKeySession
+                drmController.dispose()
+                session.dispose.calls.reset()
+                // A late 'closed' and a late abort must be ignored after
+                // teardown (no re-close, no post-dispose log).
+                session.dispatch('closed', { reason: 'closed-by-application' })
+                abort.abort()
+                expect(session.dispose).not.toHaveBeenCalled()
+            })
         })
     })
 
@@ -1349,6 +1364,26 @@ describe('DrmControllerImpl', () => {
                 DrmKeySystem.WIDEVINE,
                 DrmKeySystem.PLAY_READY,
             ])
+        })
+
+        it('does not log a support result after disposal', async () => {
+            // A memoized probe still in flight when the controller is disposed
+            // must resolve inertly without logging its result post-teardown.
+            let resolveAccess: (
+                a: MockCommonMediaKeySystemAccess
+            ) => void = () => {}
+            commonEme.requestMediaKeySystemAccess.and.returnValue(
+                new Promise<MockCommonMediaKeySystemAccess>((resolve) => {
+                    resolveAccess = resolve
+                })
+            )
+            const supported = drmController.isSupported(drmInfo)
+            drmController.dispose()
+            resolveAccess(access)
+            await expectAsync(supported).toBeResolvedTo({
+                supported: false,
+                persistentState: false,
+            })
         })
     })
 
