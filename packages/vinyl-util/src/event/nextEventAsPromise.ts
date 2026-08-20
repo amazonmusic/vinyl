@@ -8,27 +8,40 @@ import type { ReadonlyAbort } from '../util/async/Abort'
 import { promise } from '../util/async/promise'
 import { withTimeout } from '../util/async/timeout'
 import type { Maybe } from '../util/type'
+import { ErrorLevel } from '../error/ReportableError'
+import { ErrorOrigin } from '../error/ErrorOrigin'
 
 export interface NextEventAsPromiseOptions<EventMap, K extends keyof EventMap> {
     /**
      * (Optional) If provided, will only resolve if the event passes this predicate.
      */
-    filter?: ((event: EventMap[K]) => boolean) | undefined | null
+    readonly filter?: ((event: EventMap[K]) => boolean) | undefined | null
 
     /**
      * (Optional) If provided, will reject the promise if the signal is aborted.
      */
-    abort?: Maybe<ReadonlyAbort>
+    readonly abort?: Maybe<ReadonlyAbort>
 
     /**
      * If provided, the promise will reject after this duration, in seconds, if not resolved.
      */
-    timeout?: number
+    readonly timeout?: number
 
     /**
      * The timeout message. If not provided will use `DEFAULT_TIMEOUT_MESSAGE`.
      */
-    timeoutMessage?: string
+    readonly timeoutMessage?: string
+
+    /**
+     * The error origin if the next event times out.
+     * Default: `ErrorOrigin.INTERNAL`
+     */
+    readonly timeoutOrigin?: string
+
+    /**
+     * The error level on a timeout.
+     */
+    readonly timeoutLevel?: ErrorLevel
 }
 
 /**
@@ -52,7 +65,12 @@ export function nextEventAsPromise<EventMap, K extends keyof EventMap>(
             })
         }, options?.abort),
         options?.timeout,
-        options?.timeoutMessage ??
-            `Event '${String(type)}' was not received within {time}s`
+        {
+            message:
+                options?.timeoutMessage ??
+                `Event '${String(type)}' was not received within {time}s`,
+            origin: options?.timeoutOrigin ?? ErrorOrigin.INTERNAL,
+            level: options?.timeoutLevel ?? ErrorLevel.FATAL,
+        }
     )
 }

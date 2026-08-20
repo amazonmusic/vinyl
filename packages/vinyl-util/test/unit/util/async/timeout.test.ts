@@ -37,7 +37,7 @@ describe('withTimeout', () => {
 
     it('uses the provided message for the timeout error', async () => {
         const expectation = expectAsync(
-            withTimeout(sleep(20.0), 10, 'erred in {time}s')
+            withTimeout(sleep(20.0), 10, { message: 'erred in {time}s' })
         ).toBeRejectedWithError(TimeoutError, 'erred in 10s')
         await clock.tick(10, 10)
         await expectation
@@ -88,7 +88,7 @@ describe('timeout', () => {
 
     it('resolves if a provided abort signal is aborted', async () => {
         const abort = new Abort()
-        const promise = timeout(1000, abort)
+        const promise = timeout(1000, { abort })
         await clock.tick(500.0)
         abort.abort()
         await expectAsync(promise).toBeResolvedTo(void 0)

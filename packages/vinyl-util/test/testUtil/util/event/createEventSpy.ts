@@ -59,14 +59,12 @@ export function createEventSpy<EventMap, K extends keyof EventMap>(
             timeout = 5,
             timeoutMessage = `event '{type}' has not been dispatched after {timeout}s.`
         ) {
-            return withTimeout(
-                nextCall,
-                timeout,
-                substitute(timeoutMessage, {
+            return withTimeout(nextCall, timeout, {
+                message: substitute(timeoutMessage, {
                     type,
                     timeout,
-                })
-            )
+                }),
+            })
         },
         dispose: unsub,
     })

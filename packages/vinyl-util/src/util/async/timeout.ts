@@ -14,32 +14,65 @@ import { ErrorLevel } from '../../error/ReportableError'
 export const DEFAULT_TIMEOUT_MESSAGE = 'Timed out after {time}s'
 
 /**
+ * Options for {@link withTimeout}.
+ */
+export interface WithTimeoutOptions {
+    /**
+     * The message to set in the {@link TimeoutError}. Uses `{time}` token.
+     * (default: {@link DEFAULT_TIMEOUT_MESSAGE})
+     */
+    readonly message?: string | undefined
+
+    /**
+     * The error origin. (default: `ErrorOrigin.INTERNAL`)
+     */
+    readonly origin?: string | undefined
+
+    /**
+     * The error level. (default: `ErrorLevel.FATAL`)
+     */
+    readonly level?: ErrorLevel | undefined
+}
+
+/**
  * Races a promise with a timeout, rejecting with a {@link TimeoutError} if the timeout is
  * reached before the provided promise.
  *
  * @param promise The promise to race against a timeout.
  * @param time The number of seconds to wait. If undefined, the promise is returned without
  * wrapping.
- * @param message The message to set in the {@link TimeoutError}. Uses `{time}` token.
- * @param origin The error origin. (default: `ErrorOrigin.INTERNAL`)
- * @param level The error level (default: `ErrorLevel.FATAL`)
+ * @param options Timeout error options (message, origin, level).
  */
 export function withTimeout<T>(
     promise: PromiseLike<T>,
     time?: number,
-    message = DEFAULT_TIMEOUT_MESSAGE,
-    origin: string = ErrorOrigin.INTERNAL,
-    level: ErrorLevel = ErrorLevel.FATAL
+    options: WithTimeoutOptions = {}
 ): Promise<T> {
+    const {
+        message = DEFAULT_TIMEOUT_MESSAGE,
+        origin = ErrorOrigin.INTERNAL,
+        level = ErrorLevel.FATAL,
+    } = options
     if (time === undefined) return Promise.resolve(promise)
     const abort = new Abort()
     return Promise.race([
         promise,
-        timeout(time, abort, message, origin, level),
+        timeout(time, { abort, message, origin, level }),
     ]).then(() => {
         abort.abort()
         return promise
     })
+}
+
+/**
+ * Options for {@link timeout}.
+ */
+export interface TimeoutOptions extends WithTimeoutOptions {
+    /**
+     * If provided, when aborted (regardless of reason) will resolve the
+     * returned promise rather than rejecting.
+     */
+    readonly abort?: ReadonlyAbort | undefined
 }
 
 /**
@@ -48,19 +81,18 @@ export function withTimeout<T>(
  * This is the inverse of {@link sleep}
  *
  * @param time The number of seconds to wait.
- * @param abort If provided, when aborted (regardless of reason) will resolve the returned
- * promise.
- * @param message The message to be used in the TimeoutError in case of timeout. Uses `{time}` token.
- * @param origin The error origin. (default: `ErrorOrigin.INTERNAL`)
- * @param level The error level (default: `ErrorLevel.FATAL`)
+ * @param options Timeout options (abort, message, origin, level).
  */
 export function timeout(
     time: number,
-    abort?: ReadonlyAbort,
-    message = 'Timed out after {time}s',
-    origin: string = ErrorOrigin.INTERNAL,
-    level: ErrorLevel = ErrorLevel.FATAL
+    options: TimeoutOptions = {}
 ): Promise<void> {
+    const {
+        abort,
+        message = DEFAULT_TIMEOUT_MESSAGE,
+        origin = ErrorOrigin.INTERNAL,
+        level = ErrorLevel.FATAL,
+    } = options
     return new Promise((resolve, reject) => {
         sleep(time, abort)
             .then(() => {

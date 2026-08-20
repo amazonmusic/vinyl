@@ -516,7 +516,7 @@ export class DrmControllerImpl
                     event: event,
                 }),
                 LICENSE_TIMEOUT,
-                LICENSE_TIMEOUT_MESSAGE
+                { message: LICENSE_TIMEOUT_MESSAGE }
             ).catch(this.handleError)
         })
         session.on('error', (event) => {
