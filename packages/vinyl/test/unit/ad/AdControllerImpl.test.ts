@@ -1143,6 +1143,48 @@ describe('AdControllerImpl', () => {
         })
     })
 
+    describe('disposal during pending async work', () => {
+        it('ignores a break ad list that resolves after disposal', async () => {
+            const c = createController()
+            let resolveAds: (ads: readonly AdInfo[]) => void = () => {}
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        startTime: 10,
+                        ads: () =>
+                            new Promise<readonly AdInfo[]>((resolve) => {
+                                resolveAds = resolve
+                            }),
+                    })
+                )
+            )
+            updateTime(10)
+            c.dispose()
+            resolveAds([defaultAd])
+            await flush()
+            expect(c.currentAd).toBeNull()
+        })
+
+        it('does not fail an ad after disposal when the load timeout elapses', async () => {
+            // A small non-zero timeout so the timer is a real setTimeout that
+            // fires after we dispose (sleep(0) would resolve on a microtask,
+            // before dispose).
+            const c = new AdControllerImpl(
+                { playbackController },
+                { adLoadTimeout: 0.001 }
+            )
+            const errors: unknown[] = []
+            c.on('adError', (e) => errors.push(e.error))
+            c.setAds(trackAds(makeBreak({ startTime: 0, duration: 10 })))
+            updateTime(1)
+            await flush()
+            // Dispose before the load-timeout timer fires.
+            c.dispose()
+            await new Promise((resolve) => setTimeout(resolve, 5))
+            expect(errors).toEqual([])
+        })
+    })
+
     describe('dispose', () => {
         it('stops responding to time updates', async () => {
             const c = createController()

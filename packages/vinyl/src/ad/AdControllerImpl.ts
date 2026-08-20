@@ -10,6 +10,7 @@ import {
     lerp,
     logDebug,
     type Maybe,
+    noop,
     resolveValueProvider,
     roundToNearest,
     sleep,
@@ -366,6 +367,7 @@ export class AdControllerImpl
             .catch(() => undefined)
         resolveValueProvider(value?.ads)
             .then((ads) => {
+                if (this.disposed) return
                 if (this._currentAdBreak !== value) return
                 const adsList = ads?.slice() ?? []
                 this.pendingAds = adsList
@@ -420,15 +422,18 @@ export class AdControllerImpl
             index: this._currentAdIndex,
             totalAds: this._totalAds,
         })
-        void sleep(this.options.adLoadTimeout).then(() => {
-            if (this.adStats === stats && !stats.playing) {
-                this.failAd(
-                    new AdError(
-                        `Ad failed to start after ${this.options.adLoadTimeout} seconds`
+        sleep(this.options.adLoadTimeout)
+            .then(() => {
+                if (this.disposed) return
+                if (this.adStats === stats && !stats.playing) {
+                    this.failAd(
+                        new AdError(
+                            `Ad failed to start after ${this.options.adLoadTimeout} seconds`
+                        )
                     )
-                )
-            }
-        })
+                }
+            })
+            .catch(noop)
     }
 
     private completeAd(reason: AdChangeReason) {
