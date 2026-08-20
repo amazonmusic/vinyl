@@ -224,6 +224,10 @@ export class MediaSourceControllerImpl
         if (!this.active) return
         this.activateDisposer!.dispose()
         this.activateDisposer = null
+        // Invalidate any in-flight refreshDuration so its continuation returns
+        // at the token check rather than setting duration (and logging) after
+        // deactivation.
+        ++this.durationToken
         try {
             URL.revokeObjectURL(this.objectUrl!)
         } catch (error) {
