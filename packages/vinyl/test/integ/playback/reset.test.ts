@@ -16,14 +16,12 @@ import type {
     RequestOptions,
 } from '@amazon/vinyl-util'
 import {
-    createRequester,
     networkState,
     noop,
     type Requester,
     RequestError,
     requesterWithRetryRef,
     RequestFailureType,
-    RetryStrategy,
     sleep,
 } from '@amazon/vinyl-util'
 import { createVinylSuite, vinylTestAssets } from '@amazon/vinyl/vinylTestUtil'
@@ -43,40 +41,6 @@ import { normalizeHeadersInit } from '@amazon/vinyl-util'
 const playbackTime = 5
 
 describe('reset integ', () => {
-    overrideGlobalInit(requesterWithRetryRef, () => {
-        const requester = createRequester({
-            retryOptions: RetryStrategy.ONE_RETRY,
-        })
-        const originalRequest = requester.request.bind(requester)
-        spyOn(requester, 'request').and.callFake(
-            async (
-                input: RequestInfo | Readonly<URL>,
-                init?: Maybe<RequestInitOptions>,
-                requestOptions?: Maybe<RequestOptions>
-            ) => {
-                if (!requestGate(input, init, requestOptions)) {
-                    await sleep(0.1)
-                    throw new RequestError(null, {
-                        ok: false,
-                        type: RequestFailureType.INTERNAL,
-                        willRetry: false,
-                        retryAfter: null,
-                        reason: null,
-                        timestamp: Date.now(),
-                        requestInfo: {
-                            ...emptyRequestInfo,
-                            init: init ?? emptyRequestInfo.init,
-                            input,
-                        },
-                    })
-                }
-                return originalRequest(input, init, requestOptions)
-            }
-        )
-
-        return requester
-    })
-
     let mockNetworkState: MockNetworkState
     const mockNetworkStateRef = overrideGlobalInit(
         networkState,
@@ -111,6 +75,40 @@ describe('reset integ', () => {
     let failNext: boolean
 
     beforeEach(() => {
+        // Spy on the requester the suite actually configures (createVinylSuite
+        // registers an earlier `beforeEach` that overrides requesterWithRetryRef
+        // for BrowserStack retries). Spying on the initialized instance here —
+        // rather than racing another `set()` override, which the suite's would
+        // clobber — guarantees this failure-injection gate is what the player
+        // uses while preserving the suite's requester configuration.
+        const requester = requesterWithRetryRef.value
+        const originalRequest = requester.request.bind(requester)
+        spyOn(requester, 'request').and.callFake(
+            async (
+                input: RequestInfo | Readonly<URL>,
+                init?: Maybe<RequestInitOptions>,
+                requestOptions?: Maybe<RequestOptions>
+            ) => {
+                if (!requestGate(input, init, requestOptions)) {
+                    await sleep(0.1)
+                    throw new RequestError(null, {
+                        ok: false,
+                        type: RequestFailureType.INTERNAL,
+                        willRetry: false,
+                        retryAfter: null,
+                        reason: null,
+                        timestamp: Date.now(),
+                        requestInfo: {
+                            ...emptyRequestInfo,
+                            init: init ?? emptyRequestInfo.init,
+                            input,
+                        },
+                    })
+                }
+                return originalRequest(input, init, requestOptions)
+            }
+        )
+
         mockNetworkState = mockNetworkStateRef.value
         mockNetworkState.onLine = true
         failNext = false
