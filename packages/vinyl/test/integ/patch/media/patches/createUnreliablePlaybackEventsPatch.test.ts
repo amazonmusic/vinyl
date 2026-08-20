@@ -102,7 +102,7 @@ describe('unreliablePlaybackEventsPatch integ', () => {
 
         // Some browsers (iOS) do not support seeking before a play has happened in a secure
         // context. seekTo will cause the seek to be pending until the first play.
-        await withTimeout(media.play(), 10, 'play timed out')
+        await withTimeout(media.play(), 10, { message: 'play timed out' })
 
         media.currentTime = 15
         let canReproduce: boolean

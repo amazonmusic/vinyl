@@ -564,9 +564,11 @@ export class PlaybackControllerImpl
                     await withTimeout(
                         this.media.play(),
                         this.options.playTimeout,
-                        'play() timed out after {time}s',
-                        ErrorOrigin.INTERNAL,
-                        ErrorLevel.SILENT
+                        {
+                            message: 'play() timed out after {time}s',
+                            origin: ErrorOrigin.INTERNAL,
+                            level: ErrorLevel.SILENT,
+                        }
                     )
                 })(),
                 playAbort
@@ -612,16 +614,13 @@ export class PlaybackControllerImpl
         const nextEvent = <K extends keyof PlaybackControllerEventMap>(
             type: K
         ): Promise<PlaybackControllerEventMap[K]> => {
-            return withAbort(
-                withTimeout(
-                    nextEventAsPromise(this, type),
-                    this.options.seekTimeout,
-                    `seek timed out on ${type} event after {time}s`,
-                    ErrorOrigin.INTERNAL,
-                    ErrorLevel.WARN
-                ),
-                this.disposeAbort
-            )
+            return nextEventAsPromise(this, type, {
+                timeout: this.options.seekTimeout,
+                timeoutMessage: `seek timed out on ${type} event after {time}s`,
+                timeoutOrigin: ErrorOrigin.INTERNAL,
+                timeoutLevel: ErrorLevel.WARN,
+                abort: this.disposeAbort,
+            })
         }
 
         // Cannot seek until there are seekable ranges.

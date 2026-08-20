@@ -121,6 +121,6 @@ export function nextMediaSourceEnded(
             onMediaSourceEnded(mediaSource, resolve, { once: true })
         }),
         timeout,
-        timeoutMessage
+        { message: timeoutMessage }
     )
 }
