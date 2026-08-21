@@ -244,23 +244,28 @@ describe('DrmControllerImpl', () => {
                 drmController,
                 'sessionCreate'
             )
-            drmController.initializeForPlayback({
-                ...drmInfo,
-                contentProtections: [
-                    {
-                        keySystem: DrmKeySystem.WIDEVINE,
-                        pssh: '123',
-                    },
-                    {
-                        keySystem: DrmKeySystem.FAIR_PLAY,
-                        pssh: '123',
-                    },
-                    {
-                        keySystem: DrmKeySystem.PLAY_READY,
-                        pssh: '123',
-                    },
-                ],
-            })
+            drmController.initializeForPlayback(
+                {
+                    ...drmInfo,
+                    contentProtections: [
+                        {
+                            keySystem: DrmKeySystem.WIDEVINE,
+                            pssh: '123',
+                        },
+                        {
+                            keySystem: DrmKeySystem.FAIR_PLAY,
+                            pssh: '123',
+                        },
+                        {
+                            keySystem: DrmKeySystem.PLAY_READY,
+                            pssh: '123',
+                        },
+                    ],
+                },
+                // Pass options (track attribution) so the options-based path is
+                // exercised alongside the no-options calls elsewhere.
+                { trackUri: 'track-x' }
+            )
 
             await flushPromises()
             expect(mediaKeysSetSpy).toHaveBeenCalledTimes(1)
