@@ -645,6 +645,39 @@ describe('hls ad interstitials integ', () => {
         ).toBeTrue()
     })
 
+    // ─── Natural playback ordering ───────────────────────────────────────
+    // Playing from the start (no seeking) enters breaks in timeline order.
+    it('activates a midroll during natural forward playback (no seek)', async () => {
+        const player = suite.player
+        // Midroll early enough to reach by playing from the start.
+        player.load({
+            type: 'hls',
+            uri: 'integ-natural-mid',
+            manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                {
+                    id: 'mid',
+                    startTime: 3,
+                    duration: MIDROLL_DURATION,
+                    assetUri: AD_ASSET,
+                },
+            ]),
+        })
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
+        // Play from the start and let the playhead cross the break naturally —
+        // no seek. The midroll must activate on the forward crossing.
+        await player.play().catch(noop)
+        expect(
+            await poll(() => player.currentAdBreak?.id === 'mid', {
+                timeout: 40,
+            })
+        )
+            .withContext('midroll activated on natural crossing')
+            .toBeTrue()
+        expect(player.currentAdBreak?.placement).toBe('midroll')
+    })
+
     it('plays multiple ads in a break sequentially (X-ASSET-LIST)', async () => {
         const player = suite.player
         player.load({
@@ -783,6 +816,77 @@ describe('hls ad interstitials integ', () => {
         expect(await poll(() => player.paused || player.ended, { timeout: 20 }))
             .withContext('player.paused || player.ended')
             .toBeTrue()
+    })
+
+    it('does not replay a postroll after it finishes naturally', async () => {
+        const player = suite.player
+        // A postroll that is never suppressed re-enters on each content
+        // `ended`, looping forever. Record every entry to catch a replay.
+        const postrollEntries: string[] = []
+        const sub = player.on('currentAdBreakChange', (e) => {
+            if (e.current?.placement === 'postroll') {
+                postrollEntries.push(e.current.id)
+            }
+        })
+        try {
+            player.load({
+                type: 'hls',
+                uri: 'integ-postroll-replay',
+                manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                    {
+                        id: 'postroll-1',
+                        startTime: 0,
+                        duration: 4,
+                        // Short ad so the break ends quickly on its own.
+                        assetList: [{ uri: AD_ASSET, duration: 3 }],
+                        cue: 'POST',
+                    },
+                ]),
+            })
+            await poll(
+                () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+                { timeout: 15 }
+            )
+            await player.play().catch(noop)
+            // Drive content to its end so the postroll triggers on `ended`.
+            const contentDuration = player.duration
+            await player
+                .seekTo(Math.max(0, contentDuration - 1.5), 1)
+                .catch(() => undefined)
+            // The postroll takes over and plays.
+            expect(await poll(() => player.currentAd != null, { timeout: 40 }))
+                .withContext('postroll ad started')
+                .toBeTrue()
+            expect(player.currentAdBreak?.placement).toBe('postroll')
+            // Let the postroll finish on its own, rather than skipping it.
+            expect(await poll(() => player.currentAd == null, { timeout: 40 }))
+                .withContext('postroll ad finished')
+                .toBeTrue()
+            // Content resumes on the content track after the break.
+            expect(
+                await poll(
+                    () => player.currentTrack?.uri === 'integ-postroll-replay',
+                    { timeout: 20 }
+                )
+            )
+                .withContext('content resumed after postroll')
+                .toBeTrue()
+
+            // Re-drive content to its end to fire `ended` again — the event
+            // that re-invokes enterPostroll. It must not re-enter the postroll.
+            await player
+                .seekTo(Math.max(0, player.duration - 1.5), 1)
+                .catch(() => undefined)
+            await player.play().catch(noop)
+            const replayed = await poll(() => postrollEntries.length > 1, {
+                timeout: 20,
+            })
+            expect(replayed).withContext('postroll replayed').toBeFalse()
+            expect(player.currentAdBreak).toBeNull()
+            expect(postrollEntries).toEqual(['postroll-1'])
+        } finally {
+            sub()
+        }
     })
 
     it('disposes the ad track when new content is loaded mid-ad', async () => {
@@ -1106,5 +1210,64 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
         expect(await poll(() => player.currentAd == null, { timeout: 30 }))
             .withContext('player.currentAd == null')
             .toBeTrue()
+    })
+
+    // Regression (real stream): the preroll ad's own `ended` was misread as
+    // content ending, so the postroll played right after the preroll — before
+    // content. After the preroll ends, content must resume, not the postroll.
+    it('resumes content, not the postroll, after the preroll ends (natural)', async () => {
+        const player = suite.player
+        const enteredPlacements: string[] = []
+        const sub = player.on('currentAdBreakChange', (e) => {
+            if (e.current) enteredPlacements.push(e.current.placement)
+        })
+        try {
+            player.load({ type: 'hls', uri: STREAM })
+            if (
+                !(await poll(
+                    () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
+                    { timeout: 20 }
+                ))
+            ) {
+                pending('art19 stream unreachable')
+                return
+            }
+            const placements = player.currentTrackAds!.adBreaks.map(
+                (b) => b.placement
+            )
+            expect(placements).toContain('preroll')
+            expect(placements).toContain('postroll')
+
+            await player.play().catch(() => undefined)
+            // The preroll activates at time 0 and its ad advances.
+            if (
+                !(await poll(() => player.currentAd != null, { timeout: 30 }))
+            ) {
+                pending('art19 ad did not start (network/CDN)')
+                return
+            }
+            if (!(await poll(() => player.currentTime > 0, { timeout: 20 }))) {
+                pending('art19 ad activated but did not advance (network/CDN)')
+                return
+            }
+            expect(player.currentAdBreak?.placement)
+                .withContext('preroll first')
+                .toBe('preroll')
+            // Let the preroll play to its own natural end (no seeking — the bug
+            // needs the ad's real `ended`). Watch long enough to cover its
+            // playout: the postroll must not activate right after the preroll.
+            const wrongPostroll = await poll(
+                () => enteredPlacements.includes('postroll'),
+                { timeout: 45 }
+            )
+            expect(wrongPostroll)
+                .withContext('postroll must not play right after the preroll')
+                .toBeFalse()
+            expect(enteredPlacements)
+                .withContext('only the preroll has played')
+                .toEqual(['preroll'])
+        } finally {
+            sub()
+        }
     })
 })

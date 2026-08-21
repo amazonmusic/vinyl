@@ -403,32 +403,38 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     private onTrackEnded = () => {
         const { adController } = this.deps
 
+        // `ended` fires for ad tracks too (they share the media element); an
+        // ad's end is the AdController's concern, not the content ending.
+        // Detect an ad track by identity rather than adController.currentAd,
+        // which its own `ended` handler may have already cleared (race).
+        const onAdTrack =
+            this._adParent != null &&
+            this._current != null &&
+            this._current.uri !== this._adParent.uri
+        if (onAdTrack) return
+
         const interrupted = this.getQueueInterrupted()
-        const ad = adController.currentAd
-
-        if (!ad) {
-            adController.enterPostroll()
-            if (adController.currentAdBreak) {
-                // There is a pending postroll, do not advance the queue,
-                // a new adEntered event will fire.
-                return
-            }
-
-            // Adds a frame delay to allow applications an opportunity to respond to 'ended' events before the
-            // queue is advanced.
-            setTimeout(() => {
-                if (interrupted()) return
-                // The content ended with no postroll: the track is done.
-                logDebug(this, 'trackEnded')
-                this.dispatch('trackEnded', {})
-                if (this.hasNext()) {
-                    this.next()
-                } else {
-                    logInfo(this, 'queueEnded')
-                    this.dispatch('queueEnded', {})
-                }
-            })
+        adController.enterPostroll()
+        if (adController.currentAdBreak) {
+            // There is a pending postroll, do not advance the queue,
+            // a new adEntered event will fire.
+            return
         }
+
+        // Adds a frame delay to allow applications an opportunity to respond to 'ended' events before the
+        // queue is advanced.
+        setTimeout(() => {
+            if (interrupted()) return
+            // The content ended with no postroll: the track is done.
+            logDebug(this, 'trackEnded')
+            this.dispatch('trackEnded', {})
+            if (this.hasNext()) {
+                this.next()
+            } else {
+                logInfo(this, 'queueEnded')
+                this.dispatch('queueEnded', {})
+            }
+        })
     }
 
     /**

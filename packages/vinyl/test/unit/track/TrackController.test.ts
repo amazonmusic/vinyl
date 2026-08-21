@@ -1675,6 +1675,28 @@ describe('TrackControllerImpl', () => {
             expect(trackController.currentTrack?.uri).toBe(main.uri)
         })
 
+        it('ignores an ended event fired while an ad track is playing', async () => {
+            trackController.load(...createLoadOptionsList(1))
+            deps.adController.currentAd = ad
+            deps.adController.dispatch('adEntered', {
+                ad,
+                index: 0,
+                totalAds: 1,
+            })
+            await flushAds()
+            // The ad track is now current over its parent content track.
+            expect(trackController.currentTrack?.uri).toBe('https://ads/x.m3u8')
+            const trackEnded = createEventSpy(trackController, 'trackEnded')
+            const queueEnded = createEventSpy(trackController, 'queueEnded')
+            // `ended` fires for the ad track too; the ad's end is the
+            // AdController's concern, so the content must not be advanced.
+            deps.playbackController.dispatch('ended', {})
+            await clock.tick()
+            expect(deps.adController.enterPostroll).not.toHaveBeenCalled()
+            expect(trackEnded).not.toHaveBeenCalled()
+            expect(queueEnded).not.toHaveBeenCalled()
+        })
+
         it('fails the ad when the current track errors', () => {
             trackController.load(...createLoadOptionsList(1))
             const track = trackController.currentTrack as MockTrack
