@@ -96,6 +96,30 @@ export interface DrmControllerMessageProps {
     readonly trackUri: TrackUri | null
 }
 
+/**
+ * Options for {@link DrmControllerImpl.maybeCreateSession}.
+ */
+interface MaybeCreateSessionOptions {
+    readonly drmInfo: MediaFormatMetadata
+    readonly initDataType: DrmInitDataType
+    readonly initData: EncryptedInitData
+    readonly trackUri: TrackUri | null
+    readonly abort?: Maybe<ReadonlyAbort>
+}
+
+/**
+ * Options for {@link DrmControllerImpl.createNewSession}.
+ */
+interface CreateNewSessionOptions {
+    readonly serverCertificate: Maybe<ServerCertificate>
+    readonly mediaKeys: CommonMediaKeys
+    readonly initData: EncryptedInitData
+    readonly initDataType: DrmInitDataType
+    readonly drmInfo: MediaFormatMetadata & { readonly mimeType: string }
+    readonly trackUri: TrackUri | null
+    readonly initDataTransformer?: InitDataTransformer | undefined
+}
+
 export class DrmControllerImpl
     extends EventHostImpl<DrmControllerEventMap>
     implements DrmController
@@ -228,13 +252,13 @@ export class DrmControllerImpl
                     'Encrypted content not configured with content protections.'
                 )
             }
-            await this.maybeCreateSession(
-                this.drmInfo,
+            await this.maybeCreateSession({
+                drmInfo: this.drmInfo,
                 initDataType,
                 initData,
-                this.bufferingTrackUri,
-                this.sessionAbort
-            )
+                trackUri: this.bufferingTrackUri,
+                abort: this.sessionAbort,
+            })
         })().catch(this.handleError)
     }
 
@@ -270,12 +294,9 @@ export class DrmControllerImpl
      * The new session will be added to the current sessions list.
      */
     private async maybeCreateSession(
-        drmInfo: MediaFormatMetadata,
-        initDataType: DrmInitDataType,
-        initData: EncryptedInitData,
-        trackUri: TrackUri | null,
-        abort?: Maybe<ReadonlyAbort>
+        options: MaybeCreateSessionOptions
     ): Promise<CommonMediaKeySession> {
+        const { drmInfo, initDataType, initData, trackUri, abort } = options
         if (!hasMimeType(drmInfo)) {
             throw new DrmError('Encrypted content must have a mimeType.')
         }
@@ -297,15 +318,15 @@ export class DrmControllerImpl
             logDebug(this, 'reusing session')
             return existingSession
         } else {
-            const newSession = await this.createNewSession(
-                licenseServerOptions.serverCertificate,
+            const newSession = await this.createNewSession({
+                serverCertificate: licenseServerOptions.serverCertificate,
                 mediaKeys,
                 initData,
                 initDataType,
                 drmInfo,
                 trackUri,
-                keySystemOptions?.initDataTransformer
-            )
+                initDataTransformer: keySystemOptions?.initDataTransformer,
+            })
             this.sessions.push(newSession)
             this.dispatch('sessionCreate', {
                 initDataType: newSession.initDataType,
@@ -374,13 +395,13 @@ export class DrmControllerImpl
             )
         }
         if (drmProtection.pssh) {
-            await this.maybeCreateSession(
+            await this.maybeCreateSession({
                 drmInfo,
-                drmInfo.initDataType ?? 'cenc',
-                base64ToByteArray(drmProtection.pssh),
+                initDataType: drmInfo.initDataType ?? 'cenc',
+                initData: base64ToByteArray(drmProtection.pssh),
                 trackUri,
-                abort
-            )
+                abort,
+            })
         }
     }
 
@@ -493,14 +514,17 @@ export class DrmControllerImpl
      * Creates a new key session and adds a message handler.
      */
     private async createNewSession(
-        serverCertificate: Maybe<ServerCertificate>,
-        mediaKeys: CommonMediaKeys,
-        initData: EncryptedInitData,
-        initDataType: DrmInitDataType,
-        drmInfo: MediaFormatMetadata & { readonly mimeType: string },
-        trackUri: TrackUri | null,
-        initDataTransformer?: InitDataTransformer
+        options: CreateNewSessionOptions
     ): Promise<CommonMediaKeySession> {
+        const {
+            serverCertificate,
+            mediaKeys,
+            initDataType,
+            drmInfo,
+            trackUri,
+            initDataTransformer,
+        } = options
+        let initData = options.initData
         const certBytes = serverCertificate
             ? typeof serverCertificate === 'string'
                 ? base64ToByteArray(serverCertificate)
