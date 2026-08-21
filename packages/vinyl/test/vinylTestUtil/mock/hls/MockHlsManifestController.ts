@@ -4,7 +4,16 @@
  */
 
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
-import type { HlsManifestController, HlsManifestData } from '@amazon/vinyl'
+import type {
+    HlsManifestController,
+    HlsManifestData,
+    ManifestControllerEventMap,
+} from '@amazon/vinyl'
+import {
+    type EventHandler,
+    EventHostImpl,
+    type SignalOptions,
+} from '@amazon/vinyl-util'
 import { data } from '@amazon/vinyl-observable'
 import { mockHlsManifestData } from './mockHlsManifest'
 
@@ -19,9 +28,28 @@ export class MockHlsManifestController implements HlsManifestController {
     private readonly _data = data<Promise<HlsManifestData>>(
         Promise.resolve(mockHlsManifestData)
     )
+    private readonly events = new EventHostImpl<ManifestControllerEventMap>()
 
     refresh = spyFactory('refresh')
     reset = spyFactory('reset')
+
+    on<K extends keyof ManifestControllerEventMap>(
+        type: K,
+        handler: EventHandler<ManifestControllerEventMap[K]>,
+        options?: SignalOptions
+    ) {
+        return this.events.on(type, handler, options)
+    }
+
+    hasAnyListeners() {
+        return this.events.hasAnyListeners()
+    }
+
+    hasListeners(type: keyof ManifestControllerEventMap) {
+        return this.events.hasListeners(type)
+    }
+
+    readonly __eventMapType = this.events.__eventMapType
 
     get value() {
         return this._data.value

@@ -64,6 +64,7 @@ import {
     ALL_STREAMING_EVENTS,
     type StreamingEventMap,
 } from '../streaming/StreamingEventMap'
+import type { LoadMetricEventMap } from '../streaming/LoadMetric'
 import type { InferObservableValueType } from '@amazon/vinyl-observable'
 import type { VinylOptions } from './VinylOptions'
 import type { AutoResetController } from '../track/AutoResetController'
@@ -88,7 +89,8 @@ export interface VinylPlayerEventMap<
         TrackControllerEventMap<TrackLoadOptionsType>,
         StreamingEventMap,
         TextTrackEventMap,
-        AdEventMap {
+        AdEventMap,
+        LoadMetricEventMap {
     /**
      * Dispatched when {@link VinylPlayer.resetPending} changes.
      *
@@ -194,6 +196,19 @@ export class VinylPlayer<
             )
         )
         add(redispatchEvents(this, this.drmController, ['error']))
+        // The shared DRM controller serves multiple tracks (active + preloaded),
+        // so it stamps each license span with the initiating track at the source
+        // (via its key session). Republish using that carried uri; drop spans
+        // whose track is unknown rather than misattribute them to whatever track
+        // happens to be current when the exchange resolves.
+        add(
+            this.drmController.on('loadSpanMeasured', (measurement) => {
+                const trackUri = measurement.trackUri
+                if (trackUri != null) {
+                    this.dispatch('loadSpan', { ...measurement, trackUri })
+                }
+            })
+        )
         add(redispatchEvents(this, this.deps.adController, ALL_AD_EVENTS))
 
         this.on('error', (event) => {
@@ -224,6 +239,7 @@ export class VinylPlayer<
     protected redispatchCurrentTrackEvents() {
         let sub: Unsubscribe | null = null
         let textSub: Unsubscribe | null = null
+        let metricSub: Unsubscribe | null = null
         const add = this.disposer.add
         add(
             this.trackController.on('currentTrackChange', (event) => {
@@ -250,11 +266,25 @@ export class VinylPlayer<
                 sub = null
                 textSub?.()
                 textSub = null
+                metricSub?.()
+                metricSub = null
                 if (event.current) {
+                    const current = event.current
                     sub = redispatchEvents(
                         this,
-                        event.current,
-                        ALL_STREAMING_EVENTS.filter(notResetEvent)
+                        current,
+                        ALL_STREAMING_EVENTS.filter(notResetEvent).filter(
+                            notLoadSpanMeasuredEvent
+                        )
+                    )
+                    metricSub = current.on('loadSpanMeasured', (measurement) =>
+                        this.dispatch('loadSpan', {
+                            ...measurement,
+                            // The track stamps its own uri at the source; fall
+                            // back to the current track for any span that has
+                            // not been attributed upstream.
+                            trackUri: measurement.trackUri ?? current.uri,
+                        })
                     )
                     if (event.current.textTrackController) {
                         textSub = redispatchEvents(
@@ -880,6 +910,17 @@ export function createVinylPlayer<
  */
 function notResetEvent<T extends string>(type: T): type is Exclude<T, 'reset'> {
     return type !== 'reset'
+}
+
+/**
+ * The player republishes `loadSpanMeasured` as the attributed `loadSpan`
+ * event rather than redispatching the raw, unattributed measurement.
+ * @param type
+ */
+function notLoadSpanMeasuredEvent<T extends string>(
+    type: T
+): type is Exclude<T, 'loadSpanMeasured'> {
+    return type !== 'loadSpanMeasured'
 }
 
 const qualityEventsAndGetters = [

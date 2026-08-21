@@ -13,6 +13,7 @@ import type {
 import type { SegmentReference } from './SegmentReference'
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { MediaQualityMetadata } from './MediaQualityMetadata'
+import type { LoadSpanMeasurement } from './LoadMetric'
 
 /**
  * Forward-snap tolerance, in seconds, applied when looking up a segment by time.
@@ -47,6 +48,11 @@ export interface SegmentControllerEventMap {
      * This is dispatched when a new quality is requested.
      */
     readonly streamingQualityChange: ChangeEvent<MediaQualityMetadata | null>
+
+    /**
+     * The first init or media segment fetch of this stream completed.
+     */
+    readonly loadSpanMeasured: LoadSpanMeasurement
 }
 
 /**

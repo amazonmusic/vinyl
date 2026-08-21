@@ -4,9 +4,21 @@
  */
 
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { ReadonlyAbort } from '@amazon/vinyl-util'
+import type { ReadonlyAbort, ReadonlyEventHost } from '@amazon/vinyl-util'
+import type { LoadSpanMeasurement } from './LoadMetric'
 
-export interface ManifestController<T> extends ObservableValue<T> {
+/**
+ * Events a manifest controller dispatches.
+ */
+export interface ManifestControllerEventMap {
+    /**
+     * The initial manifest fetch completed.
+     */
+    readonly loadSpanMeasured: LoadSpanMeasurement
+}
+
+export interface ManifestController<T>
+    extends ObservableValue<T>, ReadonlyEventHost<ManifestControllerEventMap> {
     /**
      * Manually triggers a reload of the manifest.
      * A manifest reload will not clear currently fetched or buffered segments.

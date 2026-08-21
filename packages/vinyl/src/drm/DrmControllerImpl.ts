@@ -37,6 +37,7 @@ import type {
     DrmController,
     DrmControllerEventMap,
     DrmKeySystemSupport,
+    DrmPlaybackOptions,
 } from './DrmController'
 import type {
     CommonEme,
@@ -62,6 +63,7 @@ import type {
 import { defaultLicenseProvider } from './licenseProvider/defaultLicenseProvider'
 import { extractContentId } from './util/extractContentId'
 import { createFairPlaySessionInitData } from './util/createFairPlaySessionInitData'
+import type { TrackUri } from '../track/Track'
 
 /**
  * The number of seconds a license request will be allowed before timing out.
@@ -85,6 +87,13 @@ export interface DrmControllerMessageProps {
     readonly mediaKeys: CommonMediaKeys
     readonly session: CommonMediaKeySession
     readonly event: CommonMediaKeyMessageEvent
+    /**
+     * The track that initiated this session, captured when the session was
+     * created. Carried on the props (not read from controller state at message
+     * time) so concurrent license exchanges for different tracks each attribute
+     * to their own track.
+     */
+    readonly trackUri: TrackUri | null
 }
 
 export class DrmControllerImpl
@@ -104,6 +113,7 @@ export class DrmControllerImpl
 
     private _error: Error | null = null
     private drmInfo: MediaFormatMetadata | null = null
+    private bufferingTrackUri: TrackUri | null = null
     private sessionAbort: ReadonlyAbort | null = null
 
     private pendingMessageProps: DrmControllerMessageProps | null = null
@@ -222,6 +232,7 @@ export class DrmControllerImpl
                 this.drmInfo,
                 initDataType,
                 initData,
+                this.bufferingTrackUri,
                 this.sessionAbort
             )
         })().catch(this.handleError)
@@ -262,6 +273,7 @@ export class DrmControllerImpl
         drmInfo: MediaFormatMetadata,
         initDataType: DrmInitDataType,
         initData: EncryptedInitData,
+        trackUri: TrackUri | null,
         abort?: Maybe<ReadonlyAbort>
     ): Promise<CommonMediaKeySession> {
         if (!hasMimeType(drmInfo)) {
@@ -291,6 +303,7 @@ export class DrmControllerImpl
                 initData,
                 initDataType,
                 drmInfo,
+                trackUri,
                 keySystemOptions?.initDataTransformer
             )
             this.sessions.push(newSession)
@@ -310,25 +323,28 @@ export class DrmControllerImpl
 
     initializeForPlayback(
         drmInfo: MediaFormatMetadata | null,
-        abort?: ReadonlyAbort
+        options?: DrmPlaybackOptions
     ): void {
         logDebug(this, 'initializeForPlayback', drmInfo)
         if (drmInfo?.contentProtections.length) {
-            this.createSessionFromInitData(drmInfo, abort).catch(
-                this.handleError
-            )
+            this.createSessionFromInitData(
+                drmInfo,
+                options?.trackUri ?? null,
+                options?.abort
+            ).catch(this.handleError)
         }
     }
 
     setBufferingDrmInfo(
         drmInfo: MediaFormatMetadata | null,
-        abort?: ReadonlyAbort
+        options?: DrmPlaybackOptions
     ): void {
         logDebug(this, 'setBufferingDrmInfo', drmInfo)
         // Reset 'encrypted' error reporting
         this.reset()
         this.drmInfo = drmInfo
-        this.sessionAbort = abort ?? null
+        this.bufferingTrackUri = options?.trackUri ?? null
+        this.sessionAbort = options?.abort ?? null
     }
 
     /**
@@ -337,6 +353,7 @@ export class DrmControllerImpl
      */
     private async createSessionFromInitData(
         drmInfo: MediaFormatMetadata,
+        trackUri: TrackUri | null,
         abort?: ReadonlyAbort
     ) {
         if (!this.deps.commonEme) {
@@ -361,6 +378,7 @@ export class DrmControllerImpl
                 drmInfo,
                 drmInfo.initDataType ?? 'cenc',
                 base64ToByteArray(drmProtection.pssh),
+                trackUri,
                 abort
             )
         }
@@ -480,6 +498,7 @@ export class DrmControllerImpl
         initData: EncryptedInitData,
         initDataType: DrmInitDataType,
         drmInfo: MediaFormatMetadata & { readonly mimeType: string },
+        trackUri: TrackUri | null,
         initDataTransformer?: InitDataTransformer
     ): Promise<CommonMediaKeySession> {
         const certBytes = serverCertificate
@@ -514,6 +533,9 @@ export class DrmControllerImpl
                     mediaKeys: mediaKeys,
                     session: session,
                     event: event,
+                    // Captured per session, so a concurrent preloaded track's
+                    // license exchange keeps its own attribution.
+                    trackUri: trackUri,
                 }),
                 LICENSE_TIMEOUT,
                 { message: LICENSE_TIMEOUT_MESSAGE }
@@ -561,11 +583,22 @@ export class DrmControllerImpl
                 ...unpacked.headers,
             }
         }
+        const licenseSpanStart = Date.now()
         const key = await this.licenseProvider(
             keySystem,
             licenseServerOptions,
             challenge
         )
+        this.dispatch('loadSpanMeasured', {
+            kind: 'license',
+            startTime: licenseSpanStart,
+            endTime: Date.now(),
+            // Attributed at the source to the session's track; omitted (not set
+            // to undefined) when unknown, per exactOptionalPropertyTypes.
+            ...(messageProps.trackUri != null && {
+                trackUri: messageProps.trackUri,
+            }),
+        })
         this.pendingMessageProps = null
         if (session.disposed) return
         logDebug(this, 'update')

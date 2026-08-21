@@ -8,6 +8,7 @@ import type { ContentType, MediaQualityMetadata } from './MediaQualityMetadata'
 import type { BasicErrorEvent } from '../event/BasicErrorEvent'
 import type { AnyRecord } from '@amazon/vinyl-util'
 import type { SeekRange } from '../track/SeekRange'
+import type { LoadSpanMeasurement } from './LoadMetric'
 
 /**
  * Events a track dispatches related to streaming quality and status.
@@ -80,6 +81,13 @@ export interface StreamingEventMap {
      * The seekable range on the media timeline has changed.
      */
     readonly seekRangeChange: ChangeEvent<SeekRange | null>
+
+    /**
+     * A stage of the track load completed. Rather than redispatch this raw
+     * measurement, the player attributes it to the current track and
+     * republishes it as the `loadSpan` event.
+     */
+    readonly loadSpanMeasured: LoadSpanMeasurement
 }
 
 /**
@@ -114,4 +122,5 @@ export const ALL_STREAMING_EVENTS = [
     'qualitiesUnfilteredChange',
     'codecUnsupported',
     'seekRangeChange',
+    'loadSpanMeasured',
 ] as const satisfies readonly (keyof StreamingEventMap)[]

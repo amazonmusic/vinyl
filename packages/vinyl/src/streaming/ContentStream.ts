@@ -133,7 +133,10 @@ export class ContentStreamImpl
         const deps = add(createContainer(dependencyFactories)).dependencies
 
         this.segmentController = deps.segmentController
-        redispatchEvents(this, this.segmentController, ['fetchedRangesChange'])
+        redispatchEvents(this, this.segmentController, [
+            'fetchedRangesChange',
+            'loadSpanMeasured',
+        ])
 
         this.bufferingController = deps.bufferingController
         redispatchEvents(this, this.segmentController, [

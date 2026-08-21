@@ -251,10 +251,16 @@ describe('MseTrack', () => {
             ).toHaveBeenCalledTimes(2)
             expect(
                 deps.drmController.initializeForPlayback
-            ).toHaveBeenCalledWith(audioMetadata, any(Abort))
+            ).toHaveBeenCalledWith(audioMetadata, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
             expect(
                 deps.drmController.initializeForPlayback
-            ).toHaveBeenCalledWith(videoMetadata, any(Abort))
+            ).toHaveBeenCalledWith(videoMetadata, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
         })
     })
 
@@ -325,7 +331,10 @@ describe('MseTrack', () => {
             })
             expect(
                 drmController.initializeForPlayback
-            ).toHaveBeenCalledOnceWith(metadata1, any(Abort))
+            ).toHaveBeenCalledOnceWith(metadata1, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
 
             drmController.initializeForPlayback.calls.reset()
 
@@ -336,7 +345,10 @@ describe('MseTrack', () => {
             })
             expect(
                 drmController.initializeForPlayback
-            ).toHaveBeenCalledOnceWith(metadata2, any(Abort))
+            ).toHaveBeenCalledOnceWith(metadata2, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
         })
     })
 
@@ -351,7 +363,10 @@ describe('MseTrack', () => {
             })
             expect(
                 deps.drmController.setBufferingDrmInfo
-            ).toHaveBeenCalledOnceWith(metadata, any(Abort))
+            ).toHaveBeenCalledOnceWith(metadata, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
 
             deps.drmController.setBufferingDrmInfo.calls.reset()
 
@@ -361,7 +376,46 @@ describe('MseTrack', () => {
             })
             expect(
                 deps.drmController.setBufferingDrmInfo
-            ).toHaveBeenCalledOnceWith(metadata, any(Abort))
+            ).toHaveBeenCalledOnceWith(metadata, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
+        })
+    })
+
+    describe('load span attribution', () => {
+        it('stamps its own uri onto a manifest load span at the source', async () => {
+            track = createTrack('track-a')
+            await awaitContentTypes()
+            const spy = createEventSpy(track, 'loadSpanMeasured')
+            deps.manifestController.dispatch('loadSpanMeasured', {
+                kind: 'manifest',
+                startTime: 1,
+                endTime: 2,
+            })
+            expect(spy).toHaveBeenCalledOnceWith({
+                kind: 'manifest',
+                startTime: 1,
+                endTime: 2,
+                trackUri: 'track-a',
+            })
+        })
+
+        it('stamps its own uri onto a segment load span at the source', async () => {
+            track = createTrack('track-a')
+            await awaitContentTypes()
+            const spy = createEventSpy(track, 'loadSpanMeasured')
+            getAudioStream().dispatch('loadSpanMeasured', {
+                kind: 'initSegment',
+                startTime: 3,
+                endTime: 4,
+            })
+            expect(spy).toHaveBeenCalledOnceWith({
+                kind: 'initSegment',
+                startTime: 3,
+                endTime: 4,
+                trackUri: 'track-a',
+            })
         })
     })
 

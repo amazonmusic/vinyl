@@ -256,6 +256,90 @@ describe('VinylPlayer', () => {
         })
     })
 
+    describe('load span metrics', () => {
+        it('republishes the current track loadSpanMeasured as an attributed loadSpan', () => {
+            const spy = createSpy('loadSpan')
+            player.on('loadSpan', spy)
+            const mockTrack = new MockTrack()
+            mockTrack.uri = 'track-a'
+            deps.trackController.dispatch('currentTrackChange', {
+                previous: null,
+                current: mockTrack,
+            })
+            mockTrack.dispatch('loadSpanMeasured', {
+                kind: 'initSegment',
+                startTime: 1,
+                endTime: 2,
+            })
+            expect(spy).toHaveBeenCalledOnceWith({
+                kind: 'initSegment',
+                startTime: 1,
+                endTime: 2,
+                trackUri: 'track-a',
+            })
+        })
+
+        it('attributes a DRM license span to the track carried on the measurement', () => {
+            const spy = createSpy('loadSpan')
+            player.on('loadSpan', spy)
+            // The license span is stamped at the source with the initiating
+            // track. Even when a different track is current, the span must
+            // attribute to the track the measurement carries.
+            const currentTrack = new MockTrack()
+            currentTrack.uri = 'track-current'
+            deps.trackController.currentTrack = currentTrack
+            deps.drmController.dispatch('loadSpanMeasured', {
+                kind: 'license',
+                startTime: 3,
+                endTime: 5,
+                trackUri: 'track-preloaded',
+            })
+            expect(spy).toHaveBeenCalledOnceWith({
+                kind: 'license',
+                startTime: 3,
+                endTime: 5,
+                trackUri: 'track-preloaded',
+            })
+        })
+
+        it('does not emit a license span the DRM controller could not attribute', () => {
+            const spy = createSpy('loadSpan')
+            player.on('loadSpan', spy)
+            const currentTrack = new MockTrack()
+            currentTrack.uri = 'track-current'
+            deps.trackController.currentTrack = currentTrack
+            // A measurement with no trackUri (the initiating track was unknown)
+            // is dropped rather than misattributed to the current track.
+            deps.drmController.dispatch('loadSpanMeasured', {
+                kind: 'license',
+                startTime: 3,
+                endTime: 5,
+            })
+            expect(spy).not.toHaveBeenCalled()
+        })
+
+        it('stops republishing after the track is no longer current', () => {
+            const spy = createSpy('loadSpan')
+            player.on('loadSpan', spy)
+            const mockTrack = new MockTrack()
+            mockTrack.uri = 'track-a'
+            deps.trackController.dispatch('currentTrackChange', {
+                previous: null,
+                current: mockTrack,
+            })
+            deps.trackController.dispatch('currentTrackChange', {
+                previous: mockTrack,
+                current: null,
+            })
+            mockTrack.dispatch('loadSpanMeasured', {
+                kind: 'manifest',
+                startTime: 1,
+                endTime: 2,
+            })
+            expect(spy).not.toHaveBeenCalled()
+        })
+    })
+
     it('reloads the current track on a codecUnsupported event', () => {
         const trackController = deps.trackController
         const mockTrack = new MockTrack()
