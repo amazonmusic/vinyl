@@ -14,6 +14,7 @@ import {
     createDisposer,
     ErrorOrigin,
     EventHostImpl,
+    getUserAgentInfo,
     isSilentError,
     logDebug,
     logVerbose,
@@ -21,6 +22,7 @@ import {
     memoize,
     noop,
     normalizeHeadersInit,
+    Os,
     type ReadonlyAbort,
     remove,
     resolveValueProvider,
@@ -474,6 +476,16 @@ export class DrmControllerImpl
                 config.videoCapabilities = [capability]
             } else if (contentType === 'audio') {
                 config.audioCapabilities = [capability]
+                if (getUserAgentInfo().os?.name === Os.CHROME_OS) {
+                    // Add videoCapabilities to get ChromeOS to enable verified media path
+                    logDebug(this, 'Adding video avc1 drm capabilities for VMP')
+                    config.videoCapabilities = [
+                        {
+                            contentType: `video/mp4; codecs="avc1.4d401f"`,
+                            robustness: 'SW_SECURE_DECODE',
+                        },
+                    ]
+                }
             }
             return {
                 keySystem,

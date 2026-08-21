@@ -31,6 +31,7 @@ import {
     never,
     nextEventAsPromise,
     ReportableError,
+    setUserAgent,
     utf16ToUint16Array,
 } from '@amazon/vinyl-util'
 import {
@@ -1768,6 +1769,81 @@ describe('DrmControllerImpl', () => {
                     },
                 ]
             )
+        })
+    })
+
+    describe('ChromeOS verified media path', () => {
+        // ChromeOS only enables the verified media path (VMP) when a video
+        // capability is present, so audio-only content must advertise a dummy
+        // avc1 video capability alongside its audio capability.
+        const chromeOsUserAgent =
+            'Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+        const chromeUserAgent =
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36'
+
+        it('adds avc1 video capabilities for audio content on ChromeOS', async () => {
+            setUserAgent(chromeOsUserAgent)
+            drmController.setBufferingDrmInfo({
+                ...drmInfo,
+                contentType: 'audio',
+                mimeType: 'audio/mp4',
+            })
+            await emitEncrypted()
+            expect(
+                commonEme.requestMediaKeySystemAccess
+            ).toHaveBeenCalledOnceWith(DrmKeySystem.WIDEVINE, [
+                {
+                    initDataTypes: ['cenc'],
+                    audioCapabilities: [
+                        {
+                            contentType: 'audio/mp4',
+                            encryptionScheme: 'cenc',
+                            robustness: DrmRobustness.SW_SECURE_CRYPTO,
+                        },
+                    ],
+                    videoCapabilities: [
+                        {
+                            contentType: 'video/mp4; codecs="avc1.4d401f"',
+                            robustness: DrmRobustness.SW_SECURE_DECODE,
+                        },
+                    ],
+                },
+            ])
+        })
+
+        it('does not add video capabilities for audio content off ChromeOS', async () => {
+            setUserAgent(chromeUserAgent)
+            drmController.setBufferingDrmInfo({
+                ...drmInfo,
+                contentType: 'audio',
+                mimeType: 'audio/mp4',
+            })
+            await emitEncrypted()
+            const config =
+                commonEme.requestMediaKeySystemAccess.calls.mostRecent()
+                    .args[1][0]
+            expect(config.videoCapabilities).toBeUndefined()
+        })
+
+        it('does not alter video content capabilities on ChromeOS', async () => {
+            setUserAgent(chromeOsUserAgent)
+            drmController.setBufferingDrmInfo({
+                ...drmInfo,
+                contentType: 'video',
+                mimeType: 'video/mp4',
+            })
+            await emitEncrypted()
+            const config =
+                commonEme.requestMediaKeySystemAccess.calls.mostRecent()
+                    .args[1][0]
+            expect(config.videoCapabilities).toEqual([
+                {
+                    contentType: 'video/mp4',
+                    encryptionScheme: 'cenc',
+                    robustness: DrmRobustness.SW_SECURE_CRYPTO,
+                },
+            ])
+            expect(config.audioCapabilities).toBeUndefined()
         })
     })
 
