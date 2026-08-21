@@ -290,16 +290,19 @@ describe('SourceTrackBase', () => {
             track.activate({})
             expect(
                 drmController.initializeForPlayback
-            ).toHaveBeenCalledOnceWith(metadata, any(Abort))
+            ).toHaveBeenCalledOnceWith(metadata, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
             expect(drmController.setBufferingDrmInfo).toHaveBeenCalledOnceWith(
                 metadata,
-                any(Abort)
+                { trackUri: 'uri', abort: any(Abort) }
             )
             drmController.setBufferingDrmInfo.calls.reset()
             track.deactivate()
             expect(drmController.setBufferingDrmInfo).toHaveBeenCalledOnceWith(
                 null,
-                any(Abort)
+                { trackUri: 'uri', abort: any(Abort) }
             )
         })
     })

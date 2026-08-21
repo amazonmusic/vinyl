@@ -77,10 +77,10 @@ export abstract class SourceTrackBase<
             new FixedPlaybackQuality(emptyMediaQualityMetadata, deps)
         )
         this.fixedPlaybackQuality.on('bufferingQualityChange', (event) => {
-            this.deps.drmController.setBufferingDrmInfo(
-                event.current,
-                this.drmSessionAbort.value
-            )
+            this.deps.drmController.setBufferingDrmInfo(event.current, {
+                trackUri: this.uri,
+                abort: this.drmSessionAbort.value,
+            })
         })
         redispatchEvents(this, this.fixedPlaybackQuality, [
             'streamingQualityChange',
@@ -135,7 +135,7 @@ export abstract class SourceTrackBase<
         this.fixedPlaybackQuality.activate()
         this.deps.drmController.initializeForPlayback(
             this.fixedPlaybackQuality.fixedQuality,
-            this.drmSessionAbort.value
+            { trackUri: this.uri, abort: this.drmSessionAbort.value }
         )
         if (this._resolvedSrc != null) this.setSrc(this._resolvedSrc)
         add(() => {

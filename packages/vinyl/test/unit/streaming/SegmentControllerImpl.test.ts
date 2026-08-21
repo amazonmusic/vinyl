@@ -685,6 +685,61 @@ describe('SegmentControllerImpl', () => {
         })
     })
 
+    describe('load span metrics', () => {
+        it('measures the first init and media segment fetch', async () => {
+            const spy = createEventSpy(segmentController, 'loadSpanMeasured')
+            await segmentController.getSegment(0)
+            await flushPromises()
+            expect(spy).toHaveBeenCalledWith(
+                objectContaining({
+                    kind: 'initSegment',
+                    startTime: any(Number),
+                    endTime: any(Number),
+                })
+            )
+            expect(spy).toHaveBeenCalledWith(
+                objectContaining({
+                    kind: 'firstSegment',
+                    startTime: any(Number),
+                    endTime: any(Number),
+                })
+            )
+        })
+
+        it('measures each span only once', async () => {
+            const spy = createEventSpy(segmentController, 'loadSpanMeasured')
+            await segmentController.getSegment(0)
+            await segmentController.getSegment(20)
+            await flushPromises()
+            const kinds = spy.calls.allArgs().map(([span]) => span.kind)
+            expect(kinds.filter((k) => k === 'initSegment').length).toBe(1)
+            expect(kinds.filter((k) => k === 'firstSegment').length).toBe(1)
+        })
+
+        it('re-arms after a failed fetch so a recovered load is measured', async () => {
+            let failCount = 0
+            mockSegmentDataProvider.and.callFake(() =>
+                ++failCount <= 2
+                    ? Promise.reject(new Error('failed segment'))
+                    : Promise.resolve(new ArrayBuffer(0))
+            )
+            const spy = createEventSpy(segmentController, 'loadSpanMeasured')
+            await expectAsync(segmentController.getSegment(0)).toBeRejected()
+            await flushPromises()
+            expect(spy).not.toHaveBeenCalled()
+
+            segmentController.reset()
+            await segmentController.getSegment(0)
+            await flushPromises()
+            expect(spy).toHaveBeenCalledWith(
+                objectContaining({ kind: 'initSegment' })
+            )
+            expect(spy).toHaveBeenCalledWith(
+                objectContaining({ kind: 'firstSegment' })
+            )
+        })
+    })
+
     describe('minBufferTime', () => {
         describe('when the requested time is within minBufferTime of the segment end', () => {
             describe('and there is a next segment', () => {

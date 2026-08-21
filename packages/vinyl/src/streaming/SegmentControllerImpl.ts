@@ -48,6 +48,7 @@ import {
     getSegmentInsertionIndexAtTime,
 } from './util/segment'
 import type { SegmentReference } from './SegmentReference'
+import type { LoadSpanKind } from './LoadMetric'
 import type { ContentType, MediaQualityMetadata } from './MediaQualityMetadata'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import type { MediaTimeline } from './MediaTimeline'
@@ -137,6 +138,12 @@ export class SegmentControllerImpl
     private ended = false
     private prefetching = false
     private _error: Error | null = null
+
+    // Load-span metrics latch on the first init/media fetch attempt (the flag
+    // is cleared when the request is issued) and re-arm if that attempt fails,
+    // so a recovered load is still measured.
+    private initSpanArmed = true
+    private firstSegmentSpanArmed = true
 
     private timeUpdateSub: Unsubscribe | null = null
     private seekingSub: Unsubscribe | null = null
@@ -327,8 +334,8 @@ export class SegmentControllerImpl
                         }
                         await withAbort(
                             Promise.all([
-                                slot.initData.request(),
-                                slot.data.request(),
+                                this.requestInitData(slot),
+                                this.requestSegmentData(slot),
                             ]),
                             this.abort
                         )
@@ -357,6 +364,53 @@ export class SegmentControllerImpl
             logError(this, 'Error prefetching segment', error)
             this._error = error
         }
+    }
+
+    /**
+     * Requests init-segment data, measuring the first fetch as a load span.
+     */
+    private requestInitData(
+        slot: SegmentReference<SegmentDataSlot>
+    ): Promise<ArrayBuffer> {
+        const request = slot.initData.request()
+        if (this.initSpanArmed) {
+            this.initSpanArmed = false
+            this.measureLoadSpan('initSegment', request)
+        }
+        return request
+    }
+
+    /**
+     * Requests media-segment data, measuring the first fetch as a load span.
+     */
+    private requestSegmentData(
+        slot: SegmentReference<SegmentDataSlot>
+    ): Promise<ArrayBuffer> {
+        const request = slot.data.request()
+        if (this.firstSegmentSpanArmed) {
+            this.firstSegmentSpanArmed = false
+            this.measureLoadSpan('firstSegment', request)
+        }
+        return request
+    }
+
+    private measureLoadSpan(
+        kind: LoadSpanKind,
+        request: Promise<ArrayBuffer>
+    ): void {
+        const startTime = Date.now()
+        request.then(
+            () =>
+                this.dispatch('loadSpanMeasured', {
+                    kind,
+                    startTime,
+                    endTime: Date.now(),
+                }),
+            () => {
+                if (kind === 'initSegment') this.initSpanArmed = true
+                else this.firstSegmentSpanArmed = true
+            }
+        )
     }
 
     get fetchedRanges(): ReadonlyRanges {
@@ -424,8 +478,8 @@ export class SegmentControllerImpl
         this.resetSlot(streamingSlot)
 
         const initAndDataPromise = Promise.all([
-            streamingSlot.initData.request(),
-            streamingSlot.data.request(),
+            this.requestInitData(streamingSlot),
+            this.requestSegmentData(streamingSlot),
         ])
 
         // If the requested time is close to the start of the next segment, immediately start prefetching the next
@@ -463,7 +517,10 @@ export class SegmentControllerImpl
     private async prefetchImmediate(time: number): Promise<void> {
         const slot = await this.getSlotAtTime(time)
         if (!slot) return
-        await Promise.all([slot.initData.request(), slot.data.request()])
+        await Promise.all([
+            this.requestInitData(slot),
+            this.requestSegmentData(slot),
+        ])
     }
 
     /**

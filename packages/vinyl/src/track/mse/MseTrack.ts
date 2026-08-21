@@ -38,6 +38,7 @@ import {
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
 import type { TrackConfigOptions } from '../TrackFactory'
+import type { LoadSpanMeasurement } from '../../streaming/LoadMetric'
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -117,18 +118,18 @@ export class MseTrack extends TrackBase {
         // DRM
         this.on('streamingQualityChange', (event) => {
             if (this.active) {
-                this.deps.drmController.initializeForPlayback(
-                    event.current,
-                    this.disposeAbort
-                )
+                this.deps.drmController.initializeForPlayback(event.current, {
+                    trackUri: this.uri,
+                    abort: this.disposeAbort,
+                })
             }
         })
 
         this.on('bufferingQualityChange', (event) => {
-            this.deps.drmController.setBufferingDrmInfo(
-                event.current,
-                this.disposeAbort
-            )
+            this.deps.drmController.setBufferingDrmInfo(event.current, {
+                trackUri: this.uri,
+                abort: this.disposeAbort,
+            })
         })
 
         // Listen for timeline changes to update qualities seek ranges and ads.
@@ -146,6 +147,25 @@ export class MseTrack extends TrackBase {
                 this.updateQualitiesUnfiltered()
             })
         )
+
+        // Surface the manifest fetch span alongside the streams' segment spans,
+        // attributing it to this track at the source.
+        add(
+            deps.manifestController.on('loadSpanMeasured', (measurement) =>
+                this.dispatchLoadSpan(measurement)
+            )
+        )
+    }
+
+    /**
+     * Re-dispatches a sub-controller's load span stamped with this track's uri,
+     * so the span attributes to the track that owns it at the source.
+     */
+    private dispatchLoadSpan(measurement: LoadSpanMeasurement): void {
+        this.dispatch('loadSpanMeasured', {
+            ...measurement,
+            trackUri: this.uri,
+        })
     }
 
     /**
@@ -258,6 +278,11 @@ export class MseTrack extends TrackBase {
             'playbackQualityChange',
             'codecUnsupported',
         ])
+        // Stamp the segment spans with this track's uri at the source rather
+        // than blindly redispatching the unattributed measurement.
+        stream.on('loadSpanMeasured', (measurement) =>
+            this.dispatchLoadSpan(measurement)
+        )
         stream.on('bufferingEnded', () => {
             if (this.bufferingEnded) {
                 this.deps.mediaSourceController.endOfStream()
@@ -353,7 +378,7 @@ export class MseTrack extends TrackBase {
         this.streams.forEach((stream) => {
             this.deps.drmController.initializeForPlayback(
                 stream.streamingQuality,
-                this.disposeAbort
+                { trackUri: this.uri, abort: this.disposeAbort }
             )
         })
         this.deps.playbackSource.src =

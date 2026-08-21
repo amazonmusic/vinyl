@@ -414,13 +414,13 @@ describe('DrmControllerImpl', () => {
         describe('and the passed abort ref is aborted', () => {
             it('closes sessions created with passed abort ref', async () => {
                 const abort1 = new Abort()
-                drmController.setBufferingDrmInfo(drmInfo, abort1)
+                drmController.setBufferingDrmInfo(drmInfo, { abort: abort1 })
                 await emitEncrypted(new Uint8Array([1]))
                 await emitEncrypted(new Uint8Array([2]))
                 await emitEncrypted(new Uint8Array([3]))
 
                 const abort2 = new Abort()
-                drmController.setBufferingDrmInfo(drmInfo, abort2)
+                drmController.setBufferingDrmInfo(drmInfo, { abort: abort2 })
                 await emitEncrypted(new Uint8Array([4]))
                 await emitEncrypted(new Uint8Array([5]))
                 await emitEncrypted(new Uint8Array([6]))
@@ -447,7 +447,7 @@ describe('DrmControllerImpl', () => {
 
             it('ignores a session that closes or aborts after disposal', async () => {
                 const abort = new Abort()
-                drmController.setBufferingDrmInfo(drmInfo, abort)
+                drmController.setBufferingDrmInfo(drmInfo, { abort })
                 await emitEncrypted(new Uint8Array([1]))
                 const session = mediaKeys.createSession.calls.mostRecent()
                     .returnValue as MockCommonMediaKeySession
@@ -1034,6 +1034,94 @@ describe('DrmControllerImpl', () => {
                     'Expected: instance of ArrayBuffer, but was: null. At: message'
                 )
             })
+        })
+    })
+
+    describe('load span metrics', () => {
+        it('measures the license exchange as a load span', async () => {
+            licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+            drmController.setBufferingDrmInfo(drmInfo)
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            await emitMessage(0, new ArrayBuffer(1))
+            expect(spy).toHaveBeenCalledOnceWith(
+                objectContaining({
+                    kind: 'license',
+                    startTime: any(Number),
+                    endTime: any(Number),
+                })
+            )
+        })
+
+        it('does not measure a failed license exchange', async () => {
+            licenseProvider.and.rejectWith(new Error('license failed'))
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+            drmController.setBufferingDrmInfo(drmInfo)
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            await emitMessage(0, new ArrayBuffer(1))
+            expect(spy).not.toHaveBeenCalled()
+            errorSpy.calls.reset()
+        })
+
+        it('attributes the license span to the buffering track uri', async () => {
+            licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+            drmController.setBufferingDrmInfo(drmInfo, { trackUri: 'track-a' })
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            await emitMessage(0, new ArrayBuffer(1))
+            expect(spy).toHaveBeenCalledOnceWith(
+                objectContaining({
+                    kind: 'license',
+                    trackUri: 'track-a',
+                })
+            )
+        })
+
+        it('omits the track uri when the buffering track is unknown', async () => {
+            licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+            drmController.setBufferingDrmInfo(drmInfo)
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            await emitMessage(0, new ArrayBuffer(1))
+            expect(spy.calls.mostRecent().args[0].trackUri).toBeUndefined()
+        })
+
+        it('disambiguates concurrent license exchanges per key session', async () => {
+            // The controller is shared: it can hold sessions for the active and
+            // a preloaded track at once. Each session captures its own track uri
+            // at creation, so a license span attributes to the session's track
+            // even though the controller's buffering track has since changed.
+            licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+
+            drmController.setBufferingDrmInfo(drmInfo, {
+                trackUri: 'track-active',
+            })
+            await emitEncrypted(new Uint8Array([1]), 'cenc')
+
+            drmController.setBufferingDrmInfo(drmInfo, {
+                trackUri: 'track-preloaded',
+            })
+            await emitEncrypted(new Uint8Array([2]), 'cenc')
+
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(2)
+
+            // Resolve the preloaded session's license first, then the active
+            // one, to prove attribution does not depend on resolution order or
+            // on the controller's current buffering track.
+            await emitMessage(1, new ArrayBuffer(1))
+            await emitMessage(0, new ArrayBuffer(1))
+
+            expect(spy).toHaveBeenCalledTimes(2)
+            expect(spy).toHaveBeenCalledWith(
+                objectContaining({
+                    kind: 'license',
+                    trackUri: 'track-preloaded',
+                })
+            )
+            expect(spy).toHaveBeenCalledWith(
+                objectContaining({ kind: 'license', trackUri: 'track-active' })
+            )
         })
     })
 

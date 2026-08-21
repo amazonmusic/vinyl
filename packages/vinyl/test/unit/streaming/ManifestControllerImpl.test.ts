@@ -190,6 +190,43 @@ describe('ManifestControllerImpl', () => {
         })
     })
 
+    describe('load span metrics', () => {
+        it('dispatches loadSpanMeasured on the initial manifest fetch', async () => {
+            const controller = createManifestController()
+            const spy = createSpy('loadSpanMeasured')
+            controller.on('loadSpanMeasured', spy)
+            await controller.value
+            await flushPromises()
+            expect(spy).toHaveBeenCalledWith(
+                jasmine.objectContaining({
+                    kind: 'manifest',
+                    startTime: jasmine.any(Number),
+                    endTime: jasmine.any(Number),
+                })
+            )
+        })
+
+        it('does not re-measure on refresh', async () => {
+            const controller = createManifestController()
+            await controller.value
+            const spy = createSpy('loadSpanMeasured')
+            controller.on('loadSpanMeasured', spy)
+            controller.refresh()
+            await controller.value
+            await flushPromises()
+            expect(spy).not.toHaveBeenCalled()
+        })
+
+        it('reports listeners', () => {
+            const controller = createManifestController()
+            expect(controller.hasAnyListeners()).toBeFalse()
+            expect(controller.hasListeners('loadSpanMeasured')).toBeFalse()
+            controller.on('loadSpanMeasured', createSpy('loadSpanMeasured'))
+            expect(controller.hasAnyListeners()).toBeTrue()
+            expect(controller.hasListeners('loadSpanMeasured')).toBeTrue()
+        })
+    })
+
     describe('dispose', () => {
         it('aborts current request', () => {
             const deferred = new Deferred<HlsManifestData>()

@@ -4,7 +4,16 @@
  */
 
 import { createSpyFactory } from '@amazon/vinyl-util/browserTestUtil'
-import type { DashManifestController, DashManifestData } from '@amazon/vinyl'
+import type {
+    DashManifestController,
+    DashManifestData,
+    ManifestControllerEventMap,
+} from '@amazon/vinyl'
+import {
+    type EventHandler,
+    EventHostImpl,
+    type SignalOptions,
+} from '@amazon/vinyl-util'
 import { data } from '@amazon/vinyl-observable'
 import { mockDashManifest } from './mockDashManifest'
 
@@ -22,9 +31,35 @@ export class MockDashManifestController implements DashManifestController {
             baseUrl: 'https://example.com',
         })
     )
+    private readonly events = new EventHostImpl<ManifestControllerEventMap>()
 
     refresh = spyFactory('refresh')
     reset = spyFactory('reset')
+
+    on<K extends keyof ManifestControllerEventMap>(
+        type: K,
+        handler: EventHandler<ManifestControllerEventMap[K]>,
+        options?: SignalOptions
+    ) {
+        return this.events.on(type, handler, options)
+    }
+
+    dispatch<K extends keyof ManifestControllerEventMap>(
+        type: K,
+        event: ManifestControllerEventMap[K]
+    ) {
+        this.events.dispatch(type, event)
+    }
+
+    hasAnyListeners() {
+        return this.events.hasAnyListeners()
+    }
+
+    hasListeners(type: keyof ManifestControllerEventMap) {
+        return this.events.hasListeners(type)
+    }
+
+    readonly __eventMapType = this.events.__eventMapType
 
     get value() {
         return this._data.value
