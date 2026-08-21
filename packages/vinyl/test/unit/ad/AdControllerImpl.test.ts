@@ -873,8 +873,12 @@ describe('AdControllerImpl', () => {
             expect(c.currentAdBreak).toBeNull()
         })
 
-        it('does not suppress a postroll, letting enterPostroll replay it', async () => {
+        it('suppresses a completed postroll so enterPostroll does not replay it', async () => {
             const c = createController()
+            const entered: string[] = []
+            c.on('currentAdBreakChange', (e) => {
+                if (e.current) entered.push(e.current.id)
+            })
             c.setAds(
                 trackAds(
                     makeBreak({
@@ -885,14 +889,24 @@ describe('AdControllerImpl', () => {
                     })
                 )
             )
+            // Content ends: the postroll activates and its single ad plays out.
             c.enterPostroll()
             await flush()
             expect(c.currentAd?.id).toBe('a1')
-            c.skipAd() // completes postroll → no permanent/transient suppression
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
             expect(c.currentAdBreak).toBeNull()
+            // A re-fired content `ended` calls enterPostroll again; the
+            // already-played postroll must not replay.
             c.enterPostroll()
             await flush()
-            expect(c.currentAdBreak?.id).toBe('post')
+            expect(c.currentAdBreak)
+                .withContext('postroll must not replay')
+                .toBeNull()
+            expect(c.currentAd).toBeNull()
+            expect(entered).toEqual(['post'])
         })
     })
 

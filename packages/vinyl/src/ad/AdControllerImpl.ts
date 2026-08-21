@@ -213,16 +213,21 @@ export class AdControllerImpl
     }
 
     /**
-     * Records a break as complete when it has played. Play-once breaks (and
-     * prerolls, which are one-shot per presentation) are suppressed permanently;
-     * replayable midrolls are only marked "spent" so they can re-arm on a
-     * seek-back. Postrolls are event-driven ({@link enterPostroll}) and need no
-     * suppression.
+     * Records a break as complete when it has played. Play-once breaks,
+     * prerolls and postrolls are one-shot per presentation (suppressed
+     * permanently); midrolls are only "spent" so they re-arm on a seek-back.
+     * Postrolls must be suppressed or a repeated content `ended` would replay
+     * them in a loop.
      */
     private markBreakComplete(adBreak: AdBreakInfo): void {
-        if (adBreak.once || adBreak.placement === 'preroll') {
+        if (
+            adBreak.once ||
+            adBreak.placement === 'preroll' ||
+            adBreak.placement === 'postroll'
+        ) {
             this.completeAdBreakIds.add(adBreak.id)
-        } else if (adBreak.placement === 'midroll') {
+        } else {
+            // midroll
             this.spentBreakIds.add(adBreak.id)
         }
     }
