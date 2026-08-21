@@ -12,7 +12,11 @@ import type { HlsMediaPlaylist } from '../types/HlsMediaPlaylist'
 import { parseAttributes } from './parseAttributes'
 import { readLine, skipWhitespaceLine, addIfPresent } from './parseUtil'
 
-export const HLS_VARIABLE_PATTERN = /\{\$([^}]+)}/g
+// The variable-name class excludes `{` (and `}`) so a match attempt can't
+// scan across token boundaries. With `[^}]` a crafted value such as
+// `{$|{$|{$|…` makes replace() do polynomial work (ReDoS); `[^{}]` keeps it
+// linear, and HLS variable names never contain `{`/`}`.
+export const HLS_VARIABLE_PATTERN = /\{\$([^{}]+)}/g
 
 const EXTM3U = '#EXTM3U'
 const EXTINF = '#EXTINF:'

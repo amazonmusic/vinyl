@@ -727,4 +727,22 @@ describe('substituteVariables', () => {
     it('returns string unchanged when no variables', () => {
         expect(substitute('no-vars', {}, HLS_VARIABLE_PATTERN)).toBe('no-vars')
     })
+
+    it('does not scan a variable name across a token boundary', () => {
+        // The name class excludes '{', so a malformed prefix cannot swallow a
+        // following valid reference; only the inner '{$foo}' is substituted.
+        expect(
+            substitute('{$|{$foo}', { foo: 'X' }, HLS_VARIABLE_PATTERN)
+        ).toBe('{$|X')
+    })
+
+    it('stays linear on adversarial input (ReDoS guard)', () => {
+        // Repeated '{$|' forms no complete '{$name}' reference, so the input is
+        // returned unchanged. With a '[^}]' name class this scanned across '{'
+        // boundaries and ran in polynomial time; '[^{}]' keeps it linear.
+        const input = '{$|'.repeat(100_000)
+        const start = Date.now()
+        expect(substitute(input, {}, HLS_VARIABLE_PATTERN)).toBe(input)
+        expect(Date.now() - start).toBeLessThan(1000)
+    })
 })
