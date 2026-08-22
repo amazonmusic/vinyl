@@ -9,35 +9,33 @@ import { data } from '@amazon/vinyl-observable'
 import { Icon } from './icons'
 import { toastError } from './toast'
 
-const ASSETS_HOST = 'https://assets.dev.vinyl.music.amazon.dev'
-
 const demoTracks: Track[] = [
     {
         title: 'Audio Only (DASH)',
         type: 'dash',
         contentType: 'audio',
-        url: `${ASSETS_HOST}/dash/world___bpm85/manifest.mpd`,
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/world___bpm85/manifest.mpd`,
         description: 'DASH audio-only stream',
     },
     {
         title: 'Video + Audio (DASH)',
         type: 'dash',
         contentType: 'video',
-        url: `${ASSETS_HOST}/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd`,
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd`,
         description: '60s DASH segment template, video and audio',
     },
     {
         title: 'Video + Audio fMP4 (HLS)',
         type: 'hls',
         contentType: 'video',
-        url: `${ASSETS_HOST}/hls/live_static_video_audio_60s_4s/main.m3u8`,
+        url: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_audio_60s_4s/main.m3u8`,
         description: '60s HLS video and audio stream',
     },
     {
         title: 'Video + Audio MPEGTS (HLS)',
         type: 'hls',
         contentType: 'video',
-        url: `${ASSETS_HOST}/hls/live_static_video_audio_60s_4s_mpegts/main.m3u8`,
+        url: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_audio_60s_4s_mpegts/main.m3u8`,
         description: '60s HLS video and audio mpegts stream with transmuxing',
     },
     {
