@@ -274,6 +274,20 @@ describe('MseTrack', () => {
             expect(deps.playbackSource.load).toHaveBeenCalledOnceWith()
             expect(deps.playbackController.pause).toHaveBeenCalledOnceWith()
         })
+
+        it('clears the drm buffering info', async () => {
+            track = createTrack()
+            await awaitContentTypes()
+            track.activate({})
+            deps.drmController.setBufferingDrmInfo.calls.reset()
+            track.deactivate()
+            expect(
+                deps.drmController.setBufferingDrmInfo
+            ).toHaveBeenCalledOnceWith(null, {
+                trackUri: 'uri',
+                abort: any(Abort),
+            })
+        })
     })
 
     describe('error', () => {
@@ -380,6 +394,21 @@ describe('MseTrack', () => {
                 trackUri: 'uri',
                 abort: any(Abort),
             })
+        })
+
+        it('keeps the drm info when a stream transiently clears its buffering quality', async () => {
+            // A seek/clear nulls a stream's buffering quality; the DRM info must
+            // be kept so another still-appending stream's `encrypted` event can
+            // resolve it. It is cleared on deactivation instead.
+            track = createTrack()
+            await awaitContentTypes()
+            getAudioStream().dispatch('bufferingQualityChange', {
+                previous: createEmptyMediaQualityMetadata(),
+                current: null,
+            })
+            expect(
+                deps.drmController.setBufferingDrmInfo
+            ).not.toHaveBeenCalled()
         })
     })
 

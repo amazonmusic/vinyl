@@ -593,6 +593,41 @@ describe('BufferingControllerImpl', () => {
                 expect(segmentController.getSegment).toHaveBeenCalledTimes(1)
             })
         })
+
+        describe('then seeking to an unbuffered position', () => {
+            it('reopens buffering and appends from the new position', async () => {
+                // Replace the default controller with one that buffers ahead.
+                bufferingController.dispose()
+                // Buffer two segments, then the stream ends.
+                setSegmentList([1, 1])
+                bufferingController = createBufferingController({
+                    minBuffer: 100,
+                })
+                bufferingController.activate()
+                await open()
+                await clock.tick(0, 0, 0, 0)
+                expect(bufferingController.bufferingEnded).toBeTrue()
+                expect(sourceBufferController.buffered.ranges).toEqual([
+                    [0, 20],
+                ])
+
+                // More content becomes available; seek beyond the buffered range.
+                segmentController.getSegment.and.callFake((time) =>
+                    Promise.resolve(createMockSegment(time))
+                )
+                segmentController.getSegment.calls.reset()
+                playbackController.currentTime = 50
+                playbackController.dispatch('seeking', {})
+                await clock.tick(0, 0, 0, 0)
+
+                // The reopen flag lets buffering resume despite the ended state.
+                expect(bufferingController.bufferingEnded).toBeFalse()
+                expect(segmentController.getSegment).toHaveBeenCalled()
+                expect(
+                    sourceBufferController.buffered.getRangeAt(50, 0.5)
+                ).not.toBeNull()
+            })
+        })
     })
 
     describe('when append throws a QuotaExceededError', () => {
@@ -804,12 +839,14 @@ describe('BufferingControllerImpl', () => {
                 expect(playbackQualityChange).toHaveBeenCalledTimes(1)
                 playbackQualityChange.calls.reset()
 
-                // time < 20 will still be q1
-                await setTime(12)
+                // Playback advances while buffering stays ahead of the playhead
+                // (a playhead that outruns the buffer is treated as a disconnect
+                // and clears). time < 20 will still be q1.
+                await setTime(9)
                 expect(playbackQualityChange).not.toHaveBeenCalled()
 
                 // 20-30s will now be buffered but q1 is still playing
-                await setTime(19)
+                await setTime(18)
                 expect(playbackQualityChange).not.toHaveBeenCalled()
 
                 // now moving onto q2
@@ -875,14 +912,16 @@ describe('BufferingControllerImpl', () => {
 
                 playbackQualityChange.calls.reset()
 
-                // Change back to the q1
+                // A backwards seek to a buffered position keeps the buffered
+                // data and does not trigger a quality change.
                 await setTime(changeTime - 1)
                 // A backwards time update can only happen after a seek
                 playbackController.dispatch('seeking', {})
                 await nextPollImmediate()
 
+                expect(playbackQualityChange).not.toHaveBeenCalled()
                 expect(bufferingController.playbackQuality?.qualityId).toBe(
-                    'q1'
+                    'q2'
                 )
             })
         })
@@ -952,27 +991,16 @@ describe('BufferingControllerImpl', () => {
                 })
                 bufferingQualityChange.calls.reset()
 
-                // Go back to time 0, buffering first quality
+                // A backwards seek to time 0 keeps the buffered data (no clear).
+                // The buffering frontier is unchanged, so bufferingQuality stays
+                // q2 and no change event fires.
                 playbackController.currentTime = 0
                 playbackController.dispatch('seeking', {})
                 await flushPromises()
-                expect(bufferingQualityChange).toHaveBeenCalledOnceWith({
-                    previous: objectContaining({
-                        qualityId: 'q2',
-                    }),
-                    current: null,
-                })
-                bufferingQualityChange.calls.reset()
-
                 await nextPollImmediate()
-                expect(bufferingQualityChange).toHaveBeenCalledOnceWith({
-                    previous: null,
-                    current: objectContaining({
-                        qualityId: 'q1',
-                    }),
-                })
+                expect(bufferingQualityChange).not.toHaveBeenCalled()
                 expect(bufferingController.bufferingQuality?.qualityId).toBe(
-                    'q1'
+                    'q2'
                 )
             })
         })

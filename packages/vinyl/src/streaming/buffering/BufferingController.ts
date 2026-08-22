@@ -276,7 +276,8 @@ export class BufferingControllerImpl
         add(this.playbackController.on('timeUpdate', this.pollBuffer))
         add(
             this.playbackController.on('seeking', () => {
-                this.clear()
+                this.reopen = true // prevents a no-op when 'ended'
+                this.pollBufferImmediate()
             })
         )
 
@@ -354,6 +355,10 @@ export class BufferingControllerImpl
                 this.refreshHead()
                 if (!this.shouldAppend()) return
                 this.reopen = false
+                if (this.needsBufferClear()) {
+                    this.clear() // After the clear, the buffer state will reset and re-poll.
+                    return
+                }
                 this.queue
                     .enqueue(() => this.appendNext())
                     .catch(this.handleError)
@@ -657,6 +662,19 @@ export class BufferingControllerImpl
         const range = this.sourceBufferController!.buffered.getRangeAt(time)
         if (!range) return 0
         return range[1] - time
+    }
+
+    /**
+     * Returns true if the playhead has become disconnected from the continuous buffer.
+     */
+    private needsBufferClear(): boolean {
+        const buffered = this.sourceBufferController!.buffered
+        if (buffered.empty) return false
+        const time = this.playbackController.currentTime
+        // The source buffer allows multiple ranges, but buffering produces a
+        // single contiguous range in practice.
+        const range = buffered.ranges[0]
+        return time < range[0] - 0.01 || time > range[1] + 0.5
     }
 
     /**

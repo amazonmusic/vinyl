@@ -281,6 +281,25 @@ describe('DrmControllerImpl', () => {
             ])
         })
 
+        it('reuses an existing session for the same init data across calls', async () => {
+            // Two encrypted streams (e.g. audio and video) sharing an init data
+            // should share one session rather than create duplicates.
+            const withPssh = {
+                ...drmInfo,
+                contentProtections: [
+                    { keySystem: DrmKeySystem.WIDEVINE, pssh: '123' },
+                ],
+            }
+            drmController.initializeForPlayback(withPssh)
+            await flushPromises()
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(1)
+
+            drmController.initializeForPlayback(withPssh)
+            await flushPromises()
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(1) // reused
+            expect(drmController.activeSessions).toBe(1)
+        })
+
         describe('when drmInfo is missing mimeType', () => {
             it('emits an error event', async () => {
                 drmController.initializeForPlayback({
@@ -474,6 +493,26 @@ describe('DrmControllerImpl', () => {
             expectError(
                 'Encrypted content not configured with content protections.'
             )
+        })
+
+        it('reuses an existing session when buffering info has been cleared', async () => {
+            // Multiple encrypted streams share one controller. One stream can
+            // clear its buffering DRM info (a seek, or reaching the end) while
+            // another stream's re-appended init segment fires `encrypted` for
+            // the same initData. That event must reuse the existing session
+            // rather than fail as unconfigured content.
+            const initData = new Uint8Array([1, 2, 3])
+            drmController.setBufferingDrmInfo(drmInfo)
+            await emitEncrypted(initData)
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(1)
+
+            // A concurrent stream clears the shared buffering DRM info...
+            drmController.setBufferingDrmInfo(null)
+
+            // ...and the other stream's init append fires `encrypted` again.
+            await emitEncrypted(initData)
+            expect(errorSpy).not.toHaveBeenCalled()
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(1) // reused
         })
 
         describe('and the drm controller is disposed', () => {
