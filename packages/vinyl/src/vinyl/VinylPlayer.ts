@@ -780,16 +780,31 @@ export class VinylPlayer<
         previous: ReadonlyTrack | null,
         current: ReadonlyTrack | null
     ): void {
-        // Active-track changes are surfaced by redispatching the previous
-        // track's controller (deactivated on switch) and the current track's
-        // controller. Here we only bridge the list-of-tracks difference,
-        // which doesn't have its own redispatched signal at track boundaries.
+        // Bridge signals that lack their own redispatched event at track
+        // boundaries. The current track's controller only emits
+        // activeTextTrackChange when a selection is *made*; on becoming current
+        // it never re-announces an already-active selection. That gap surfaces
+        // after an ad break: the content track's caption selection is preserved
+        // and re-rendered by resume() (silently), while the outgoing ad
+        // controller emits a clearing activeTextTrackChange(null) — leaving
+        // consumers that track state via events believing captions are off even
+        // though the (forced or user-selected) content caption is showing. Emit
+        // the current track's active selection so that final state is correct.
         const prevList = previous?.textTrackController?.textTracks
         const curList = current?.textTrackController?.textTracks
         if (prevList !== curList) {
             this.dispatch('textTracksChange', {
                 previous: prevList ?? [],
                 current: curList ?? [],
+            })
+        }
+        const prevActive =
+            previous?.textTrackController?.activeTextTrack ?? null
+        const curActive = current?.textTrackController?.activeTextTrack ?? null
+        if (prevActive?.id !== curActive?.id) {
+            this.dispatch('activeTextTrackChange', {
+                previous: prevActive,
+                current: curActive,
             })
         }
     }

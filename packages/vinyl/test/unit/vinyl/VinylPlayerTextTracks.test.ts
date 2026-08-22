@@ -240,6 +240,84 @@ describe('VinylPlayer text track API', () => {
         expect(spy).toHaveBeenCalled()
     })
 
+    it('re-announces the content caption after an ad break so it does not read as off', () => {
+        // Regression: enabling captions during an ad and then letting content
+        // resume left consumers that track state via activeTextTrackChange
+        // believing captions were off, because the outgoing ad controller emits
+        // a clearing activeTextTrackChange(null) while the content's preserved
+        // (here forced) selection is restored silently by resume().
+        const content = makeTrackWithController()
+        content.controller.setTextTracks([
+            {
+                id: 'c-forced',
+                kind: 'subtitles',
+                language: 'en',
+                label: 'English (Forced)',
+                default: true,
+                forced: true,
+                characteristics: [],
+                uri: 'c.vtt',
+                mimeType: 'text/vtt',
+            },
+        ])
+        // Forced caption auto-selects for content.
+        expect(content.controller.activeTextTrack?.id).toBe('c-forced')
+
+        const ad = makeTrackWithController()
+        ad.controller.setTextTracks([
+            {
+                id: 'ad-cc',
+                kind: 'subtitles',
+                language: 'en',
+                label: 'English',
+                default: false,
+                forced: false,
+                characteristics: [],
+                uri: 'ad.vtt',
+                mimeType: 'text/vtt',
+            },
+        ])
+
+        // Content becomes current.
+        deps.trackController.currentTrack = content.track
+        deps.trackController.dispatch('currentTrackChange', {
+            previous: null,
+            current: content.track,
+        })
+
+        // Enter the ad break: the swap preserves the content selection
+        // (suspend keeps _active) rather than clearing it.
+        deps.adController.currentAdBreak = { placement: 'midroll' } as never
+        content.controller.suspend()
+        deps.trackController.currentTrack = ad.track
+        deps.trackController.dispatch('currentTrackChange', {
+            previous: content.track,
+            current: ad.track,
+        })
+
+        // Viewer enables the ad's captions during the break.
+        player.setActiveTextTrack('ad-cc')
+        expect(player.activeTextTrack?.id).toBe('ad-cc')
+
+        // Ad ends, content resumes.
+        deps.adController.currentAdBreak = null
+        const spy = createEventSpy(player, 'activeTextTrackChange')
+        deps.trackController.currentTrack = content.track
+        content.controller.resume()
+        deps.trackController.dispatch('currentTrackChange', {
+            previous: ad.track,
+            current: content.track,
+        })
+
+        // The player reports the content's forced caption as active again and,
+        // crucially, the last active-change event announces it — not the ad's
+        // clearing null.
+        expect(player.activeTextTrack?.id).toBe('c-forced')
+        expect(spy).toHaveBeenCalled()
+        const lastCurrent = spy.calls.mostRecent().args[0].current
+        expect(lastCurrent?.id).toBe('c-forced')
+    })
+
     it('does not emit activeTextTrackChange when neither track has an active selection', () => {
         // Both tracks are text-capable but nothing is active — the current
         // track change should not manufacture a spurious active-change event.
