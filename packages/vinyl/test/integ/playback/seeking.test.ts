@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { type VinylPlayer, type VinylTrackLoadOptions } from '@amazon/vinyl'
+import {
+    DrmKeySystem,
+    type VinylPlayer,
+    type VinylTrackLoadOptions,
+} from '@amazon/vinyl'
 import { MediaUnsupportedError, nextEventAsPromise } from '@amazon/vinyl-util'
 import {
     assertFrequency,
@@ -11,22 +15,44 @@ import {
     expectTrackCanSeekTo,
     vinylTestAssets,
 } from '@amazon/vinyl/vinylTestUtil'
+import { pendingIfWidevineNotSupported } from '../drm/pendingIfWidevineNotSupported'
 
 describe('seeking integ', () => {
-    const suite = createVinylSuite()
+    const suite = createVinylSuite({
+        drm: {
+            keySystems: {
+                [DrmKeySystem.WIDEVINE]: {
+                    licenseServer: {
+                        url: 'https://cwip-shaka-proxy.appspot.com/no_auth',
+                    },
+                },
+            },
+        },
+    })
     let player: VinylPlayer
 
     // Runs all seeking integration tests for each type of track listed.
     const trackSuites: {
         readonly description: string
         readonly track: VinylTrackLoadOptions
+        readonly needsWidevine: boolean
     }[] = [
         {
             description: 'dash with segmentBase',
+            needsWidevine: false,
             track: {
                 type: 'dash',
                 uri: vinylTestAssets.dash
                     .live_static_aac_opus_flac_60s_segmentBase,
+            },
+        },
+        {
+            description: 'dash drm video with segmentTemplate',
+            needsWidevine: true,
+            track: {
+                type: 'dash',
+                uri: vinylTestAssets.dash
+                    .live_static_video_audio_60s_2s_segmentTemplate_widevine_cl10,
             },
         },
     ]
@@ -68,6 +94,9 @@ describe('seeking integ', () => {
     for (const trackSuite of trackSuites) {
         describe(trackSuite.description, () => {
             beforeEach(async () => {
+                if (trackSuite.needsWidevine) {
+                    if (await pendingIfWidevineNotSupported(player)) return
+                }
                 try {
                     player.load(trackSuite.track)
                 } catch (error) {
@@ -124,8 +153,14 @@ describe('seeking integ', () => {
                 it('can seek close to end and start of segment boundaries', async () => {
                     await expectTrackCanSeekTo(player, 39.9)
                     await expectTrackCanSeekTo(player, 59.99)
+                    await expectTrackCanSeekTo(player, 55)
+                    await expectTrackCanSeekTo(player, 51)
+                    await expectTrackCanSeekTo(player, 49)
                     await expectTrackCanSeekTo(player, 30.01)
                     await expectTrackCanSeekTo(player, 9.999)
+                    await expectTrackCanSeekTo(player, 42)
+                    await expectTrackCanSeekTo(player, 39.995)
+                    await expectTrackCanSeekTo(player, 50.5)
                 })
 
                 it('no-ops seeks when time is close to currentTime', async () => {

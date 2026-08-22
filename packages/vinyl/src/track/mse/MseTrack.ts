@@ -126,6 +126,11 @@ export class MseTrack extends TrackBase {
         })
 
         this.on('bufferingQualityChange', (event) => {
+            // Keep the DRM info while a stream's buffering transiently clears
+            // (a seek or reaching the end): with multiple encrypted streams, an
+            // `encrypted` event from another stream still (re)appending its init
+            // segment needs it. The info is cleared on deactivation instead.
+            if (event.current == null) return
             this.deps.drmController.setBufferingDrmInfo(event.current, {
                 trackUri: this.uri,
                 abort: this.disposeAbort,
@@ -411,6 +416,12 @@ export class MseTrack extends TrackBase {
         this.timeUpdateSub?.()
         this.timeUpdateSub = null
         this.callOnStreams('deactivate')
+        // Streams' transient buffering clears no longer clear the DRM info, so
+        // clear it here now that the track is no longer buffering.
+        this.deps.drmController.setBufferingDrmInfo(null, {
+            trackUri: this.uri,
+            abort: this.disposeAbort,
+        })
         // Tear down the DOM text track so its cues stop showing while this
         // track is suspended (e.g. an ad playing over it). The selection is
         // retained and re-rendered on reactivation via resume().

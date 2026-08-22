@@ -13,6 +13,7 @@ import {
     expectPausedState,
     expectPlayingState,
     expectTimeDoesNotElapse,
+    expectTimeElapses,
 } from './playbackStateExpectations'
 import { onPlaying } from './eventPromises'
 import { assertFrequency } from '../../media/FrequencyAnalyzer'
@@ -74,6 +75,7 @@ export async function expectTrackCanSeekTo(player: VinylPlayer, time: number) {
             await onPlaying(player)
             expectPlayingState(player)
             await assertFrequency()
+            await expectTimeElapses(player)
         }
     }
 

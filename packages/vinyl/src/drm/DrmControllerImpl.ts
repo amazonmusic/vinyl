@@ -17,6 +17,7 @@ import {
     getUserAgentInfo,
     isSilentError,
     logDebug,
+    logError,
     logVerbose,
     type Maybe,
     memoize,
@@ -249,6 +250,13 @@ export class DrmControllerImpl
                 this,
                 `encrypted, initDataType: ${initDataType}, initData.byteLength: ${initData.byteLength}`
             )
+            // A session may already cover this initData (e.g. another stream
+            // created it, or buffering info was transiently cleared). Reuse it
+            // before treating the event as unconfigured content.
+            if (this.getSessionByInitData(initData)) {
+                logDebug(this, 'reusing session')
+                return
+            }
             if (!this.drmInfo?.contentProtections.length) {
                 throw new DrmError(
                     'Encrypted content not configured with content protections.'
@@ -675,6 +683,7 @@ export class DrmControllerImpl
      */
     private readonly handleError = (error: Error) => {
         if (!this._error && !isSilentError(error)) {
+            logError(this, error)
             this._error = error
             this.dispatch('error', { error, target: this })
         }
