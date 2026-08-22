@@ -251,7 +251,25 @@ export class BrowserStackWorker {
     private async refreshSession() {
         const state = this._state
         if (state.sessionId) {
+            const previousStatus = state.session?.status
             state.session = await this.deps.client.getSession(state.sessionId)
+            // A worker terminated by BrowserStack (e.g. the run exceeded the
+            // worker `timeout`) reports a 'timeout' status. It counts as a
+            // failure like any other, but is otherwise silent — the reporter
+            // never sends its `done`, so nothing explains the failed count.
+            // Log it clearly, once, on the transition.
+            if (
+                state.session.status === 'timeout' &&
+                previousStatus !== 'timeout'
+            ) {
+                const secs = state.workerOptions.timeout
+                logger.error(
+                    `⏱️ ${this.name} timed out${
+                        secs ? ` after ${secs}s` : ''
+                    } — worker terminated by BrowserStack before tests ` +
+                        `completed; counts as a failure`
+                )
+            }
             this.onUpdate()
         }
     }
