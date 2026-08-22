@@ -29,15 +29,12 @@ export function CaptionsControl() {
         captionsEnabled$.value = false
     }
 
+    // Always open the dropdown (which offers "Off" plus every track), even for
+    // a single caption option, so the control behaves consistently regardless
+    // of track count and always shows the current selection.
     const onCcClick = () => {
-        const tracks = textTracks$.value
-        const active = activeTextTrack$.value
-        if (tracks.length > 1) {
+        if (textTracks$.value.length > 0) {
             menuOpen$.value = !menuOpen$.value
-        } else if (active) {
-            deactivate()
-        } else if (tracks.length === 1) {
-            activateTrack(tracks[0])
         }
     }
 
