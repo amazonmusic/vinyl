@@ -29,3 +29,15 @@ jobs:
                   BROWSERSTACK_ACCESS_KEY:
                       ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
               run: npm run test:browserstack
+
+            # Per-session console logs are written locally to bStackLogs/ and
+            # otherwise discarded when the runner is torn down. Upload them so
+            # they're downloadable from the run — including on failures and
+            # timeouts, hence `if: always()`.
+            - name: Upload BrowserStack logs
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: browserstack-logs
+                  path: packages/vinyl/bStackLogs/
+                  if-no-files-found: ignore
