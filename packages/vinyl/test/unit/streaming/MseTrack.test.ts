@@ -9,6 +9,8 @@ import {
     createEmptyMediaQualityMetadata,
     type MediaTimeline,
     MseTrack,
+    PLAYHEAD_NUDGE,
+    SEEKING_STALL_TIME_CHECK,
     type TrackConfigOptions,
     type TrackPreloadOptions,
 } from '@amazon/vinyl'
@@ -18,7 +20,7 @@ import {
     type MockDashDependencies,
 } from '@amazon/vinyl/vinylTestUtil'
 import { createEventSpy, useMockLogger } from '@amazon/vinyl-util/testUtil'
-import { flushPromises } from '@amazon/vinyl-util/browserTestUtil'
+import { flushPromises, useMockTime } from '@amazon/vinyl-util/browserTestUtil'
 import { externalDependencies } from '@amazon/vinyl-di'
 import { Abort } from '@amazon/vinyl-util'
 import { data } from '@amazon/vinyl-observable'
@@ -508,6 +510,89 @@ describe('MseTrack', () => {
             getAudioStream().bufferingEnded = true
             getVideoStream().bufferingEnded = false
             expect(track.bufferingEnded).toBe(false)
+        })
+    })
+
+    describe('stalled-seek recovery nudge', () => {
+        const clock = useMockTime()
+
+        function fillStream(stream: MockContentStream): void {
+            stream.hasData = true
+            stream.dispatch('hasDataChange', { previous: false, current: true })
+        }
+
+        async function setup(): Promise<{
+            audio: MockContentStream
+            video: MockContentStream
+        }> {
+            deps.playbackController.seekTo.and.resolveTo(void 0)
+            track = createTrack()
+            await awaitContentTypes()
+            return { audio: getAudioStream(), video: getVideoStream() }
+        }
+
+        it('nudges the playhead when all streams have data but the seek is still stuck', async () => {
+            const { audio, video } = await setup()
+            deps.playbackController.seeking = true
+            deps.playbackController.currentTime = 30
+            fillStream(audio)
+            // Only one stream has data — nothing scheduled yet.
+            fillStream(video)
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
+
+            await clock.tick(SEEKING_STALL_TIME_CHECK * 1000)
+            expect(deps.playbackController.seekTo).toHaveBeenCalledOnceWith(
+                30 + PLAYHEAD_NUDGE,
+                0
+            )
+        })
+
+        it('does not nudge if the seek completes before the check fires', async () => {
+            const { audio, video } = await setup()
+            deps.playbackController.seeking = true
+            fillStream(audio)
+            fillStream(video)
+            deps.playbackController.seeking = false
+            await clock.tick(SEEKING_STALL_TIME_CHECK * 1000)
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
+        })
+
+        it('does not nudge until every stream has data', async () => {
+            const { audio } = await setup()
+            deps.playbackController.seeking = true
+            fillStream(audio)
+            await clock.tick(SEEKING_STALL_TIME_CHECK * 1000)
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
+        })
+
+        it('does not nudge if a stream loses its data before the check fires', async () => {
+            const { audio, video } = await setup()
+            deps.playbackController.seeking = true
+            fillStream(audio)
+            fillStream(video)
+            // A stream's buffer was cleared during the wait window.
+            video.hasData = false
+            await clock.tick(SEEKING_STALL_TIME_CHECK * 1000)
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
+        })
+
+        it('does not nudge when not seeking', async () => {
+            const { audio, video } = await setup()
+            deps.playbackController.seeking = false
+            fillStream(audio)
+            fillStream(video)
+            await clock.tick(SEEKING_STALL_TIME_CHECK * 1000)
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
+        })
+
+        it('does not nudge after the track is disposed', async () => {
+            const { audio, video } = await setup()
+            deps.playbackController.seeking = true
+            fillStream(audio)
+            fillStream(video)
+            track!.dispose()
+            await clock.tick(SEEKING_STALL_TIME_CHECK * 1000)
+            expect(deps.playbackController.seekTo).not.toHaveBeenCalled()
         })
     })
 

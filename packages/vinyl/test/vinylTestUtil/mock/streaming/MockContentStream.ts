@@ -26,6 +26,7 @@ export class MockContentStream
     playbackQuality: MediaQualityMetadata | null = null
     streamingQuality: MediaQualityMetadata | null = null
     bufferingEnded = false
+    hasData = false
 
     clearPrefetch = spyFactory('clearPrefetch')
 

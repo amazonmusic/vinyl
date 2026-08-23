@@ -11,6 +11,7 @@ import {
     type Fun,
     IntersectionRanges,
     logDebug,
+    noop,
     type ReadonlyRanges,
     type ReadonlySet,
     redispatchEvents,
@@ -39,6 +40,17 @@ import {
 import type { TextTrackController } from '../../text/TextTrack'
 import type { TrackConfigOptions } from '../TrackFactory'
 import type { LoadSpanMeasurement } from '../../streaming/LoadMetric'
+
+/**
+ * How long to wait after all streams have data before checking whether a seek
+ * is still stuck, in seconds.
+ */
+export const SEEKING_STALL_TIME_CHECK = 0.1
+
+/**
+ * How far to nudge the playhead, in seconds, to recover a stuck seek.
+ */
+export const PLAYHEAD_NUDGE = 0.05
 
 export type MseTrackDeps = TrackBaseDeps & {
     readonly contentTypesValue: ContentTypesValue
@@ -78,6 +90,7 @@ export class MseTrack extends TrackBase {
     }
 
     private readonly streams: ContentStream[] = []
+    private stallNudgeTimer: ReturnType<typeof setTimeout> | null = null
     private readonly disposeAbort = new Abort()
     private lastPreloadOptions: ContentStreamPreloadOptions | null = null
     private readonly allFetchedRanges: ReadonlyRanges[] = []
@@ -294,6 +307,7 @@ export class MseTrack extends TrackBase {
                 this.dispatch('bufferingEnded', {})
             }
         })
+        stream.on('hasDataChange', () => this.checkStalledSeek())
         stream.on('fetchedRangesChange', () => {
             this._fetchedRanges.invalidate()
         })
@@ -471,6 +485,37 @@ export class MseTrack extends TrackBase {
         return this.streams.every((stream) => stream.bufferingEnded)
     }
 
+    /**
+     * A seek only completes once every stream has data at the target, but on
+     * some platforms the element can stay stuck `seeking` even after that. Once
+     * all streams hold data, if we're still seeking a moment later, nudge the
+     * playhead to prod the element into completing the seek.
+     */
+    private checkStalledSeek(): void {
+        const { playbackController } = this.deps
+        if (this.stallNudgeTimer !== null || !playbackController.seeking) return
+        if (!this.streams.length || !this.streams.every((s) => s.hasData)) {
+            return
+        }
+        this.stallNudgeTimer = setTimeout(() => {
+            this.stallNudgeTimer = null
+            if (this.disposed || !playbackController.seeking) return
+            if (!this.streams.every((s) => s.hasData)) return
+            const from = playbackController.currentTime
+            const to = from + PLAYHEAD_NUDGE
+            // An internal recovery seek, not a user seek — logged so the two
+            // are distinguishable in playback traces.
+            logDebug(
+                this,
+                'nudging playhead to recover a stalled seek',
+                from,
+                '->',
+                to
+            )
+            playbackController.seekTo(to, 0).catch(noop)
+        }, SEEKING_STALL_TIME_CHECK * 1000)
+    }
+
     private setContentTypes(contentTypes: ReadonlySet<ContentType>) {
         if (this.disposed) return
         const previous = this.contentTypes
@@ -495,6 +540,7 @@ export class MseTrack extends TrackBase {
 
     dispose(): void {
         logDebug(this, 'dispose')
+        if (this.stallNudgeTimer !== null) clearTimeout(this.stallNudgeTimer)
         this.clearStreams()
         super.dispose()
     }
