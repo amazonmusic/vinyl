@@ -141,6 +141,11 @@ describe('SourceBufferControllerImpl', () => {
         expect(controller.isBusy()).withContext('isBusy').toBeFalse()
     })
 
+    it('tags with the content type, not undefined', () => {
+        expect(controller[Symbol.toStringTag]).toBe('SourceBuffer_audio')
+        expect(controller.logPrefix).toMatch(/^SourceBuffer_audio\//)
+    })
+
     describe('enqueue', () => {
         it('enqueues a task to execute when the source buffer is next idle', async () => {
             expect(await controller.enqueue(() => Promise.resolve(3))).toBe(3)

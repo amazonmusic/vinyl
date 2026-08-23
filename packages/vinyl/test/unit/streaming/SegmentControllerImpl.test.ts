@@ -189,6 +189,17 @@ describe('SegmentControllerImpl', () => {
         segmentProvider.dispose()
     })
 
+    it('tags its logPrefix with the content type, not undefined', () => {
+        // Regression: the tag reads a param-property assigned after super(), so
+        // logPrefix is set in the constructor body, not an eager _undefined.
+        const audio = new SegmentControllerImpl(mockDeps, 'audio')
+        const video = new SegmentControllerImpl(mockDeps, 'video')
+        expect(audio.logPrefix).toMatch(/^Segment_audio\//)
+        expect(video.logPrefix).toMatch(/^Segment_video\//)
+        audio.dispose()
+        video.dispose()
+    })
+
     describe('activate and deactivate', () => {
         it('changes active state', () => {
             segmentController.activate()

@@ -9,6 +9,7 @@ import {
     clone,
     closeTo,
     createDisposer,
+    createLogPrefix,
     EventHostImpl,
     getNetworkState,
     getOrSet,
@@ -107,8 +108,12 @@ export class SegmentControllerImpl
     implements SegmentController
 {
     get [Symbol.toStringTag](): string {
-        return 'SegmentControllerImpl'
+        return `Segment_${this.contentType}`
     }
+
+    // Assigned in the constructor body: a field initializer runs before the
+    // contentType param-property, so it would capture `undefined`.
+    readonly logPrefix: string
 
     private _active = false
     get active(): boolean {
@@ -162,6 +167,7 @@ export class SegmentControllerImpl
         options?: Partial<SegmentControllerImplOptions>
     ) {
         super()
+        this.logPrefix = createLogPrefix(`Segment_${contentType}`)
         logDebug(this, 'constructed')
         const { add } = this.disposer
         this.options = {
