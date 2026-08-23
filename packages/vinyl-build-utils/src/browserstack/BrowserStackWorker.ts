@@ -26,9 +26,11 @@ export interface BrowserStackWorkerState {
     readonly localId: string
 
     /**
-     * The browser worker configuration provided during construction.
+     * The browser worker configuration provided during construction. Replaced
+     * with the fallback browser combination if the worker exhausts its capture
+     * retries without reporting any progress (see {@link WorkerOptions.fallbackBrowser}).
      */
-    readonly workerOptions: WorkerOptions
+    workerOptions: WorkerOptions
 
     /**
      * If non-null, indicates a fatal error.
@@ -313,8 +315,11 @@ export class BrowserStackWorker {
                 )
 
                 const client = this.deps.client
+                // fallbackBrowser is a local concern, not a BrowserStack capability.
+                const { fallbackBrowser: _fallbackBrowser, ...workerOptions } =
+                    state.workerOptions
                 const newWorker = await client.createWorker({
-                    ...state.workerOptions,
+                    ...workerOptions,
                     url: this.url,
                 })
                 state.workerId = newWorker.id
@@ -416,7 +421,7 @@ export class BrowserStackWorker {
                 this.restart().catch((error) => {
                     this.setError(error)
                 })
-            } else {
+            } else if (!this.tryFallbackBrowser()) {
                 this.setError(
                     new Error(
                         `Did not capture test progress after ${
@@ -426,6 +431,50 @@ export class BrowserStackWorker {
                 )
             }
         }
+    }
+
+    /**
+     * If a fallback browser is configured, swaps the worker to it — keeping the
+     * rest of the worker options — resets the retry budget, and restarts.
+     * Returns true if a fallback was available and a restart was kicked off.
+     */
+    private tryFallbackBrowser(): boolean {
+        const state = this._state
+        const { fallbackBrowser } = state.workerOptions
+        if (!fallbackBrowser) return false
+        const target = [
+            fallbackBrowser.device,
+            fallbackBrowser.os,
+            fallbackBrowser.os_version,
+            fallbackBrowser.browser,
+            fallbackBrowser.browser_version,
+        ]
+            .filter(Boolean)
+            .join(' ')
+        logger.warn(
+            `Did not capture test progress for '${this.name}'; falling back to '${target}'.`
+        )
+        // Drop the previous combination's browser fields so a device or
+        // browser_version the fallback omits can't bleed through, then apply
+        // the fallback over the rest of the options. fallbackBrowser itself is
+        // dropped so a repeat failure fails outright rather than looping. The
+        // name is relabeled to the fallback platform so its logs and the
+        // BrowserStack session reflect the browser actually running.
+        const {
+            fallbackBrowser: _fallbackBrowser,
+            browser: _browser,
+            browser_version: _browserVersion,
+            device: _device,
+            ...rest
+        } = state.workerOptions
+        state.workerOptions = {
+            ...rest,
+            ...fallbackBrowser,
+            name: `${target} [fallback]`,
+        }
+        state.attemptsRemaining = this.options.retries
+        this.restart().catch((error) => this.setError(error))
+        return true
     }
 
     /**

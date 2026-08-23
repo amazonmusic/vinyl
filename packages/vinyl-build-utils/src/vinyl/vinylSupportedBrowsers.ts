@@ -5,42 +5,49 @@
 
 import type { WorkerInitOptions } from '../browserstack/runBrowserStack'
 
-/**
- * Notes:
- * Firefox for Windows does not accept our root CA on BrowserStack.
- * Firefox (any OS) does not run in a secure context with localhost.
- * Firefox for macOS does accept our root CA.
- * iOS redirects localhost to bs-local.com and must use HTTPS.
- *
- * Tests that require a secure context (DRM) are expected to be skipped if one cannot be
- * established.
- *
- * https should be true for browsers that accept our root CA and are not in a secure context when
- * using localhost.
- *
- * @module
- */
-
+// Each entry names a fallbackBrowser on a slightly different OS so a worker
+// that can never establish a BrowserStack session (e.g. the local tunnel
+// intermittently fails to connect for Safari on macOS) retries on a nearby
+// platform rather than failing outright. Fallbacks stay within the same
+// browser/device family and OS family.
 export const vinylSupportedBrowsers: readonly WorkerInitOptions[] = [
     {
         browser: 'chrome',
         browser_version: 'latest',
         os: 'OS X',
-        os_version: 'Monterey',
+        os_version: 'Tahoe',
+        fallbackBrowser: {
+            browser: 'chrome',
+            browser_version: 'latest',
+            os: 'OS X',
+            os_version: 'Sequoia',
+        },
     },
 
     {
         browser: 'safari',
         browser_version: 'latest',
         os: 'OS X',
-        os_version: 'Sonoma',
+        os_version: 'Tahoe',
+        fallbackBrowser: {
+            browser: 'safari',
+            browser_version: 'latest',
+            os: 'OS X',
+            os_version: 'Sequoia',
+        },
     },
 
     {
         browser: 'firefox',
         browser_version: 'latest',
         os: 'Windows',
-        os_version: '10',
+        os_version: '11',
+        fallbackBrowser: {
+            browser: 'firefox',
+            browser_version: 'latest',
+            os: 'Windows',
+            os_version: '10',
+        },
     },
 
     // Mobile
@@ -49,11 +56,21 @@ export const vinylSupportedBrowsers: readonly WorkerInitOptions[] = [
         device: 'Samsung Galaxy S23 Ultra',
         os: 'android',
         os_version: '13.0',
+        fallbackBrowser: {
+            device: 'Samsung Galaxy S22 Ultra',
+            os: 'android',
+            os_version: '12.0',
+        },
     },
 
     {
         device: 'iPhone 15 Pro Max',
         os: 'ios',
         os_version: '17',
+        fallbackBrowser: {
+            device: 'iPhone 14 Pro Max',
+            os: 'ios',
+            os_version: '16',
+        },
     },
 ] as const
