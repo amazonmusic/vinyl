@@ -82,6 +82,19 @@ describe('ContentStreamImpl', () => {
             bufferingController.dispatch('error', { error, target })
             expect(spy).toHaveBeenCalledWith({ error, target })
         })
+
+        it('redispatches hasDataChange from bufferingController', () => {
+            const spy = createEventSpy(contentStream, 'hasDataChange')
+            const event = { previous: false, current: true }
+            bufferingController.dispatch('hasDataChange', event)
+            expect(spy).toHaveBeenCalledWith(event)
+        })
+
+        it('exposes hasData from the bufferingController', () => {
+            expect(contentStream.hasData).toBeFalse()
+            bufferingController.hasData = true
+            expect(contentStream.hasData).toBeTrue()
+        })
     })
 
     describe('preload', () => {

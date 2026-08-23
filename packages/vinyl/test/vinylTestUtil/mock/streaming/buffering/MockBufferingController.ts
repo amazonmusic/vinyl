@@ -20,6 +20,7 @@ export class MockBufferingController
     error: Error | null = null
     active = false
     bufferingEnded = false
+    hasData = false
     playbackQuality: MediaQualityMetadata | null = null
     bufferingQuality: MediaQualityMetadata | null = null
     activate = spyFactory('activate')
