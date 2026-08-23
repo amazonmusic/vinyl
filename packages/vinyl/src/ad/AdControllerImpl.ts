@@ -438,12 +438,6 @@ export class AdControllerImpl
         return this._currentAd
     }
 
-    /**
-     * Enters the given ad, resolving when the ad has been completed for any reason.
-     *
-     * Dispatches adEntered
-     *
-     */
     private startAd(value: AdInfo): void {
         this._currentAd = value
         this.adEnteredInBreak = true
