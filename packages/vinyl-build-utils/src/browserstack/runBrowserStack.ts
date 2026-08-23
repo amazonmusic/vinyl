@@ -208,11 +208,18 @@ export async function runBrowserStack(
         const name = browser.name ?? generateNameForBrowser(browser)
 
         // Url precedence:
-        const url =
+        let url =
             browser.url ??
             options.workerCommon?.url ??
             serverHandle.https?.url ??
             serverHandle.http!.url
+        // Safari and iOS do not route `localhost` through the BrowserStack Local
+        // tunnel; they must reach the test server via `bs-local.com` (other
+        // browsers work with either). Without this these workers can never load
+        // the tests and time out capturing no progress.
+        if (browser.browser === 'safari' || browser.os === 'ios') {
+            url = url.replace('//localhost', '//bs-local.com')
+        }
         return {
             build,
             name,
