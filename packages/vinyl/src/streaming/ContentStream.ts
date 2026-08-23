@@ -5,6 +5,7 @@
 
 import {
     createDisposer,
+    createLogPrefix,
     type Disposable,
     EventHostImpl,
     logDebug,
@@ -117,8 +118,12 @@ export class ContentStreamImpl
     implements ContentStream
 {
     get [Symbol.toStringTag](): string {
-        return `ContentStreamImpl ${this.contentType}`
+        return `ContentStream_${this.contentType}`
     }
+
+    // Assigned in the constructor body: a field initializer runs before the
+    // contentType param-property, so it would capture `undefined`.
+    readonly logPrefix: string
 
     private disposer = createDisposer()
     private readonly segmentController: SegmentController
@@ -129,6 +134,7 @@ export class ContentStreamImpl
         readonly contentType: ContentType
     ) {
         super()
+        this.logPrefix = createLogPrefix(`ContentStream_${contentType}`)
         const { add } = this.disposer
         const deps = add(createContainer(dependencyFactories)).dependencies
 

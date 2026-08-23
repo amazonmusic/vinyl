@@ -100,7 +100,7 @@ export class SourceBufferControllerImpl
     implements LogTarget, SourceBufferController, Disposable
 {
     get [Symbol.toStringTag](): string {
-        return 'SourceBufferController'
+        return `SourceBuffer_${this.contentType}`
     }
 
     private sourceBufferRef: SourceBufferRef | null = null
@@ -108,13 +108,16 @@ export class SourceBufferControllerImpl
     private mimeType: string | null = null
     private queue = createTaskQueue()
 
-    readonly logPrefix = createLogPrefix(this)
+    // Assigned in the constructor body: a field initializer runs before the
+    // contentType param-property, so it would capture `undefined`.
+    readonly logPrefix: string
     private readonly mediaSourceController: MediaSourceController
 
     constructor(
         deps: SourceBufferControllerImplDeps,
         readonly contentType: ContentType
     ) {
+        this.logPrefix = createLogPrefix(`SourceBuffer_${contentType}`)
         logDebug(this, 'constructed, contentType:', contentType)
         this.mediaSourceController = deps.mediaSourceController
     }

@@ -8,6 +8,7 @@ import {
     type Clearable,
     createAbortSlot,
     createDisposer,
+    createLogPrefix,
     createTaskQueue,
     type Disposable,
     type Disposer,
@@ -202,8 +203,12 @@ export class BufferingControllerImpl
     implements BufferingController, Disposable
 {
     get [Symbol.toStringTag](): string {
-        return 'BufferingControllerImpl'
+        return `Buffering_${this.contentType}`
     }
+
+    // Assigned in the constructor body: a field initializer runs before the
+    // contentType param-property, so it would capture `undefined`.
+    readonly logPrefix: string
 
     readonly options: BufferingControllerImplOptions
     private readonly mediaSourceController: MediaSourceController
@@ -247,6 +252,7 @@ export class BufferingControllerImpl
         options?: Partial<BufferingControllerImplOptions>
     ) {
         super()
+        this.logPrefix = createLogPrefix(`Buffering_${contentType}`)
         this.options = {
             ...defaultBufferingControllerOptions,
             ...options,
