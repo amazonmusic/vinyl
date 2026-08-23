@@ -37,126 +37,119 @@ import {
  * load and play. A `content` asset distinct from the `ad` asset lets tests tell
  * which is on screen (by URI / video dimensions / playhead behaviour).
  */
+const ANCHOR_ISO = '2024-01-01T00:00:00.000Z'
+const ANCHOR_MS = Date.parse(ANCHOR_ISO)
+
+// Real, playable assets. Content and ad differ so we can distinguish them.
+const CONTENT_ASSET = vinylTestAssets.hls.live_static_video_audio_60s_4s
+const AD_ASSET = vinylTestAssets.hls.live_static_video_audio_60s_2s
+
+interface Interstitial {
+    readonly id: string
+    /** Media-timeline start in seconds (relative to the PDT anchor). */
+    readonly startTime: number
+    readonly duration: number
+    /** A single ad via X-ASSET-URI. */
+    readonly assetUri?: string
+    /** Multiple ads via X-ASSET-LIST (served through a blob/data URL). */
+    readonly assetList?: readonly { uri: string; duration: number }[]
+    /** The raw CUE token list, e.g. 'PRE', 'ONCE', 'POST,ONCE'. */
+    readonly cue?: string
+    /** X-RESUME-OFFSET in seconds (signed). */
+    readonly resumeOffset?: number
+    /** X-PLAYOUT-LIMIT in seconds. */
+    readonly playoutLimit?: number
+    /** X-ASSET-LIST SKIP-CONTROL window (requires `assetList`). */
+    readonly skipControl?: { offset: number; duration?: number }
+}
+
+/**
+ * Builds an HLS manifest provider that fetches the real content manifest
+ * and injects the given interstitials into every media playlist it serves.
+ */
+function injectingManifestProvider(
+    mainUrl: string,
+    interstitials: readonly Interstitial[]
+): () => Promise<HlsManifestData> {
+    return async () => {
+        const mainText = await (await fetch(mainUrl)).text()
+        const mainPlaylist = parseMainPlaylist(mainText)
+        const cache = new Map<string, ReturnType<typeof parseMediaPlaylist>>()
+        return {
+            mainPlaylist,
+            baseUrl: mainUrl,
+            getMediaPlaylist: async (uri: string) => {
+                const cached = cache.get(uri)
+                if (cached) return cached
+                const url = resolveUrl(uri, mainUrl)
+                const text = await (await fetch(url)).text()
+                const injected = injectInterstitials(text, interstitials)
+                const parsed = parseMediaPlaylist(injected)
+                cache.set(uri, parsed)
+                return parsed
+            },
+        }
+    }
+}
+
+function injectInterstitials(
+    text: string,
+    interstitials: readonly Interstitial[]
+): string {
+    const dateRanges = interstitials.map((it) => {
+        const startDate = new Date(
+            ANCHOR_MS + it.startTime * 1000
+        ).toISOString()
+        let asset: string
+        if (it.assetList) {
+            // Encode the asset list as a data URL so it is fetchable
+            // without a network round-trip.
+            const json = JSON.stringify({
+                ASSETS: it.assetList.map((a) => ({
+                    URI: a.uri,
+                    DURATION: a.duration,
+                })),
+                ...(it.skipControl && {
+                    'SKIP-CONTROL': {
+                        OFFSET: it.skipControl.offset,
+                        ...(it.skipControl.duration != null && {
+                            DURATION: it.skipControl.duration,
+                        }),
+                    },
+                }),
+            })
+            const dataUrl = 'data:application/json;base64,' + btoa(json)
+            asset = `X-ASSET-LIST="${dataUrl}"`
+        } else {
+            asset = `X-ASSET-URI="${it.assetUri}"`
+        }
+        const cue = it.cue ? `,CUE="${it.cue}"` : ''
+        const resumeOffset =
+            it.resumeOffset == null ? '' : `,X-RESUME-OFFSET=${it.resumeOffset}`
+        const playoutLimit =
+            it.playoutLimit == null ? '' : `,X-PLAYOUT-LIMIT=${it.playoutLimit}`
+        return (
+            `#EXT-X-DATERANGE:ID="${it.id}",` +
+            `CLASS="com.apple.hls.interstitial",` +
+            `START-DATE="${startDate}",DURATION=${it.duration},` +
+            `${asset}${cue}${resumeOffset}${playoutLimit}`
+        )
+    })
+    const lines = text.split(/\r?\n/)
+    const out: string[] = []
+    let anchored = false
+    for (const line of lines) {
+        if (!anchored && line.startsWith('#EXTINF')) {
+            out.push(`#EXT-X-PROGRAM-DATE-TIME:${ANCHOR_ISO}`)
+            anchored = true
+        }
+        out.push(line)
+    }
+    out.splice(1, 0, ...dateRanges)
+    return out.join('\n')
+}
+
 describe('hls ad interstitials integ', () => {
-    const ANCHOR_ISO = '2024-01-01T00:00:00.000Z'
-    const ANCHOR_MS = Date.parse(ANCHOR_ISO)
-
-    // Real, playable assets. Content and ad differ so we can distinguish them.
-    const CONTENT_ASSET = vinylTestAssets.hls.live_static_video_audio_60s_4s
-    const AD_ASSET = vinylTestAssets.hls.live_static_video_audio_60s_2s
-
-    interface Interstitial {
-        readonly id: string
-        /** Media-timeline start in seconds (relative to the PDT anchor). */
-        readonly startTime: number
-        readonly duration: number
-        /** A single ad via X-ASSET-URI. */
-        readonly assetUri?: string
-        /** Multiple ads via X-ASSET-LIST (served through a blob/data URL). */
-        readonly assetList?: readonly { uri: string; duration: number }[]
-        /** The raw CUE token list, e.g. 'PRE', 'ONCE', 'POST,ONCE'. */
-        readonly cue?: string
-        /** X-RESUME-OFFSET in seconds (signed). */
-        readonly resumeOffset?: number
-        /** X-PLAYOUT-LIMIT in seconds. */
-        readonly playoutLimit?: number
-        /** X-ASSET-LIST SKIP-CONTROL window (requires `assetList`). */
-        readonly skipControl?: { offset: number; duration?: number }
-    }
-
-    /**
-     * Builds an HLS manifest provider that fetches the real content manifest
-     * and injects the given interstitials into every media playlist it serves.
-     */
-    function injectingManifestProvider(
-        mainUrl: string,
-        interstitials: readonly Interstitial[]
-    ): () => Promise<HlsManifestData> {
-        return async () => {
-            const mainText = await (await fetch(mainUrl)).text()
-            const mainPlaylist = parseMainPlaylist(mainText)
-            const cache = new Map<
-                string,
-                ReturnType<typeof parseMediaPlaylist>
-            >()
-            return {
-                mainPlaylist,
-                baseUrl: mainUrl,
-                getMediaPlaylist: async (uri: string) => {
-                    const cached = cache.get(uri)
-                    if (cached) return cached
-                    const url = resolveUrl(uri, mainUrl)
-                    const text = await (await fetch(url)).text()
-                    const injected = injectInterstitials(text, interstitials)
-                    const parsed = parseMediaPlaylist(injected)
-                    cache.set(uri, parsed)
-                    return parsed
-                },
-            }
-        }
-    }
-
-    function injectInterstitials(
-        text: string,
-        interstitials: readonly Interstitial[]
-    ): string {
-        const dateRanges = interstitials.map((it) => {
-            const startDate = new Date(
-                ANCHOR_MS + it.startTime * 1000
-            ).toISOString()
-            let asset: string
-            if (it.assetList) {
-                // Encode the asset list as a data URL so it is fetchable
-                // without a network round-trip.
-                const json = JSON.stringify({
-                    ASSETS: it.assetList.map((a) => ({
-                        URI: a.uri,
-                        DURATION: a.duration,
-                    })),
-                    ...(it.skipControl && {
-                        'SKIP-CONTROL': {
-                            OFFSET: it.skipControl.offset,
-                            ...(it.skipControl.duration != null && {
-                                DURATION: it.skipControl.duration,
-                            }),
-                        },
-                    }),
-                })
-                const dataUrl = 'data:application/json;base64,' + btoa(json)
-                asset = `X-ASSET-LIST="${dataUrl}"`
-            } else {
-                asset = `X-ASSET-URI="${it.assetUri}"`
-            }
-            const cue = it.cue ? `,CUE="${it.cue}"` : ''
-            const resumeOffset =
-                it.resumeOffset == null
-                    ? ''
-                    : `,X-RESUME-OFFSET=${it.resumeOffset}`
-            const playoutLimit =
-                it.playoutLimit == null
-                    ? ''
-                    : `,X-PLAYOUT-LIMIT=${it.playoutLimit}`
-            return (
-                `#EXT-X-DATERANGE:ID="${it.id}",` +
-                `CLASS="com.apple.hls.interstitial",` +
-                `START-DATE="${startDate}",DURATION=${it.duration},` +
-                `${asset}${cue}${resumeOffset}${playoutLimit}`
-            )
-        })
-        const lines = text.split(/\r?\n/)
-        const out: string[] = []
-        let anchored = false
-        for (const line of lines) {
-            if (!anchored && line.startsWith('#EXTINF')) {
-                out.push(`#EXT-X-PROGRAM-DATE-TIME:${ANCHOR_ISO}`)
-                anchored = true
-            }
-            out.push(line)
-        }
-        out.splice(1, 0, ...dateRanges)
-        return out.join('\n')
-    }
-
     const MIDROLL_TIME = 20
     const MIDROLL_DURATION = 6
     const AD_ID = 'integ-midroll-1'
@@ -1149,15 +1142,14 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
     it('discovers pre/mid/post-roll breaks with fully substituted ad URIs', async () => {
         const player = suite.player
         player.load({ type: 'hls', uri: STREAM })
-        if (
-            !(await poll(
+        expect(
+            await poll(
                 () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
                 { timeout: 20 }
-            ))
-        ) {
-            pending('art19 stream unreachable')
-            return
-        }
+            )
+        )
+            .withContext('art19 ad breaks loaded')
+            .toBeTrue()
         const placements = player.currentTrackAds!.adBreaks.map(
             (b) => b.placement
         )
@@ -1180,43 +1172,29 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
     it('plays the preroll ad, then resumes content', async () => {
         const player = suite.player
         player.load({ type: 'hls', uri: STREAM })
-        if (
-            !(await poll(
+        expect(
+            await poll(
                 () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
                 { timeout: 20 }
-            ))
-        ) {
-            pending('art19 stream unreachable')
-            return
-        }
-        // The preroll activates at time 0, suspending content — this can abort
-        // the initial play() as the ad takes over the element. That's expected.
+            )
+        )
+            .withContext('art19 ad breaks loaded')
+            .toBeTrue()
+        // The preroll at time 0 takes over the element, which can abort play().
         await player.play().catch(() => undefined)
-        // The preroll is at time 0; its ad track should activate and advance.
-        if (!(await poll(() => player.currentAd != null, { timeout: 30 }))) {
-            pending('art19 ad did not start (network/CDN)')
-            return
-        }
-        // The ad genuinely plays (its playhead advances past 0). A real ad can
-        // activate but stall buffering its first frame on a slow CDN — that's
-        // network flake, not a product failure, so pend rather than fail.
-        if (!(await poll(() => player.currentTime > 0, { timeout: 20 }))) {
-            pending('art19 ad activated but did not advance (network/CDN)')
-            return
-        }
-        // Skipping the break resumes content (long real ads are impractical to
-        // play through in a test).
+        expect(await poll(() => player.currentAd != null, { timeout: 30 }))
+            .withContext('preroll ad started')
+            .toBeTrue()
+        expect(await poll(() => player.currentTime > 0, { timeout: 20 }))
+            .withContext('preroll ad advanced')
+            .toBeTrue()
+        // Skip rather than play a long real ad to completion.
         player.skipAd()
         expect(await poll(() => player.currentAd == null, { timeout: 30 }))
             .withContext('player.currentAd == null')
             .toBeTrue()
     })
 
-    // Regression (real stream): after the preroll ends its ad-track playhead is
-    // long enough to be inside the stream's midroll region. That playhead is the
-    // ad's time, not a content position, so it must NOT pull a midroll (nor the
-    // postroll) in ahead of content — the break resumes on the content track and
-    // any midroll fires only once the CONTENT playhead reaches it.
     it('resumes content, not another break, after the preroll ends (natural)', async () => {
         const player = suite.player
         const enteredPlacements: string[] = []
@@ -1225,15 +1203,10 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
         })
         try {
             player.load({ type: 'hls', uri: STREAM })
-            if (
-                !(await poll(
-                    () => (player.currentTrackAds?.adBreaks.length ?? 0) > 0,
-                    { timeout: 20 }
-                ))
-            ) {
-                pending('art19 stream unreachable')
-                return
-            }
+            await nextEventAsPromise(player, 'currentTrackAdsChange', {
+                filter: (e) => (e.current?.adBreaks.length ?? 0) > 0,
+                timeout: 20,
+            })
             const placements = player.currentTrackAds!.adBreaks.map(
                 (b) => b.placement
             )
@@ -1242,39 +1215,94 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
             expect(placements).toContain('postroll')
 
             await player.play().catch(() => undefined)
-            // The preroll activates at time 0 and its ad advances.
-            if (
-                !(await poll(() => player.currentAd != null, { timeout: 30 }))
-            ) {
-                pending('art19 ad did not start (network/CDN)')
-                return
-            }
-            if (!(await poll(() => player.currentTime > 0, { timeout: 20 }))) {
-                pending('art19 ad activated but did not advance (network/CDN)')
-                return
-            }
-            expect(player.currentAdBreak?.placement)
-                .withContext('preroll first')
-                .toBe('preroll')
-            // Let the preroll play to its own natural end (no seeking — the bug
-            // needs the ad's real `ended`), waiting generously for content to
-            // resume on the content track (playhead back near 0, before it can
-            // legitimately reach the midroll). Bail the moment a second break
-            // enters — the bug pulls a midroll/postroll in off the preroll's
-            // ad-track time before content resumes, and that must fail the
-            // assertion below rather than be waited out or pended away.
+            // Bail on a 2nd break so a midroll tripped off the preroll's ad time
+            // fails the assertion rather than being waited out; the [0] guard
+            // defers the resume check until the preroll has begun.
             await poll(
                 () =>
-                    (player.currentAd == null &&
+                    enteredPlacements[0] === 'preroll' &&
+                    ((player.currentAd == null &&
                         player.currentTrack?.uri === STREAM) ||
-                    enteredPlacements.length > 1,
+                        enteredPlacements.length > 1),
                 { timeout: 120 }
             )
-            // Only the preroll may have run before content resumed; a midroll or
-            // postroll here means the preroll's ad time tripped a later break.
             expect(enteredPlacements)
                 .withContext('the preroll ad time must not trip a later break')
                 .toEqual(['preroll'])
+        } finally {
+            sub()
+        }
+    })
+})
+
+describe('hls ad interstitials integ (ad failure recovery)', () => {
+    // Short ad-load timeout so an unreachable ad fails fast.
+    const suite = createVinylSuite(
+        { adController: { adLoadTimeout: 3 } },
+        { timeout: 60, failOnError: false }
+    )
+
+    beforeEach(() => {
+        if (!supportsMse()) pending('MSE not supported')
+    })
+
+    it('recovers to content when a preroll ad never loads', async () => {
+        const player = suite.player
+        const enteredPlacements: string[] = []
+        const sub = player.on('currentAdBreakChange', (e) => {
+            if (e.current) enteredPlacements.push(e.current.placement)
+        })
+        try {
+            // Subscribe before playback so no event is missed.
+            const adErrored = nextEventAsPromise(player, 'adError', {
+                timeout: 30,
+            })
+            const contentPlaying = nextEventAsPromise(player, 'playing', {
+                timeout: 40,
+            })
+            const midrollEntered = nextEventAsPromise(
+                player,
+                'currentAdBreakChange',
+                {
+                    filter: (e) => e.current?.placement === 'midroll',
+                    timeout: 40,
+                }
+            )
+            player.load({
+                type: 'hls',
+                uri: 'integ-adfail',
+                manifestProvider: injectingManifestProvider(CONTENT_ASSET, [
+                    {
+                        id: 'preroll-fail',
+                        startTime: 0,
+                        duration: 6,
+                        assetUri: 'this-ad-does-not-exist.m3u8',
+                        cue: 'PRE',
+                    },
+                    // A playable midroll firing proves the resume gate cleared.
+                    {
+                        id: 'mid-ok',
+                        startTime: 3,
+                        duration: 6,
+                        assetUri: AD_ASSET,
+                    },
+                ]),
+            })
+            await player.play().catch(() => undefined)
+
+            await adErrored
+            expect(player.currentAd).withContext('failed ad cleared').toBeNull()
+
+            await contentPlaying
+            expect(player.currentAdBreak)
+                .withContext('break completed, resume gate not stuck')
+                .toBeNull()
+            expect(await poll(() => player.currentTime > 0, { timeout: 20 }))
+                .withContext('content is playing, not stuck')
+                .toBeTrue()
+
+            await midrollEntered
+            expect(enteredPlacements).toEqual(['preroll', 'midroll'])
         } finally {
             sub()
         }
