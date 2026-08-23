@@ -86,6 +86,15 @@ export abstract class LogReporter implements CustomReporter {
 
     protected abstract onStarted(action: LogReporterStartedEvent): Promise<void>
 
+    specStarted(result: SpecResult): void {
+        // Log the running spec and flush immediately. A spec that hangs never
+        // reaches specDone, so without this the buffered logs — and which spec
+        // was running — never reach the reporter and the log just cuts off. The
+        // forced flush makes the last logged spec name identify the culprit.
+        console.info(`Running spec: ${result.fullName}`)
+        this.maybeReportProgress()
+    }
+
     specDone(result: SpecResult): void {
         if (!this.failedResult && result.status === 'failed')
             this.failedResult = result
