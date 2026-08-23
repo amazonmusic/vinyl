@@ -167,6 +167,78 @@ describe('AdControllerImpl', () => {
             await flush()
             expect(c.currentAd?.id).toBe('a1')
         })
+
+        // Regression: a long preroll's end position must not be mistaken for a
+        // content position and trip a midroll before content resumes. Midroll
+        // cues key off the CONTENT playhead, not the ad track's leftover time.
+        it('does not trip a midroll from the ended preroll ad-track playhead', async () => {
+            const c = createController()
+            const entered: string[] = []
+            c.on('currentAdBreakChange', (e) => {
+                if (e.current) entered.push(e.current.placement)
+            })
+            // A preroll at 0 and a midroll at 5s whose duration is unknown, so
+            // its active window is unbounded until the asset resolves — any time
+            // at or past 5s would enter it.
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        id: 'pre',
+                        startTime: 0,
+                        placement: 'preroll',
+                        ads: [
+                            {
+                                id: 'pa',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'pre.m3u8',
+                            },
+                        ],
+                    }),
+                    makeBreak({
+                        id: 'mid',
+                        startTime: 5,
+                        duration: null,
+                        placement: 'midroll',
+                    })
+                )
+            )
+            await flush()
+            expect(c.currentAdBreak?.placement).toBe('preroll')
+
+            // The preroll plays; the element's currentTime advances along the AD
+            // track well past the midroll's start. While the break is active
+            // this is the ad's playhead, not a content position.
+            playbackController.currentTime = 30
+            updateTime(30)
+            expect(c.currentAdBreak?.placement).toBe('preroll')
+
+            // The preroll ends. Its ad-track playhead (30s) is still reported
+            // until the content source swaps back in; a stale time update in
+            // this window must NOT enter the midroll.
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            await flush()
+            updateTime(30)
+            await flush()
+            expect(entered).toEqual(['preroll'])
+            expect(c.currentAdBreak).toBeNull()
+
+            // Content resumes at 0 (the ad→content swap fires `emptied`) and
+            // plays forward; the midroll enters only when the CONTENT playhead
+            // reaches its start.
+            playbackController.currentTime = 0
+            playbackController.dispatch('emptied', {})
+            updateTime(1)
+            await flush()
+            expect(c.currentAdBreak).toBeNull()
+            updateTime(6)
+            await flush()
+            expect(c.currentAdBreak?.placement).toBe('midroll')
+            expect(entered).toEqual(['preroll', 'midroll'])
+        })
     })
 
     describe('skipAd', () => {
