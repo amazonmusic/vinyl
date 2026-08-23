@@ -786,7 +786,7 @@ describe('AdControllerImpl', () => {
             expect(resumes.at(-1)).toBe(10)
         })
 
-        it('defaults an absent offset to the actual playout duration', async () => {
+        it('resumes at the cue point regardless of how long the ad played', async () => {
             const c = createController()
             const resumes = resumesOf(c)
             c.setAds(
@@ -809,15 +809,18 @@ describe('AdControllerImpl', () => {
             updateTime(10)
             await flush()
             playbackController.dispatch('playing', {}) // timeStart = 10
-            updateTime(16) // played 6s; no per-ad/pod cap applies
+            updateTime(16) // the ad plays 6s on its own track
             playbackController.dispatch('ended', {
                 previous: false,
                 current: true,
             })
-            expect(resumes.at(-1)).toBe(16)
+            // The content timeline did not advance during the ad, so with no
+            // explicit offset content resumes at the cue point, not startTime +
+            // the 6s of ad playout.
+            expect(resumes.at(-1)).toBe(10)
         })
 
-        it('re-baselines ad playout timing on a seek within the ad', async () => {
+        it('resumes at the cue point even after a seek within the ad', async () => {
             const c = createController()
             const resumes: number[] = []
             c.on('adCompleted', (e) => resumes.push(e.resumePosition))
@@ -840,15 +843,15 @@ describe('AdControllerImpl', () => {
             updateTime(10)
             await flush()
             playbackController.dispatch('playing', {}) // timeStart = 10
-            seekTo(14) // seek within the ad → playout timing re-baselines to 14
-            updateTime(18) // 4s played since the seek
+            seekTo(14) // seek within the ad (re-baselines its playout accounting)
+            updateTime(18)
             playbackController.dispatch('ended', {
                 previous: false,
                 current: true,
             })
-            // Absent offset → resume at start (10) + playout measured from the
-            // seek (18 - 14 = 4) = 14.
-            expect(resumes.at(-1)).toBe(14)
+            // Ad-track playout — however it is measured — does not move the
+            // content resume: with no explicit offset it stays at the cue point.
+            expect(resumes.at(-1)).toBe(10)
         })
 
         it('parks a postroll resume at the content end, not past it', async () => {
@@ -882,8 +885,8 @@ describe('AdControllerImpl', () => {
                 previous: false,
                 current: true,
             })
-            // The offset math must not apply to a postroll: it parks at the
-            // content end (100), not startTime + playout (108).
+            // A postroll's cue point is the content end and it carries no
+            // offset, so the resume parks at the content end (100).
             expect(resumes.at(-1)).toBe(100)
         })
 
@@ -969,8 +972,9 @@ describe('AdControllerImpl', () => {
             expect(c.currentAd?.id).toBe('a1')
             updateTime(8) // cumulative 8 >= playoutLimit 8 → end break
             expect(c.currentAdBreak).toBeNull()
-            // Absent offset → resume at start + capped playout (8).
-            expect(resumes.at(-1)).toBe(8)
+            // The playout limit ends the break, but with no explicit offset the
+            // content still resumes at the cue point (0), not startTime + playout.
+            expect(resumes.at(-1)).toBe(0)
         })
     })
 

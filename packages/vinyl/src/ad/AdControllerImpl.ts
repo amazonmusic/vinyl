@@ -478,24 +478,13 @@ export class AdControllerImpl
         this.breakPlayoutElapsed += this.adElapsed()
         this._currentAd = null
         const index = this._currentAdIndex++
-        // Resume at the scheduled break start plus its resume offset, defaulting
-        // to the actual playout when the offset is unspecified (bounded by the
-        // playout limit). max() keeps a forward seek from being rewound.
-        const playout =
-            adBreak.playoutLimit != null
-                ? Math.min(this.breakPlayoutElapsed, adBreak.playoutLimit)
-                : this.breakPlayoutElapsed
-        // The resume offset only advances the primary timeline for midrolls: a
-        // preroll resumes at the content's own start (TrackController uses
-        // adParent.config) and a postroll parks at the content end, so applying
-        // the offset there would push the resume past the content duration.
-        const effectiveOffset =
-            adBreak.placement === 'midroll'
-                ? (adBreak.resumeOffset ?? playout)
-                : 0
+        // Interstitials play on a separate track, so the content timeline never
+        // advances during the ad: content resumes at the cue point plus any
+        // explicit offset (default 0). max() keeps a forward seek from being
+        // rewound.
         const resumePosition = Math.max(
             this.lastPlaybackTime,
-            adBreak.startTime + effectiveOffset
+            adBreak.startTime + (adBreak.resumeOffset ?? 0)
         )
         this.dispatch('adCompleted', {
             adBreak,
