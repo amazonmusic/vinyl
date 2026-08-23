@@ -32,6 +32,7 @@ import { type QualitySelectorImplOptions } from '../streaming/abr/QualitySelecto
 import {
     AdControllerImpl,
     type AdControllerImplDeps,
+    type AdControllerImplOptions,
 } from '../ad/AdControllerImpl'
 import { createDashFactories } from '../track/dash/createDashFactories'
 import { createHlsFactories } from '../track/hls/createHlsFactories'
@@ -107,6 +108,11 @@ export interface VinylDependencyOptions {
      * Configuration for auto-reset behavior.
      */
     readonly autoReset?: Partial<AutoResetControllerImplOptions>
+
+    /**
+     * Configuration for the ad controller.
+     */
+    readonly adController?: Partial<AdControllerImplOptions>
 }
 
 /**
@@ -160,7 +166,7 @@ export function createVinylFactories(options: VinylDependencyOptions) {
         autoResetController: (deps: AutoResetControllerImplDeps) =>
             new AutoResetControllerImpl(deps, options.autoReset),
         adController: (deps: AdControllerImplDeps) =>
-            new AdControllerImpl(deps),
+            new AdControllerImpl(deps, options.adController),
         createDashFactories: createDashFactories(options),
         createHlsFactories: createHlsFactories(options),
     } as const) satisfies Factories<VinylDeps>
