@@ -1257,23 +1257,21 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
                 .withContext('preroll first')
                 .toBe('preroll')
             // Let the preroll play to its own natural end (no seeking — the bug
-            // needs the ad's real `ended`), then wait for content to resume on
-            // the content track (playhead back near 0, before it can legitimately
-            // reach the midroll).
-            if (
-                !(await poll(
-                    () =>
-                        player.currentAd == null &&
-                        player.currentTrack?.uri === STREAM,
-                    { timeout: 60 }
-                ))
-            ) {
-                pending('art19 preroll did not finish (network/CDN)')
-                return
-            }
-            // At the instant content resumes, only the preroll has run: the
-            // preroll's ad-track time must not have tripped the midroll (or the
-            // postroll) before content played.
+            // needs the ad's real `ended`), waiting generously for content to
+            // resume on the content track (playhead back near 0, before it can
+            // legitimately reach the midroll). Bail the moment a second break
+            // enters — the bug pulls a midroll/postroll in off the preroll's
+            // ad-track time before content resumes, and that must fail the
+            // assertion below rather than be waited out or pended away.
+            await poll(
+                () =>
+                    (player.currentAd == null &&
+                        player.currentTrack?.uri === STREAM) ||
+                    enteredPlacements.length > 1,
+                { timeout: 120 }
+            )
+            // Only the preroll may have run before content resumed; a midroll or
+            // postroll here means the preroll's ad time tripped a later break.
             expect(enteredPlacements)
                 .withContext('the preroll ad time must not trip a later break')
                 .toEqual(['preroll'])
