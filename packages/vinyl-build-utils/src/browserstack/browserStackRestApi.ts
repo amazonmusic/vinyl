@@ -100,6 +100,17 @@ export interface WorkerOptions extends BrowserDetails {
      * OS; IE 11 on Windows 7 / 8.1 and any browser on MacOS High Sierra and Mojave.
      */
     readonly networkLogs?: boolean
+
+    /**
+     * An alternate browser combination to fall back to when the worker
+     * repeatedly fails to report any test progress (e.g. the BrowserStack
+     * local tunnel intermittently fails to connect for Safari on macOS). Once
+     * the capture retries are exhausted with no results, the worker swaps to
+     * this browser — keeping the rest of the worker options (url, name,
+     * timeout, resolution, …) — and retries instead of failing. Not sent to
+     * BrowserStack; consumed locally.
+     */
+    readonly fallbackBrowser?: BrowserDetails | null
 }
 
 export interface NewWorker {
