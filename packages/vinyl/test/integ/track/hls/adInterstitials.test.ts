@@ -1212,10 +1212,12 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
             .toBeTrue()
     })
 
-    // Regression (real stream): the preroll ad's own `ended` was misread as
-    // content ending, so the postroll played right after the preroll — before
-    // content. After the preroll ends, content must resume, not the postroll.
-    it('resumes content, not the postroll, after the preroll ends (natural)', async () => {
+    // Regression (real stream): after the preroll ends its ad-track playhead is
+    // long enough to be inside the stream's midroll region. That playhead is the
+    // ad's time, not a content position, so it must NOT pull a midroll (nor the
+    // postroll) in ahead of content — the break resumes on the content track and
+    // any midroll fires only once the CONTENT playhead reaches it.
+    it('resumes content, not another break, after the preroll ends (natural)', async () => {
         const player = suite.player
         const enteredPlacements: string[] = []
         const sub = player.on('currentAdBreakChange', (e) => {
@@ -1236,6 +1238,7 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
                 (b) => b.placement
             )
             expect(placements).toContain('preroll')
+            expect(placements).toContain('midroll')
             expect(placements).toContain('postroll')
 
             await player.play().catch(() => undefined)
@@ -1254,27 +1257,26 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
                 .withContext('preroll first')
                 .toBe('preroll')
             // Let the preroll play to its own natural end (no seeking — the bug
-            // needs the ad's real `ended`). Watch long enough to cover its
-            // playout: the postroll must not activate right after the preroll.
-            const wrongPostroll = await poll(
-                () => enteredPlacements.includes('postroll'),
-                { timeout: 45 }
-            )
-            expect(wrongPostroll)
-                .withContext('postroll must not play right after the preroll')
-                .toBeFalse()
-            // The regression is specifically the postroll jumping in after the
-            // preroll. Once the preroll ends, content resumes and advances, so
-            // this stream's midroll (startTime 5s) legitimately activates within
-            // the watch window — its presence is in fact evidence content
-            // resumed. Assert the preroll ran first and the postroll never ran,
-            // without over-constraining which content-timeline breaks played.
-            expect(enteredPlacements[0])
-                .withContext('preroll plays first')
-                .toBe('preroll')
+            // needs the ad's real `ended`), then wait for content to resume on
+            // the content track (playhead back near 0, before it can legitimately
+            // reach the midroll).
+            if (
+                !(await poll(
+                    () =>
+                        player.currentAd == null &&
+                        player.currentTrack?.uri === STREAM,
+                    { timeout: 60 }
+                ))
+            ) {
+                pending('art19 preroll did not finish (network/CDN)')
+                return
+            }
+            // At the instant content resumes, only the preroll has run: the
+            // preroll's ad-track time must not have tripped the midroll (or the
+            // postroll) before content played.
             expect(enteredPlacements)
-                .withContext('postroll must not play before content')
-                .not.toContain('postroll')
+                .withContext('the preroll ad time must not trip a later break')
+                .toEqual(['preroll'])
         } finally {
             sub()
         }

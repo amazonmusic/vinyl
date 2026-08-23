@@ -125,6 +125,11 @@ export class AdControllerImpl
     private midrollTimes: number[] = []
 
     private lastPlaybackTime = 0
+    // A break's end leaves the ad track's playhead on the media element until
+    // the content source is re-established (the ad→content swap fires
+    // `emptied`); until then it is not a content position and must not trip a
+    // midroll cue.
+    private awaitingContentResume = false
     private _currentAdIndex: number = -1
     private _totalAds: number = 0
     private pendingAdBreaks: AdBreakInfo[] = []
@@ -177,6 +182,10 @@ export class AdControllerImpl
         )
         add(
             playbackController.on('seeked', (event) => {
+                // A settled seek (a user scrub or the ad→content swap) puts a
+                // real content playhead back on the element, so midroll cues
+                // may be evaluated again.
+                this.awaitingContentResume = false
                 if (this.currentAd) {
                     this.adStats.timeStart = playbackController.currentTime
                     return
@@ -199,6 +208,13 @@ export class AdControllerImpl
                 }
             })
         )
+        add(
+            playbackController.on('emptied', () => {
+                // The source swapped; the leftover ad playhead is void and the
+                // next time updates reflect resumed content.
+                this.awaitingContentResume = false
+            })
+        )
         add(playbackController.on('timeUpdate', this.onTimeUpdate))
         add(playbackController.on('ended', () => this.endAd()))
     }
@@ -210,6 +226,7 @@ export class AdControllerImpl
     clearCompletedAds(): void {
         this.completeAdBreakIds.clear()
         this.spentBreakIds.clear()
+        this.awaitingContentResume = false
     }
 
     /**
@@ -342,6 +359,10 @@ export class AdControllerImpl
         const current = value ?? null
         if (previous?.id === value?.id) return
         this._currentAdBreak = current
+        if (previous && !current) {
+            // Leaving a break: gate midroll cues until content resumes.
+            this.awaitingContentResume = true
+        }
         // Each break accounts its own playout independently.
         this.breakPlayoutElapsed = 0
         logDebug(
@@ -589,6 +610,8 @@ export class AdControllerImpl
             }
             return
         }
+
+        if (this.awaitingContentResume) return
 
         const time = pC.currentTime
         const index = sortedInsertionIndex(this.midrollTimes, time, compare) - 1
