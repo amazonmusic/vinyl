@@ -113,6 +113,30 @@ describe('integ playing and played events', () => {
                 expect(playedSpy).toHaveBeenCalledBefore(playingSpy)
             })
         })
+
+        describe('then a backwards seek is requested', () => {
+            it('never reports a negative playbackTime', async () => {
+                await play()
+                // Advance into the track, then seek backwards past where the
+                // current play started. Each play measures only forward progress
+                // from its own start, so no played event goes negative.
+                await player.seekTo(40)
+                await sleep(0.5)
+                playedSpy.calls.reset()
+                const nextPlayed = playedSpy.next(15)
+                await player.seekTo(2)
+                await nextPlayed
+                await sleep(0.5)
+
+                const events = playedSpy.calls.allArgs().map(([event]) => event)
+                expect(events.length).toBeGreaterThan(0)
+                for (const event of events) {
+                    expect(event.playbackTime)
+                        .withContext('playbackTime')
+                        .toBeGreaterThanOrEqual(0)
+                }
+            })
+        })
     })
 
     describe('when seeking while paused', () => {
