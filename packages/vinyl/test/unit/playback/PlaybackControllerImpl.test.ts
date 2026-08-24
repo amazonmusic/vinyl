@@ -338,6 +338,22 @@ describe('PlaybackController', () => {
                     expect(media.currentTime).toBe(unchangedTime)
                 })
 
+                it('does not reserve the end-of-range buffer when paused', async () => {
+                    // The buffer only matters so playback can resume near the
+                    // end; while paused a seek may land at the exact range end.
+                    const minSeekableBuffer =
+                        controller.options.minSeekableBuffer
+                    enableSeekAutoComplete()
+                    setSeekable([[30, 100]])
+                    media.paused = true
+                    await controller.seekTo(100.5)
+                    expect(media.currentTime).toBe(100)
+                    // Playing again re-applies the buffer.
+                    media.paused = false
+                    await controller.seekTo(100.5)
+                    expect(media.currentTime).toBe(100 - minSeekableBuffer)
+                })
+
                 describe('when there is no seekable range within tolerance after metadata', () => {
                     it('logs warning messages when necessary', async () => {
                         enableSeekAutoComplete()
