@@ -99,17 +99,18 @@ describe('VinylPlayer ad break API', () => {
         expect(spy).toHaveBeenCalled()
     })
 
-    it('redispatches currentAdBreakChange from the ad controller', async () => {
+    it('redispatches adBreakEntered and adBreakCompleted from the ad controller', async () => {
         adController.setAds(trackAds(makeBreak({ startTime: 10, duration: 5 })))
-        const change = createEventSpy(player, 'currentAdBreakChange')
+        const entered = createEventSpy(player, 'adBreakEntered')
+        const completed = createEventSpy(player, 'adBreakCompleted')
         simulateTimeUpdate(11)
         await flush()
-        expect(change).toHaveBeenCalledTimes(1)
-        expect(change.calls.mostRecent().args[0].current?.id).toBe('b1')
-        // Exit via skipAd (updateTime is blocked while ad is active)
+        expect(entered).toHaveBeenCalledTimes(1)
+        expect(entered.calls.mostRecent().args[0].adBreak.id).toBe('b1')
+        // Exit via skipAd (updateTime is blocked while an ad is active)
         player.skipAd()
-        expect(change).toHaveBeenCalledTimes(2)
-        expect(change.calls.mostRecent().args[0].current).toBeNull()
+        expect(completed).toHaveBeenCalledTimes(1)
+        expect(completed.calls.mostRecent().args[0].adBreak.id).toBe('b1')
     })
 
     it('reflects the current ad break through the player getter', async () => {

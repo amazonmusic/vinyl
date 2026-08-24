@@ -9,6 +9,7 @@ import {
     EventHostImpl,
     lerp,
     logDebug,
+    logVerbose,
     type Maybe,
     noop,
     resolveValueProvider,
@@ -334,9 +335,8 @@ export class AdControllerImpl
             return
         }
         logDebug(this, 'skipAdBreak, active break id:', adBreak.id)
-        this.markBreakComplete(adBreak)
         this.completeAd('skipped')
-        this.setCurrentAdBreak(null)
+        this.completeAdBreak()
         this.pollPendingAds()
     }
 
@@ -348,6 +348,15 @@ export class AdControllerImpl
         }
         logDebug(this, 'completeAdBreak, active break id:', adBreak.id)
         this.markBreakComplete(adBreak)
+        // Interstitials play on a separate track, so the content timeline never
+        // advances during the break: content resumes at the cue point plus any
+        // explicit offset (default 0). max() keeps a forward seek from being
+        // rewound.
+        const resumePosition = Math.max(
+            this.lastPlaybackTime,
+            adBreak.startTime + (adBreak.resumeOffset ?? 0)
+        )
+        this.dispatch('adBreakCompleted', { adBreak, resumePosition })
         this.setCurrentAdBreak(null)
     }
 
@@ -378,10 +387,9 @@ export class AdControllerImpl
             'next: ',
             value
         )
-        this.dispatch('currentAdBreakChange', {
-            previous,
-            current,
-        })
+        if (current) {
+            this.dispatch('adBreakEntered', { adBreak: current })
+        }
 
         this.pendingAds = []
         this._currentAdIndex = -1
@@ -397,24 +405,28 @@ export class AdControllerImpl
                 }
             })
             .catch(() => undefined)
-        resolveValueProvider(value?.ads)
-            .then((ads) => {
-                if (this.disposed) return
-                if (this._currentAdBreak !== value) return
-                const adsList = ads?.slice() ?? []
-                this.pendingAds = adsList
-                this._currentAdIndex = 0
-                this._totalAds = adsList.length
-                if (!this._totalAds) {
-                    // A break that resolves to no playable ads must not trap the
-                    // playhead; mark it complete and advance to any next break.
-                    this.completeAdBreak()
-                }
-                this.pollPendingAds()
-            })
-            .catch((error) => {
-                this.failAd(error)
-            })
+
+        if (value) {
+            resolveValueProvider(value.ads)
+                .then((ads) => {
+                    if (this.disposed || this._currentAdBreak !== value) return
+                    const adsList = ads.slice()
+                    this.pendingAds = adsList
+                    this._currentAdIndex = 0
+                    this._totalAds = adsList.length
+                    if (!this._totalAds) {
+                        // A break that resolves to no playable ads must not trap the
+                        // playhead; complete it (resuming content or advancing to
+                        // any next break).
+                        logDebug(this, 'no playable ads')
+                        this.completeAdBreak()
+                    }
+                    this.pollPendingAds()
+                })
+                .catch((error) => {
+                    this.failAd(error)
+                })
+        }
     }
 
     /**
@@ -472,23 +484,15 @@ export class AdControllerImpl
         this.breakPlayoutElapsed += this.adElapsed()
         this._currentAd = null
         const index = this._currentAdIndex++
-        // Interstitials play on a separate track, so the content timeline never
-        // advances during the ad: content resumes at the cue point plus any
-        // explicit offset (default 0). max() keeps a forward seek from being
-        // rewound.
-        const resumePosition = Math.max(
-            this.lastPlaybackTime,
-            adBreak.startTime + (adBreak.resumeOffset ?? 0)
-        )
         this.dispatch('adCompleted', {
             adBreak,
             ad,
             reason,
-            resumePosition,
             index,
             totalAds: this._totalAds,
         })
         if (!this.pendingAds.length) {
+            logVerbose(this, 'no remaining pending ads')
             this.completeAdBreak()
         }
     }
@@ -639,6 +643,7 @@ export class AdControllerImpl
     }
 
     enterPostroll(): void {
+        logDebug(this, 'enterPostroll')
         this.lastPlaybackTime = this.deps.playbackController.duration
         this.setPendingBreaks(this.groupedByPlacement.postroll)
     }

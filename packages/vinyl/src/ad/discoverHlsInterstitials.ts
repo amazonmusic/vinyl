@@ -28,14 +28,6 @@ interface AssetContent {
     readonly skipControl: SkipControl | null
 }
 
-/** Maps over a value that may be a promise, preserving synchronicity. */
-function mapResolved<T, R>(
-    value: MaybePromise<T>,
-    fn: (value: T) => R
-): MaybePromise<R> {
-    return value instanceof Promise ? value.then(fn) : fn(value as T)
-}
-
 /**
  * How close to the start or end of content a break must be to be classified as
  * a pre-roll or post-roll rather than a mid-roll, in seconds.
@@ -103,9 +95,8 @@ export function discoverHlsInterstitials(
             once: cues.has('ONCE'),
             resumeOffset: parseResumeOffset(range),
             playoutLimit,
-            ads: () => mapResolved(resolveContent(), (c) => c.ads),
-            skipControl: () =>
-                mapResolved(resolveContent(), (c) => c.skipControl),
+            ads: async () => (await resolveContent()).ads,
+            skipControl: async () => (await resolveContent()).skipControl,
             restrict,
         })
     }

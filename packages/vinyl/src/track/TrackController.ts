@@ -315,7 +315,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             return true
         }
 
-        add(playbackController.on('ended', this.onTrackEnded))
+        add(playbackController.on('ended', this.onEnded))
 
         this.initializeAdHandling()
         this.configure(initialOptions)
@@ -346,18 +346,22 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         )
 
         add(
-            adController.on('adCompleted', (event) => {
+            adController.on('adBreakCompleted', (event) => {
                 const adParent = this._adParent
                 if (!adParent) {
-                    logWarn(this, 'ad completed without a parent media track')
+                    logWarn(
+                        this,
+                        'ad break completed without a parent media track'
+                    )
                     return
                 }
-                logDebug(this, 'adCompleted')
-                const isPreroll = event.adBreak.placement === 'preroll'
-                const isPostroll = event.adBreak.placement === 'postroll'
+                logDebug(this, 'adBreakCompleted')
+                const placement = event.adBreak.placement
+                const isPreroll = placement === 'preroll'
+                const isPostroll = placement === 'postroll'
                 const interrupted = this.getQueueInterrupted()
                 setTimeout(() => {
-                    // Delay a frame before changing the queue to allow other handlers of adCompleted
+                    // Delay a frame before changing the queue to allow other handlers of adBreakCompleted
                     // to query the current ad track.
                     if (interrupted()) return
                     // A completed postroll marks the end of the whole track
@@ -400,7 +404,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     /**
      * The current track has ended naturally. On the next tick advance the queue or emit queue ended.
      */
-    private onTrackEnded = () => {
+    private onEnded = () => {
         const { adController } = this.deps
 
         // `ended` fires for ad tracks too (they share the media element); an

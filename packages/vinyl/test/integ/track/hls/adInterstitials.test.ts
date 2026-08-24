@@ -257,15 +257,17 @@ describe('hls ad interstitials integ', () => {
     })
 
     // ─── Model transitions ───────────────────────────────────────────────
-    it('emits currentAdBreakChange as the playhead crosses into and out of the break', async () => {
+    it('emits adBreakEntered/adBreakCompleted as the playhead crosses into and out of the break', async () => {
         await loadAndAwaitAdBreaks()
         const player = suite.player
         const entered: string[] = []
         const exited: string[] = []
-        const sub = player.on('currentAdBreakChange', (e) => {
-            if (e.current) entered.push(e.current.id)
-            else if (e.previous) exited.push(e.previous.id)
-        })
+        const enteredSub = player.on('adBreakEntered', (e) =>
+            entered.push(e.adBreak.id)
+        )
+        const exitedSub = player.on('adBreakCompleted', (e) =>
+            exited.push(e.adBreak.id)
+        )
         try {
             await playThenSeek(MIDROLL_TIME - 1)
             // Enter: the playhead crosses into the break.
@@ -279,7 +281,8 @@ describe('hls ad interstitials integ', () => {
                 .withContext('exited.includes(AD_ID)')
                 .toBeTrue()
         } finally {
-            sub()
+            enteredSub()
+            exitedSub()
         }
     })
 
@@ -579,9 +582,9 @@ describe('hls ad interstitials integ', () => {
         // non-null and the playhead would stall below the break start, timing
         // this poll out.
         const reentered: string[] = []
-        const sub = player.on('currentAdBreakChange', (e) => {
-            if (e.current) reentered.push(e.current.id)
-        })
+        const sub = player.on('adBreakEntered', (e) =>
+            reentered.push(e.adBreak.id)
+        )
         try {
             await seekTolerant(MIDROLL_TIME - 5)
             await player.play().catch(() => undefined)
@@ -816,9 +819,9 @@ describe('hls ad interstitials integ', () => {
         // A postroll that is never suppressed re-enters on each content
         // `ended`, looping forever. Record every entry to catch a replay.
         const postrollEntries: string[] = []
-        const sub = player.on('currentAdBreakChange', (e) => {
-            if (e.current?.placement === 'postroll') {
-                postrollEntries.push(e.current.id)
+        const sub = player.on('adBreakEntered', (e) => {
+            if (e.adBreak.placement === 'postroll') {
+                postrollEntries.push(e.adBreak.id)
             }
         })
         try {
@@ -1198,9 +1201,9 @@ describe('hls ad interstitials integ (art19 real stream)', () => {
     it('resumes content, not another break, after the preroll ends (natural)', async () => {
         const player = suite.player
         const enteredPlacements: string[] = []
-        const sub = player.on('currentAdBreakChange', (e) => {
-            if (e.current) enteredPlacements.push(e.current.placement)
-        })
+        const sub = player.on('adBreakEntered', (e) =>
+            enteredPlacements.push(e.adBreak.placement)
+        )
         try {
             player.load({ type: 'hls', uri: STREAM })
             await nextEventAsPromise(player, 'currentTrackAdsChange', {
@@ -1249,9 +1252,9 @@ describe('hls ad interstitials integ (ad failure recovery)', () => {
     it('recovers to content when a preroll ad never loads', async () => {
         const player = suite.player
         const enteredPlacements: string[] = []
-        const sub = player.on('currentAdBreakChange', (e) => {
-            if (e.current) enteredPlacements.push(e.current.placement)
-        })
+        const sub = player.on('adBreakEntered', (e) =>
+            enteredPlacements.push(e.adBreak.placement)
+        )
         try {
             // Subscribe before playback so no event is missed.
             const adErrored = nextEventAsPromise(player, 'adError', {
@@ -1262,9 +1265,9 @@ describe('hls ad interstitials integ (ad failure recovery)', () => {
             })
             const midrollEntered = nextEventAsPromise(
                 player,
-                'currentAdBreakChange',
+                'adBreakEntered',
                 {
-                    filter: (e) => e.current?.placement === 'midroll',
+                    filter: (e) => e.adBreak.placement === 'midroll',
                     timeout: 40,
                 }
             )
