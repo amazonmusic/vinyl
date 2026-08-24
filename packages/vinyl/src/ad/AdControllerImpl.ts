@@ -131,11 +131,6 @@ export class AdControllerImpl
     // `emptied`); until then it is not a content position and must not trip a
     // midroll cue.
     private awaitingContentResume = false
-    // Whether an ad actually took over the media element during the current
-    // break. Only such a break produces the ad→content swap that clears the
-    // gate; a break that ended with no ad (no-fill, failed resolve) never
-    // displaced the element and must not arm it.
-    private adEnteredInBreak = false
     private _currentAdIndex: number = -1
     private _totalAds: number = 0
     private pendingAdBreaks: AdBreakInfo[] = []
@@ -373,12 +368,10 @@ export class AdControllerImpl
         const current = value ?? null
         if (previous?.id === value?.id) return
         this._currentAdBreak = current
-        if (previous && !current && this.adEnteredInBreak) {
-            // Leaving a break whose ad took over the element: gate midroll cues
-            // until the content source is re-established.
+        if (previous && !current) {
+            // Leaving a break: gate midroll cues until content resumes.
             this.awaitingContentResume = true
         }
-        this.adEnteredInBreak = false
         // Each break accounts its own playout independently.
         this.breakPlayoutElapsed = 0
         logDebug(
@@ -453,7 +446,6 @@ export class AdControllerImpl
 
     private startAd(value: AdInfo): void {
         this._currentAd = value
-        this.adEnteredInBreak = true
         this.adStats = createAdStats()
         const stats = this.adStats
         logDebug(this, 'adEntered', value)

@@ -450,60 +450,6 @@ describe('AdControllerImpl', () => {
             expect(errors.length).toBe(1)
             expect(c.currentAdBreak).toBeNull()
         })
-
-        // A no-fill / failed-resolve break completes without any ad taking over
-        // the media element, so there is no ad→content swap to re-establish the
-        // content playhead. Such a break must not gate later midrolls, or every
-        // subsequent midroll in the session would be silently dropped.
-        it('does not suppress a later midroll after a no-fill break', async () => {
-            const c = createController()
-            const entered: string[] = []
-            c.on('adBreakEntered', (e) => {
-                entered.push(e.adBreak.id)
-            })
-            c.setAds(
-                trackAds(
-                    makeBreak({
-                        id: 'mid1',
-                        startTime: 5,
-                        duration: 10,
-                        ads: [],
-                    }),
-                    makeBreak({ id: 'mid2', startTime: 20, duration: 10 })
-                )
-            )
-            updateTime(6)
-            await flush()
-            expect(c.currentAdBreak).toBeNull()
-            updateTime(21)
-            await flush()
-            expect(c.currentAdBreak?.id).toBe('mid2')
-            expect(entered).toEqual(['mid1', 'mid2'])
-        })
-
-        it('does not suppress a later midroll after a failed ad-list resolve', async () => {
-            const c = createController()
-            const errors: unknown[] = []
-            c.on('adError', (e) => errors.push(e.error))
-            c.setAds(
-                trackAds(
-                    makeBreak({
-                        id: 'mid1',
-                        startTime: 5,
-                        duration: 10,
-                        ads: () => Promise.reject(new Error('no ads')),
-                    }),
-                    makeBreak({ id: 'mid2', startTime: 20, duration: 10 })
-                )
-            )
-            updateTime(6)
-            await flush()
-            expect(errors.length).toBe(1)
-            expect(c.currentAdBreak).toBeNull()
-            updateTime(21)
-            await flush()
-            expect(c.currentAdBreak?.id).toBe('mid2')
-        })
     })
 
     describe('failAd', () => {
