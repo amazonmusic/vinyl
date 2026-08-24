@@ -116,9 +116,7 @@ describe('AdControllerImpl', () => {
             const c = createController()
             c.setAds(trackAds(makeBreak({ startTime: 10, duration: 5 })))
             const entered: (string | null)[] = []
-            c.on('currentAdBreakChange', (e) =>
-                entered.push(e.current?.id ?? null)
-            )
+            c.on('adBreakEntered', (e) => entered.push(e.adBreak.id))
 
             updateTime(9)
             await flush()
@@ -136,7 +134,7 @@ describe('AdControllerImpl', () => {
             const c = createController()
             c.setAds(trackAds(makeBreak({ startTime: 10, duration: 10 })))
             let changes = 0
-            c.on('currentAdBreakChange', () => changes++)
+            c.on('adBreakEntered', () => changes++)
             updateTime(11)
             await flush()
             updateTime(12)
@@ -174,8 +172,8 @@ describe('AdControllerImpl', () => {
         it('does not trip a midroll from the ended preroll ad-track playhead', async () => {
             const c = createController()
             const entered: string[] = []
-            c.on('currentAdBreakChange', (e) => {
-                if (e.current) entered.push(e.current.placement)
+            c.on('adBreakEntered', (e) => {
+                entered.push(e.adBreak.placement)
             })
             // A preroll at 0 and a midroll at 5s whose duration is unknown, so
             // its active window is unbounded until the asset resolves — any time
@@ -246,8 +244,8 @@ describe('AdControllerImpl', () => {
         it('a user seek before the content swap does not trip a midroll off the stale ad time', async () => {
             const c = createController()
             const entered: string[] = []
-            c.on('currentAdBreakChange', (e) => {
-                if (e.current) entered.push(e.current.placement)
+            c.on('adBreakEntered', (e) => {
+                entered.push(e.adBreak.placement)
             })
             c.setAds(
                 trackAds(
@@ -335,9 +333,8 @@ describe('AdControllerImpl', () => {
             await flush()
             c.skipAd() // to a2
             const changes: (string | null)[] = []
-            c.on('currentAdBreakChange', (e) =>
-                changes.push(e.current?.id ?? null)
-            )
+            c.on('adBreakEntered', (e) => changes.push(e.adBreak.id))
+            c.on('adBreakCompleted', () => changes.push(null))
             c.skipAd() // past last -> break ends
             expect(changes).toEqual([null])
             expect(c.currentAdBreak).toBeNull()
@@ -346,8 +343,9 @@ describe('AdControllerImpl', () => {
         it('is a no-op when no ad is active', () => {
             const c = createController()
             c.setAds(trackAds(makeBreak()))
-            const spy = jasmine.createSpy('currentAdBreakChange')
-            c.on('currentAdBreakChange', spy)
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakEntered', spy)
+            c.on('adBreakCompleted', spy)
             c.skipAd()
             expect(spy).not.toHaveBeenCalled()
         })
@@ -358,8 +356,9 @@ describe('AdControllerImpl', () => {
             updateTime(5)
             await flush()
             c.skipAd()
-            const spy = jasmine.createSpy('currentAdBreakChange')
-            c.on('currentAdBreakChange', spy)
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakEntered', spy)
+            c.on('adBreakCompleted', spy)
             updateTime(7)
             await flush()
             expect(spy).not.toHaveBeenCalled()
@@ -370,8 +369,9 @@ describe('AdControllerImpl', () => {
     describe('skipAdBreak', () => {
         it('is a no-op when no break is active', () => {
             const c = createController()
-            const spy = jasmine.createSpy('currentAdBreakChange')
-            c.on('currentAdBreakChange', spy)
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakEntered', spy)
+            c.on('adBreakCompleted', spy)
             c.skipAdBreak()
             expect(spy).not.toHaveBeenCalled()
         })
@@ -403,9 +403,8 @@ describe('AdControllerImpl', () => {
             updateTime(1)
             await flush()
             const events: (string | null)[] = []
-            c.on('currentAdBreakChange', (e) =>
-                events.push(e.current?.id ?? null)
-            )
+            c.on('adBreakEntered', (e) => events.push(e.adBreak.id))
+            c.on('adBreakCompleted', () => events.push(null))
             c.skipAdBreak()
             expect(events).toEqual([null])
             expect(c.currentAdBreak).toBeNull()
@@ -413,6 +412,56 @@ describe('AdControllerImpl', () => {
             updateTime(5)
             await flush()
             expect(c.currentAdBreak).toBeNull()
+        })
+    })
+
+    describe('a break with no ads', () => {
+        it('completes immediately with a resume position and plays no ad', async () => {
+            const c = createController()
+            const entered: string[] = []
+            const completed: { id: string; resumePosition: number }[] = []
+            c.on('adBreakEntered', (e) => entered.push(e.adBreak.id))
+            c.on('adBreakCompleted', (e) =>
+                completed.push({
+                    id: e.adBreak.id,
+                    resumePosition: e.resumePosition,
+                })
+            )
+            c.setAds(
+                trackAds(
+                    makeBreak({
+                        id: 'mid',
+                        startTime: 10,
+                        duration: 5,
+                        resumeOffset: 2,
+                        ads: [],
+                    })
+                )
+            )
+            updateTime(10)
+            await flush()
+            // The break was entered and immediately completed (resume =
+            // startTime + offset), and no ad ever played.
+            expect(entered).toEqual(['mid'])
+            expect(completed).toEqual([{ id: 'mid', resumePosition: 12 }])
+            expect(c.currentAd).toBeNull()
+            expect(c.currentAdBreak).toBeNull()
+        })
+
+        it('advances to the next break rather than trapping the playhead', async () => {
+            const c = createController()
+            const entered: string[] = []
+            c.on('adBreakEntered', (e) => entered.push(e.adBreak.id))
+            c.setAds(
+                trackAds(
+                    makeBreak({ id: 'pre1', placement: 'preroll', ads: [] }),
+                    makeBreak({ id: 'pre2', placement: 'preroll' })
+                )
+            )
+            await flush()
+            // The empty first preroll completes and the second is entered.
+            expect(entered).toEqual(['pre1', 'pre2'])
+            expect(c.currentAdBreak?.id).toBe('pre2')
         })
     })
 
@@ -472,8 +521,8 @@ describe('AdControllerImpl', () => {
         it('does not suppress a later midroll after a no-fill break', async () => {
             const c = createController()
             const entered: string[] = []
-            c.on('currentAdBreakChange', (e) => {
-                if (e.current) entered.push(e.current.id)
+            c.on('adBreakEntered', (e) => {
+                entered.push(e.adBreak.id)
             })
             c.setAds(
                 trackAds(
@@ -683,15 +732,16 @@ describe('AdControllerImpl', () => {
             await flush()
             expect(c.currentAd?.id).toBe('a1')
             const changes: (string | null)[] = []
-            c.on('currentAdBreakChange', (e) =>
-                changes.push(e.current?.id ?? null)
-            )
+            c.on('adBreakEntered', (e) => changes.push(e.adBreak.id))
+            c.on('adBreakCompleted', () => changes.push(null))
             // A content change sets ads for a different track (or clears them);
             // the in-flight ad must not leak into the new presentation.
             c.setAds({ trackUri: 't2', adBreaks: [] })
             expect(c.currentAd).toBeNull()
             expect(c.currentAdBreak).toBeNull()
-            expect(changes).toEqual([null])
+            // A track-change teardown is not a natural break completion, so no
+            // ad-break event fires.
+            expect(changes).toEqual([])
         })
 
         it('ignores an ended event when no ad is active', () => {
@@ -739,7 +789,7 @@ describe('AdControllerImpl', () => {
     describe('X-RESUME-OFFSET resume position', () => {
         function resumesOf(c: AdControllerImpl): number[] {
             const resumes: number[] = []
-            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            c.on('adBreakCompleted', (e) => resumes.push(e.resumePosition))
             return resumes
         }
 
@@ -823,7 +873,7 @@ describe('AdControllerImpl', () => {
         it('resumes at the cue point even after a seek within the ad', async () => {
             const c = createController()
             const resumes: number[] = []
-            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            c.on('adBreakCompleted', (e) => resumes.push(e.resumePosition))
             c.setAds(
                 trackAds(
                     makeBreak({
@@ -857,7 +907,7 @@ describe('AdControllerImpl', () => {
         it('parks a postroll resume at the content end, not past it', async () => {
             const c = createController()
             const resumes: number[] = []
-            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            c.on('adBreakCompleted', (e) => resumes.push(e.resumePosition))
             playbackController.duration = 100
             c.setAds(
                 trackAds(
@@ -941,7 +991,7 @@ describe('AdControllerImpl', () => {
         it('ends the whole break when the playout limit is reached, dropping remaining ads', async () => {
             const c = createController()
             const resumes: number[] = []
-            c.on('adCompleted', (e) => resumes.push(e.resumePosition))
+            c.on('adBreakCompleted', (e) => resumes.push(e.resumePosition))
             c.setAds(
                 trackAds(
                     makeBreak({
@@ -1073,8 +1123,8 @@ describe('AdControllerImpl', () => {
         it('suppresses a completed postroll so enterPostroll does not replay it', async () => {
             const c = createController()
             const entered: string[] = []
-            c.on('currentAdBreakChange', (e) => {
-                if (e.current) entered.push(e.current.id)
+            c.on('adBreakEntered', (e) => {
+                entered.push(e.adBreak.id)
             })
             c.setAds(
                 trackAds(
@@ -1401,8 +1451,9 @@ describe('AdControllerImpl', () => {
             const c = createController()
             c.setAds(trackAds(makeBreak({ startTime: 10, duration: 5 })))
             c.dispose()
-            const spy = jasmine.createSpy('currentAdBreakChange')
-            c.on('currentAdBreakChange', spy)
+            const spy = jasmine.createSpy('adBreakChange')
+            c.on('adBreakEntered', spy)
+            c.on('adBreakCompleted', spy)
             updateTime(11)
             await flush()
             expect(spy).not.toHaveBeenCalled()

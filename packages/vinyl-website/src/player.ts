@@ -131,14 +131,15 @@ player.on('currentTrackChange', () => {
 player.on('currentTrackAdsChange', ({ current }) => {
     playerState.adBreaks$.value = current?.adBreaks ?? []
 })
-player.on('currentAdBreakChange', (event) => {
-    playerState.currentAdBreak$.value = event.current
+player.on('adBreakEntered', (event) => {
+    playerState.currentAdBreak$.value = event.adBreak
+})
+player.on('adBreakCompleted', () => {
+    playerState.currentAdBreak$.value = null
     // The break ended; clear any lingering ad readouts.
-    if (!event.current) {
-        playerState.adTimeRemaining$.value = 0
-        playerState.canSkipAd$.value = false
-        playerState.skipIn$.value = null
-    }
+    playerState.adTimeRemaining$.value = 0
+    playerState.canSkipAd$.value = false
+    playerState.skipIn$.value = null
 })
 onAny(player, ['adEntered', 'adCompleted'], (event) => {
     playerState.currentAdIndex$.value = {

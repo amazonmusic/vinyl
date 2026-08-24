@@ -20,10 +20,17 @@ export interface AdEventMap {
     readonly currentTrackAdsChange: ChangeEvent<TrackAds | null>
 
     /**
-     * Emitted when the current ad break changes.
-     * An ad break may contain one or more ads.
+     * Dispatched when an ad break has been entered — its ads may still be
+     * resolving. An ad break may contain one or more ads.
      */
-    readonly currentAdBreakChange: ChangeEvent<AdBreakInfo | null>
+    readonly adBreakEntered: AdBreakEvent
+
+    /**
+     * Dispatched when the current ad break has completed: all of its ads
+     * played, were skipped, it hit its playout limit, or it had no ads. Carries
+     * the position at which primary content resumes.
+     */
+    readonly adBreakCompleted: AdBreakCompleteEvent
 
     /**
      * Dispatched when an ad region has been entered.
@@ -158,7 +165,14 @@ export interface AdCompleteEvent extends AdEvent {
 
     /** The reason the ad changed, e.g. 'ended' for completed naturally, or 'skipped' */
     readonly reason: AdChangeReason
+}
 
+export interface AdBreakEvent {
+    /** The ad break. */
+    readonly adBreak: AdBreakInfo
+}
+
+export interface AdBreakCompleteEvent extends AdBreakEvent {
     /**
      * The absolute media-timeline position, in seconds, at which primary content
      * resumes after this break. The controller has already resolved the break's
@@ -171,7 +185,8 @@ export type AdChangeReason = 'ended' | 'skipped' | 'contentChange' | 'error'
 
 export const ALL_AD_EVENTS = [
     'currentTrackAdsChange',
-    'currentAdBreakChange',
+    'adBreakEntered',
+    'adBreakCompleted',
     'adFirstQuartile',
     'adEntered',
     'adPlaying',

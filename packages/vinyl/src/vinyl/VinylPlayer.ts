@@ -826,7 +826,8 @@ export class VinylPlayer<
      * The ad break currently containing the playhead, or null when the
      * playhead is in primary content.
      *
-     * Listen to {@link AdEventMap.currentAdBreakChange} for transitions.
+     * Listen to {@link AdEventMap.adBreakEntered} and
+     * {@link AdEventMap.adBreakCompleted} for transitions.
      */
     get currentAdBreak(): AdBreakInfo | null {
         return this.deps.adController.currentAdBreak

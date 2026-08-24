@@ -1538,15 +1538,11 @@ describe('TrackControllerImpl', () => {
             expect(deps.adController.failAd).toHaveBeenCalled()
         })
 
-        it('does nothing when an ad completes with no parent track', () => {
+        it('does nothing when an ad break completes with no parent track', () => {
             expect(() =>
-                deps.adController.dispatch('adCompleted', {
+                deps.adController.dispatch('adBreakCompleted', {
                     adBreak: adBreak('midroll'),
-                    ad,
-                    reason: 'ended',
                     resumePosition: 0,
-                    index: 0,
-                    totalAds: 1,
                 })
             ).not.toThrow()
             expect(trackController.currentTrack).toBeNull()
@@ -1555,13 +1551,9 @@ describe('TrackControllerImpl', () => {
         it('resumes the parent track at the resume position after a midroll ad', async () => {
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
-            deps.adController.dispatch('adCompleted', {
+            deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('midroll'),
-                ad,
-                reason: 'ended',
                 resumePosition: 7,
-                index: 0,
-                totalAds: 1,
             })
             await clock.tick()
             const track = trackController.currentTrack as MockTrack
@@ -1575,13 +1567,9 @@ describe('TrackControllerImpl', () => {
             const [main] = createLoadOptionsList(1)
             main.config = { startTime: 3 }
             trackController.load(main)
-            deps.adController.dispatch('adCompleted', {
+            deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('preroll'),
-                ad,
-                reason: 'ended',
                 resumePosition: 99,
-                index: 0,
-                totalAds: 1,
             })
             await clock.tick()
             const track = trackController.currentTrack as MockTrack
@@ -1597,13 +1585,9 @@ describe('TrackControllerImpl', () => {
                 trackController,
                 'currentTrackChange'
             )
-            deps.adController.dispatch('adCompleted', {
+            deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('midroll'),
-                ad,
-                reason: 'ended',
                 resumePosition: 5,
-                index: 0,
-                totalAds: 1,
             })
             // Interrupt: a new ad becomes current before the deferred resume runs.
             deps.adController.currentAd = { ...ad, id: 'other' }
@@ -1616,13 +1600,9 @@ describe('TrackControllerImpl', () => {
             const list = createLoadOptionsList(2)
             trackController.load(...list)
             const trackEnded = createEventSpy(trackController, 'trackEnded')
-            deps.adController.dispatch('adCompleted', {
+            deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('postroll'),
-                ad,
-                reason: 'ended',
                 resumePosition: 0,
-                index: 0,
-                totalAds: 1,
             })
             await clock.tick()
             expect(trackController.currentTrack?.uri).toBe(list[1].uri)
@@ -1634,13 +1614,9 @@ describe('TrackControllerImpl', () => {
             trackController.load(...createLoadOptionsList(1))
             const queueEnded = createEventSpy(trackController, 'queueEnded')
             const trackEnded = createEventSpy(trackController, 'trackEnded')
-            deps.adController.dispatch('adCompleted', {
+            deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('postroll'),
-                ad,
-                reason: 'ended',
                 resumePosition: 0,
-                index: 0,
-                totalAds: 1,
             })
             await clock.tick()
             expect(trackEnded).toHaveBeenCalledWith({})
@@ -1650,13 +1626,9 @@ describe('TrackControllerImpl', () => {
         it('does not treat a completed midroll ad as the track ending', async () => {
             trackController.load(...createLoadOptionsList(1))
             const trackEnded = createEventSpy(trackController, 'trackEnded')
-            deps.adController.dispatch('adCompleted', {
+            deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('midroll'),
-                ad,
-                reason: 'ended',
                 resumePosition: 5,
-                index: 0,
-                totalAds: 1,
             })
             await clock.tick()
             expect(trackEnded).not.toHaveBeenCalled()
