@@ -4,6 +4,7 @@
  */
 
 import any = jasmine.any
+import createSpy = jasmine.createSpy
 import {
     type PlaybackControllerEventMap,
     PlayedReason,
@@ -35,8 +36,8 @@ describe('integ playing and played events', () => {
 
     async function play(): Promise<void> {
         player.load({
-            type: 'src',
-            uri: vinylTestAssets.prog.libmp3lame_60s_2ch_16bit_44100Hz_48kbps,
+            type: 'dash',
+            uri: vinylTestAssets.dash.live_static_aac_opus_flac_60s_segmentBase,
         })
         await player.play()
     }
@@ -99,6 +100,20 @@ describe('integ playing and played events', () => {
                 playingSpy.calls.reset()
                 const nextPlayed = playedSpy.next(15)
                 const nextPlaying = playingSpy.next(15)
+                // Capture only the FIRST of each: the seek interruption's
+                // `played` must precede the resume `playing`, but a later
+                // re-buffer `played` (e.g. Safari buffering at the seek target
+                // after it resumes) is allowed and must not fail the ordering.
+                const firstPlayed = createSpy('firstPlayed')
+                const firstPlaying = createSpy('firstPlaying')
+                const unPlayed = player.on('played', () => {
+                    firstPlayed()
+                    unPlayed()
+                })
+                const unPlaying = player.on('playing', () => {
+                    firstPlaying()
+                    unPlaying()
+                })
                 await player.seekTo(20)
                 await expectAsync(nextPlayed).toBeResolvedTo({
                     started: any(Number),
@@ -110,7 +125,7 @@ describe('integ playing and played events', () => {
                     reason: any(String),
                 })
                 await expectAsync(nextPlaying).toBeResolved()
-                expect(playedSpy).toHaveBeenCalledBefore(playingSpy)
+                expect(firstPlayed).toHaveBeenCalledBefore(firstPlaying)
             })
         })
 
