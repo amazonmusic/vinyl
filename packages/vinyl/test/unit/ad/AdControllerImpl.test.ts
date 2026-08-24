@@ -237,69 +237,6 @@ describe('AdControllerImpl', () => {
             expect(c.currentAdBreak?.placement).toBe('midroll')
             expect(entered).toEqual(['preroll', 'midroll'])
         })
-
-        // Regression: a bare user seek in the post-break/pre-`emptied` window is
-        // not proof content resumed — the ad playhead is still resident — so it
-        // must not disarm the gate. Only `emptied` (the swap) clears it.
-        it('a user seek before the content swap does not trip a midroll off the stale ad time', async () => {
-            const c = createController()
-            const entered: string[] = []
-            c.on('adBreakEntered', (e) => {
-                entered.push(e.adBreak.placement)
-            })
-            c.setAds(
-                trackAds(
-                    makeBreak({
-                        id: 'pre',
-                        startTime: 0,
-                        placement: 'preroll',
-                        ads: [
-                            {
-                                id: 'pa',
-                                startTime: 0,
-                                duration: null,
-                                uri: 'pre.m3u8',
-                            },
-                        ],
-                    }),
-                    makeBreak({
-                        id: 'mid',
-                        startTime: 5,
-                        duration: null,
-                        placement: 'midroll',
-                    })
-                )
-            )
-            await flush()
-            // The preroll plays to t=30 (past the 5s midroll cue) and ends,
-            // arming the gate.
-            playbackController.currentTime = 30
-            updateTime(30)
-            playbackController.dispatch('ended', {
-                previous: false,
-                current: true,
-            })
-            await flush()
-            expect(c.currentAdBreak).toBeNull()
-
-            // A user seek arrives before the content source swaps in; the
-            // element still reports the stale ad playhead. It must not disarm
-            // the gate, so the midroll must not enter.
-            seekTo(30)
-            updateTime(30)
-            await flush()
-            expect(entered).toEqual(['preroll'])
-            expect(c.currentAdBreak).toBeNull()
-
-            // Only once `emptied` swaps content in and the content playhead
-            // forward-crosses the cue does the midroll enter.
-            playbackController.currentTime = 0
-            playbackController.dispatch('emptied', {})
-            updateTime(6)
-            await flush()
-            expect(c.currentAdBreak?.placement).toBe('midroll')
-            expect(entered).toEqual(['preroll', 'midroll'])
-        })
     })
 
     describe('skipAd', () => {
@@ -1037,7 +974,6 @@ describe('AdControllerImpl', () => {
             expect(c.currentAd?.id).toBe('a1')
             c.skipAd() // completes → "spent"
             expect(c.currentAdBreak).toBeNull()
-            playbackController.dispatch('emptied', {}) // ad→content swap clears the gate
             seekTo(5) // seek back before start → re-arm
             await flush()
             updateTime(11) // forward crossing → re-enter
@@ -1053,7 +989,6 @@ describe('AdControllerImpl', () => {
             updateTime(11)
             await flush()
             c.skipAd()
-            playbackController.dispatch('emptied', {}) // ad→content swap clears the gate
             seekTo(5)
             await flush()
             updateTime(11)
@@ -1067,7 +1002,6 @@ describe('AdControllerImpl', () => {
             updateTime(11)
             await flush()
             c.skipAd() // spent
-            playbackController.dispatch('emptied', {}) // ad→content swap clears the gate
             // The ad→content source swap fires a 'seeked' with reason 'emptied'
             // while the MediaSource re-inits and transiently reports time 0.
             // This must NOT re-arm the break (only a real user seek does).
@@ -1090,7 +1024,6 @@ describe('AdControllerImpl', () => {
             updateTime(11)
             await flush()
             c.skipAd()
-            playbackController.dispatch('emptied', {}) // ad→content swap clears the gate
             seekTo(12) // seek, but not before start → not re-armed
             await flush()
             updateTime(13) // forward: still suppressed

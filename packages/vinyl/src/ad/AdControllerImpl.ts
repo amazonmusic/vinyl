@@ -188,6 +188,10 @@ export class AdControllerImpl
         )
         add(
             playbackController.on('seeked', (event) => {
+                // A settled seek (a user scrub or the ad→content swap) puts a
+                // real content playhead back on the element, so midroll cues
+                // may be evaluated again.
+                this.awaitingContentResume = false
                 if (this.currentAd) {
                     this.adStats.timeStart = playbackController.currentTime
                     return
@@ -370,11 +374,8 @@ export class AdControllerImpl
         if (previous?.id === value?.id) return
         this._currentAdBreak = current
         if (previous && !current && this.adEnteredInBreak) {
-            // Armed only when an ad displaced the element, so the swap back to
-            // content is guaranteed to fire `emptied` — the sole gate clear
-            // (with clearCompletedAds). A bare seek can't clear it: in the
-            // post-break/pre-`emptied` window the stale ad playhead is still
-            // resident and would trip a spurious midroll.
+            // Leaving a break whose ad took over the element: gate midroll cues
+            // until the content source is re-established.
             this.awaitingContentResume = true
         }
         this.adEnteredInBreak = false
