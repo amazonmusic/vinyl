@@ -768,6 +768,7 @@ describe('PlaybackController', () => {
                         expect(playedSpy).not.toHaveBeenCalled()
                         clock.mockDate(new Date(60_000))
                         media.currentTime = 30
+                        media.dispatchEvent(mockEvent('timeupdate'))
                         media.dispatchEvent(mockEvent('seeking'))
                         expect(playedSpy).toHaveBeenCalledOnceWith({
                             started: 11_000,
@@ -786,6 +787,7 @@ describe('PlaybackController', () => {
                         expect(playedSpy).not.toHaveBeenCalled()
                         clock.mockDate(new Date(17_000))
                         media.currentTime = 53
+                        media.dispatchEvent(mockEvent('timeupdate'))
                         media.dispatchEvent(mockEvent('ended'))
                         expect(playedSpy).toHaveBeenCalledOnceWith({
                             started: 13_000,
@@ -795,6 +797,60 @@ describe('PlaybackController', () => {
                             playbackTime: 13,
                         })
                         expect(controller.playing).toBeFalse()
+                    })
+
+                    it('measures playbackTime from the last observed timeUpdate, not currentTime at the stop', () => {
+                        // currentTime can reset (e.g. to 0) as playback stops,
+                        // before the played event fires — playbackTime must use
+                        // the last time seen during playback, not that reset.
+                        const playedSpy = createEventSpy(controller, 'played')
+                        media.currentTime = 5
+                        media.dispatchEvent(mockEvent('playing'))
+                        media.currentTime = 45
+                        media.dispatchEvent(mockEvent('timeupdate'))
+                        media.currentTime = 0
+                        media.dispatchEvent(mockEvent('ended'))
+                        expect(playedSpy).toHaveBeenCalledOnceWith(
+                            objectContaining({ playbackTime: 40 })
+                        )
+                    })
+
+                    it('ignores a backward timeUpdate so a late negative seek does not shrink playbackTime', () => {
+                        // A timeUpdate reflecting a backward seek can land just
+                        // before the seeking event; it must not pull the observed
+                        // position below the play's forward progress.
+                        const playedSpy = createEventSpy(controller, 'played')
+                        media.currentTime = 5
+                        media.dispatchEvent(mockEvent('playing'))
+                        media.currentTime = 45
+                        media.dispatchEvent(mockEvent('timeupdate'))
+                        media.currentTime = 8
+                        media.dispatchEvent(mockEvent('timeupdate'))
+                        media.dispatchEvent(mockEvent('seeking'))
+                        expect(playedSpy).toHaveBeenCalledOnceWith(
+                            objectContaining({ playbackTime: 40 })
+                        )
+                    })
+
+                    it('resets the observed position per play so a prior play does not inflate playbackTime', () => {
+                        // A new play after a backward seek starts at an earlier
+                        // position — the previous play's higher position must not
+                        // carry over.
+                        const playedSpy = createEventSpy(controller, 'played')
+                        media.currentTime = 0
+                        media.dispatchEvent(mockEvent('playing'))
+                        media.currentTime = 30
+                        media.dispatchEvent(mockEvent('timeupdate'))
+                        media.dispatchEvent(mockEvent('seeking'))
+                        playedSpy.calls.reset()
+                        media.currentTime = 5
+                        media.dispatchEvent(mockEvent('playing'))
+                        media.currentTime = 8
+                        media.dispatchEvent(mockEvent('timeupdate'))
+                        media.dispatchEvent(mockEvent('pause'))
+                        expect(playedSpy).toHaveBeenCalledOnceWith(
+                            objectContaining({ playbackTime: 3 })
+                        )
                     })
 
                     describe('when not playing', () => {

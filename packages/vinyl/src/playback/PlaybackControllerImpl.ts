@@ -296,6 +296,15 @@ export class PlaybackControllerImpl
             }
         )
 
+        // Only advance the observed position forward; a backward timeUpdate
+        // (e.g. one arriving just before a backward seek) must not shrink a
+        // play's measured progress.
+        let lastKnownTime = this.currentTime
+        this.on('timeUpdate', () => {
+            if (this.currentTime > lastKnownTime)
+                lastKnownTime = this.currentTime
+        })
+
         // playing state + played event
         let startedTime = 0
         this.operationEvent(
@@ -305,12 +314,13 @@ export class PlaybackControllerImpl
             () => {
                 this._playing = true
                 startedTime = this.currentTime
+                lastKnownTime = startedTime
             },
             (info) => {
                 this._playing = false
                 this.dispatch('played', {
                     ...info,
-                    playbackTime: this.currentTime - startedTime,
+                    playbackTime: lastKnownTime - startedTime,
                 })
             }
         )
