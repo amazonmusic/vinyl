@@ -654,8 +654,12 @@ export class PlaybackControllerImpl
             )
             throw new InvalidSeekError(time, seekable, tolerance)
         }
+        // The end-of-range buffer exists only so playback can resume near the
+        // end; when paused there's nothing to keep playing, so allow seeking
+        // right up to the range end.
+        const seekableBuffer = this.paused ? 0 : this.options.minSeekableBuffer
         const clampedTime = Math.max(
-            Math.min(time, range[1] - this.options.minSeekableBuffer),
+            Math.min(time, range[1] - seekableBuffer),
             range[0]
         )
 

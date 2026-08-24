@@ -47,10 +47,12 @@ export async function expectTrackCanSeekTo(player: VinylPlayer, time: number) {
     const expectNoop = closeTo(player.currentTime, time, tolerance)
     await player.seekTo(time, tolerance)
 
+    // The end-of-range seek buffer is reserved only while playing (so playback
+    // can resume near the end); a paused seek lands right up to the range end.
     const expectedTime = clamp(
         time,
         0,
-        player.duration - getMinSeekableBufferDefault()
+        player.duration - (wasPaused ? 0 : getMinSeekableBufferDefault())
     )
     // Needs a large tolerance; browser implementations of seek may be imprecise.
     expect(player.currentTime).toBeCloseToWithin(expectedTime, 1)
