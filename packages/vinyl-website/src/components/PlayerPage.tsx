@@ -99,7 +99,7 @@ const adBreakTracks: Track[] = [
         contentType: 'video',
         url: `https://assets.dev.vinyl.music.amazon.dev/hls/vinyl_ad_breaks_av/long_preroll_early_midroll.m3u8`,
         description:
-            'Long preroll immediately followed by an early midroll — regression coverage for scheduling a midroll right after a preroll.',
+            'Long preroll immediately followed by an early midroll — coverage for scheduling a midroll right after a preroll.',
     },
     {
         title: 'Resume Offset + Playout Limit',
