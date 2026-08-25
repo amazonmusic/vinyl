@@ -14,7 +14,7 @@ import { Icon } from './icons'
 import { LIVE_DURATION } from '@amazon/vinyl'
 import { ScrubBar } from './ScrubBar'
 import { VolumeControl } from './VolumeControl'
-import { CaptionsControl } from './CaptionsControl'
+import { SettingsControl } from './SettingsControl'
 
 const target: LogTarget = {
     logPrefix: 'TransportBar',
@@ -238,21 +238,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                     </div>
                 </div>
                 <div className="transportActions">
-                    <CaptionsControl />
-                    <button
-                        className="transportBtn"
-                        title="Picture in Picture"
-                        visible={hasVideo$}
-                        onclick={() => {
-                            if (document.pictureInPictureElement) {
-                                document.exitPictureInPicture().catch(() => {})
-                            } else {
-                                media.requestPictureInPicture().catch(() => {})
-                            }
-                        }}
-                    >
-                        <Icon name="picture_in_picture_alt" />
-                    </button>
+                    <SettingsControl />
                     <button
                         className="transportBtn"
                         title="Fullscreen"
