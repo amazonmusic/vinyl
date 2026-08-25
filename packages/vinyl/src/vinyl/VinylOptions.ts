@@ -47,6 +47,23 @@ export interface VinylOptions {
     readonly preferredAudioLanguage: string | readonly string[] | null
 
     /**
+     * Preferred language(s) for text tracks (subtitles / closed captions), as
+     * RFC 5646 codes (e.g. `'en'`, `'ja'`, `'fr-CA'`). May be a single tag or
+     * an ordered list of tags — earlier entries are preferred, with the best
+     * relatedness match chosen among the discovered text tracks. When set, the
+     * matching text track is selected automatically and the choice carries
+     * across track changes (e.g. across an ad break), mirroring how
+     * {@link preferredAudioLanguage} drives audio selection.
+     *
+     * Unlike audio, `null` (the default) means *no caption preference*: it does
+     * NOT fall back to `navigator.languages` and does NOT force captions on —
+     * forced narrative subtitles still auto-display as usual. Setting it to a
+     * language turns captions on in that language; setting it back to `null`
+     * after a prior selection turns captions off.
+     */
+    readonly preferredTextLanguage: string | readonly string[] | null
+
+    /**
      * Explicit codec allow/deny overrides that bypass browser support
      * detection. Keys are RFC 6381 codec strings or prefixes (e.g. `"hvc1"`),
      * values are `'allow'` or `'deny'`. An `'allow'` forces a codec to be
@@ -75,6 +92,7 @@ export const defaultVinylOptions: VinylOptions = {
     abr: defaultQualitySelectorImplOptions,
     loudnessNormalization: defaultLoudnessNormalizationControllerImplOptions,
     preferredAudioLanguage: null,
+    preferredTextLanguage: null,
     codecOverrides: {},
     allowedContentTypes: null,
 }
@@ -83,6 +101,7 @@ export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
     abr: qualitySelectorImplOptionsValidator,
     loudnessNormalization: loudnessNormalizationControllerImplOptionsValidator,
     preferredAudioLanguage: string().or(array(string()).readonly()).orNull(),
+    preferredTextLanguage: string().or(array(string()).readonly()).orNull(),
     codecOverrides: record(string(), isOneOf('allow', 'deny')),
     allowedContentTypes: array(isOneOf(...RESTRICTABLE_CONTENT_TYPES))
         .cast<readonly RestrictableContentType[]>()

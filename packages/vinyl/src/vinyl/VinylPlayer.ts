@@ -65,7 +65,10 @@ import {
     type StreamingEventMap,
 } from '../streaming/StreamingEventMap'
 import type { LoadMetricEventMap } from '../streaming/LoadMetric'
-import type { InferObservableValueType } from '@amazon/vinyl-observable'
+import type {
+    InferObservableValueType,
+    ObservableValue,
+} from '@amazon/vinyl-observable'
 import type { VinylOptions } from './VinylOptions'
 import type { AutoResetController } from '../track/AutoResetController'
 import type { ChangeEvent } from '../event/ChangeEvent'
@@ -75,6 +78,7 @@ import {
     type TextTrackEventMap,
     type TextTrackInfo,
 } from '../text/TextTrack'
+import { pickPreferredTextTrack } from '../text/pickPreferredTextTrack'
 import { type AdEventMap, ALL_AD_EVENTS } from '../ad/AdController'
 import type { AdBreakInfo, AdInfo, TrackAds } from '../ad/AdBreakInfo'
 
@@ -387,6 +391,48 @@ export class VinylPlayer<
                     }
                 })
         )
+        // Text selection is driven by the preferred-text-language option,
+        // mirroring audio. On an explicit change apply it immediately (a `null`
+        // preference clears the selection = captions off). Text tracks are not
+        // part of the media timeline, so no stream rebuild is needed — the
+        // sidecar controller just switches tracks.
+        //
+        // `OptionsType` is an unconstrained generic here, so `pick` falls back
+        // to its untyped overload; cast to the known option type to read the
+        // preference value.
+        const preferredTextLanguage = this.deps.options.pick(
+            'preferredTextLanguage'
+        ) as unknown as ObservableValue<VinylOptions['preferredTextLanguage']>
+        add(
+            preferredTextLanguage.onData((value, previous) => {
+                if (previous !== undefined) this.selectPreferredTextTrack(value)
+            })
+        )
+        // Re-apply the preference when the track's text list changes (new track
+        // loaded, e.g. across an ad break) so the chosen language carries over.
+        // Only when a preference is set — with none, forced auto-selection in
+        // the text controller is left to behave as usual.
+        add(
+            this.on('textTracksChange', () => {
+                const pref = preferredTextLanguage.value
+                if (pref != null) this.selectPreferredTextTrack(pref)
+            })
+        )
+    }
+
+    /**
+     * Selects the text track matching {@link VinylOptions.preferredTextLanguage}
+     * on the current track's controller, or clears the selection when the
+     * preference is `null` or nothing matches. No-op without a current track.
+     */
+    private selectPreferredTextTrack(
+        preferred: VinylOptions['preferredTextLanguage']
+    ): void {
+        const controller = this.deps.trackController.currentTrack
+            ?.textTrackController as TextTrackController | null
+        if (!controller) return
+        const target = pickPreferredTextTrack(controller.textTracks, preferred)
+        controller.setActiveTextTrack(target?.id ?? null)
     }
 
     /**
