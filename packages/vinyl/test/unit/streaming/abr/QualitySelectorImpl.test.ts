@@ -818,6 +818,148 @@ describe('QualitySelectorImpl', () => {
         })
     })
 
+    describe('maxHeight / maxWidth', () => {
+        const videoQualities: readonly MediaQualityMetadata[] = [
+            {
+                ...createEmptyMediaQualityMetadata(),
+                contentType: 'video',
+                bandwidth: 1000,
+                bandwidthTotal: 1000,
+                width: 1920,
+                height: 1080,
+                qualityId: '1080p',
+            },
+            {
+                ...createEmptyMediaQualityMetadata(),
+                contentType: 'video',
+                bandwidth: 500,
+                bandwidthTotal: 500,
+                width: 1280,
+                height: 720,
+                qualityId: '720p',
+            },
+            {
+                ...createEmptyMediaQualityMetadata(),
+                contentType: 'video',
+                bandwidth: 100,
+                bandwidthTotal: 100,
+                width: 640,
+                height: 360,
+                qualityId: '360p',
+            },
+        ] as const
+
+        const prefetchState: PrefetchState = {
+            fetchedTime: 0,
+            previousQuality: null,
+            active: false,
+        }
+
+        beforeEach(() => {
+            // Plenty of bandwidth for the highest quality.
+            metrics.estimatedDownlinkBandwidth.ewmaLow = 5000
+        })
+
+        it('excludes video qualities above the max height', () => {
+            options.value = { ...options.value, maxHeight: 720 }
+            // 1080p is excluded; highest remaining is 720p (index 1).
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(1)
+        })
+
+        it('excludes video qualities above the max width', () => {
+            options.value = { ...options.value, maxWidth: 1280 }
+            // 1920-wide is excluded; highest remaining is 1280-wide (index 1).
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(1)
+        })
+
+        it('applies both width and height caps together', () => {
+            options.value = { ...options.value, maxWidth: 700, maxHeight: 400 }
+            // Only 360p (640x360) fits both caps.
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(2)
+        })
+
+        it('keeps the smallest quality when none fit within the cap', () => {
+            options.value = { ...options.value, maxHeight: 100 }
+            // No video fits; falls back to the smallest (last) quality so video
+            // still plays.
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(2)
+        })
+
+        it('treats null as no cap', () => {
+            options.value = {
+                ...options.value,
+                maxHeight: null,
+                maxWidth: null,
+            }
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(0)
+        })
+
+        it('does not restrict audio qualities by resolution', () => {
+            const audioQualities: readonly MediaQualityMetadata[] =
+                videoQualities.map((q) => ({
+                    ...q,
+                    contentType: 'audio',
+                    width: null,
+                    height: null,
+                }))
+            options.value = { ...options.value, maxHeight: 100 }
+            // Audio ignores the resolution cap; highest is selected.
+            expect(
+                selector.selectQuality(audioQualities, prefetchState)
+            ).toEqual(0)
+        })
+
+        it('treats qualities with unknown dimensions as within the cap', () => {
+            const unknownDims: readonly MediaQualityMetadata[] =
+                videoQualities.map((q) => ({
+                    ...q,
+                    width: null,
+                    height: null,
+                }))
+            options.value = { ...options.value, maxHeight: 100 }
+            // Unknown height cannot be filtered out; highest is selected.
+            expect(selector.selectQuality(unknownDims, prefetchState)).toEqual(
+                0
+            )
+        })
+
+        it('has no effect when strategy is HIGHEST', () => {
+            options.value = {
+                ...options.value,
+                strategy: AbrStrategy.HIGHEST,
+                maxHeight: 100,
+            }
+            // HIGHEST always returns 0, regardless of the cap.
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(0)
+        })
+
+        it('does not pin the previous quality when it exceeds a lowered cap', () => {
+            metrics.estimatedDownlinkBandwidth.ewmaLow = 5000
+            options.value = { ...options.value, maxHeight: 720 }
+            // Previously on 1080p with ample buffer; the lowered cap forces a
+            // switch down rather than pinning the now-too-large previous quality.
+            expect(
+                selector.selectQuality(videoQualities, {
+                    fetchedTime: 100, // >= highBufferThreshold
+                    previousQuality: videoQualities[0], // 1080p
+                    active: true,
+                })
+            ).toEqual(1)
+        })
+    })
+
     describe('toString', () => {
         it('returns a string', () => {
             expect(selector.toString()).toContain('QualitySelectorImpl')

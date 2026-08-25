@@ -93,6 +93,34 @@ export interface QualitySelectorImplOptions {
      * Default: null (no limit).
      */
     readonly maxBandwidth?: Maybe<number>
+
+    /**
+     * Maximum video height, in pixels, a quality may have to be selectable.
+     * Mirrors Shaka's `restrictions.maxHeight`.
+     *
+     * Only affects video qualities; audio (and other non-video) qualities are
+     * never restricted by resolution. Qualities with an unknown height (null)
+     * are treated as within the cap.
+     *
+     * Soft cap: if no video quality fits within the resolution limit, the
+     * quality with the smallest bandwidth is selected so video still plays.
+     *
+     * Has no effect when {@link strategy} is {@link AbrStrategy.LOWEST} or
+     * {@link AbrStrategy.HIGHEST}, since those strategies pin the selection
+     * regardless of resolution.
+     *
+     * Default: null (no limit).
+     */
+    readonly maxHeight?: Maybe<number>
+
+    /**
+     * Maximum video width, in pixels, a quality may have to be selectable.
+     * Mirrors Shaka's `restrictions.maxWidth`. Behaves like {@link maxHeight}
+     * but constrains the width dimension.
+     *
+     * Default: null (no limit).
+     */
+    readonly maxWidth?: Maybe<number>
 }
 
 export enum AbrStrategy {
@@ -129,6 +157,8 @@ export const qualitySelectorImplOptionsValidator: ObjectSchema<QualitySelectorIm
         bandwidthMultiplierHigh: number().optional(),
         restrictDecoderChangeOnAudioAbrUp: boolean().optional(),
         maxBandwidth: number().maybe().optional(),
+        maxHeight: number().maybe().optional(),
+        maxWidth: number().maybe().optional(),
     })
 
 export const defaultQualitySelectorImplOptions = {
@@ -139,6 +169,8 @@ export const defaultQualitySelectorImplOptions = {
     bandwidthMultiplierHigh: 0.9,
     restrictDecoderChangeOnAudioAbrUp: false,
     maxBandwidth: null,
+    maxHeight: null,
+    maxWidth: null,
 } as const satisfies QualitySelectorImplOptions
 
 export interface QualitySelectorImplDeps {
@@ -183,7 +215,22 @@ export class QualitySelectorImpl
             bandwidthMultiplierHigh,
             restrictDecoderChangeOnAudioAbrUp,
             maxBandwidth,
+            maxHeight,
+            maxWidth,
         } = this.options
+
+        // A video quality is within the resolution cap when both its width and
+        // height are at or below the configured maxima. Non-video qualities and
+        // qualities with an unknown dimension are never restricted, mirroring
+        // Shaka's restrictions.maxWidth/maxHeight (which only apply to video).
+        const withinResolution = (quality: MediaQualityMetadata): boolean =>
+            quality.contentType !== 'video' ||
+            ((maxHeight == null ||
+                quality.height == null ||
+                quality.height <= maxHeight) &&
+                (maxWidth == null ||
+                    quality.width == null ||
+                    quality.width <= maxWidth))
         const previousQuality = prefetchState.previousQuality
         // previousIndex will be -1 if the previously playing quality is not within the current qualities list.
         const previousIndex =
@@ -246,13 +293,23 @@ export class QualitySelectorImpl
                 bandwidth < previousQuality.bandwidthTotal
             ) {
                 // Measured bandwidth lower than current streaming bandwidth.
-                if (fetchedTime >= highBufferThreshold) {
+                if (
+                    fetchedTime >= highBufferThreshold &&
+                    withinResolution(previousQuality)
+                ) {
                     // Do not ABR-down inter-track when there is ample fetched data.
+                    // Skipped if the previous quality now exceeds the resolution
+                    // cap, so a lowered cap takes effect promptly.
                     return previousIndex
                 }
             } else {
-                if (fetchedTime < lowBufferThreshold) {
+                if (
+                    fetchedTime < lowBufferThreshold &&
+                    withinResolution(previousQuality)
+                ) {
                     // Do not ABR-up inter-track when there is not enough fetched data.
+                    // Skipped if the previous quality now exceeds the resolution
+                    // cap, so a lowered cap takes effect promptly.
                     return previousIndex
                 }
 
@@ -278,12 +335,23 @@ export class QualitySelectorImpl
                 quality.decoderId !== restrictDecoderId
             )
                 return false
+            // Exclude video qualities above the resolution cap.
+            if (!withinResolution(quality)) return false
             return (
                 quality.bandwidthTotal == null ||
                 quality.bandwidthTotal <= bandwidth
             )
         })
-        return index === -1 ? qualities.length - 1 : index
+        if (index !== -1) return index
+        // No quality fit the bandwidth budget (and resolution cap). Prefer the
+        // smallest quality that still satisfies the resolution cap so a video
+        // above the cap is never selected while a compliant option exists; if
+        // none satisfy the cap, fall back to the overall smallest so video
+        // still plays.
+        for (let i = qualities.length - 1; i >= 0; i--) {
+            if (withinResolution(qualities[i])) return i
+        }
+        return qualities.length - 1
     }
 
     get disposed(): boolean {
