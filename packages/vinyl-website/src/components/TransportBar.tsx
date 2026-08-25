@@ -43,7 +43,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         currentAdIndex$,
     } = playerState
 
-    const adActive$ = currentAdBreak$.map((b) => b != null)
+    const adBreakActive$ = currentAdBreak$.map((b) => b != null)
     const adRemainingLabel$ = adTimeRemaining$.map(formatTime)
     // The ad controller decides skippability (respecting the skip window and any
     // restriction); until the window opens, show a countdown instead of a button.
@@ -170,7 +170,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         >
             <div className="transportVideo" visible={showVideo$}>
                 {media}
-                <div className="adOverlay" visible={adActive$}>
+                <div className="adOverlay" visible={adBreakActive$}>
                     <span className="adBadge">{adLabel$}</span>
                     <span className="adRemaining">{adRemainingLabel$}</span>
                     <span
@@ -209,7 +209,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                 </div>
                 <div
                     className="transportProgress"
-                    visible={adActive$.map((v) => !v)}
+                    visible={adBreakActive$.map((v) => !v)}
                 >
                     <span className="progressTime">{elapsed$}</span>
                     <div className="progressBar">
@@ -225,7 +225,10 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                 </div>
                 {/* Spacer keeps the surrounding controls in place while the
                     scrub bar is hidden during ad playback. */}
-                <div className="transportProgressSpacer" visible={adActive$} />
+                <div
+                    className="transportProgressSpacer"
+                    visible={adBreakActive$}
+                />
                 <div className="transportTrackInfo">
                     <div className="trackTitle">
                         {track$.map((t) => t?.title)}

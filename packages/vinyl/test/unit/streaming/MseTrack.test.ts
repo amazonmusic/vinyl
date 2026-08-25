@@ -1126,68 +1126,44 @@ describe('MseTrack', () => {
             },
         ]
 
-        it('reports null ads while the timeline is still loading', () => {
+        it('resolves discovered ad breaks from the current timeline', async () => {
             setTimeline(makeTimeline(sampleAdBreaks))
             track = createTrack()
-            // Ads are marked loading (null) until the timeline resolves.
-            expect(track.ads).toBeNull()
+            expect(await track.getAds()).toEqual({
+                trackUri: track.uri,
+                adBreaks: sampleAdBreaks,
+            })
         })
 
-        it('surfaces discovered ad breaks via ads once the timeline resolves', async () => {
-            setTimeline(makeTimeline(sampleAdBreaks))
+        it('resolves an empty ad break list when the timeline has none', async () => {
+            setTimeline(makeTimeline([]))
             track = createTrack()
-            await flushPromises()
-            expect(track.ads?.adBreaks).toEqual(sampleAdBreaks)
-            expect(track.ads?.trackUri).toBe(track.uri)
+            expect((await track.getAds()).adBreaks).toEqual([])
         })
 
-        it('dispatches adsChange when discovered ad breaks resolve', async () => {
+        it('dispatches adsChange when the transformed timeline updates', async () => {
             setTimeline(makeTimeline(sampleAdBreaks))
             track = createTrack()
             const spy = createEventSpy(track, 'adsChange')
-            await flushPromises()
-            expect(spy).toHaveBeenCalledWith(
-                jasmine.objectContaining({
-                    current: jasmine.objectContaining({
-                        adBreaks: sampleAdBreaks,
-                    }),
-                })
+            // A subsequent transformed-timeline emission re-signals that the
+            // track's ads may have changed; consumers re-read via getAds().
+            ;(deps as any).mediaTimelineTransformed.value = Promise.resolve(
+                makeTimeline(sampleAdBreaks)
             )
+            await flushPromises()
+            expect(spy).toHaveBeenCalled()
         })
 
-        it('surfaces an empty ad break list when the timeline has none', async () => {
+        it('reflects the current timeline on each getAds call (no stale cache)', async () => {
             setTimeline(makeTimeline([]))
             track = createTrack()
-            await flushPromises()
-            expect(track.ads?.adBreaks).toEqual([])
-        })
-
-        it('discards ad breaks that resolve after the timeline changes', async () => {
-            let resolveAds!: (value: AdBreakList) => void
-            const timeline: MediaTimeline = {
-                periods: [],
-                minBufferTime: 2,
-                getAdBreaks: () =>
-                    new Promise((r) => {
-                        resolveAds = r
-                    }),
-                getDuration: () => Promise.resolve(Infinity),
-            }
-            setTimeline(timeline)
-            track = createTrack()
-            // Reaches the pending getAdBreaks() promise; ads remain loading.
-            await flushPromises()
-            expect(track.ads).toBeNull()
-
-            const adsSpy = createEventSpy(track, 'adsChange')
-            // Swap the media timeline so the in-flight resolution is stale.
-            ;(deps as any).mediaTimeline.value = Promise.resolve(timeline)
-            resolveAds(sampleAdBreaks)
-            await flushPromises()
-
-            // The stale result is dropped: ads are not applied.
-            expect(adsSpy).not.toHaveBeenCalled()
-            expect(track.ads).toBeNull()
+            expect((await track.getAds()).adBreaks).toEqual([])
+            // The timeline changes; getAds() awaits the current value, so a
+            // later call reflects the new breaks rather than a cached result.
+            ;(deps as any).mediaTimeline.value = Promise.resolve(
+                makeTimeline(sampleAdBreaks)
+            )
+            expect((await track.getAds()).adBreaks).toEqual(sampleAdBreaks)
         })
     })
 })

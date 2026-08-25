@@ -13,18 +13,22 @@ import {
     getOrSet,
     IllegalStateError,
     logDebug,
+    logError,
     logInfo,
     logWarn,
     LruCache,
     type Maybe,
     noop,
     type ReadonlyEventHost,
-    resolveValueProvider,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { PlaybackController } from '../playback/PlaybackController'
 import type { ReadonlyTrack, Track, TrackUri } from './Track'
-import type { TrackFactory, TrackLoadOptions } from './TrackFactory'
+import type {
+    TrackConfigOptions,
+    TrackFactory,
+    TrackLoadOptions,
+} from './TrackFactory'
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { AdController } from '../ad/AdController'
 import type { AdInfo } from '../ad/AdBreakInfo'
@@ -32,13 +36,6 @@ import type { AdInfo } from '../ad/AdBreakInfo'
 export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,
 > {
-    /**
-     * Emitted when the current track is changing.
-     * This is emitted before the previous track has been deactivated and
-     * new track has been activated.
-     */
-    readonly currentTrackChanging: ChangeEvent<ReadonlyTrack | null>
-
     /**
      * Emitted when the current track has changed.
      * If there is a queue change, the currentTrackChange event is always emitted first.
@@ -63,7 +60,7 @@ export interface TrackControllerEventMap<
      * on true track completion (e.g. logging a play) without confusing it with
      * an ad ending or the content ending before its postroll plays.
      */
-    readonly trackEnded: AnyRecord
+    readonly trackEnded: TrackEndedEvent
 
     /**
      * Emitted when the last track of the playback queue has ended.
@@ -74,12 +71,19 @@ export interface TrackControllerEventMap<
 }
 
 export const ALL_TRACK_CONTROLLER_EVENTS = [
-    'currentTrackChanging',
     'currentTrackChange',
     'queueChange',
     'trackEnded',
     'queueEnded',
 ] as const satisfies readonly (keyof TrackControllerEventMap<any>)[]
+
+/**
+ * Payload for the {@link TrackControllerEventMap.trackEnded} event: the load
+ * options of the track that finished playing (including any postroll ads).
+ */
+export interface TrackEndedEvent {
+    readonly track: TrackLoadOptions
+}
 
 /**
  * A readonly interface to the track controller.
@@ -263,25 +267,28 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
     // When tracks are preloaded, the cache capacity may expand automatically to accommodate.
     private _autoPreloadCapacity = 0
-    // Tracks whose ad preloading has already been wired, to avoid attaching a
-    // duplicate `adsChange` listener when a track is re-activated or re-prefetched.
-    private readonly adPreloadWired = new WeakSet<Track>()
     // The primary content track cache. Bounded by preloadCapacity + prefetch.
     private readonly trackCache = new LruCache<string, Track>(0)
+    // A monotonically increasing id for a queue change, to allow for queue changes during events.
+    private queueIdx = 0
+    private _queue: readonly TrackLoadOptionsType[] = []
+    // The current content track data in the queue. This will never represent an ad.
+    private _current: TrackLoadOptionsType | null = null
+    // The current Track, may be a content track or an ad track.
+    private _currentTrack: Track | null = null
+    // The parent content track. Used as a reference to the track that initiated an ad break.
+    private adParent: Track | null = null
+
+    // Forwards the current track's `error` events to adController.failAd.
+    // Re-subscribed on each setCurrentTrack, cleared when the track changes.
+    private currentTrackErrorSub: Unsubscribe | null = null
+
     // Ad tracks keyed by parent content URI, kept out of the content cache.
     // Pegged to the parent: disposed when the parent is evicted (see onEvict).
     private readonly adTracksByParent = new Map<
         TrackUri,
         Map<TrackUri, Track>
     >()
-    // A monotonically increasing id for a queue change, to allow for queue changes during events.
-    private queueIdx = 0
-    private _queue: readonly TrackLoadOptionsType[] = []
-    private _current: TrackLoadOptionsType | null = null
-    private _adParent: TrackLoadOptionsType | null = null
-    private _currentTrack: Track | null = null
-    // Active track listeners
-    private activeTrackSub: Unsubscribe | null = null
 
     private readonly disposer = createDisposer()
     private _options: TrackControllerImplOptions =
@@ -296,9 +303,6 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         const { playbackController } = deps
 
         this.trackCache.onEvicting = (track) => {
-            // Keep the parent of the playing ad: its ad tracks are pegged to
-            // it, so evicting it would dispose the ad on screen.
-            if (this._adParent?.uri === track.uri) return false
             // Do not evict tracks within the prefetch range.
             return (
                 this.getPrefetched().find((value) => value.uri === track.uri) ==
@@ -309,7 +313,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         this.trackCache.onEvict = (track) => {
             logDebug(this, `Disposing track: ${track.uri}`)
             // Ad tracks are pegged to their parent — disposing them here keeps
-            // the ad map bounded by content-cache membership.
+            // them from outliving the content track they belong to.
             this.disposeAdTracksFor(track.uri)
             track.dispose()
             return true
@@ -323,19 +327,35 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
     private initializeAdHandling() {
         const { add } = this.disposer
-        const { adController, adTrackLoadOptionsProvider } = this.deps
+        const { adController, adTrackLoadOptionsProvider, playbackController } =
+            this.deps
         add(
             adController.on('adEntered', (event) => {
-                const interrupted = this.getQueueInterrupted()
+                const adParent = this.adParent
+                if (!adParent) {
+                    logDebug(this, 'ad entered, no parent track')
+                    return
+                }
+                const interrupted = () =>
+                    this.adParent !== adParent ||
+                    adController.currentAd !== event.ad
                 if (event.ad.uri) {
                     // Infer the track load options from the ad.
                     adTrackLoadOptionsProvider(event.ad)
                         .then((adTrack) => {
                             if (!interrupted()) {
-                                this.setQueue(adTrack, this._queue, {
-                                    fromAd: true,
-                                    shouldPlay: true,
-                                })
+                                // set adTrack
+                                this.setCurrentTrack(
+                                    this.getOrCreateAdTrack(
+                                        adParent.uri,
+                                        adTrack
+                                    ),
+                                    {
+                                        isFromAd: true,
+                                        config: {},
+                                    }
+                                )
+                                playbackController.play().catch(noop)
                             }
                         })
                         .catch((error) => {
@@ -347,56 +367,53 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
         add(
             adController.on('adBreakCompleted', (event) => {
-                const adParent = this._adParent
+                logDebug(this, 'adBreakCompleted')
+                const adParent = this.adParent
                 if (!adParent) {
-                    logWarn(
-                        this,
-                        'ad break completed without a parent media track'
-                    )
+                    logDebug(this, 'ad break completed, no parent track')
                     return
                 }
-                logDebug(this, 'adBreakCompleted')
+                if (adController.currentAdBreak) {
+                    logDebug(this, 'more adbreaks')
+                    return
+                }
+                if (adParent.active) {
+                    logDebug(this, 'no ads began')
+                    return
+                }
+                const adParentLoad = this._current!
                 const placement = event.adBreak.placement
                 const isPreroll = placement === 'preroll'
                 const isPostroll = placement === 'postroll'
-                const interrupted = this.getQueueInterrupted()
-                setTimeout(() => {
-                    // Delay a frame before changing the queue to allow other handlers of adBreakCompleted
-                    // to query the current ad track.
-                    if (interrupted()) return
-                    // A completed postroll marks the end of the whole track
-                    // (content + postroll); preroll/midroll only resume content.
+
+                // A completed postroll marks the end of the whole track
+                // (content + postroll); preroll/midroll only resume content.
+                if (isPostroll) {
+                    logDebug(this, 'trackEnded after postroll')
+                    this.dispatch('trackEnded', { track: adParentLoad })
+                }
+                if (isPostroll && this.hasNext()) {
+                    this.next()
+                } else {
+                    // Overrides the config startTime to resume from the correct position.
+                    const startTime = isPreroll
+                        ? adParentLoad.config?.startTime
+                        : event.resumePosition
+                    // Resume the main track.
+                    this.setCurrentTrack(adParent, {
+                        config: {
+                            ...adParentLoad.config,
+                            startTime,
+                        },
+                        isFromAd: false,
+                    })
                     if (isPostroll) {
-                        logDebug(this, 'trackEnded after postroll')
-                        this.dispatch('trackEnded', {})
-                    }
-                    if (isPostroll && this.hasNext()) {
-                        this.next()
+                        logInfo(this, 'queueEnded after postroll ad(s)')
+                        this.dispatch('queueEnded', {})
                     } else {
-                        const startTime = isPreroll
-                            ? adParent.config?.startTime
-                            : event.resumePosition
-                        // Resume the main track.
-                        this.setQueue(
-                            {
-                                ...adParent,
-                                config: {
-                                    ...adParent.config,
-                                    startTime,
-                                },
-                            },
-                            this._queue,
-                            {
-                                fromAd: true,
-                                shouldPlay: !isPostroll,
-                            }
-                        )
-                        if (isPostroll) {
-                            logInfo(this, 'queueEnded after postroll ad(s)')
-                            this.dispatch('queueEnded', {})
-                        }
+                        playbackController.play().catch(noop)
                     }
-                })
+                }
             })
         )
     }
@@ -408,37 +425,41 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         const { adController } = this.deps
 
         // `ended` fires for ad tracks too (they share the media element); an
-        // ad's end is the AdController's concern, not the content ending.
-        // Detect an ad track by identity rather than adController.currentAd,
-        // which its own `ended` handler may have already cleared (race).
-        const onAdTrack =
-            this._adParent != null &&
-            this._current != null &&
-            this._current.uri !== this._adParent.uri
-        if (onAdTrack) return
-
-        const interrupted = this.getQueueInterrupted()
-        adController.enterPostroll()
-        if (adController.currentAdBreak) {
-            // There is a pending postroll, do not advance the queue,
-            // a new adEntered event will fire.
+        // ad's end is the AdController's concern, the queue or content may be resumed on 'adBreakCompleted'
+        if (this.currentTrackIsAdTrack) return
+        const track = this._current
+        if (!track) {
+            logWarn(this, 'an ended event was received with no current track')
             return
         }
-
-        // Adds a frame delay to allow applications an opportunity to respond to 'ended' events before the
-        // queue is advanced.
-        setTimeout(() => {
-            if (interrupted()) return
-            // The content ended with no postroll: the track is done.
-            logDebug(this, 'trackEnded')
-            this.dispatch('trackEnded', {})
-            if (this.hasNext()) {
-                this.next()
-            } else {
-                logInfo(this, 'queueEnded')
-                this.dispatch('queueEnded', {})
-            }
-        })
+        const interrupted = this.getQueueInterrupted()
+        adController
+            .enterPostroll()
+            .then((postroll) => {
+                if (postroll) {
+                    // There is a pending postroll, do not advance the queue,
+                    // a new adEntered event will fire.
+                    logDebug(this, 'postroll entered')
+                } else {
+                    // The content ended with no postroll: the track is done.
+                    logDebug(this, 'trackEnded')
+                    this.dispatch('trackEnded', { track })
+                    // Adds a microtask delay to allow applications an opportunity to respond to 'ended' and 'trackEnded'
+                    // events before the queue is advanced.
+                    queueMicrotask(() => {
+                        if (interrupted()) return
+                        if (this.hasNext()) {
+                            this.next()
+                        } else {
+                            logInfo(this, 'queueEnded')
+                            this.dispatch('queueEnded', {})
+                        }
+                    })
+                }
+            })
+            .catch((error) => {
+                logError(this, 'enterPostroll failed', error)
+            })
     }
 
     /**
@@ -490,22 +511,11 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }
 
     isTrackCached(uri: TrackUri): boolean {
-        if (this.trackCache.has(uri)) return true
-        // A preloaded ad track counts as cached for the public surface.
-        for (const parentAds of this.adTracksByParent.values()) {
-            if (parentAds.has(uri)) return true
-        }
-        return false
+        return this.trackCache.has(uri)
     }
 
     getCachedTrack(uri: TrackUri): ReadonlyTrack | null {
-        const contentTrack = this.trackCache.get(uri)
-        if (contentTrack) return contentTrack
-        for (const parentAds of this.adTracksByParent.values()) {
-            const adTrack = parentAds.get(uri)
-            if (adTrack) return adTrack
-        }
-        return null
+        return this.trackCache.get(uri) ?? null
     }
 
     getCachedTracks(): IterableIterator<ReadonlyTrack> {
@@ -555,121 +565,14 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         trackPriority.value += loadOptionsList.length
         let priority = trackPriority.value
         for (const loadOptions of loadOptionsList) {
-            const track = this.getOrCreateTrack(loadOptions.uri, loadOptions)
+            const track = this.getOrCreateTrack(loadOptions)
             track.preload(
                 {
                     prefetchPriority: priority--,
                 },
                 loadOptions.config ?? {}
             )
-            this.preloadTrackAds(track, priority)
         }
-    }
-
-    /**
-     * Wires ad preloading for the given main track: whenever the track's ads
-     * become known (or change), the ad assets that carry a URI are created and
-     * preloaded so that entering an ad break does not incur load latency.
-     *
-     * Ad tracks are preloaded at a priority just below the parent track so the
-     * primary content prefetch always takes precedence. They live in a separate
-     * store keyed by the parent's URI (see {@link adTracksByParent}) rather
-     * than sharing the content cache — their lifetime is pegged to the parent.
-     *
-     * @param track The primary content track whose ads should be preloaded.
-     * @param basePriority The prefetch priority of the parent track; ad tracks
-     *   are preloaded just below this value.
-     */
-    private preloadTrackAds(track: Track, basePriority: number): void {
-        // Only wire a track once — it is cached and may be re-activated or
-        // re-prefetched multiple times.
-        if (this.adPreloadWired.has(track)) return
-        this.adPreloadWired.add(track)
-        const refresh = () => this.refreshPreloadedAds(track, basePriority)
-        track.on('adsChange', refresh)
-        refresh()
-    }
-
-    /**
-     * Resolves the ads for the given track and preloads each ad asset that has
-     * a URI. Safe to call repeatedly; already-cached ad tracks are reused.
-     */
-    private refreshPreloadedAds(track: Track, basePriority: number): void {
-        const trackAds = track.ads
-        // A null value indicates the ads are still loading.
-        if (!trackAds) return
-        const { adTrackLoadOptionsProvider } = this.deps
-        let ordinal = 0
-        for (const adBreak of trackAds.adBreaks) {
-            resolveValueProvider(adBreak.ads)
-                .then((ads) => {
-                    for (const ad of ads) {
-                        if (!ad.uri || this.disposed) continue
-                        // Spread ad priorities just below the parent track,
-                        // preserving break/asset order.
-                        const prefetchPriority = basePriority - ++ordinal / 1000
-                        adTrackLoadOptionsProvider(ad)
-                            .then((loadOptions) => {
-                                if (this.disposed) return
-                                const adTrack = this.getOrCreateAdTrack(
-                                    track.uri,
-                                    loadOptions.uri,
-                                    loadOptions
-                                )
-                                adTrack.preload(
-                                    { prefetchPriority },
-                                    loadOptions.config ?? {}
-                                )
-                            })
-                            .catch((error) => {
-                                // The provider (a HEAD probe) isn't canceled on
-                                // dispose; don't log after teardown.
-                                if (this.disposed) return
-                                logWarn(
-                                    this,
-                                    'failed to resolve ad track load options for preload',
-                                    error
-                                )
-                            })
-                    }
-                })
-                .catch((error) => {
-                    // The ads provider may fetch and isn't canceled on dispose;
-                    // don't log after teardown.
-                    if (this.disposed) return
-                    logWarn(this, 'failed to resolve ads for preload', error)
-                })
-        }
-    }
-
-    /**
-     * Returns the ad track for the given parent + ad URI, creating and
-     * registering it under the parent's ad map on first request.
-     */
-    private getOrCreateAdTrack(
-        parentUri: TrackUri,
-        adUri: TrackUri,
-        loadOptions: TrackLoadOptionsType
-    ): Track {
-        const parentAds = getOrSet(
-            this.adTracksByParent,
-            parentUri,
-            () => new Map<TrackUri, Track>()
-        )
-        return getOrSet(parentAds, adUri, () =>
-            this.deps.trackFactory.createTrack(loadOptions)
-        )
-    }
-
-    /**
-     * Disposes all preloaded ad tracks belonging to the given parent content
-     * URI and drops the parent's entry from the ad map.
-     */
-    private disposeAdTracksFor(parentUri: TrackUri): void {
-        const adTracks = this.adTracksByParent.get(parentUri)
-        if (!adTracks) return
-        this.adTracksByParent.delete(parentUri)
-        for (const track of adTracks.values()) track.dispose()
     }
 
     load(...loadOptionsList: readonly TrackLoadOptionsType[]): void {
@@ -704,11 +607,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
     clearTrackCache() {
         logDebug(this, 'clearTrackCache')
-        for (const parentAds of this.adTracksByParent.values()) {
-            for (const adTrack of parentAds.values()) adTrack.dispose()
-        }
-        this.adTracksByParent.clear()
         this.trackCache.forEach((track) => {
+            this.disposeAdTracksFor(track.uri)
             track.dispose()
         })
         this.trackCache.clear()
@@ -721,9 +621,6 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         for (const cachedTrack of this.trackCache.values()) {
             cachedTrack.clearPrefetch()
         }
-        for (const parentAds of this.adTracksByParent.values()) {
-            for (const adTrack of parentAds.values()) adTrack.clearPrefetch()
-        }
     }
 
     clearQueue(): void {
@@ -735,19 +632,36 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
      * If the given track id is the current track or in the cache, returns that track.
      * Otherwise, constructs a new track, adds it to the cache, and returns it.
      *
-     * @param uri The unique resource identifier.
      * @param loadOptions
      * @private
      */
-    private getOrCreateTrack(
-        uri: TrackUri,
+    private getOrCreateTrack(loadOptions: TrackLoadOptionsType): Track {
+        return getOrSet(this.trackCache, loadOptions.uri, () =>
+            this.deps.trackFactory.createTrack(loadOptions)
+        )
+    }
+
+    /**
+     * Gets the cached ad track, or creates a new one and sets it in the
+     * parent track mapping.
+     * When the parent track is disposed, this ad track will be as well.
+     *
+     * @param parentUri The URI of the parent track.
+     * @param loadOptions
+     * @private
+     */
+    private getOrCreateAdTrack(
+        parentUri: TrackUri,
         loadOptions: TrackLoadOptionsType
     ): Track {
-        return getOrSet(this.trackCache, uri, () => {
-            const newTrack = this.deps.trackFactory.createTrack(loadOptions)
-            this.trackCache.set(uri, newTrack)
-            return newTrack
-        })
+        const parentTracks = getOrSet(
+            this.adTracksByParent,
+            parentUri,
+            () => new Map()
+        )
+        return getOrSet(parentTracks, loadOptions.uri, () =>
+            this.deps.trackFactory.createTrack(loadOptions)
+        )
     }
 
     /**
@@ -761,100 +675,33 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         queue: readonly TrackLoadOptionsType[],
         options?: {
             /**
-             * True if the queue change is from an ad event.
-             */
-            readonly fromAd?: boolean
-
-            /**
              * If true, starts playback after the track has changed.
              */
             readonly shouldPlay?: boolean
         }
     ): void {
-        const { adController, playbackController } = this.deps
+        const { playbackController } = this.deps
         ++this.queueIdx
         const interrupted = this.getQueueInterrupted()
         const previousQueue = this._queue
         const previous = this._current
-        const previousTrack = this._currentTrack
+
         if (previous !== current) {
-            this.activeTrackSub?.()
-            this.activeTrackSub = null
             // Update the pointers before materializing the track, so eviction
             // protects the incoming track and its window, not the outgoing one.
             this._current = current ?? null
-            if (!options?.fromAd) {
-                this._adParent = this._current
-            }
             this._queue = queue
-            // fromAd distinguishes ad selection (adEntered) from content resume
-            // (adCompleted); only the former routes to the parent-keyed store.
-            const isAdTrack =
-                !!options?.fromAd &&
-                this._adParent != null &&
-                current != null &&
-                current.uri !== this._adParent.uri
-            const newTrack =
-                current == null
-                    ? null
-                    : isAdTrack
-                      ? this.getOrCreateAdTrack(
-                            this._adParent!.uri,
-                            current.uri,
-                            current
-                        )
-                      : this.getOrCreateTrack(current.uri, current)
-            this.dispatch('currentTrackChanging', {
-                previous: previousTrack,
-                current: newTrack,
-            })
-            if (interrupted()) return
-            this._currentTrack = newTrack
-            if (previousTrack) {
-                if (!options?.fromAd) {
-                    adController.setAds(null)
+
+            this.setCurrentTrack(
+                current ? this.getOrCreateTrack(current) : null,
+                {
+                    isFromAd: false,
+                    config: current?.config,
                 }
-                previousTrack.deactivate()
-            }
-            if (newTrack) {
-                const { add, dispose } = createDisposer()
-                this.activeTrackSub = dispose
-
-                // Re-baseline after setAds(null): clearing the outgoing track's
-                // ads nulls the active ad, which interrupted() would misread.
-                const activateInterrupted = this.getQueueInterrupted()
-
-                // Activates and optionally plays the new track. This is not invoked until after potential preroll
-                // ads have been resolved.
-                const activate = () => {
-                    if (newTrack.active || activateInterrupted()) return
-                    newTrack.activate(current!.config ?? {})
-                    if (options?.shouldPlay) {
-                        playbackController.play().catch(noop)
-                    }
-                }
-
-                if (!options?.fromAd) {
-                    adController.clearCompletedAds()
-                    add(
-                        newTrack.on('error', (event) => {
-                            adController.failAd(event.error)
-                        })
-                    )
-
-                    const refreshAds = () => {
-                        adController.setAds(newTrack.ads)
-                        if (newTrack.ads && !adController.currentAdBreak) {
-                            activate()
-                        }
-                    }
-                    add(newTrack.on('adsChange', refreshAds))
-                    refreshAds()
-                    // Ad preloading for the current track is wired by the
-                    // _preload(getPrefetched()) call below, just under its priority.
-                } else {
-                    activate()
-                }
+            )
+            if (options?.shouldPlay) {
+                // playback controller defers play until the new track is loaded
+                playbackController.play().catch(noop)
             }
         } else {
             // Current track unchanged but the queue may have (e.g. enqueue).
@@ -866,38 +713,102 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             this,
             `currentTrackChange, previous: ${previous?.uri} current: ${current?.uri}`
         )
-        if (previousQueue !== this._queue) {
-            // Re-baseline: setQueue itself may have changed the active ad (a
-            // content change clears it). Only a re-entrant handler is illegal.
-            const queueChangeInterrupted = this.getQueueInterrupted()
+        if (previousQueue !== queue) {
             this.dispatch('queueChange', {
                 previous: previousQueue,
-                current: this._queue,
+                current: queue,
             })
-            if (queueChangeInterrupted())
-                throw new IllegalStateError(
-                    `cannot change the queue on a 'queueChange' event`
-                )
         }
-        if (previousTrack !== this._currentTrack) {
-            this.dispatch('currentTrackChange', {
-                previous: previousTrack,
-                current: this._currentTrack,
-            })
+        if (interrupted()) {
+            throw new IllegalStateError(
+                `cannot change the queue on a 'queueChange' or 'currentTrackChange' event`
+            )
         }
     }
 
+    private get currentTrackIsAdTrack(): boolean {
+        return this._currentTrack !== this.adParent
+    }
+
     /**
-     * Returns a callback that returns true if the queue or current ad has changed or the controller disposed.
+     * Sets the active track.
+     * This may either be a content track created from `setQueue` or an ad track created from `adEntered`.
+     *
+     * @param newTrack
+     * @param options
+     * @private
+     */
+    private setCurrentTrack(
+        newTrack: Track | null,
+        options: {
+            config?: Maybe<TrackConfigOptions>
+            isFromAd: boolean
+        }
+    ): void {
+        const { adController } = this.deps
+        const previousTrack = this._currentTrack
+        this._currentTrack = newTrack
+        const interrupted = () => this._currentTrack !== newTrack
+        previousTrack?.deactivate()
+
+        // Forward the active track's errors to the ad controller. When an ad
+        // track errors (fails to load or errors mid-playback), this fails the
+        // ad so the break advances rather than stalling on the broken ad; on a
+        // content track failAd is a no-op (the error still surfaces as a player
+        // error). Re-subscribed per track and torn down on the next change.
+        this.currentTrackErrorSub?.()
+        this.currentTrackErrorSub =
+            newTrack?.on('error', (event) =>
+                adController.failAd(event.error)
+            ) ?? null
+
+        if (!options.isFromAd) {
+            this.adParent = newTrack
+            adController.setParentTrack(newTrack)
+        }
+        if (newTrack) {
+            const activate = () => {
+                if (interrupted()) return
+                newTrack.activate(options.config ?? {})
+            }
+            if (options.isFromAd) {
+                activate() // Ads cannot have prerolls.
+            } else {
+                adController
+                    .enterPreroll()
+                    .then((preroll) => {
+                        if (preroll) return // preroll entered
+                        activate()
+                    })
+                    .catch((error) => {
+                        logError(this, 'enterPreroll failed', error)
+                        activate()
+                    })
+            }
+        }
+        this.dispatch('currentTrackChange', {
+            previous: previousTrack,
+            current: newTrack,
+        })
+    }
+
+    /**
+     * Disposes all preloaded ad tracks belonging to the given parent content
+     * URI and drops the parent's entry from the ad map.
+     */
+    private disposeAdTracksFor(parentUri: TrackUri): void {
+        const adTracks = this.adTracksByParent.get(parentUri)
+        if (!adTracks) return
+        this.adTracksByParent.delete(parentUri)
+        for (const track of adTracks.values()) track.dispose()
+    }
+
+    /**
+     * Returns a callback that returns true if the queue has changed or the controller disposed.
      */
     private getQueueInterrupted(): () => boolean {
-        const { adController } = this.deps
-        const ad = adController.currentAd
         const idx = this.queueIdx
-        return () =>
-            this.disposed ||
-            this.queueIdx !== idx ||
-            ad !== adController.currentAd
+        return () => this.disposed || this.queueIdx !== idx
     }
 
     get currentTrack(): ReadonlyTrack | null {

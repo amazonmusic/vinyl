@@ -53,8 +53,9 @@ const emptyMediaQualityMetadata: MediaQualityMetadata =
 export abstract class SourceTrackBase<
     SrcType,
     EventMap extends TrackEventMap = TrackEventMap,
-    LoadOptionsType extends SourceTrackConfigOptions = SourceTrackConfigOptions,
-> extends TrackBase<EventMap, LoadOptionsType> {
+    TrackConfigOptions extends SourceTrackConfigOptions =
+        SourceTrackConfigOptions,
+> extends TrackBase<EventMap, TrackConfigOptions> {
     private readonly fixedPlaybackQuality: FixedPlaybackQuality
     private _resolvedSrc: SrcType | null = null
     private activeSub: Unsubscribe | null = null
@@ -89,11 +90,14 @@ export abstract class SourceTrackBase<
         ])
     }
 
-    preload(trackOptions: TrackPreloadOptions, loadOptions: LoadOptionsType) {
+    preload(
+        trackOptions: TrackPreloadOptions,
+        loadOptions: Maybe<TrackConfigOptions>
+    ) {
         super.preload(trackOptions, loadOptions)
         this.fixedPlaybackQuality.fixedQuality = {
             ...emptyMediaQualityMetadata,
-            ...loadOptions.qualityMetadata,
+            ...loadOptions?.qualityMetadata,
         }
     }
 

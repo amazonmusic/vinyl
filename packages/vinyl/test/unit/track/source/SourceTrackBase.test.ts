@@ -67,8 +67,8 @@ describe('SourceTrackBase', () => {
         expect(track.textTrackController).toBeNull()
     })
 
-    it('exposes empty ad breaks by default', () => {
-        expect(track.ads).toEqual({ trackUri: 'uri', adBreaks: [] })
+    it('exposes empty ad breaks by default', async () => {
+        expect(await track.getAds()).toEqual({ trackUri: 'uri', adBreaks: [] })
     })
 
     describe('when src promise rejects', () => {

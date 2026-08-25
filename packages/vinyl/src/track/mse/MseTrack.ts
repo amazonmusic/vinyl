@@ -11,6 +11,7 @@ import {
     type Fun,
     IntersectionRanges,
     logDebug,
+    type Maybe,
     noop,
     type ReadonlyRanges,
     type ReadonlySet,
@@ -32,14 +33,15 @@ import type { PlaybackSource } from '../../playback/PlaybackSource'
 import type { ContentTypesValue } from '../../streaming/ContentTypesValue'
 import type { ManifestController } from '../../streaming/ManifestController'
 import type { ObservableValue } from '@amazon/vinyl-observable'
-import type { MediaTimeline } from '../../streaming/MediaTimeline'
 import {
     getMediaPeriodAtTime,
     type MediaPeriod,
+    type MediaTimeline,
 } from '../../streaming/MediaTimeline'
 import type { TextTrackController } from '../../text/TextTrack'
 import type { TrackConfigOptions } from '../TrackFactory'
 import type { LoadSpanMeasurement } from '../../streaming/LoadMetric'
+import type { TrackAds } from '../../ad/AdBreakInfo'
 
 /**
  * How long to wait after all streams have data before checking whether a seek
@@ -118,8 +120,6 @@ export class MseTrack extends TrackBase {
         add(depsContainer)
         this.deps = deps
 
-        // Set ad breaks to null to indicate they are loading TODO: clean this up
-        this.setAdBreaks(null)
         add(
             deps.contentTypesValue.onData((contentTypesPromise) => {
                 contentTypesPromise
@@ -155,8 +155,8 @@ export class MseTrack extends TrackBase {
             deps.mediaTimelineTransformed.onData(() => {
                 this._cachedPeriod = null
                 this.updateQualities()
-                this.updateAdBreaks()
                 this.updateSeekRanges()
+                this.dispatch('adsChange', {})
             })
         )
         add(
@@ -210,16 +210,12 @@ export class MseTrack extends TrackBase {
         })
     }
 
-    private updateAdBreaks() {
-        this.withTimeline((timeline, interrupted) => {
-            timeline
-                .getAdBreaks()
-                .then((adBreaks) => {
-                    if (interrupted()) return
-                    this.setAdBreaks(adBreaks)
-                })
-                .catch(this.errorHandler)
-        })
+    async getAds(): Promise<TrackAds> {
+        const timeline = await this.deps.mediaTimeline.value
+        return {
+            trackUri: this.uri,
+            adBreaks: await timeline.getAdBreaks(),
+        }
     }
 
     /**
@@ -334,10 +330,10 @@ export class MseTrack extends TrackBase {
 
     preload(
         trackOptions: TrackPreloadOptions,
-        loadOptions: TrackConfigOptions
+        loadOptions: Maybe<TrackConfigOptions>
     ) {
         const options: ContentStreamPreloadOptions = {
-            startTime: loadOptions.startTime,
+            startTime: loadOptions?.startTime,
             prefetchPriority: trackOptions.prefetchPriority,
         }
         this.lastPreloadOptions = options
@@ -384,7 +380,7 @@ export class MseTrack extends TrackBase {
         this.callOnStreams('reset')
     }
 
-    onActivated(loadOptions: TrackConfigOptions): void {
+    onActivated(loadOptions: Maybe<TrackConfigOptions>): void {
         // A disposed track's deps throw DisposedError on access; never touch them.
         if (this.disposed) return
         // Rebuild the DOM text track. The element's added TextTracks are

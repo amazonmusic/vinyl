@@ -25,6 +25,15 @@ export class MockTrack extends MockEventHost<TrackEventMap> implements Track {
     }
 
     ads: TrackAds | null = null
+
+    /**
+     * Resolves the track's ads. Mirrors the real async `getAds()` contract; the
+     * `ads` field is the backing value (defaulting to an empty break list).
+     */
+    getAds(): Promise<TrackAds> {
+        return Promise.resolve(this.ads ?? { trackUri: this.uri, adBreaks: [] })
+    }
+
     uri = ''
     type = ''
     active = false

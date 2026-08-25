@@ -21,3 +21,4 @@ dist
 musicAuth.json
 node_modules
 packages/vinyl-website/public/tsdocs
+.claude

@@ -4,25 +4,28 @@
  */
 
 import {
-    compare,
     createDisposer,
+    createLogPrefix,
     EventHostImpl,
+    getElementOrDefault,
     lerp,
     logDebug,
+    logError,
+    type LogTarget,
     logVerbose,
     type Maybe,
+    memoize,
     noop,
     resolveValueProvider,
     roundToNearest,
     sleep,
     sortedInsertionIndex,
+    type Unsubscribe,
 } from '@amazon/vinyl-util'
 import {
     type AdBreakInfo,
     type AdBreakList,
-    type AdBreakPlacement,
     type AdInfo,
-    type SkipControl,
     type TrackAds,
 } from './AdBreakInfo'
 import type {
@@ -33,6 +36,7 @@ import type {
 } from './AdController'
 import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
 import { AdError } from './AdError'
+import type { ReadonlyTrack } from '../track/Track'
 
 /**
  * The % playhead start tolerance for playback progress when emitting ad progress events.
@@ -62,34 +66,39 @@ interface Quartiles {
     third: boolean
 }
 
-interface AdStats {
-    playing: boolean
+interface AdBreakState {
+    readonly adBreak: AdBreakInfo
+    readonly adState: AdState | null
+
+    completedReason: AdChangeReason | null
+
+    playoutElapsed: number
+
+    /**
+     * Resolves the break's ad list (once, memoized) and advances to the next
+     * ad in it, returning that ad's state — or null when the list is exhausted.
+     */
+    nextAd(): Promise<AdState | null>
+
+    /**
+     * Clears any pending and current ads.
+     */
+    clear(): void
+}
+
+interface AdState {
+    readonly parentBreak: AdBreakState
+    readonly ad: AdInfo
+    readonly index: number
+    readonly totalAds: number
+    started: boolean
     // The currentTime at the start of playback
     timeStart: number
     // The running playback rate average
     playbackRateAvg: number
     dataPoints: number
-    quartile: Quartiles
-}
-
-function createAdStats(): AdStats {
-    return {
-        playing: false,
-        timeStart: 0,
-        playbackRateAvg: 0,
-        dataPoints: 0,
-        quartile: {
-            first: false,
-            midpoint: false,
-            third: false,
-        },
-    }
-}
-
-const emptyPlacementBreaks: Record<AdBreakPlacement, AdBreakList> = {
-    preroll: [],
-    midroll: [],
-    postroll: [],
+    readonly quartile: Quartiles
+    completedReason: AdChangeReason | null
 }
 
 /**
@@ -107,8 +116,9 @@ const emptyPlacementBreaks: Record<AdBreakPlacement, AdBreakList> = {
  * `currentTime > startTime`
  *
  * This class contains no HLS- or DASH-specific logic; discovery code maps its
- * protocol's signals to {@link AdBreakInfo} and pushes them via
- * {@link setAds}.
+ * protocol's signals to {@link AdBreakInfo} on the parent track's
+ * {@link ReadonlyTrack.getAds}, which this controller reads once the track is
+ * set via {@link AdController.setParentTrack} (and re-reads on `adsChange`).
  */
 export class AdControllerImpl
     extends EventHostImpl<AdEventMap>
@@ -120,34 +130,23 @@ export class AdControllerImpl
 
     private readonly options: AdControllerImplOptions
     private _trackAds: TrackAds | null = null
-    private groupedByPlacement: Record<AdBreakPlacement, AdBreakList> =
-        emptyPlacementBreaks
+    private activeTrackSub: Unsubscribe | null = null
+    private activeTrack: ReadonlyTrack | null = null
     // The start times of the midroll ads, used for fast midroll break find
-    private midrollTimes: number[] = []
+    private midrollAds: AdBreakList = []
 
     private lastPlaybackTime = 0
-    private _currentAdIndex: number = -1
-    private _totalAds: number = 0
     private pendingAdBreaks: AdBreakInfo[] = []
-    private pendingAds: AdInfo[] = []
-    private _currentAdBreak: AdBreakInfo | null = null
-    private _currentAd: AdInfo | null = null
     // Breaks permanently suppressed for this presentation (play-once breaks and
     // prerolls). Cleared only on a content change (clearCompletedAds).
-    private readonly completeAdBreakIds = new Set<string>()
+    private readonly completeAdBreakIds = new Set<AdBreakKey>()
     // Replayable (non-play-once) midroll breaks that have played and are "spent"
     // until the playhead moves back before their start, at which point they are
     // re-armed and replay on the next forward crossing.
-    private readonly spentBreakIds = new Set<string>()
-    // Cumulative media-time playout across the ads of the current break, used to
-    // enforce the break's playout limit and to default an unspecified resume
-    // offset.
-    private breakPlayoutElapsed = 0
-    // The resolved skip window for the current break, or null when it has none
-    // (or has not resolved yet).
-    private _currentSkipControl: SkipControl | null = null
+    private readonly spentBreakIds = new Set<AdBreakKey>()
     private readonly disposer = createDisposer()
-    private adStats: AdStats = createAdStats()
+    private adBreakState: AdBreakState | null = null
+    private loadingNext = false
 
     constructor(
         private readonly deps: AdControllerImplDeps,
@@ -159,53 +158,50 @@ export class AdControllerImpl
         const { playbackController } = this.deps
         add(
             playbackController.on('playing', () => {
-                if (this._currentAd) {
-                    const stats = this.adStats
-                    if (!stats.playing) {
-                        // The ad has started playing, initialize the stats.
-                        stats.playing = true
-                        stats.timeStart = playbackController.currentTime
-                        stats.playbackRateAvg = playbackController.playbackRate
-                        stats.dataPoints = 1
+                if (this.adState) {
+                    const adState = this.adState
+                    if (!adState.started) {
+                        // The ad has started playing, initialize the state.
+                        adState.started = true
+                        adState.timeStart = playbackController.currentTime
+                        adState.playbackRateAvg =
+                            playbackController.playbackRate
+                        adState.dataPoints = 1
                     }
                     this.dispatch('adPlaying', {
-                        ad: this._currentAd,
-                        index: this._currentAdIndex,
-                        totalAds: this._totalAds,
+                        adBreak: adState.parentBreak.adBreak,
+                        ad: adState.ad,
+                        index: adState.index,
+                        totalAds: adState.totalAds,
                     })
                 }
             })
         )
         add(
             playbackController.on('seeked', (event) => {
-                if (this.currentAd) {
-                    this.adStats.timeStart = playbackController.currentTime
+                if (this.adState) {
+                    this.adState.timeStart = playbackController.currentTime
                     return
                 }
                 // A genuine seek back before a spent (replayable) break re-arms
-                // it so it fires again on the next forward crossing. Gated on a
-                // real user seek (reason 'seeked') — an 'emptied'/'playing'
-                // settle from the ad→content source swap (or a hard reset's
-                // MediaSource re-init) transiently reports an early currentTime
-                // and would otherwise replay the break (an in-place, offset-0
-                // resume would loop).
+                // it so it fires again on the next forward crossing.
                 if (event.reason !== 'seeked') return
                 const time = playbackController.currentTime
                 if (this.spentBreakIds.size) {
-                    for (const midroll of this.groupedByPlacement.midroll) {
+                    for (const midroll of this.midrollAds) {
                         if (time < midroll.startTime) {
-                            this.spentBreakIds.delete(midroll.id)
+                            this.spentBreakIds.delete(adBreakKey(midroll))
                         }
                     }
                 }
             })
         )
         add(playbackController.on('timeUpdate', this.onTimeUpdate))
-        add(playbackController.on('ended', () => this.endAd()))
-    }
-
-    get currentTrackAds(): TrackAds | null {
-        return this._trackAds
+        add(
+            playbackController.on('ended', () => {
+                if (this.adState) this.endAd(this.adState)
+            })
+        )
     }
 
     clearCompletedAds(): void {
@@ -213,37 +209,18 @@ export class AdControllerImpl
         this.spentBreakIds.clear()
     }
 
-    /**
-     * Records a break as complete when it has played. Play-once breaks,
-     * prerolls and postrolls are one-shot per presentation (suppressed
-     * permanently); midrolls are only "spent" so they re-arm on a seek-back.
-     * Postrolls must be suppressed or a repeated content `ended` would replay
-     * them in a loop.
-     */
-    private markBreakComplete(adBreak: AdBreakInfo): void {
-        if (
-            adBreak.once ||
-            adBreak.placement === 'preroll' ||
-            adBreak.placement === 'postroll'
-        ) {
-            this.completeAdBreakIds.add(adBreak.id)
-        } else {
-            // midroll
-            this.spentBreakIds.add(adBreak.id)
-        }
-    }
-
-    private isBreakSuppressed(id: string): boolean {
-        return this.completeAdBreakIds.has(id) || this.spentBreakIds.has(id)
+    private isBreakSuppressed(adBreak: AdBreakInfo): boolean {
+        const key = adBreakKey(adBreak)
+        return this.completeAdBreakIds.has(key) || this.spentBreakIds.has(key)
     }
 
     /** The media-time the current ad has actually played, or 0 if not playing. */
     private adElapsed(): number {
-        const stats = this.adStats
-        return stats.playing
+        const adState = this.adState
+        return adState?.started
             ? Math.max(
                   0,
-                  this.deps.playbackController.currentTime - stats.timeStart
+                  this.deps.playbackController.currentTime - adState.timeStart
               )
             : 0
     }
@@ -254,82 +231,172 @@ export class AdControllerImpl
      * otherwise a resolved skip window gates it by the elapsed break playout, and
      * with no window the ad is freely skippable.
      */
-    private resolveSkipState(
-        adBreak: AdBreakInfo,
+    private async resolveSkipState(
+        adBreakState: AdBreakState,
         breakPlayed: number
-    ): { readonly canSkip: boolean; readonly skipIn: number | null } {
+    ): Promise<{ readonly canSkip: boolean; readonly skipIn: number | null }> {
+        const { adBreak } = adBreakState
         if (adBreak.restrict.skip === true) {
             return { canSkip: false, skipIn: null }
         }
-        const skip = this._currentSkipControl
-        if (!skip) {
+        const skipControl = await resolveValueProvider(
+            adBreak.skipControl
+        ).catch((_v) => null)
+        if (!skipControl) {
             return { canSkip: true, skipIn: null }
         }
-        if (breakPlayed < skip.offset) {
-            return { canSkip: false, skipIn: skip.offset - breakPlayed }
+        if (breakPlayed < skipControl.offset) {
+            return { canSkip: false, skipIn: skipControl.offset - breakPlayed }
         }
         const end =
-            skip.duration != null ? skip.offset + skip.duration : Infinity
+            skipControl.duration != null
+                ? skipControl.offset + skipControl.duration
+                : Infinity
         return { canSkip: breakPlayed < end, skipIn: null }
     }
 
-    setAds(value: Maybe<TrackAds>): void {
+    get currentTrackAds(): TrackAds | null {
+        return this._trackAds
+    }
+
+    private setTrackAds(value: Maybe<TrackAds>): void {
         const previous = this._trackAds
         const current = value ?? null
-        // Ads carry the URI of the track they belong to. When that changes (a
-        // different track, or ads cleared), any ad currently playing belongs to
-        // the old presentation and its state must not leak into the new one.
-        const trackChanged = previous?.trackUri !== current?.trackUri
         this._trackAds = current
-        this.groupedByPlacement = {
-            ...emptyPlacementBreaks,
-            ...Object.groupBy(
-                value?.adBreaks ?? [],
-                ({ placement }) => placement
-            ),
-        }
-        this.midrollTimes = this.groupedByPlacement.midroll.map(
-            ({ startTime }) => startTime
+
+        this.midrollAds = (value?.adBreaks ?? []).filter(
+            (adBreak) => adBreak.placement === 'midroll'
         )
 
-        logDebug(this, 'setAds', value)
+        logDebug(this, 'setTrackAds', value)
         this.dispatch('currentTrackAdsChange', {
             previous,
             current,
         })
-        if (trackChanged) {
-            // Tear down any in-flight ad from the previous track.
-            this._currentAd = null
-            this.pendingAdBreaks = []
-            this.setCurrentAdBreak(null)
+    }
+
+    /**
+     * Returns a function that returns true if the parent track has changed
+     * since the callback was created.
+     */
+    private parentTrackInterrupted(): () => boolean {
+        const track = this.activeTrack
+        return () => track !== this.activeTrack
+    }
+
+    setParentTrack(track: ReadonlyTrack | null): void {
+        if (this.activeTrack === track) return
+        this.pendingAdBreaks = []
+        this.completeAdBreak(this.adBreakState, 'contentChange')
+
+        this.activeTrackSub?.()
+        const { add, dispose } = createDisposer()
+        this.activeTrackSub = dispose
+        this.activeTrack = track
+        const interrupted = this.parentTrackInterrupted()
+        this.clearCompletedAds()
+        this.setTrackAds(null)
+
+        if (!track) return
+        const refreshAds = () => {
+            track
+                .getAds()
+                .then((ads) => {
+                    if (interrupted()) return
+                    this.setTrackAds(ads)
+                })
+                .catch((error) => {
+                    // Ad discovery failed for the content track. There is no
+                    // active break to surface an adError against, so log it
+                    // rather than routing through failAd (which would no-op
+                    // with no active ad and swallow the failure silently).
+                    if (interrupted()) return
+                    logError(this, 'ad discovery failed', error)
+                })
         }
-        if (current === this._trackAds) {
-            // Guarded to allow currentTrackAdsChange handlers to interrupt the ads.
-            this.lastPlaybackTime = 0
-            this.setPendingBreaks(this.groupedByPlacement.preroll)
-        }
+        add(track.on('adsChange', refreshAds))
+        refreshAds()
+    }
+
+    async enterPreroll(): Promise<AdBreakInfo | null> {
+        return this.enterRoll('preroll')
+    }
+
+    async enterPostroll(): Promise<AdBreakInfo | null> {
+        return this.enterRoll('postroll')
+    }
+
+    private async enterRoll(
+        placement: 'preroll' | 'postroll'
+    ): Promise<AdBreakInfo | null> {
+        if (!this.activeTrack) return null
+        logVerbose(this, `checking for ${placement} ads`)
+        this.lastPlaybackTime = this.deps.playbackController.currentTime
+        const interrupted = this.parentTrackInterrupted()
+        return this.activeTrack
+            .getAds()
+            .then((ads) => {
+                if (interrupted()) {
+                    logVerbose(
+                        this,
+                        `interrupted, no pending breaks set for ${placement}`
+                    )
+                    return null
+                }
+                this.setPendingBreaks(
+                    ads.adBreaks.filter(
+                        (adBreak) => adBreak.placement === placement
+                    )
+                )
+                return this.currentAdBreak
+            })
+            .catch(() => {
+                return null
+            })
+    }
+
+    private get contentTrackActive(): boolean {
+        return this.activeTrack?.active ?? false
     }
 
     skipAdBreak(): void {
-        const adBreak = this._currentAdBreak
-        if (!adBreak) {
+        const adBreakState = this.adBreakState
+        if (!adBreakState) {
             logDebug(this, 'skipAdBreak, no-op')
             return
         }
-        logDebug(this, 'skipAdBreak, active break id:', adBreak.id)
-        this.completeAd('skipped')
-        this.completeAdBreak()
-        this.pollPendingAds()
+        logDebug(this, 'skipAdBreak, active break id:', adBreakState.adBreak.id)
+        this.completeAdBreak(adBreakState, 'skipped')
+        this.nextAdOrBreak()
     }
 
-    private completeAdBreak(): void {
-        const adBreak = this._currentAdBreak
-        if (!adBreak) {
-            logDebug(this, 'completeAdBreak no-op')
+    /**
+     * Marks an ad break as completed (or 'spent' and replayable), emits an `adBreakCompleted` event.
+     */
+    private completeAdBreak(
+        adBreakState: Maybe<AdBreakState>,
+        reason: AdChangeReason
+    ): void {
+        if (!adBreakState || adBreakState.completedReason) {
+            logDebug(this, 'completeAdBreak, no-op')
             return
         }
-        logDebug(this, 'completeAdBreak, active break id:', adBreak.id)
-        this.markBreakComplete(adBreak)
+        const { adBreak } = adBreakState
+        adBreakState.completedReason = reason
+        const key = adBreakKey(adBreak)
+        // A non-once midroll ad may be replayed if the region is re-entered
+        // due to a back-seek.
+        if (
+            adBreak.once ||
+            adBreak.placement === 'preroll' ||
+            adBreak.placement === 'postroll'
+        ) {
+            this.completeAdBreakIds.add(key)
+        } else {
+            // Non-once midroll
+            this.spentBreakIds.add(key)
+        }
+
         // Interstitials play on a separate track, so the content timeline never
         // advances during the break: content resumes at the cue point plus any
         // explicit offset (default 0). max() keeps a forward seek from being
@@ -338,105 +405,142 @@ export class AdControllerImpl
             this.lastPlaybackTime,
             adBreak.startTime + (adBreak.resumeOffset ?? 0)
         )
-        this.dispatch('adBreakCompleted', { adBreak, resumePosition })
-        this.setCurrentAdBreak(null)
+
+        this.completeAd(adBreakState.adState, reason) // does nothing if no current ad
+        logDebug(
+            this,
+            `adBreakCompleted, active break id:${adBreak.id} reason:${reason} resumePosition:${resumePosition}`
+        )
+        if (adBreakState === this.adBreakState) {
+            this.adBreakState = null
+        }
+        this.dispatch('adBreakCompleted', { adBreak, resumePosition, reason })
     }
 
     get currentAdBreak(): AdBreakInfo | null {
-        return this._currentAdBreak
+        return this.adBreakState?.adBreak ?? null
     }
 
-    private setCurrentAdBreak(value: Maybe<AdBreakInfo>) {
-        const previous = this._currentAdBreak
-        const current = value ?? null
-        if (previous?.id === value?.id) return
-        this._currentAdBreak = current
-        // Each break accounts its own playout independently.
-        this.breakPlayoutElapsed = 0
+    /**
+     * Marks an ad as completed and emits an `adCompleted` event.
+     */
+    private completeAd(adState: Maybe<AdState>, reason: AdChangeReason) {
+        if (!adState || adState.completedReason) return // no-op
         logDebug(
             this,
-            'currentAdBreak changed previous:',
-            previous,
-            'next: ',
-            value
+            `adCompleted id=${adState.ad.id} reason=${reason} index=${adState.index} totalAds=${adState.totalAds}`
         )
-        if (current) {
-            this.dispatch('adBreakEntered', { adBreak: current })
-        }
-
-        this.pendingAds = []
-        this._currentAdIndex = -1
-        this._totalAds = 0
-        this._currentSkipControl = null
-        // Resolve the break's skip window alongside its ads (both share one
-        // memoized fetch). A failure just leaves the break with no skip window;
-        // the ads resolution below reports the error.
-        resolveValueProvider(value?.skipControl)
-            .then((skipControl) => {
-                if (this._currentAdBreak === value) {
-                    this._currentSkipControl = skipControl ?? null
-                }
-            })
-            .catch(() => undefined)
-
-        if (value) {
-            resolveValueProvider(value.ads)
-                .then((ads) => {
-                    if (this.disposed || this._currentAdBreak !== value) return
-                    const adsList = ads.slice()
-                    this.pendingAds = adsList
-                    this._currentAdIndex = 0
-                    this._totalAds = adsList.length
-                    if (!this._totalAds) {
-                        // A break that resolves to no playable ads must not trap the
-                        // playhead; complete it (resuming content or advancing to
-                        // any next break).
-                        logDebug(this, 'no playable ads')
-                        this.completeAdBreak()
-                    }
-                    this.pollPendingAds()
-                })
-                .catch((error) => {
-                    this.failAd(error)
-                })
+        // Fold this ad's actual playout into the break total before clearing it.
+        adState.parentBreak.playoutElapsed += this.adElapsed()
+        adState.completedReason = reason
+        this.dispatch('adCompleted', {
+            adBreak: adState.parentBreak.adBreak,
+            ad: adState.ad,
+            reason,
+            index: adState.index,
+            totalAds: adState.totalAds,
+        })
+        if (adState.index >= adState.totalAds - 1) {
+            this.completeAdBreak(adState.parentBreak, reason)
         }
     }
 
     /**
-     * Polls the pending ad queue, when that is empty, polls the pending ad break queue.
+     * Polls the next pending ad and activates it.
+     * When there are no remaining ads, activates the next ad break (if any).
      */
-    private pollPendingAds() {
-        if (this._currentAd || this.disposed) return
-        const nextAd = this.pendingAds.shift()
-        if (nextAd) {
-            this.startAd(nextAd)
-        } else {
-            if (this._currentAdBreak) {
-                this.markBreakComplete(this._currentAdBreak)
-            }
-            const nextAdBreak = this.pendingAdBreaks.shift()
-            this.setCurrentAdBreak(nextAdBreak)
+    private nextAdOrBreak() {
+        if (this.disposed || this.loadingNext) return
+        const adBreakState = this.adBreakState
+        if (!adBreakState && !this.pendingAdBreaks.length) {
+            logDebug(this, 'nextAdOrBreak no-op')
+            return
         }
+        logDebug(this, 'nextAdOrBreak')
+        this.loadingNext = true
+
+        const nextAd = async (adBreakState: AdBreakState) => {
+            logVerbose(this, 'nextAd')
+            try {
+                const ad = await adBreakState.nextAd()
+                // The break may have been completed or swapped out (a content
+                // change, skip, or playout-limit) while its ads were resolving;
+                // don't start an ad for an abandoned break.
+                if (this.disposed || adBreakState.completedReason) return
+                if (ad) {
+                    this.startAd(ad)
+                } else {
+                    // No remaining ads in this break
+                    logVerbose(this, 'no remaining ads')
+                    this.completeAdBreak(adBreakState, 'ended')
+                    await nextBreak()
+                }
+            } catch (error) {
+                if (this.disposed) return
+                // The ad list failed to resolve: surface the error, complete
+                // this break so content can resume, then advance to any pending
+                // break. Re-calling nextAdOrBreak() here would no-op (loadingNext
+                // is still held by this in-flight call) AND would leave the break
+                // stuck non-null, permanently blocking midroll ingress.
+                this.dispatch('adError', {
+                    adBreak: adBreakState.adBreak,
+                    currentAd: null,
+                    error,
+                })
+                this.completeAdBreak(adBreakState, 'error')
+                await nextBreak()
+            }
+        }
+
+        const nextBreak = async () => {
+            logVerbose(this, 'nextBreak')
+            if (this.pendingAdBreaks.length) {
+                // There are pending breaks, take the next one and start its first ad.
+                const adBreak = this.pendingAdBreaks.shift()!
+                this.adBreakState = createAdBreakState(adBreak)
+                logDebug(this, 'adBreakEntered', adBreak)
+                this.dispatch('adBreakEntered', { adBreak })
+                await nextAd(this.adBreakState)
+            } else {
+                logDebug(this, 'no remaining breaks')
+            }
+        }
+
+        ;(async () => {
+            if (adBreakState) {
+                await nextAd(adBreakState)
+            } else {
+                await nextBreak().catch(noop)
+            }
+        })()
+            .catch(noop)
+            .finally(() => {
+                this.loadingNext = false
+            })
     }
 
     get currentAd(): AdInfo | null {
-        return this._currentAd
+        return this.adState?.ad ?? null
     }
 
-    private startAd(value: AdInfo): void {
-        this._currentAd = value
-        this.adStats = createAdStats()
-        const stats = this.adStats
-        logDebug(this, 'adEntered', value)
+    private get adState(): AdState | null {
+        return this.adBreakState?.adState ?? null
+    }
+
+    private startAd(adState: AdState): void {
+        const { ad, index, totalAds } = adState
+        logDebug(this, 'adEntered', adState.ad)
         this.dispatch('adEntered', {
-            ad: value,
-            index: this._currentAdIndex,
-            totalAds: this._totalAds,
+            adBreak: adState.parentBreak.adBreak,
+            ad,
+            index,
+            totalAds,
         })
+        this.emitTimeUpdate(adState).catch(noop)
         sleep(this.options.adLoadTimeout)
             .then(() => {
                 if (this.disposed) return
-                if (this.adStats === stats && !stats.playing) {
+                if (this.adState === adState && !adState.started) {
                     this.failAd(
                         new AdError(
                             `Ad failed to start after ${this.options.adLoadTimeout} seconds`
@@ -447,220 +551,211 @@ export class AdControllerImpl
             .catch(noop)
     }
 
-    private completeAd(reason: AdChangeReason) {
-        const ad = this._currentAd
-        if (!ad) return
-        const adBreak = this._currentAdBreak!
-        logDebug(this, 'adCompleted', ad, 'reason:', reason)
-        // Fold this ad's actual playout into the break total before clearing it.
-        this.breakPlayoutElapsed += this.adElapsed()
-        this._currentAd = null
-        const index = this._currentAdIndex++
-        this.dispatch('adCompleted', {
-            adBreak,
-            ad,
-            reason,
-            index,
-            totalAds: this._totalAds,
-        })
-        if (!this.pendingAds.length) {
-            logVerbose(this, 'no remaining pending ads')
-            this.completeAdBreak()
+    /**
+     * Checks if the playhead has entered a time to activate a midroll ad.
+     */
+    private onTimeUpdate = (): void => {
+        const adBreak = this.currentAdBreak
+        const adState = this.adState
+        if (adBreak) {
+            // Ad progress events
+            if (adState && adState.completedReason == null) {
+                this.emitAdProgressEvents(adState).catch(noop)
+                this.enforcePlayoutLimits(adState)
+            }
+            return
+        }
+        const pC = this.deps.playbackController
+        if (
+            this.contentTrackActive &&
+            pC.playing &&
+            !this.pendingAdBreaks.length
+        ) {
+            // Not an ad playing, main content.
+            this.lastPlaybackTime = pC.currentTime
+            this.checkMidrollIngress()
         }
     }
 
     /**
-     * Checks if the playhead has entered a time to activate a midroll ad.
+     * Main content with ad breaks is playing, check if we have entered a midroll region.
      */
-    private onTimeUpdate = () => {
-        // Don't re-evaluate while a break is active — the playhead reflects the
-        // ad track's time, not the content timeline.
-        const pC = this.deps.playbackController
-        const adBreak = this.currentAdBreak
-        if (adBreak) {
-            // Ad progress events
-            const ad = this.currentAd
-            const stats = this.adStats
-            if (ad) {
-                // Surface elapsed/remaining time for the ad and the break as a
-                // whole so applications don't derive it from the media duration.
-                const adPlayed = this.adElapsed()
-                const adTotal =
-                    ad.duration ?? (isFinite(pC.duration) ? pC.duration : null)
-                const breakPlayed = this.breakPlayoutElapsed + adPlayed
-                const breakTotal = adBreak.playoutLimit ?? adBreak.duration
-                const { canSkip, skipIn } = this.resolveSkipState(
-                    adBreak,
-                    breakPlayed
-                )
-                this.dispatch('adTimeUpdate', {
-                    ad,
-                    index: this._currentAdIndex,
-                    totalAds: this._totalAds,
-                    adCurrentTime: adPlayed,
-                    adTimeRemaining:
-                        adTotal != null
-                            ? Math.max(0, adTotal - adPlayed)
-                            : null,
-                    breakCurrentTime: breakPlayed,
-                    breakTimeRemaining:
-                        breakTotal != null
-                            ? Math.max(0, breakTotal - breakPlayed)
-                            : null,
-                    canSkip,
-                    skipIn,
-                })
+    private checkMidrollIngress(): void {
+        const time = this.deps.playbackController.currentTime
+        const midrolls = this.midrollAds
+        // Upper bound: the first midroll whose startTime is strictly after the
+        // playhead. Every candidate break is at an index before it.
+        const upper = sortedInsertionIndex(
+            midrolls,
+            time,
+            (time, ad) => time - ad.startTime
+        )
+        const newPending: AdBreakInfo[] = []
+        // Scan every break at or before the playhead, ascending (timeline
+        // order), so tied start times and an earlier still-open break that
+        // contains the playhead (e.g. after a seek into or over it) are all
+        // considered — not just the single nearest preceding break.
+        for (let i = 0; i < upper; i++) {
+            const midroll = midrolls[i]
+            if (this.isBreakSuppressed(midroll)) continue
+            const duration =
+                midroll.duration == null || midroll.restrict.jump
+                    ? Number.MAX_VALUE
+                    : midroll.duration
+            if (time < midroll.startTime + duration) {
+                newPending.push(midroll)
             }
-            if (ad && isFinite(pC.duration)) {
-                // Take a running average of the playback rate. Applications can
-                // use this to detect tampering when emitting metrics.
-                stats.dataPoints++
-                stats.playbackRateAvg = lerp(
-                    stats.playbackRateAvg,
-                    pC.playbackRate,
-                    1 / stats.dataPoints
-                )
-
-                // If the ad's duration is set, take the shorter of the ad duration
-                const currProgress = pC.currentTimePercent
-                const progressStart = stats.timeStart / pC.duration
-                if (
-                    !stats.quartile.first &&
-                    currProgress > 0.25 &&
-                    progressStart < AD_START_TOLERANCE
-                ) {
-                    this.dispatch(
-                        'adFirstQuartile',
-                        this.createAdProgressEvent(ad, stats)
-                    )
-                }
-                if (
-                    !stats.quartile.midpoint &&
-                    currProgress > 0.5 &&
-                    progressStart < 0.25 + AD_START_TOLERANCE
-                ) {
-                    this.dispatch(
-                        'adMidpoint',
-                        this.createAdProgressEvent(ad, stats)
-                    )
-                }
-                if (
-                    !stats.quartile.third &&
-                    currProgress > 0.75 &&
-                    progressStart < 0.5 + AD_START_TOLERANCE
-                ) {
-                    this.dispatch(
-                        'adThirdQuartile',
-                        this.createAdProgressEvent(ad, stats)
-                    )
-                }
-                // adEnded is not on progress but on a call to `endAd()`.
-            }
-            // Enforce playout limits independent of a finite content duration so
-            // live ads with a declared duration are still bounded.
-            if (ad && stats.playing) {
-                const elapsed = Math.max(0, pC.currentTime - stats.timeStart)
-                const limit = adBreak.playoutLimit
-                if (
-                    limit != null &&
-                    this.breakPlayoutElapsed + elapsed >= limit
-                ) {
-                    // The break's total playout limit is reached: end the whole
-                    // break, dropping any ads that have not started.
-                    this.pendingAds = []
-                    this.endAd()
-                } else if (ad.duration != null && elapsed >= ad.duration) {
-                    // This ad reached its declared duration: advance to the next.
-                    this.endAd()
-                }
-            }
-            return
         }
+        if (newPending.length) {
+            logVerbose(this, 'setting midrolls')
+            this.setPendingBreaks(newPending)
+        }
+    }
 
-        const time = pC.currentTime
-        const index = sortedInsertionIndex(this.midrollTimes, time, compare) - 1
-        if (index >= 0) {
-            const newPending: AdBreakInfo[] = []
-            const midrolls = this.groupedByPlacement.midroll
-            for (let i = index; i < midrolls.length; i++) {
-                const midroll = midrolls[i]
-                if (time < midroll.startTime) break
-                if (this.isBreakSuppressed(midroll.id)) continue
-                const duration =
-                    midroll.duration == null || midroll.restrict.jump
-                        ? Number.MAX_VALUE
-                        : midroll.duration
-                if (time < midroll.startTime + duration) {
-                    newPending.push(midroll)
-                }
+    /**
+     * Emits events for `adTimeUpdate`, `adFirstQuartile`, `adMidpoint`, and
+     * `adThirdQuartile`.
+     * (Does not emit `adCompleted`)
+     */
+    private async emitAdProgressEvents(adState: AdState): Promise<void> {
+        const pC = this.deps.playbackController
+        await this.emitTimeUpdate(adState)
+        if (isFinite(pC.duration) && pC.duration > 0) {
+            // Take a running average of the playback rate. Applications can
+            // use this to detect tampering when emitting metrics.
+            adState.dataPoints++
+            adState.playbackRateAvg = lerp(
+                adState.playbackRateAvg,
+                pC.playbackRate,
+                1 / adState.dataPoints
+            )
+
+            // If the ad's duration is set, take the shorter of the ad duration
+            const currProgress = pC.currentTimePercent
+            const progressStart = adState.timeStart / pC.duration
+            if (
+                !adState.quartile.first &&
+                currProgress > 0.25 &&
+                progressStart < AD_START_TOLERANCE
+            ) {
+                this.dispatch('adFirstQuartile', createAdProgressEvent(adState))
             }
-            if (newPending.length) {
-                this.lastPlaybackTime = time
-                this.setPendingBreaks(newPending)
+            if (
+                !adState.quartile.midpoint &&
+                currProgress > 0.5 &&
+                progressStart < 0.25 + AD_START_TOLERANCE
+            ) {
+                this.dispatch('adMidpoint', createAdProgressEvent(adState))
+            }
+            if (
+                !adState.quartile.third &&
+                currProgress > 0.75 &&
+                progressStart < 0.5 + AD_START_TOLERANCE
+            ) {
+                this.dispatch('adThirdQuartile', createAdProgressEvent(adState))
+            }
+            // adEnded is not on progress but on a call to `endAd()`.
+        }
+    }
+
+    private async emitTimeUpdate(adState: AdState): Promise<void> {
+        const pC = this.deps.playbackController
+        const { ad, parentBreak } = adState
+        // Surface elapsed/remaining time for the ad and the break as a
+        // whole so applications don't derive it from the media duration.
+        const adPlayed = this.adElapsed()
+        const adTotal =
+            ad.duration ?? (isFinite(pC.duration) ? pC.duration : null)
+        const adBreak = parentBreak.adBreak
+        const breakPlayed = parentBreak.playoutElapsed + adPlayed
+        const breakTotal = adBreak.playoutLimit ?? adBreak.duration
+        const { canSkip, skipIn } = await this.resolveSkipState(
+            parentBreak,
+            breakPlayed
+        )
+        this.dispatch('adTimeUpdate', {
+            adBreak: adState.parentBreak.adBreak,
+            ad,
+            index: adState.index,
+            totalAds: adState.totalAds,
+            adCurrentTime: adPlayed,
+            adTimeRemaining:
+                adTotal != null ? Math.max(0, adTotal - adPlayed) : null,
+            breakCurrentTime: breakPlayed,
+            breakTimeRemaining:
+                breakTotal != null
+                    ? Math.max(0, breakTotal - breakPlayed)
+                    : null,
+            canSkip,
+            skipIn,
+        })
+    }
+
+    /**
+     * Ads breaks can have a playout limit that may cut off ad playback.
+     * End the ad if that limit is reached.
+     */
+    private enforcePlayoutLimits(adState: AdState): void {
+        const pC = this.deps.playbackController
+        const { ad, parentBreak } = adState
+        // Enforce playout limits independent of a finite content duration so
+        // live ads with a declared playout limit are still bounded.
+        if (adState.started) {
+            const elapsed = Math.max(0, pC.currentTime - adState.timeStart)
+            const adBreak = parentBreak.adBreak
+            const limit = adBreak.playoutLimit
+            if (
+                limit != null &&
+                parentBreak.playoutElapsed + elapsed >= limit
+            ) {
+                // The break's total playout limit is reached: end the whole
+                // break, dropping any ads that have not started.
+                parentBreak.clear()
+                this.endAd(adState)
+            } else if (ad.duration != null && elapsed >= ad.duration) {
+                // This ad reached its declared duration: advance to the next.
+                this.endAd(adState)
             }
         }
     }
 
     private setPendingBreaks(newPending: AdBreakList): void {
         this.pendingAdBreaks = newPending.filter(
-            (adBreak) => !this.isBreakSuppressed(adBreak.id)
+            (adBreak) => !this.isBreakSuppressed(adBreak)
         )
-        this._currentAdIndex = 0
-        logDebug(this, `setPendingBreaks len=${newPending.length}`)
-        if (newPending.length) {
-            this.pollPendingAds()
-        }
-    }
-
-    enterPostroll(): void {
-        logDebug(this, 'enterPostroll')
-        this.lastPlaybackTime = this.deps.playbackController.duration
-        this.setPendingBreaks(this.groupedByPlacement.postroll)
-    }
-
-    private createAdProgressEvent(
-        ad: AdInfo,
-        adStats: AdStats
-    ): AdProgressEvent {
-        return {
-            ad,
-            // Snapped to nearest 0.1 to avoid ~1.0
-            playbackRateAvg: roundToNearest(adStats.playbackRateAvg, 0.1),
-            index: this._currentAdIndex,
-            totalAds: this._totalAds,
-        }
+        const n = this.pendingAdBreaks.length
+        logDebug(
+            this,
+            `setPendingBreaks len=${n}, suppressed=${newPending.length - n}`
+        )
+        this.nextAdOrBreak()
     }
 
     skipAd(): void {
-        const ad = this._currentAd
-        if (!ad) return
-        this.completeAd('skipped')
-        this.pollPendingAds()
+        this.completeAd(this.adState, 'skipped')
+        this.nextAdOrBreak()
     }
 
     failAd(error: Error): void {
-        const adBreak = this._currentAdBreak
-        if (!adBreak) return
-        // Capture the failing ad before completeAd() clears it, so the
-        // adError event can distinguish an individual-ad failure from an
-        // ad-list load failure (currentAd == null).
-        const currentAd = this._currentAd
-        this.completeAd('error')
-        this.dispatch('adError', {
-            error,
-            adBreak,
-            currentAd,
-        })
-        this.pollPendingAds()
+        const adState = this.adState
+        if (adState) {
+            // Capture the failing ad before completeAd() clears it, so the
+            // adError event can distinguish an individual-ad failure from an
+            // ad-list load failure (currentAd == null).
+            this.completeAd(adState, 'error')
+            this.dispatch('adError', {
+                error,
+                adBreak: adState.parentBreak.adBreak,
+                currentAd: adState.ad,
+            })
+        }
+        this.nextAdOrBreak()
     }
 
-    private endAd(): void {
-        const ad = this._currentAd
-        if (!ad) return
-        const adStats = this.adStats
-        this.completeAd('ended')
-        this.dispatch('adEnded', this.createAdProgressEvent(ad, adStats))
-        this.pollPendingAds()
+    private endAd(adState: AdState): void {
+        this.completeAd(adState, 'ended')
+        this.dispatch('adEnded', createAdProgressEvent(adState))
+        this.nextAdOrBreak()
     }
 
     get disposed(): boolean {
@@ -673,5 +768,105 @@ export class AdControllerImpl
     dispose(): void {
         super.dispose()
         this.disposer.dispose()
+        // Detach any active break so currentAd/currentAdBreak read null after
+        // dispose, even if a break's ad list resolves late (startAd is already
+        // guarded by the disposed check, so no adEntered/adPlaying fires).
+        this.adBreakState = null
     }
+}
+
+function createAdProgressEvent(adState: AdState): AdProgressEvent {
+    return {
+        adBreak: adState.parentBreak.adBreak,
+        ad: adState.ad,
+        // Snapped to nearest 0.1 to avoid ~1.0
+        playbackRateAvg: roundToNearest(adState.playbackRateAvg, 0.1),
+        index: adState.index,
+        totalAds: adState.totalAds,
+    }
+}
+
+function createAdBreakState(adBreak: AdBreakInfo): AdBreakState {
+    let _currentIndex = -1
+    let _adState: AdState | null = null
+    const logTarget: LogTarget = {
+        logPrefix: createLogPrefix('AdBreakState'),
+    }
+
+    const adBreakState: AdBreakState = {
+        adBreak,
+        playoutElapsed: 0,
+        completedReason: null,
+        get adState(): AdState | null {
+            return _adState
+        },
+
+        async nextAd(): Promise<AdState | null> {
+            const ads = await getAds()
+            if (_currentIndex >= ads.length) return null
+            _adState = getElementOrDefault(ads, ++_currentIndex, null)
+            return _adState
+        },
+
+        clear() {
+            _adState = null
+            _currentIndex = Number.MAX_VALUE
+        },
+    }
+
+    const getAds = memoize(() => {
+        logVerbose(
+            logTarget,
+            `requesting ads for break ${adBreak.placement} ${adBreak.id}`
+        )
+        return resolveValueProvider(adBreak.ads).then((ads) => {
+            logVerbose(logTarget, 'ads resolved', ads)
+            return ads.map((adInfo, index) => {
+                return createAdState({
+                    adBreakState: adBreakState,
+                    ad: adInfo,
+                    totalAds: ads.length,
+                    index: index,
+                })
+            })
+        })
+    })
+
+    return adBreakState
+}
+
+function createAdState({
+    adBreakState,
+    ad,
+    totalAds,
+    index,
+}: {
+    adBreakState: AdBreakState
+    ad: AdInfo
+    totalAds: number
+    index: number
+}): AdState {
+    return {
+        parentBreak: adBreakState,
+        ad,
+        index,
+        totalAds,
+        started: false,
+        timeStart: 0,
+        playbackRateAvg: 0,
+        dataPoints: 0,
+        quartile: {
+            first: false,
+            midpoint: false,
+            third: false,
+        },
+        completedReason: null,
+    }
+}
+
+type AdBreakKey = string & { readonly __adBreakKey: unique symbol }
+
+/** Combines the placement and id of the break for unique reference by placement */
+function adBreakKey(adBreak: AdBreakInfo): AdBreakKey {
+    return `${adBreak.placement}_${adBreak.id}` as AdBreakKey
 }

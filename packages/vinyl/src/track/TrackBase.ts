@@ -11,6 +11,7 @@ import {
     EventHostImpl,
     isSilentError,
     logDebug,
+    type Maybe,
     noop,
     type ReadonlyRanges,
     type ReadonlySet,
@@ -30,7 +31,7 @@ import type {
     MediaQualityMetadata,
 } from '../streaming/MediaQualityMetadata'
 import type { TextTrackController } from '../text/TextTrack'
-import type { AdBreakList, TrackAds } from '../ad/AdBreakInfo'
+import type { TrackAds } from '../ad/AdBreakInfo'
 import type { TrackConfigOptions } from './TrackFactory'
 
 /**
@@ -65,7 +66,7 @@ export abstract class TrackBase<
     /**
      * The current load options, if this is an active track.
      */
-    protected loadOptions: ConfigType | null = null
+    protected loadOptions: Maybe<ConfigType> = null
 
     protected readonly errorHandler = (error: any): void => {
         if (this._error) return // Already in an error state
@@ -121,7 +122,6 @@ export abstract class TrackBase<
      */
     protected _error: Error | null = null
     private _active = false
-    private _trackAds: TrackAds | null = null
     private _seekRange: SeekRange | null = null
 
     protected constructor(
@@ -138,9 +138,6 @@ export abstract class TrackBase<
         protected readonly deps: TrackBaseDeps
     ) {
         super()
-        // Default to no ads, implementations can set this to null to indicate
-        // that ads are loading.
-        this.setAdBreaks([])
     }
 
     toString(): string {
@@ -153,7 +150,7 @@ export abstract class TrackBase<
 
     preload(
         _trackOptions: TrackPreloadOptions,
-        _loadOptions: ConfigType
+        _loadOptions: Maybe<ConfigType>
     ): void {}
 
     get extra(): any {
@@ -168,16 +165,16 @@ export abstract class TrackBase<
         return this.disposer.disposed
     }
 
-    activate(loadOptions: ConfigType): void {
+    activate(loadOptions: Maybe<ConfigType>): void {
         if (this._active) return
         this.loadOptions = loadOptions
         this.reset() // Reset error state on activate
         this._active = true
         logDebug(this, 'activate', this.uri)
         this.deps.playbackController
-            .seekTo(loadOptions.startTime ?? 0)
+            .seekTo(loadOptions?.startTime ?? 0)
             .catch(noop)
-        this.deps.drmController.configure(loadOptions.drm)
+        this.deps.drmController.configure(loadOptions?.drm)
         this.onActivated(loadOptions)
     }
 
@@ -187,7 +184,7 @@ export abstract class TrackBase<
      * track is currently active. For example if there is a loading operation before the
      * playback source is set, isActive must be checked before the property is changed.
      */
-    abstract onActivated(loadOptions: ConfigType): void
+    abstract onActivated(loadOptions: Maybe<ConfigType>): void
 
     deactivate(): void {
         if (!this._active) return
@@ -207,31 +204,14 @@ export abstract class TrackBase<
         this.drmSessionAbort.abort()
     }
 
-    get ads() {
-        return this._trackAds
-    }
-
     /**
-     * Sets the ad breaks for this track, emitting an `adsChange` event.
-     * `TrackController` will update the ad manager and manage the ad tracks.
-     * For tracks with no ads this is expected to be called with an empty array.
-     *
-     * @param value
-     * @protected
+     * Resolves to this track's ads.
+     * Implementations may override to provide ad breaks.
      */
-    protected setAdBreaks(value: AdBreakList | null) {
-        const previous = this._trackAds
-        if (equalDeep(previous?.adBreaks ?? null, value)) return // no-op
-        this._trackAds =
-            value == null
-                ? null
-                : {
-                      trackUri: this.uri,
-                      adBreaks: value,
-                  }
-        this.dispatch('adsChange', {
-            previous,
-            current: this._trackAds,
+    getAds(): Promise<TrackAds> {
+        return Promise.resolve({
+            adBreaks: [],
+            trackUri: this.uri,
         })
     }
 
@@ -261,8 +241,8 @@ export abstract class TrackBase<
         if (hard) {
             // On a hard reset, deactivate/activate the track,
             // restore playback seek and playing state.
-            const loadOptions = this.loadOptions
-            if (loadOptions) {
+            if (this._active) {
+                const loadOptions = this.loadOptions
                 const { playbackController } = this.deps
                 const wasPaused =
                     playbackController.paused || playbackController.ended
@@ -274,6 +254,8 @@ export abstract class TrackBase<
                 this.onActivated(loadOptions)
                 playbackController.seekTo(time).catch(noop)
                 if (!wasPaused) playbackController.play().catch(noop)
+            } else {
+                this.clearPrefetch()
             }
         }
         logDebug(this, 'reset, hard:', hard)

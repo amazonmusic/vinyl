@@ -4,7 +4,6 @@
  */
 
 import {
-    type AdBreakList,
     type ContentType,
     type SeekRange,
     type StreamingEventMap,
@@ -54,10 +53,6 @@ describe('TrackBase', () => {
 
         simulateError(error: Error) {
             this.errorHandler(error)
-        }
-
-        simulateSetAdBreaks(value: AdBreakList | null) {
-            this.setAdBreaks(value)
         }
 
         simulateSetSeekRange(value: SeekRange) {
@@ -247,16 +242,6 @@ describe('TrackBase', () => {
                 error,
                 target: track,
             })
-        })
-    })
-
-    describe('setAdBreaks', () => {
-        it('does not re-emit adsChange when the ad breaks are unchanged', () => {
-            const adBreaks: AdBreakList = []
-            track.simulateSetAdBreaks(adBreaks)
-            const adsSpy = createEventSpy(track, 'adsChange')
-            track.simulateSetAdBreaks([])
-            expect(adsSpy).not.toHaveBeenCalled()
         })
     })
 
