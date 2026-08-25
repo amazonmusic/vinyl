@@ -6,14 +6,14 @@
 import { jsx } from '@amazon/vinyl-tsx'
 import { data } from '@amazon/vinyl-observable'
 import {
-    captionPreferenceOf,
     playerState,
     setMaxVideoHeight,
     setPlaybackRate,
     setPreferredAudioLanguage,
+    setPreferredTextLanguage,
 } from '../player'
 import { Icon } from './icons'
-import type { MediaQualityMetadata, TextTrackInfo } from '@amazon/vinyl'
+import type { MediaQualityMetadata } from '@amazon/vinyl'
 
 /** Which panel of the settings menu is currently shown. */
 type View = 'main' | 'captions' | 'speed' | 'resolution' | 'audio'
@@ -27,15 +27,13 @@ const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
  */
 export function SettingsControl() {
     const {
-        player,
         media,
         textTracks$,
-        activeTextTrack$,
-        captionsEnabled$,
         playbackRate$,
         qualitiesUnfiltered$,
         maxVideoHeight$,
         preferredAudioLanguage$,
+        preferredTextLanguage$,
         hasVideo$,
     } = playerState
 
@@ -47,22 +45,6 @@ export function SettingsControl() {
     const inPip$ = data(document.pictureInPictureElement === media)
 
     const closeMenu = () => (menuOpen$.value = false)
-
-    // --- captions selection (relocated from CaptionsControl) ---
-    const activateTrack = (info: TextTrackInfo) => {
-        player.setActiveTextTrack(info.id)
-        captionsEnabled$.value = true
-        playerState.preferredTextTrack$.value = captionPreferenceOf(info)
-    }
-    const selectTextTrack = (id: string | null) => {
-        if (id == null) {
-            player.setActiveTextTrack(null)
-            captionsEnabled$.value = false
-        } else {
-            const target = textTracks$.value.find((t) => t.id === id)
-            if (target) activateTrack(target)
-        }
-    }
 
     const togglePip = () => {
         if (document.pictureInPictureElement) {
@@ -112,12 +94,13 @@ export function SettingsControl() {
 
                     const buildMainView = (): HTMLElement[] => {
                         const rows: HTMLElement[] = []
-                        const tracks = textTracks$.value
-                        if (tracks.length > 0) {
+                        if (captionLanguages().length > 0) {
                             rows.push(
                                 mainRow(
                                     'Subtitles/CC',
-                                    captionValueLabel(activeTextTrack$.value),
+                                    captionLanguageLabel(
+                                        preferredTextLanguage$.value
+                                    ),
                                     () => (view$.value = 'captions')
                                 )
                             )
@@ -165,19 +148,19 @@ export function SettingsControl() {
                     }
 
                     const buildCaptionsView = (): HTMLElement[] => {
-                        const activeId = activeTextTrack$.value?.id ?? null
+                        const current = preferredTextLanguage$.value
                         return [
                             header('Subtitles/CC'),
-                            optionRow('Off', activeId == null, () => {
-                                selectTextTrack(null)
+                            optionRow('Off', current == null, () => {
+                                setPreferredTextLanguage(null)
                                 view$.value = 'main'
                             }),
-                            ...textTracks$.value.map((t) =>
+                            ...captionLanguages().map((lang) =>
                                 optionRow(
-                                    trackLabel(t),
-                                    t.id === activeId,
+                                    languageLabel(lang),
+                                    lang === current,
                                     () => {
-                                        selectTextTrack(t.id)
+                                        setPreferredTextLanguage(lang)
                                         view$.value = 'main'
                                     }
                                 )
@@ -275,6 +258,22 @@ export function SettingsControl() {
                         ),
                     ]
 
+                    // Distinct caption language tags from the discovered text
+                    // tracks (forced-only tracks are excluded — the user picks a
+                    // language and the player chooses the full track for it).
+                    const captionLanguages = (): string[] => [
+                        ...new Set(
+                            textTracks$.value
+                                .filter(
+                                    (t) =>
+                                        !t.forced &&
+                                        t.language != null &&
+                                        t.language !== ''
+                                )
+                                .map((t) => t.language as string)
+                        ),
+                    ]
+
                     const header = (title: string): HTMLElement => (
                         <button
                             className="settingsHeader"
@@ -340,7 +339,7 @@ export function SettingsControl() {
                     const subs = [
                         view$.onData(render),
                         textTracks$.onData(render),
-                        activeTextTrack$.onData(render),
+                        preferredTextLanguage$.onData(render),
                         playbackRate$.onData(render),
                         qualitiesUnfiltered$.onData(render),
                         maxVideoHeight$.onData(render),
@@ -414,8 +413,8 @@ export function SettingsControl() {
     )
 }
 
-function captionValueLabel(active: TextTrackInfo | null): string {
-    return active ? trackLabel(active) : 'Off'
+function captionLanguageLabel(lang: string | null): string {
+    return lang == null ? 'Off' : languageLabel(lang)
 }
 
 function rateLabel(rate: number): string {
@@ -436,9 +435,4 @@ function languageLabel(lang: string | null): string {
     } catch {
         return lang
     }
-}
-
-function trackLabel(t: TextTrackInfo): string {
-    if (t.label && t.language) return `${t.label} (${t.language})`
-    return t.label || t.language || t.id
 }
