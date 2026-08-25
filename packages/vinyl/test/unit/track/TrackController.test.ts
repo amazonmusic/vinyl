@@ -4,6 +4,7 @@
  */
 
 import {
+    type AdBreakInfo,
     type AdTrackLoadOptionsProvider,
     type ALL_TRACK_CONTROLLER_EVENTS,
     type TrackControllerEventMap,
@@ -745,6 +746,7 @@ describe('TrackControllerImpl', () => {
                         once: false,
                         resumeOffset: null,
                         playoutLimit: null,
+                        resolutionTimeOffset: null,
                         skipControl: () => null,
                         ads: () =>
                             Promise.resolve([
@@ -1129,6 +1131,7 @@ describe('TrackControllerImpl', () => {
                                       once: true,
                                       resumeOffset: null,
                                       playoutLimit: null,
+                                      resolutionTimeOffset: null,
                                       skipControl: () => null,
                                       ads: () =>
                                           Promise.resolve(
@@ -1292,6 +1295,7 @@ describe('TrackControllerImpl', () => {
                             once: true,
                             resumeOffset: null,
                             playoutLimit: null,
+                            resolutionTimeOffset: null,
                             skipControl: () => null,
                             ads: () =>
                                 Promise.reject(new Error('ad list down')),
@@ -1310,6 +1314,63 @@ describe('TrackControllerImpl', () => {
             await flushAds()
             expect(trackController.currentTrack?.uri).toBe(main.uri)
         })
+
+        // ── adPreload (midroll/postroll warming) ──────────────────────────
+        function midrollBreak(adUri: string): AdBreakInfo {
+            return {
+                id: 'mid',
+                startTime: 30,
+                duration: 5,
+                placement: 'midroll',
+                restrict: {},
+                once: false,
+                resumeOffset: null,
+                playoutLimit: null,
+                resolutionTimeOffset: null,
+                skipControl: () => null,
+                ads: () =>
+                    Promise.resolve([
+                        { id: 'ma', startTime: 30, duration: 5, uri: adUri },
+                    ]),
+            }
+        }
+
+        it("preloads a break's ad tracks when adPreload fires", async () => {
+            const [main] = createLoadOptionsList(1)
+            factoryGivingBreak(main.uri, []) // records created tracks; no preroll
+            trackController.load(main) // establishes the parent content track
+            await flushAds()
+            deps.adController.dispatch('adPreload', {
+                adBreak: midrollBreak('https://ads/mid.m3u8'),
+            })
+            await flushAds()
+            const adTrack = created.get('https://ads/mid.m3u8')
+            expect(adTrack).withContext('midroll ad track warmed').toBeDefined()
+            expect(adTrack!.preload).toHaveBeenCalled()
+        })
+
+        it('ignores adPreload when there is no parent track', () => {
+            expect(() =>
+                deps.adController.dispatch('adPreload', {
+                    adBreak: midrollBreak('https://ads/mid.m3u8'),
+                })
+            ).not.toThrow()
+        })
+
+        it("does not throw when an adPreload break's ad list rejects", async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            await flushAds()
+            const adBreak: AdBreakInfo = {
+                ...midrollBreak('https://ads/mid.m3u8'),
+                ads: () => Promise.reject(new Error('ad list down')),
+            }
+            expect(() =>
+                deps.adController.dispatch('adPreload', { adBreak })
+            ).not.toThrow()
+            await flushAds()
+            expect(trackController.currentTrack?.uri).toBe(main.uri)
+        })
     })
 
     describe('ad track lifecycle', () => {
@@ -1323,6 +1384,7 @@ describe('TrackControllerImpl', () => {
                 once: false,
                 resumeOffset: null,
                 playoutLimit: null,
+                resolutionTimeOffset: null,
                 skipControl: () => null,
                 ads: () => Promise.resolve([]),
             }

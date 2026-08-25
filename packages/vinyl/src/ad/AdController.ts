@@ -21,6 +21,15 @@ export interface AdEventMap {
     readonly currentTrackAdsChange: ChangeEvent<TrackAds | null>
 
     /**
+     * Dispatched when the playhead approaches a midroll or postroll break —
+     * within the break's resolution/preload window — so its ad assets can be
+     * resolved and warmed ahead of entry. Fires once per break as it is
+     * approached (again after a seek back re-arms a replayable break). Prerolls
+     * are preloaded up front and do not emit this.
+     */
+    readonly adPreload: AdBreakEvent
+
+    /**
      * Dispatched when an ad break has been entered — its ads may still be
      * resolving. An ad break may contain one or more ads.
      */
@@ -189,6 +198,7 @@ export type AdChangeReason = 'ended' | 'skipped' | 'contentChange' | 'error'
 
 export const ALL_AD_EVENTS = [
     'currentTrackAdsChange',
+    'adPreload',
     'adBreakEntered',
     'adBreakCompleted',
     'adFirstQuartile',

@@ -94,6 +94,7 @@ export function discoverHlsInterstitials(
             placement,
             once: cues.has('ONCE'),
             resumeOffset: parseResumeOffset(range),
+            resolutionTimeOffset: parseResolutionTimeOffset(range),
             playoutLimit,
             ads: async () => (await resolveContent()).ads,
             skipControl: async () => (await resolveContent()).skipControl,
@@ -213,6 +214,18 @@ function parseResumeOffset(range: HlsDateRange): number | null {
     if (!('X-RESUME-OFFSET' in range.clientAttributes)) return null
     const value = parseFloat(range.clientAttributes['X-RESUME-OFFSET'])
     return Number.isFinite(value) ? value : null
+}
+
+/**
+ * Parses the `X-RESOLUTION-TIME-OFFSET` (seconds) — how far ahead of the break
+ * the client should resolve/preload its assets. Returns null when absent or not
+ * a finite non-negative number, so the controller falls back to its configured
+ * `preloadAheadTime`.
+ */
+function parseResolutionTimeOffset(range: HlsDateRange): number | null {
+    if (!('X-RESOLUTION-TIME-OFFSET' in range.clientAttributes)) return null
+    const value = parseFloat(range.clientAttributes['X-RESOLUTION-TIME-OFFSET'])
+    return Number.isFinite(value) && value >= 0 ? value : null
 }
 
 function classifyPlacement(

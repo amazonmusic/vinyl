@@ -33,7 +33,7 @@ import type {
 } from './TrackFactory'
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { AdController } from '../ad/AdController'
-import type { AdInfo } from '../ad/AdBreakInfo'
+import type { AdBreakInfo, AdInfo } from '../ad/AdBreakInfo'
 
 export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,
@@ -332,6 +332,15 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         const { adController, adTrackLoadOptionsProvider, playbackController } =
             this.deps
         add(
+            adController.on('adPreload', (event) => {
+                // The playhead is approaching a midroll/postroll break; warm its
+                // ad tracks for the current content track so they are ready on
+                // entry. Prerolls are already warmed by preloadPrerollAds.
+                const adParent = this.adParent
+                if (adParent) this.preloadBreakAds(adParent, event.adBreak)
+            })
+        )
+        add(
             adController.on('adEntered', (event) => {
                 const adParent = this.adParent
                 if (!adParent) {
@@ -613,6 +622,33 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 logVerbose(
                     this,
                     `preroll ad preload failed for ${parentTrack.uri}`,
+                    error
+                )
+            })
+    }
+
+    /**
+     * Warms the ad tracks for an approaching midroll/postroll break (driven by
+     * the ad controller's `adPreload`). Best-effort: an ad-list or ad-options
+     * failure is logged, not thrown. The break is imminent, so its ad tracks
+     * get a prefetch priority above the current content prefetch window.
+     */
+    private preloadBreakAds(
+        parentTrack: ReadonlyTrack,
+        adBreak: AdBreakInfo
+    ): void {
+        trackPriority.value += 1
+        const prefetchPriority = trackPriority.value
+        resolveValueProvider(adBreak.ads)
+            .then(async (ads) => {
+                for (const ad of ads) {
+                    await this.preloadAd({ parentTrack, prefetchPriority, ad })
+                }
+            })
+            .catch((error) => {
+                logVerbose(
+                    this,
+                    `ad preload failed for break ${adBreak.id}`,
                     error
                 )
             })
