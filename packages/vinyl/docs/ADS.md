@@ -22,11 +22,14 @@ through the player; they never deal with HLS- or DASH-specific tags.
   replaying it when the playhead re-crosses), `resumeOffset` (where primary
   content resumes relative to the break start; `null` advances by the break's
   actual playout duration, `0` resumes in place), `playoutLimit` (a cap on the
-  break's total playout, or `null` when uncapped), and `skipControl()` (a
-  resolver for the window during which the ad may be skipped, or `null` when the
-  break carries none). These are provider-agnostic; an HLS interstitial, for
-  example, populates them from its `CUE=ONCE`, `X-RESUME-OFFSET`,
-  `X-PLAYOUT-LIMIT`, and `X-ASSET-LIST` `SKIP-CONTROL` signals.
+  break's total playout, or `null` when uncapped), `resolutionTimeOffset` (how
+  far ahead of the break its assets should be resolved and preloaded; `null`
+  falls back to the controller's `preloadAheadTime` option — see
+  [Preloading](#preloading)), and `skipControl()` (a resolver for the window
+  during which the ad may be skipped, or `null` when the break carries none).
+  These are provider-agnostic; an HLS interstitial, for example, populates them
+  from its `CUE=ONCE`, `X-RESUME-OFFSET`, `X-PLAYOUT-LIMIT`,
+  `X-RESOLUTION-TIME-OFFSET`, and `X-ASSET-LIST` `SKIP-CONTROL` signals.
 - **`AdInfo`** — a single ad within a break, with its own `id`, `startTime`,
   `duration`, and asset `uri`. Playback of an ad is capped at its `duration`
   when that is known.
@@ -101,8 +104,25 @@ second video element. When the playhead enters a break, the `TrackController`:
    break dictates (ads either replace embedded content or resume from the prior
    position).
 
-Ad tracks are preloaded ahead of their break (about 20 seconds of lookahead) so
-they start promptly, and are disposed when the content track changes.
+### Preloading
+
+Ad tracks are preloaded so they start promptly on entry:
+
+- **Prerolls** are warmed up front — when their parent content track is
+  preloaded (on `load`, prefetch, or `preload`) — since they play immediately.
+- **Midrolls and postrolls** are warmed as the playhead approaches them. The
+  `AdController` emits an **`adPreload`** event once the playhead comes within a
+  break's lead time: its own `resolutionTimeOffset` (from an HLS
+  `X-RESOLUTION-TIME-OFFSET`) when present, otherwise the
+  `AdControllerImplOptions.preloadAheadTime` (default 10 seconds). The
+  `TrackController` handles that event by resolving and warming the break's ad
+  tracks. Seeking back before a break re-arms its preload, so it warms again on
+  the next approach; a played-once (or spent) break is not re-warmed.
+
+Preloaded ad tracks are pegged to their parent content track — they carry a
+prefetch priority just above it and are disposed when that parent is evicted
+from the track cache (or the cache is cleared), so the ad-track store cannot
+grow without bound.
 
 ### Placement notes
 

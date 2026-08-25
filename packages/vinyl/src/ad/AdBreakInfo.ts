@@ -122,6 +122,17 @@ export interface AdBreakInfo {
     readonly playoutLimit: number | null
 
     /**
+     * How far ahead of this break's {@link startTime}, in seconds, the player
+     * should resolve and preload the break's ad assets so they are ready when
+     * the playhead reaches it. `null` when the source specifies no offset, in
+     * which case the controller falls back to its `preloadAheadTime` option.
+     * Applies to midroll and postroll breaks; prerolls are preloaded up front.
+     *
+     * (An HLS interstitial sets this from `X-RESOLUTION-TIME-OFFSET`.)
+     */
+    readonly resolutionTimeOffset: number | null
+
+    /**
      * The window during which the user may skip this break, or a provider
      * resolving to `null` when the break carries no skip window (skippability is
      * then governed by {@link AdRestriction.skip}). Resolved lazily because, like

@@ -369,6 +369,7 @@ describe('VinylPlayer', () => {
             once: false,
             resumeOffset: null,
             playoutLimit: null,
+            resolutionTimeOffset: null,
             skipControl: () => null,
         }
 

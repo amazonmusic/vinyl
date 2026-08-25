@@ -858,6 +858,48 @@ describe('discoverHlsInterstitials', () => {
         expect(garbage[0].resumeOffset).toBeNull()
     })
 
+    it('parses X-RESOLUTION-TIME-OFFSET, or null when absent/invalid', async () => {
+        const present = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(undefined, {
+                    'X-RESOLUTION-TIME-OFFSET': '8.5',
+                }),
+            }),
+            BASE,
+            60
+        )
+        expect(present[0].resolutionTimeOffset).toBe(8.5)
+
+        const absent = await discoverHlsInterstitials(
+            anchored({
+                startDate: '2024-01-01T00:00:20.000Z',
+                duration: 6,
+                clientAttributes: attrs(),
+            }),
+            BASE,
+            60
+        )
+        expect(absent[0].resolutionTimeOffset).toBeNull()
+
+        // A negative or non-numeric offset is rejected (falls back to null).
+        for (const bad of ['-3', 'nope']) {
+            const invalid = await discoverHlsInterstitials(
+                anchored({
+                    startDate: '2024-01-01T00:00:20.000Z',
+                    duration: 6,
+                    clientAttributes: attrs(undefined, {
+                        'X-RESOLUTION-TIME-OFFSET': bad,
+                    }),
+                }),
+                BASE,
+                60
+            )
+            expect(invalid[0].resolutionTimeOffset).toBeNull()
+        }
+    })
+
     it('carries X-PLAYOUT-LIMIT as its own field, even without a DURATION', async () => {
         const breaks = await discoverHlsInterstitials(
             anchored({

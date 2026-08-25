@@ -70,6 +70,7 @@ describe('AdControllerImpl', () => {
             once: false,
             resumeOffset: null,
             playoutLimit: null,
+            resolutionTimeOffset: null,
             skipControl: () => null,
             ads: adsResolver,
             ...rest,
@@ -129,6 +130,162 @@ describe('AdControllerImpl', () => {
         expect(c.currentTrackAds).toBeNull()
         expect(c.currentAdBreak).toBeNull()
         expect(c.currentAd).toBeNull()
+    })
+
+    describe('adPreload', () => {
+        // Default preloadAheadTime is 10s.
+        it('emits adPreload as the playhead approaches a midroll', async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(makeBreak({ id: 'm', startTime: 30, duration: 5 }))
+            )
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            updateTime(19) // outside the 10s window [20, 30)
+            await flush()
+            expect(preloaded).toEqual([])
+            updateTime(21) // inside the window
+            await flush()
+            expect(preloaded).toEqual(['m'])
+        })
+
+        it('emits adPreload only once while approaching', async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(makeBreak({ id: 'm', startTime: 30, duration: 5 }))
+            )
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            updateTime(21)
+            updateTime(22)
+            updateTime(23)
+            await flush()
+            expect(preloaded).toEqual(['m'])
+        })
+
+        it('does not emit adPreload for a preroll', async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({ id: 'pre', startTime: 0, placement: 'preroll' })
+                )
+            )
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            updateTime(1)
+            await flush()
+            expect(preloaded).toEqual([])
+        })
+
+        it('emits adPreload as the playhead approaches a postroll', async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        id: 'post',
+                        startTime: 60,
+                        duration: 5,
+                        placement: 'postroll',
+                    })
+                )
+            )
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            updateTime(49) // outside [50, 60)
+            await flush()
+            expect(preloaded).toEqual([])
+            updateTime(51)
+            await flush()
+            expect(preloaded).toEqual(['post'])
+        })
+
+        it("uses the break's resolutionTimeOffset over the preloadAheadTime option", async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        id: 'm',
+                        startTime: 30,
+                        duration: 5,
+                        resolutionTimeOffset: 5,
+                    })
+                )
+            )
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            updateTime(21) // inside the default 10s window but outside the 5s offset
+            await flush()
+            expect(preloaded).toEqual([])
+            updateTime(26) // inside the 5s window [25, 30)
+            await flush()
+            expect(preloaded).toEqual(['m'])
+        })
+
+        it('honors a custom preloadAheadTime option', async () => {
+            const c = new AdControllerImpl(
+                { playbackController },
+                { preloadAheadTime: 3 }
+            )
+            await setContent(
+                c,
+                trackAds(makeBreak({ id: 'm', startTime: 30, duration: 5 }))
+            )
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            updateTime(26) // outside the 3s window [27, 30)
+            await flush()
+            expect(preloaded).toEqual([])
+            updateTime(28)
+            await flush()
+            expect(preloaded).toEqual(['m'])
+        })
+
+        it('does not emit adPreload for a played-once (suppressed) break', async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        id: 'm',
+                        startTime: 30,
+                        duration: 5,
+                        once: true,
+                    })
+                )
+            )
+            updateTime(30) // enter the break
+            await flush()
+            c.skipAd() // -> completed, suppressed for the presentation
+            await flush()
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            seekTo(15) // seek back and approach again
+            updateTime(22)
+            await flush()
+            expect(preloaded).toEqual([])
+        })
+
+        it('re-arms the preload signal for a replayable break after a seek back', async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(makeBreak({ id: 'm', startTime: 30, duration: 5 }))
+            )
+            const preloaded: string[] = []
+            c.on('adPreload', (e) => preloaded.push(e.adBreak.id))
+            updateTime(22) // approach -> preload #1
+            await flush()
+            expect(preloaded).toEqual(['m'])
+            seekTo(10) // seek back re-arms the preload signal
+            updateTime(23) // approach again -> preload #2
+            await flush()
+            expect(preloaded).toEqual(['m', 'm'])
+        })
     })
 
     describe('ad discovery failures', () => {
@@ -1405,6 +1562,7 @@ describe('AdControllerImpl', () => {
                         startTime: 0,
                         duration: null,
                         playoutLimit: null,
+                        resolutionTimeOffset: null,
                         ads: [
                             {
                                 id: 'a1',

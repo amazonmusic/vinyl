@@ -54,10 +54,20 @@ export interface AdControllerImplOptions {
      * Default: 15
      */
     readonly adLoadTimeout: number
+
+    /**
+     * How many seconds ahead of a midroll or postroll break to emit `adPreload`
+     * (so its ad assets can be warmed before the playhead reaches it). Used only
+     * when the break itself carries no {@link AdBreakInfo.resolutionTimeOffset};
+     * a break's own offset always takes precedence.
+     * Default: 10
+     */
+    readonly preloadAheadTime: number
 }
 
 export const defaultAdControllerImplOptions: AdControllerImplOptions = {
     adLoadTimeout: 15,
+    preloadAheadTime: 10,
 }
 
 interface Quartiles {
@@ -134,6 +144,13 @@ export class AdControllerImpl
     private activeTrack: ReadonlyTrack | null = null
     // The start times of the midroll ads, used for fast midroll break find
     private midrollAds: AdBreakList = []
+    // Midroll and postroll breaks, sorted by start time — the breaks eligible
+    // for the ahead-of-time `adPreload` signal (prerolls are preloaded up front).
+    private preloadableBreaks: AdBreakList = []
+    // Breaks for which `adPreload` has already been emitted on the current
+    // approach; cleared on content change and when a break is re-armed by a
+    // seek back, so a re-approached break preloads again.
+    private readonly preloadedBreakIds = new Set<AdBreakKey>()
 
     private lastPlaybackTime = 0
     private pendingAdBreaks: AdBreakInfo[] = []
@@ -183,15 +200,16 @@ export class AdControllerImpl
                     this.adState.timeStart = playbackController.currentTime
                     return
                 }
-                // A genuine seek back before a spent (replayable) break re-arms
-                // it so it fires again on the next forward crossing.
+                // A genuine seek back before a break re-arms it: a spent
+                // (replayable) break fires again on the next forward crossing,
+                // and its preload signal re-arms so it warms again on approach.
                 if (event.reason !== 'seeked') return
                 const time = playbackController.currentTime
-                if (this.spentBreakIds.size) {
-                    for (const midroll of this.midrollAds) {
-                        if (time < midroll.startTime) {
-                            this.spentBreakIds.delete(adBreakKey(midroll))
-                        }
+                for (const adBreak of this.preloadableBreaks) {
+                    if (time < adBreak.startTime) {
+                        const key = adBreakKey(adBreak)
+                        this.spentBreakIds.delete(key)
+                        this.preloadedBreakIds.delete(key)
                     }
                 }
             })
@@ -207,6 +225,7 @@ export class AdControllerImpl
     clearCompletedAds(): void {
         this.completeAdBreakIds.clear()
         this.spentBreakIds.clear()
+        this.preloadedBreakIds.clear()
     }
 
     private isBreakSuppressed(adBreak: AdBreakInfo): boolean {
@@ -266,6 +285,11 @@ export class AdControllerImpl
 
         this.midrollAds = (value?.adBreaks ?? []).filter(
             (adBreak) => adBreak.placement === 'midroll'
+        )
+        // Midroll + postroll breaks are eligible for the ahead-of-time preload
+        // signal. adBreaks are already sorted by start time, so this stays sorted.
+        this.preloadableBreaks = (value?.adBreaks ?? []).filter(
+            (adBreak) => adBreak.placement !== 'preroll'
         )
 
         logDebug(this, 'setTrackAds', value)
@@ -573,7 +597,34 @@ export class AdControllerImpl
         ) {
             // Not an ad playing, main content.
             this.lastPlaybackTime = pC.currentTime
+            this.checkAdPreload(pC.currentTime)
             this.checkMidrollIngress()
+        }
+    }
+
+    /**
+     * Emits `adPreload` once for each midroll/postroll break the playhead is
+     * approaching — within (the break's {@link AdBreakInfo.resolutionTimeOffset}
+     * or, when absent, the `preloadAheadTime` option) seconds before its start —
+     * so a consumer can resolve and warm the break's assets before entry.
+     * Suppressed (played-once/spent) breaks are skipped.
+     */
+    private checkAdPreload(time: number): void {
+        for (const adBreak of this.preloadableBreaks) {
+            const key = adBreakKey(adBreak)
+            if (this.preloadedBreakIds.has(key)) continue
+            if (this.isBreakSuppressed(adBreak)) continue
+            const offset =
+                adBreak.resolutionTimeOffset ?? this.options.preloadAheadTime
+            // Only ahead of the break; at/after its start, ingress takes over.
+            if (
+                time >= adBreak.startTime - offset &&
+                time < adBreak.startTime
+            ) {
+                this.preloadedBreakIds.add(key)
+                logDebug(this, 'adPreload', adBreak.id)
+                this.dispatch('adPreload', { adBreak })
+            }
         }
     }
 
