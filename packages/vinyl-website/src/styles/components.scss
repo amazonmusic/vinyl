@@ -225,6 +225,51 @@
     }
 }
 
+// Collapsible ad-break section (native <details>/<summary>)
+.adBreakSection {
+    // The demo grid sits directly under the summary; give it breathing room
+    // only when the section is expanded.
+    &[open] .demoGrid {
+        margin-top: var(--space-md);
+    }
+
+    .adBreakSummary {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        cursor: pointer;
+        list-style: none; // remove the default disclosure triangle
+        user-select: none;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+
+        // The chevron points right when collapsed, down when expanded.
+        .iconContainer {
+            display: inline-flex;
+            color: var(--color-text-secondary);
+            transition: transform var(--transition-fast);
+            flex-shrink: 0;
+        }
+
+        h2 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            color: var(--color-text-secondary);
+            font-size: 12px;
+            margin-top: 2px;
+        }
+    }
+
+    &[open] .adBreakSummary .iconContainer {
+        transform: rotate(90deg);
+    }
+}
+
 // Toggle switch
 .themeSwitch {
     display: flex;
