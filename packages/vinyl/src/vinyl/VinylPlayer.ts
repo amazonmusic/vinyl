@@ -361,12 +361,18 @@ export class VinylPlayer<
 
     private initializePreferredLanguageHandling() {
         const { add } = this.disposer
-        // When the preferred language changes, clear the prefetch to immediately switch.
+        // When the preferred language changes, clear buffers and rebuild the
+        // current track's streams so the newly-selected audio language takes
+        // effect immediately, rather than only after the buffered audio drains
+        // — the same treatment as an allowed-content-types change below.
         add(
             this.deps.options
                 .pick('preferredAudioLanguage')
                 .onData((_value, previous) => {
-                    if (previous !== undefined) this.clearPrefetch()
+                    if (previous !== undefined) {
+                        this.clearPrefetch()
+                        this.trackController.reset(/* hard */ true)
+                    }
                 })
         )
         // When the allowed content types change, the current track's streams

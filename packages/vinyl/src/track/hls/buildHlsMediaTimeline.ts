@@ -36,6 +36,13 @@ export interface BuildHlsMediaTimelineDeps extends CreateSegmentDataProviderDeps
 /**
  * Builds a MediaTimeline from an HLS manifest.
  * HLS has a single implicit period spanning the full duration.
+ *
+ * Audio is modeled per source: a variant that carries muxed audio (no separate
+ * AUDIO rendition group) contributes an audio quality on its own playlist, while
+ * a variant with a demuxed audio group contributes video only — one audio
+ * quality is created per AUDIO rendition in the group, each carrying that
+ * rendition's language and playlist. Modeling every language as its own audio
+ * quality is what lets the timeline's language filter select among them.
  */
 export function buildHlsMediaTimeline(
     deps: BuildHlsMediaTimelineDeps,
@@ -43,126 +50,90 @@ export function buildHlsMediaTimeline(
 ): MediaTimeline {
     const { mainPlaylist, baseUrl } = data
     const renditions = mainPlaylist.alternativeRenditions
+    const audioRenditions = renditions.filter((r) => r.type === 'AUDIO')
 
     // HLS duration requires fetching a media playlist, so compute it lazily.
     const DEFAULT_MIN_BUFFER_TIME = 10
 
-    const qualities: MediaQualityData[] = mainPlaylist.variants.flatMap(
-        (variant) => {
-            const baseMetadata = deps.mediaQualityMetadataResolver(
-                variant,
-                renditions
+    const qualities: MediaQualityData[] = []
+
+    for (const variant of mainPlaylist.variants) {
+        const baseMetadata = deps.mediaQualityMetadataResolver(
+            variant,
+            renditions
+        )
+        const codecs = variant.codecs?.split(',') ?? []
+        const contentTypes = new Set(
+            codecs
+                .map((c) => codecToContentType(c))
+                .filter((t): t is ContentType => t != null)
+        )
+        // If no codecs, default to audio (e.g. TS streams).
+        if (contentTypes.size === 0) contentTypes.add('audio')
+
+        const hasDemuxedAudio =
+            variant.audioGroup != null &&
+            audioRenditions.some(
+                (r) => r.groupId === variant.audioGroup && r.uri != null
             )
 
-            // Determine which content types this variant carries.
-            const codecs = variant.codecs?.split(',') ?? []
-            const contentTypes = new Set(
-                codecs
-                    .map((c) => codecToContentType(c))
-                    .filter((t): t is ContentType => t != null)
-            )
-            // If no codecs, default to audio (e.g. TS streams).
-            if (contentTypes.size === 0) contentTypes.add('audio')
-
-            // Create one quality per content type, with narrowed mimeType.
-            return [...contentTypes].map((contentType) => {
-                const codec =
-                    codecs.find((c) => codecToContentType(c) === contentType) ??
-                    null
-                const metadata: MediaQualityMetadata = {
+        // One quality per content type this variant delivers itself.
+        for (const contentType of contentTypes) {
+            // Demuxed audio is delivered by its rendition group (built below as
+            // one quality per language), not by the video variant's playlist.
+            if (contentType === 'audio' && hasDemuxedAudio) continue
+            const codec =
+                codecs.find((c) => codecToContentType(c) === contentType) ??
+                null
+            qualities.push(
+                createHlsQualityData(deps, data, baseUrl, variant.uri, {
                     ...baseMetadata,
                     contentType,
                     mimeType: contentTypeToMimeType(contentType, codec),
                     codecs: codec,
-                }
-                const transmuxer = createTransmuxer()
-
-                return {
-                    metadata,
-                    async getSegment(
-                        time: number,
-                        affordance = 0
-                    ): Promise<SegmentReference<SegmentDataProvider> | null> {
-                        // For an audio quality on a variant that also carries video,
-                        // the audio is delivered through a separate rendition group
-                        // (variant URI is video-only). Use the rendition URI in that
-                        // case. Otherwise the variant URI itself contains the audio.
-                        let playlistUri = variant.uri
-                        if (
-                            metadata.contentType === 'audio' &&
-                            variant.audioGroup &&
-                            contentTypes.has('video')
-                        ) {
-                            const rendition = renditions.find(
-                                (r) =>
-                                    r.type === 'AUDIO' &&
-                                    r.groupId === variant.audioGroup &&
-                                    r.uri
-                            )
-                            if (rendition?.uri) playlistUri = rendition.uri
-                        }
-                        const playlist =
-                            await data.getMediaPlaylist(playlistUri)
-                        const playlistBaseUrl = resolveUrl(playlistUri, baseUrl)
-                        const segments = buildSegmentTimeline(
-                            deps,
-                            playlistBaseUrl,
-                            playlist.segments
-                        )
-                        const segment = getSegmentAtTime(
-                            time,
-                            segments,
-                            affordance
-                        )
-                        if (!segment) return null
-
-                        // fMP4: use #EXT-X-MAP init segment directly.
-                        const hlsMap = playlist.segments[0]?.map
-                        if (hlsMap) {
-                            return {
-                                quality: metadata,
-                                ...segment,
-                                initData: createSegmentDataProvider(deps, {
-                                    url: resolveUrl(
-                                        hlsMap.uri,
-                                        playlistBaseUrl
-                                    ),
-                                    mediaRange: hlsMap.byteRange
-                                        ? hlsByteRangeToMediaRange(
-                                              hlsMap.byteRange
-                                          )
-                                        : undefined,
-                                    reportDownlinkMetrics: false,
-                                }),
-                            }
-                        }
-
-                        // MPEG-TS/ADTS: transmux to fMP4.
-                        const transmuxedQuality: MediaQualityMetadata = {
-                            ...metadata,
-                            mimeType: contentTypeToMimeType(
-                                metadata.contentType!,
-                                metadata.codecs
-                            ),
-                        }
-                        const rawDataProvider = segment.data
-                        return {
-                            quality: transmuxedQuality,
-                            ...segment,
-                            data: async (abort) => {
-                                const raw = await rawDataProvider(abort)
-                                return transmuxer.transmux(raw).mediaSegment
-                            },
-                            initData: async (abort) => {
-                                const raw = await rawDataProvider(abort)
-                                return transmuxer.transmux(raw).initSegment
-                            },
-                        }
-                    },
-                } satisfies MediaQualityData
-            })
+                })
+            )
         }
-    )
+    }
+
+    // One audio quality per demuxed audio rendition (per language), so the
+    // media-timeline language filter can select among them. The audio codec is
+    // taken from a variant that references the rendition's group.
+    const seenAudio = new Set<string>()
+    for (const rendition of audioRenditions) {
+        const uri = rendition.uri
+        if (uri == null || seenAudio.has(uri)) continue
+        seenAudio.add(uri)
+        const variant = mainPlaylist.variants.find(
+            (v) => v.audioGroup === rendition.groupId
+        )
+        // A rendition group referenced by no variant has no codec to play with.
+        if (!variant) continue
+        const audioCodec =
+            variant.codecs
+                ?.split(',')
+                .find((c) => codecToContentType(c) === 'audio') ?? null
+        const baseMetadata = deps.mediaQualityMetadataResolver(
+            variant,
+            renditions
+        )
+        qualities.push(
+            createHlsQualityData(deps, data, baseUrl, uri, {
+                ...baseMetadata,
+                qualityId: `audio-${rendition.groupId}-${
+                    rendition.language ?? rendition.name
+                }`,
+                decoderId: uri,
+                contentType: 'audio',
+                codecs: audioCodec,
+                mimeType: contentTypeToMimeType('audio', audioCodec),
+                width: null,
+                height: null,
+                frameRate: null,
+                lang: rendition.language ?? null,
+            })
+        )
+    }
 
     const period: MediaPeriod = {
         startTime: 0,
@@ -197,6 +168,77 @@ export function buildHlsMediaTimeline(
             return cachedDuration
         },
     }
+}
+
+/**
+ * Builds the {@link MediaQualityData} for one HLS quality: its metadata plus a
+ * getSegment that fetches from `playlistUri` (the variant playlist for video/
+ * muxed qualities, or a rendition playlist for demuxed audio) and either serves
+ * fMP4 directly (using its EXT-X-MAP init segment) or transmuxes MPEG-TS/ADTS.
+ */
+function createHlsQualityData(
+    deps: BuildHlsMediaTimelineDeps,
+    data: HlsManifestData,
+    baseUrl: string,
+    playlistUri: string,
+    metadata: MediaQualityMetadata
+): MediaQualityData {
+    const transmuxer = createTransmuxer()
+    return {
+        metadata,
+        async getSegment(
+            time: number,
+            affordance = 0
+        ): Promise<SegmentReference<SegmentDataProvider> | null> {
+            const playlist = await data.getMediaPlaylist(playlistUri)
+            const playlistBaseUrl = resolveUrl(playlistUri, baseUrl)
+            const segments = buildSegmentTimeline(
+                deps,
+                playlistBaseUrl,
+                playlist.segments
+            )
+            const segment = getSegmentAtTime(time, segments, affordance)
+            if (!segment) return null
+
+            // fMP4: use #EXT-X-MAP init segment directly.
+            const hlsMap = playlist.segments[0]?.map
+            if (hlsMap) {
+                return {
+                    quality: metadata,
+                    ...segment,
+                    initData: createSegmentDataProvider(deps, {
+                        url: resolveUrl(hlsMap.uri, playlistBaseUrl),
+                        mediaRange: hlsMap.byteRange
+                            ? hlsByteRangeToMediaRange(hlsMap.byteRange)
+                            : undefined,
+                        reportDownlinkMetrics: false,
+                    }),
+                }
+            }
+
+            // MPEG-TS/ADTS: transmux to fMP4.
+            const transmuxedQuality: MediaQualityMetadata = {
+                ...metadata,
+                mimeType: contentTypeToMimeType(
+                    metadata.contentType!,
+                    metadata.codecs
+                ),
+            }
+            const rawDataProvider = segment.data
+            return {
+                quality: transmuxedQuality,
+                ...segment,
+                data: async (abort) => {
+                    const raw = await rawDataProvider(abort)
+                    return transmuxer.transmux(raw).mediaSegment
+                },
+                initData: async (abort) => {
+                    const raw = await rawDataProvider(abort)
+                    return transmuxer.transmux(raw).initSegment
+                },
+            }
+        },
+    } satisfies MediaQualityData
 }
 
 async function discoverAdsFromManifest(

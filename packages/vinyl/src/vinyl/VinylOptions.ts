@@ -36,11 +36,15 @@ export interface VinylOptions {
     readonly loudnessNormalization: LoudnessNormalizationControllerImplOptions
 
     /**
-     * Preferred language for audio content, using a code as defined by RFC 5646 (e.g. 'en', 'ja').
-     * When set, only adaptation sets / variants matching this language (or without a language tag)
-     * are kept. Null means no language preference (all languages are kept).
+     * Preferred language(s) for audio content, as RFC 5646 codes (e.g. `'en'`,
+     * `'ja'`, `'fr-CA'`). May be a single tag or an ordered list of tags —
+     * earlier entries are preferred, with the best relatedness match kept for
+     * each period (audio without a language tag is always kept). `null` (the
+     * default) is NOT "no preference": it orders by the platform's
+     * `navigator.languages`. To keep every language, this option is not the
+     * mechanism — omit language content or pass a tag matching all.
      */
-    readonly preferredAudioLanguage: string | null
+    readonly preferredAudioLanguage: string | readonly string[] | null
 
     /**
      * Explicit codec allow/deny overrides that bypass browser support
@@ -78,7 +82,7 @@ export const defaultVinylOptions: VinylOptions = {
 export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
     abr: qualitySelectorImplOptionsValidator,
     loudnessNormalization: loudnessNormalizationControllerImplOptionsValidator,
-    preferredAudioLanguage: string().orNull(),
+    preferredAudioLanguage: string().or(array(string()).readonly()).orNull(),
     codecOverrides: record(string(), isOneOf('allow', 'deny')),
     allowedContentTypes: array(isOneOf(...RESTRICTABLE_CONTENT_TYPES))
         .cast<readonly RestrictableContentType[]>()

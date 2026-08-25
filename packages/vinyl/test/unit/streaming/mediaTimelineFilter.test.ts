@@ -43,6 +43,18 @@ describe('filterTimelineQualities', () => {
         getDuration: () => Promise.resolve(Infinity),
     }
 
+    it('returns the timeline unchanged when the filter is null', () => {
+        // A null predicate (e.g. no language preference) is a no-op.
+        const result = filterTimelineQualities(
+            null,
+            () => {
+                throw new Error('empty')
+            },
+            timeline
+        )
+        expect(result).toBe(timeline)
+    })
+
     it('filters qualities by predicate', () => {
         const result = filterTimelineQualities(
             (q) => q.contentType === 'audio',

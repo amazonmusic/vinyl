@@ -763,21 +763,40 @@ describe('VinylPlayer', () => {
     })
 
     describe('when preferredAudioLanguage changes', () => {
-        it('clears prefetch', () => {
-            expect(deps.trackController.clearPrefetch).not.toHaveBeenCalled()
+        it('reloads the current track and clears prefetch', () => {
+            const trackController = deps.trackController
+            expect(trackController.reset).not.toHaveBeenCalled()
+            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
+
             player.configure({ preferredAudioLanguage: 'ja' })
-            expect(deps.trackController.clearPrefetch).toHaveBeenCalledWith()
+
+            // A language change re-filters the timeline, so the track is
+            // hard-reset in place (buffers cleared) — like an allow-list change.
+            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
+            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
         })
 
-        it('does not clear prefetch when value is unchanged', () => {
-            player.configure({ preferredAudioLanguage: 'ja' })
-            deps.trackController.clearPrefetch.calls.reset()
-            player.configure({ preferredAudioLanguage: 'ja' })
-            expect(deps.trackController.clearPrefetch).not.toHaveBeenCalled()
+        it('accepts an ordered array preference', () => {
+            const trackController = deps.trackController
+            player.configure({ preferredAudioLanguage: ['ja', 'en'] })
+            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
+            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
         })
 
-        it('does not clear prefetch on initial options', () => {
-            // clearPrefetch should not have been called from the initial options set
+        it('does not reload when the value is unchanged', () => {
+            const trackController = deps.trackController
+            player.configure({ preferredAudioLanguage: 'ja' })
+            trackController.reset.calls.reset()
+            trackController.clearPrefetch.calls.reset()
+            player.configure({ preferredAudioLanguage: 'ja' })
+            expect(trackController.reset).not.toHaveBeenCalled()
+            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
+        })
+
+        it('does not reload on initial options', () => {
+            // The handler must not fire on the initial (undefined previous)
+            // emission during construction.
+            expect(deps.trackController.reset).not.toHaveBeenCalled()
             expect(deps.trackController.clearPrefetch).not.toHaveBeenCalled()
         })
     })

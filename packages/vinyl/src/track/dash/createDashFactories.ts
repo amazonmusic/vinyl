@@ -59,7 +59,7 @@ import {
 export interface DashFactoryDeps {
     readonly options: ObservableValue<{
         readonly abr: QualitySelectorImplOptions
-        readonly preferredAudioLanguage: string | null
+        readonly preferredAudioLanguage: string | readonly string[] | null
         readonly allowedContentTypes: readonly RestrictableContentType[] | null
     }>
     readonly playbackController: PlaybackController

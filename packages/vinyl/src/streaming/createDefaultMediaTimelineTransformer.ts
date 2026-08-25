@@ -34,7 +34,7 @@ export interface DefaultMediaTimelineTransformerDeps {
     readonly drmController: DrmController
     readonly mediaTimeline: ObservableValue<Promise<MediaTimeline>>
     readonly options: ObservableValue<{
-        readonly preferredAudioLanguage: string | null
+        readonly preferredAudioLanguage: string | readonly string[] | null
         readonly codecOverrides?: CodecOverrides
     }>
 }
