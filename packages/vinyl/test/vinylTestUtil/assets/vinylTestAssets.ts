@@ -60,16 +60,6 @@ export const vinylTestAssets = {
         live_static_video_60s_4s_mpegts: `${VINYL_ASSETS_HOST}/hls/live_static_video_60s_4s_mpegts/main.m3u8`,
         live_static_video_audio_60s_2s_mpegts: `${VINYL_ASSETS_HOST}/hls/live_static_video_audio_60s_2s_mpegts/main.m3u8`,
         live_static_video_audio_60s_4s_mpegts: `${VINYL_ASSETS_HOST}/hls/live_static_video_audio_60s_4s_mpegts/main.m3u8`,
-
-        /**
-         * Third-party art19/AWS MediaTailor VOD with real HLS Interstitial ad
-         * breaks (preroll, midroll, postroll). Exercises EXT-X-DEFINE variable
-         * substitution — including `QUERYPARAM` tokens in the ad manifests —
-         * end-to-end. Externally hosted, so tests using it tolerate network
-         * flake and skip when unreachable.
-         */
-        art19InterstitialsVod:
-            'https://video.gamma.art19.com/episodes/c51cae05-b65b-460c-80b7-4d6414033f36.m3u8',
     },
 
     // Segmented streaming is added by hand, ControlledMediaSource provides a way to test

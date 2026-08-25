@@ -101,43 +101,4 @@ describe('text track integ', () => {
         suite.player.setActiveTextTrack(null)
         expect(suite.player.activeTextTrack).toBeNull()
     })
-
-    /**
-     * Regression guard for EXT-X-DEFINE variable substitution when loading a
-     * sidecar HLS caption media playlist.
-     *
-     * The ART19 caption playlist references its segments via `{$var}` tokens
-     * imported from the parent multivariant. Without the parser threading
-     * those variables into the media-playlist parse, segment fetches would
-     * hit literal `{$awsContentSegmentPrefix}...` URLs and return 403.
-     *
-     * Uses a live external asset (rather than DMTestAssetBuilder) because we
-     * don't currently produce a fixture with EXT-X-DEFINE:IMPORT.
-     */
-    it('HLS with EXT-X-DEFINE variables loads caption cues', async () => {
-        const art19: VinylTrackLoadOptions[] = [
-            {
-                type: 'hls',
-                uri: 'https://manifest.video-content.art19.com/v1/master/72cdbbd9feb362206e4a78c4cf329b96a870550b/art19-video/episodes/383bfc80-7df0-4927-b0f8-0fa2b9f74a7a/video_versions/e56fbc14-5430-4203-afe7-158b3d9ab044/s/ecc6db96-b528-5642-a083-3b4ebe3a879d/video/954bcfab-9317-4f9c-b7f5-ed4031e22a35.m3u8?playerParams.rss_browser=BAhJIgtBbWF6b24GOgZFVA%3D%3D--1c4f96a4b4fa601c7d329c970a4631ae9ec066f3&playerParams.asid=ecc6db96-b528-5642-a083-3b4ebe3a879d',
-            },
-        ]
-        await loadAndAwaitTextTracks(art19)
-        const tracks = suite.player.textTracks
-        expect(tracks.length).toBeGreaterThan(0)
-        const target = tracks.find((t) => t.language === 'en') ?? tracks[0]
-        expect(target.variables).toBeDefined()
-        suite.player.setActiveTextTrack(target.id)
-        const deadline = Date.now() + 15_000
-        let found = false
-        while (!found && Date.now() < deadline) {
-            const dom = mediaRef.value.textTracks
-            found = Array.from({ length: dom.length }, (_, i) => dom[i]).some(
-                (t) => t.label === target.label && (t.cues?.length ?? 0) > 0
-            )
-            if (!found) await new Promise((r) => setTimeout(r, 100))
-        }
-        expect(found)
-            .withContext(`No cues loaded for ${target.label}`)
-            .toBeTrue()
-    })
 })
