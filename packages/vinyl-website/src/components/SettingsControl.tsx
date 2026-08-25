@@ -360,8 +360,17 @@ export function SettingsControl() {
                     // The listener is attached only while the menu is open, its
                     // attach deferred one tick so the opening click does not
                     // immediately close it (mirrors CaptionsControl).
+                    //
+                    // Use the event's composed path rather than
+                    // `contains(e.target)`: clicking a row synchronously
+                    // re-renders the menu (`el.replaceChildren`), detaching the
+                    // clicked button before the click bubbles here, which would
+                    // make a `contains(e.target)` check see it as an outside
+                    // click and close the menu mid-drill-in. `composedPath()` is
+                    // captured at dispatch time and is immune to that mutation.
                     const onDocClick = (e: MouseEvent) => {
-                        if (!el.parentElement?.contains(e.target as Node)) {
+                        const root = el.parentElement
+                        if (root && !e.composedPath().includes(root)) {
                             closeMenu()
                         }
                     }
