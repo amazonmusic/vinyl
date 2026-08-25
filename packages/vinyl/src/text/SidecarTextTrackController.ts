@@ -229,6 +229,14 @@ export class SidecarTextTrackController
             seen.add(key)
             const domCue = new CueCtor(cue.startTime, cue.endTime, cue.text)
             if (cue.id != null) domCue.id = cue.id
+            // Native WebVTT cues default to size:100% (the full video width). At
+            // that width, long lines clip at the screen edges in fullscreen, and
+            // `::cue` CSS cannot apply width/padding/margin to inset them. Shrink
+            // the cue box so text keeps a safe margin from the edges. Guarded: a
+            // plain TextTrackCue (on VTTCue-less platforms) has no `size`.
+            if ('size' in domCue) {
+                ;(domCue as unknown as { size: number }).size = 90
+            }
             dom.addCue(domCue)
         }
     }
