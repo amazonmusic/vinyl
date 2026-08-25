@@ -9,6 +9,7 @@ import {
     type AdBreakList,
     createVinylPlayer,
     inferTrackTypeFromUrl,
+    type MediaQualityMetadata,
     type SeekRange,
     type TextTrackInfo,
 } from '@amazon/vinyl'
@@ -66,6 +67,22 @@ export const playerState = {
     canSkipAd$: data(false),
     skipIn$: data<number | null>(null),
     seekRange$: data<SeekRange | null>(null),
+    // Unfiltered qualities (before any preferredAudioLanguage / resolution
+    // filtering) so the settings menu can list every audio language and video
+    // resolution regardless of the current selection.
+    qualitiesUnfiltered$: data<readonly MediaQualityMetadata[]>([]),
+    playbackRate$: data(player.playbackRate),
+    // Mirrors the corresponding player options so the settings menu reflects the
+    // active selection. Updated via the setters below. `preferredAudioLanguage`
+    // is being widened to `string | readonly string[] | null`; the settings menu
+    // only ever sets a single tag, so a non-string initial value (an array or
+    // null) is treated as "no single preference" for display purposes.
+    preferredAudioLanguage$: data<string | null>(
+        typeof player.options.preferredAudioLanguage === 'string'
+            ? player.options.preferredAudioLanguage
+            : null
+    ),
+    maxVideoHeight$: data<number | null>(player.options.abr.maxHeight ?? null),
 }
 
 // Safari's loadedMetadata fires before videoWidth is populated for HLS; the
@@ -126,6 +143,7 @@ player.on('activeTextTrackChange', ({ current }) => {
 
 player.on('currentTrackChange', () => {
     playerState.activeTextTrack$.value = player.activeTextTrack
+    playerState.qualitiesUnfiltered$.value = player.qualitiesUnfiltered ?? []
 })
 player.on('currentTrackAdsChange', ({ current }) => {
     playerState.adBreaks$.value = current?.adBreaks ?? []
@@ -147,6 +165,14 @@ player.on('adBreakCompleted', () => {
 
 player.on('seekRangeChange', ({ current }) => {
     playerState.seekRange$.value = current
+})
+
+player.on('rateChange', ({ current }) => {
+    playerState.playbackRate$.value = current
+})
+
+player.on('qualitiesUnfilteredChange', ({ current }) => {
+    playerState.qualitiesUnfiltered$.value = current
 })
 
 // Ad timing (and the skip window) come straight from the ad controller, which
@@ -294,4 +320,29 @@ export function unloadTrack() {
     player.unload()
     playerState.track$.value = null
     playerState.hasVideo$.value = false
+}
+
+/** Sets the playback speed (e.g. 1 for normal, 1.5 for 1.5x). */
+export function setPlaybackRate(rate: number) {
+    player.playbackRate = rate
+    playerState.playbackRate$.value = player.playbackRate
+}
+
+/**
+ * Sets the preferred audio language (an RFC 5646 tag such as 'en' or 'ja'), or
+ * null for no preference. A single string tag is forward-compatible with the
+ * widened `string | readonly string[] | null` form of this option.
+ */
+export function setPreferredAudioLanguage(language: string | null) {
+    player.configure({ preferredAudioLanguage: language })
+    playerState.preferredAudioLanguage$.value = language
+}
+
+/**
+ * Sets the maximum selectable video height in pixels (a resolution cap), or
+ * null for no cap. Mirrors Shaka's `restrictions.maxHeight`.
+ */
+export function setMaxVideoHeight(maxHeight: number | null) {
+    player.configure({ abr: { ...player.options.abr, maxHeight } })
+    playerState.maxVideoHeight$.value = maxHeight
 }
