@@ -541,15 +541,21 @@ describe('hls ad interstitials integ', () => {
             .withContext('entered on the first crossing')
             .toBeTrue()
         player.skipAd()
+        // Wait for the resume to fully settle: the content track's activate()
+        // seeks to the resume position asynchronously, so the playhead must
+        // reach it before we seek back — otherwise our back-seek races with
+        // (and is superseded by) the resume seek and never lands below the
+        // break start, so the break can't re-arm.
         expect(
             await poll(
                 () =>
                     player.currentAdBreak == null &&
-                    player.currentTrack?.uri === 'integ-interstitial',
+                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    player.currentTime >= MIDROLL_TIME,
                 { timeout: 20 }
             )
         )
-            .withContext('content resumed')
+            .withContext('content resumed past the break start')
             .toBeTrue()
         // Seek back before the break to re-arm it, then play forward across it.
         await seekTolerant(MIDROLL_TIME - 5)
