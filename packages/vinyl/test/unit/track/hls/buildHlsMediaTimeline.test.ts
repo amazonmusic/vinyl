@@ -137,23 +137,42 @@ describe('buildHlsMediaTimeline', () => {
         expect(timeline.periods[0].endTime).toBe(Infinity)
     })
 
-    it('uses variant URI for audio when variant is audio-only with audioGroup', async () => {
-        const variant = {
-            ...createVariant('flac.m3u8', 2_000_000),
-            codecs: 'flac',
-            audioGroup: 'audio-group',
-        } as VariantStream
+    it('creates one audio quality per rendition for an audio-only multi-language stream', async () => {
+        // Shaka's audio-only shape: each language is both an audio-only variant
+        // (referencing the group) and a rendition pointing at the same playlist.
+        // Demuxed audio is modeled per rendition, one quality per language.
         const playlist = createMediaPlaylist([5, 5])
         const requestedUris: string[] = []
         const manifestData: HlsManifestData = {
             mainPlaylist: {
-                variants: [variant],
+                variants: [
+                    {
+                        bandwidth: 128000,
+                        uri: 'audio_en.m3u8',
+                        codecs: 'mp4a.40.2',
+                        audioGroup: 'audio',
+                    },
+                    {
+                        bandwidth: 129000,
+                        uri: 'audio_fr.m3u8',
+                        codecs: 'mp4a.40.2',
+                        audioGroup: 'audio',
+                    },
+                ],
                 alternativeRenditions: [
                     {
                         type: 'AUDIO',
-                        groupId: 'audio-group',
-                        uri: 'aac.m3u8',
+                        groupId: 'audio',
+                        uri: 'audio_en.m3u8',
                         language: 'en',
+                        name: 'en',
+                    },
+                    {
+                        type: 'AUDIO',
+                        groupId: 'audio',
+                        uri: 'audio_fr.m3u8',
+                        language: 'fr',
+                        name: 'fr',
                     },
                 ],
             } as unknown as HlsMainPlaylist,
@@ -164,10 +183,109 @@ describe('buildHlsMediaTimeline', () => {
             },
         }
         const timeline = buildHlsMediaTimeline(deps, manifestData)
-        const segment = await timeline.periods[0].qualities[0].getSegment(2)
-        expect(segment).not.toBeNull()
-        expect(requestedUris).toContain('flac.m3u8')
-        expect(requestedUris).not.toContain('aac.m3u8')
+        const audio = timeline.periods[0].qualities.filter(
+            (q) => q.metadata.contentType === 'audio'
+        )
+        expect(
+            audio
+                .map((q) => q.metadata.lang)
+                .sort((a, b) => String(a).localeCompare(String(b)))
+        ).toEqual(['en', 'fr'])
+        // Fetching an audio quality uses its own rendition playlist.
+        await audio.find((q) => q.metadata.lang === 'fr')!.getSegment(2)
+        expect(requestedUris).toContain('audio_fr.m3u8')
+    })
+
+    it('skips audio renditions with no URI, a duplicate URI, or an unreferenced group', () => {
+        const playlist = createMediaPlaylist([5, 5])
+        const manifestData: HlsManifestData = {
+            mainPlaylist: {
+                variants: [
+                    {
+                        bandwidth: 5_000_000,
+                        uri: 'video.m3u8',
+                        codecs: 'avc1.640015,mp4a.40.2',
+                        audioGroup: 'audio',
+                    },
+                ],
+                alternativeRenditions: [
+                    // No URI: nothing to fetch, skipped.
+                    {
+                        type: 'AUDIO',
+                        groupId: 'audio',
+                        language: 'en',
+                        name: 'en',
+                    },
+                    // First real rendition for this URI is kept.
+                    {
+                        type: 'AUDIO',
+                        groupId: 'audio',
+                        uri: 'audio.m3u8',
+                        language: 'en',
+                        name: 'en',
+                    },
+                    // Duplicate URI: deduped away.
+                    {
+                        type: 'AUDIO',
+                        groupId: 'audio',
+                        uri: 'audio.m3u8',
+                        language: 'en-dup',
+                        name: 'en-dup',
+                    },
+                    // Group referenced by no variant: no codec to play with.
+                    {
+                        type: 'AUDIO',
+                        groupId: 'orphan',
+                        uri: 'orphan.m3u8',
+                        language: 'de',
+                        name: 'de',
+                    },
+                ],
+            } as unknown as HlsMainPlaylist,
+            baseUrl: 'https://example.com/',
+            getMediaPlaylist: () => Promise.resolve(playlist),
+        }
+        const timeline = buildHlsMediaTimeline(deps, manifestData)
+        const audio = timeline.periods[0].qualities.filter(
+            (q) => q.metadata.contentType === 'audio'
+        )
+        expect(audio.map((q) => q.metadata.lang)).toEqual(['en'])
+    })
+
+    it('handles an audio rendition with no language and a variant with no audio codec', () => {
+        const playlist = createMediaPlaylist([5, 5])
+        const manifestData: HlsManifestData = {
+            mainPlaylist: {
+                variants: [
+                    {
+                        bandwidth: 5_000_000,
+                        uri: 'video.m3u8',
+                        // Video-only codecs: the demuxed audio has no codec.
+                        codecs: 'avc1.640015',
+                        audioGroup: 'audio',
+                    },
+                ],
+                alternativeRenditions: [
+                    {
+                        type: 'AUDIO',
+                        groupId: 'audio',
+                        uri: 'audio.m3u8',
+                        // No language: the quality id falls back to the name and
+                        // lang is null.
+                        name: 'commentary',
+                    },
+                ],
+            } as unknown as HlsMainPlaylist,
+            baseUrl: 'https://example.com/',
+            getMediaPlaylist: () => Promise.resolve(playlist),
+        }
+        const timeline = buildHlsMediaTimeline(deps, manifestData)
+        const audio = timeline.periods[0].qualities.find(
+            (q) => q.metadata.contentType === 'audio'
+        )!
+        expect(audio.metadata.lang).toBeNull()
+        expect(audio.metadata.codecs).toBeNull()
+        expect(audio.metadata.qualityId).toBe('audio-audio-commentary')
     })
 
     it('uses rendition URI for audio when variant carries both video and audio', async () => {

@@ -126,11 +126,13 @@ describe('HlsMediaQualityMetadataResolver', () => {
         expect(quality.frameRate).toBeNull()
     })
 
-    it('sets lang from matching audio rendition', () => {
+    it('does not set a language (audio language is resolved per rendition)', () => {
+        // The variant metadata is language-agnostic; buildHlsMediaTimeline
+        // creates one audio quality per rendition carrying its own language.
         const quality = resolver(variant({ audioGroup: 'aud1' }), [
             audioRendition({ groupId: 'aud1', language: 'fr' }),
         ])
-        expect(quality.lang).toBe('fr')
+        expect(quality.lang).toBeNull()
     })
 
     it('sets lang to null when no matching rendition', () => {

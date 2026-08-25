@@ -16,19 +16,12 @@ export type HlsMediaQualityMetadataResolver = (
 ) => MediaQualityMetadata
 
 export function createDefaultHlsMediaQualityMetadataResolver(): HlsMediaQualityMetadataResolver {
-    return (variant, renditions) => {
+    return (variant, _renditions) => {
         const codecs = variant.codecs || null
         // Use the first codec to determine the primary content type.
         const contentType = codecs
             ? codecToContentType(codecs.split(',')[0])
             : null
-
-        // Find matching audio rendition for language.
-        const audioRendition = variant.audioGroup
-            ? renditions.find(
-                  (r) => r.type === 'AUDIO' && r.groupId === variant.audioGroup
-              )
-            : undefined
 
         // Use the variant URI as the decoderId so each quality forces a decoder
         // re-initialization on switch.
@@ -50,7 +43,11 @@ export function createDefaultHlsMediaQualityMetadataResolver(): HlsMediaQualityM
             frameRate: variant.frameRate
                 ? ([variant.frameRate, 1] as const)
                 : null,
-            lang: audioRendition?.language ?? null,
+            // A variant's own language is unknown/irrelevant: demuxed audio
+            // carries its language on its rendition (buildHlsMediaTimeline
+            // creates one audio quality per rendition), and video is
+            // language-agnostic. Muxed variants have a single implicit language.
+            lang: null,
             contentProtections: [],
             encryptionScheme: null,
             initDataType: null,
