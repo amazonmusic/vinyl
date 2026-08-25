@@ -1584,6 +1584,75 @@ describe('AdControllerImpl', () => {
             expect(last.adTimeRemaining).toBeNull()
             expect(last.breakTimeRemaining).toBeNull()
         })
+
+        it('caps ad time remaining by the break playout limit', async () => {
+            const c = createController()
+            const seen = timingsOf(c)
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 8,
+                        playoutLimit: 8,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                // Natural duration exceeds the playout limit, so
+                                // the ad is cut off at the limit and the reported
+                                // total must reflect that (not the full 20s).
+                                duration: 20,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            updateTime(4)
+            await flush()
+            const last = seen.at(-1)!
+            expect(last.adCurrentTime).toBe(4)
+            expect(last.adTimeRemaining).toBe(4) // min(ad 20, limit 8) - 4
+            expect(last.breakTimeRemaining).toBe(4) // playoutLimit 8 - 4
+        })
+
+        it('uses the playout-limit remainder when the ad duration is unknown', async () => {
+            const c = createController()
+            const seen = timingsOf(c)
+            playbackController.duration = Infinity
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 8,
+                        playoutLimit: 8,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: null,
+                                uri: 'ad.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            updateTime(3)
+            await flush()
+            const last = seen.at(-1)!
+            // Without a known ad duration and with an infinite media duration,
+            // the limit remainder bounds the report instead of leaving it null.
+            expect(last.adTimeRemaining).toBe(5) // limit 8 - 3
+            expect(last.breakTimeRemaining).toBe(5)
+        })
     })
 
     describe('skip window', () => {

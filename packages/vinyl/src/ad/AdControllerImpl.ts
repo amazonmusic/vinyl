@@ -715,11 +715,25 @@ export class AdControllerImpl
         // Surface elapsed/remaining time for the ad and the break as a
         // whole so applications don't derive it from the media duration.
         const adPlayed = this.adElapsed()
-        const adTotal =
-            ad.duration ?? (isFinite(pC.duration) ? pC.duration : null)
         const adBreak = parentBreak.adBreak
+        const naturalAdTotal =
+            ad.duration ?? (isFinite(pC.duration) ? pC.duration : null)
+        // The break's playout limit is a budget shared across all its ads, so
+        // the current ad can run no longer than the budget left after the ads
+        // that already played. Cap its reported total by that remainder —
+        // matching enforcePlayoutLimits, which cuts the ad (and break) off at
+        // exactly this point. Without the cap adTimeRemaining over-reports (the
+        // full asset duration) while the ad is actually stopped at the limit.
+        const limit = adBreak.playoutLimit
+        const adTotal =
+            limit != null
+                ? Math.min(
+                      naturalAdTotal ?? Infinity,
+                      Math.max(0, limit - parentBreak.playoutElapsed)
+                  )
+                : naturalAdTotal
         const breakPlayed = parentBreak.playoutElapsed + adPlayed
-        const breakTotal = adBreak.playoutLimit ?? adBreak.duration
+        const breakTotal = limit ?? adBreak.duration
         const { canSkip, skipIn } = await this.resolveSkipState(
             parentBreak,
             breakPlayed
