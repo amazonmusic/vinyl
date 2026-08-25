@@ -15,11 +15,13 @@ import {
     logDebug,
     logError,
     logInfo,
+    logVerbose,
     logWarn,
     LruCache,
     type Maybe,
     noop,
     type ReadonlyEventHost,
+    resolveValueProvider,
     type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type { PlaybackController } from '../playback/PlaybackController'
@@ -566,13 +568,80 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         let priority = trackPriority.value
         for (const loadOptions of loadOptionsList) {
             const track = this.getOrCreateTrack(loadOptions)
+            const prefetchPriority = priority--
+            logVerbose(
+                this,
+                `preloading track ${track.uri} with priority ${prefetchPriority}`
+            )
             track.preload(
                 {
-                    prefetchPriority: priority--,
+                    prefetchPriority,
                 },
                 loadOptions.config ?? {}
             )
+            this.preloadPrerollAds(track, prefetchPriority)
         }
+    }
+
+    private preloadPrerollAds(
+        parentTrack: ReadonlyTrack,
+        parentTrackPriority: number
+    ): void {
+        parentTrack
+            .getAds()
+            .then(async (trackAds) => {
+                for (const [index, adBreak] of trackAds.adBreaks.entries()) {
+                    if (adBreak.placement !== 'preroll') continue
+                    const ads = await resolveValueProvider(adBreak.ads)
+                    for (const ad of ads) {
+                        await this.preloadAd({
+                            parentTrack,
+                            // A prefetch priority fractionally higher than the
+                            // parent track (so a preroll is warmed before its
+                            // content), later breaks slightly higher than earlier.
+                            prefetchPriority:
+                                parentTrackPriority + (index + 1) / 1000,
+                            ad,
+                        })
+                    }
+                }
+            })
+            .catch((error) => {
+                // Preloading prerolls is best-effort: an ad-discovery, ad-list,
+                // or ad-options failure must not surface as an unhandled
+                // rejection (it just means the preroll isn't warmed up).
+                logVerbose(
+                    this,
+                    `preroll ad preload failed for ${parentTrack.uri}`,
+                    error
+                )
+            })
+    }
+
+    /** Preloads an ad for a parent track. Aborts if the parent track is disposed before the ad load options resolve. **/
+    private async preloadAd({
+        parentTrack,
+        prefetchPriority,
+        ad,
+    }: {
+        readonly parentTrack: ReadonlyTrack
+        readonly prefetchPriority: number
+        readonly ad: AdInfo
+    }) {
+        const { adTrackLoadOptionsProvider } = this.deps
+        const loadOptions = await adTrackLoadOptionsProvider(ad)
+        if (parentTrack.disposed) return
+        logVerbose(
+            this,
+            `preloading ad id=${ad.id} uri=${ad.uri} priority=${prefetchPriority}`
+        )
+        const adTrack = this.getOrCreateAdTrack(parentTrack.uri, loadOptions)
+        adTrack.preload(
+            {
+                prefetchPriority,
+            },
+            loadOptions.config ?? {}
+        )
     }
 
     load(...loadOptionsList: readonly TrackLoadOptionsType[]): void {
