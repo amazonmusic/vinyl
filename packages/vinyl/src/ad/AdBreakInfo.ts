@@ -172,7 +172,7 @@ export interface AdInfo {
      * (e.g. an HLS interstitial `X-ASSET-URI`). Null when the ad is described
      * only indirectly.
      */
-    readonly uri: string | null
+    readonly uri: TrackUri | null
 }
 
 export type AdList = readonly AdInfo[]

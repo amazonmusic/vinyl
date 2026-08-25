@@ -4,8 +4,9 @@
  */
 
 import type { ChangeEvent } from '../event/ChangeEvent'
-import { type Maybe, type ReadonlyEventHost } from '@amazon/vinyl-util'
+import { type ReadonlyEventHost } from '@amazon/vinyl-util'
 import { type AdBreakInfo, type AdInfo, type TrackAds } from './AdBreakInfo'
+import type { ReadonlyTrack } from '../track/Track'
 
 /**
  * Events dispatched by an {@link AdController}. These are provider-agnostic:
@@ -78,8 +79,7 @@ export interface AdEventMap {
     readonly adCompleted: AdCompleteEvent
 
     /**
-     * An ad list or an individual ad failed to load.
-     * Will be dispatched after `adCompleted`.
+     * An ad list or an individual ad failed to complete.
      */
     readonly adError: AdErrorEvent
 }
@@ -103,15 +103,16 @@ export interface AdErrorEvent {
 }
 
 export interface AdEvent {
+    /** The parent ad break */
+    readonly adBreak: AdBreakInfo
+
     /** The ad that triggered this event. */
     readonly ad: AdInfo
 
     /** The zero-based position of this ad within its break. */
     readonly index: number
 
-    /**
-     * The total number of ads in this break.
-     */
+    /** The total number of ads in this break. */
     readonly totalAds: number
 }
 
@@ -179,6 +180,9 @@ export interface AdBreakCompleteEvent extends AdBreakEvent {
      * resume offset and playout, so consumers use this position directly.
      */
     readonly resumePosition: number
+
+    /** The reason the ad break changed, e.g. 'ended' for completed naturally, or 'skipped' */
+    readonly reason: AdChangeReason
 }
 
 export type AdChangeReason = 'ended' | 'skipped' | 'contentChange' | 'error'
@@ -226,23 +230,15 @@ export interface ReadonlyAdController extends ReadonlyEventHost<AdEventMap> {
  *
  * The controller is deliberately agnostic of HLS/DASH discovery details: its
  * input is a list of {@link AdBreakInfo} produced by a provider-specific
- * discovery step (via {@link setAds}); it derives the active break from
- * the playhead by observing the playback controller.
+ * discovery step and surfaced on the parent track (set via
+ * {@link setParentTrack}); it derives the active break from the playhead by
+ * observing the playback controller.
  */
 export interface AdController extends ReadonlyAdController {
     /**
-     * Clears the set of completed ad breaks, allowing them to be
-     * played again.
+     * Sets the current active track, or null if no track is active.
      */
-    clearCompletedAds(): void
-
-    /**
-     * Replaces the known ad breaks.
-     * If there are preroll ad breaks they will be immediately set.
-     *
-     * @param value
-     */
-    setAds(value: Maybe<TrackAds>): void
+    setParentTrack(track: ReadonlyTrack | null): void
 
     /**
      * Skips the entire active ad break, advancing past all remaining ads.
@@ -260,13 +256,24 @@ export interface AdController extends ReadonlyAdController {
     /**
      * Skips the current ad with 'error' for the completed reason.
      * Emits an 'adError' event.
+     * If there are more ads in the break,
+     * the next ad begins. If it's the last ad, the break ends.
      *
      * No-op when no ad break is active.
      */
     failAd(error: Error): void
 
     /**
-     * Activates the next postroll ad.
+     * Activates the preroll ads.
+     * Does nothing if there is no preroll.
+     * Resolves with the active preroll, or null if there wasn't one.
      */
-    enterPostroll(): void
+    enterPreroll(): Promise<AdBreakInfo | null>
+
+    /**
+     * Activates the next postroll ad.
+     * Does nothing if there is no postroll.
+     * Resolves with the active postroll, or null if there wasn't one.
+     */
+    enterPostroll(): Promise<AdBreakInfo | null>
 }

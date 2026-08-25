@@ -18,10 +18,19 @@ export class MockAdController extends MockEventHost implements AdController {
     currentAd: AdInfo | null = null
     currentAdBreak: AdBreakInfo | null = null
 
-    clearCompletedAds = spyFactory('clearCompletedAds')
+    setParentTrack = spyFactory('setParentTrack')
     failAd = spyFactory('failAd')
-    setAds = spyFactory('setAds')
     skipAd = spyFactory('skipAd')
-    enterPostroll = spyFactory('enterPostroll')
     skipAdBreak = spyFactory('skipAdBreak')
+    enterPreroll = spyFactory('enterPreroll')
+    enterPostroll = spyFactory('enterPostroll')
+
+    constructor() {
+        super()
+        // enterPreroll/enterPostroll are awaited by the TrackController, so
+        // default them to resolve with "no roll" (null); tests override with
+        // resolveTo() as needed.
+        this.enterPreroll.and.resolveTo(null)
+        this.enterPostroll.and.resolveTo(null)
+    }
 }

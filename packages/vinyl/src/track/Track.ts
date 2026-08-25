@@ -4,6 +4,7 @@
  */
 
 import type {
+    AnyRecord,
     Covariant,
     Disposable,
     EventHandler,
@@ -25,7 +26,6 @@ import type {
     TextTrackController,
 } from '../text/TextTrack'
 import type { SeekRange } from './SeekRange'
-import type { ChangeEvent } from '../event/ChangeEvent'
 import type { TrackAds } from '../ad/AdBreakInfo'
 import type { TrackConfigOptions } from './TrackFactory'
 
@@ -36,7 +36,7 @@ export type { SeekRange } from './SeekRange'
  * Streaming-related events are separated as they will be bubbled by the player.
  */
 export type TrackEventMap = StreamingEventMap & {
-    readonly adsChange: ChangeEvent<TrackAds | null>
+    readonly adsChange: AnyRecord
 }
 
 /**
@@ -194,12 +194,12 @@ export interface ReadonlyTrack
     readonly seekRange: SeekRange | null
 
     /**
-     * The ads for this track.
-     * A null value indicates the track ads are loading.
+     * Resolves to the ads for this track.
+     * The track's ads may change if the media timeline changes.
      *
      * @see {@link TrackEventMap} — the `adsChange` event.
      */
-    readonly ads: TrackAds | null
+    getAds(): Promise<TrackAds>
 
     readonly __eventMapType: Covariant<TrackEventMap>
     hasListeners(type: keyof TrackEventMap): boolean
