@@ -887,7 +887,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
 
         if (!options.isAd) {
             this.adParent = newTrack
-            adController.setParentTrack(newTrack)
+            adController.setAdsProvider(newTrack)
         }
         if (newTrack) {
             const activate = () => {

@@ -84,7 +84,7 @@ describe('AdControllerImpl', () => {
 
     /**
      * Drains the pending microtask queue so multi-hop ad resolution settles
-     * (setParentTrack → getAds → setTrackAds, then nextAdOrBreak → nextAd →
+     * (setAdsProvider → getAds → setTrackAds, then nextAdOrBreak → nextAd →
      * getAds → startAd, and any follow-on break/ad advance). Uses microtask
      * rounds rather than a macrotask so it never fires the ad-load-timeout
      * timer.
@@ -108,8 +108,8 @@ describe('AdControllerImpl', () => {
         track.active = true
         track.ads = ads
         playbackController.playing = true
-        c.setParentTrack(track)
-        await flush() // let setParentTrack's getAds() resolve → setTrackAds
+        c.setAdsProvider(track)
+        await flush() // let setAdsProvider's getAds() resolve → setTrackAds
         return track
     }
 
@@ -300,7 +300,7 @@ describe('AdControllerImpl', () => {
 
         it('logs and does not throw when parent-track ad discovery rejects', async () => {
             const c = createController()
-            c.setParentTrack(rejectingTrack())
+            c.setAdsProvider(rejectingTrack())
             await flush()
             // The failure is swallowed (logged) — no ads, no active break, no throw.
             expect(c.currentTrackAds).toBeNull()
@@ -309,15 +309,15 @@ describe('AdControllerImpl', () => {
 
         it('ignores a rejected discovery after the parent track has changed', async () => {
             const c = createController()
-            c.setParentTrack(rejectingTrack())
-            c.setParentTrack(null) // interrupts the in-flight discovery
+            c.setAdsProvider(rejectingTrack())
+            c.setAdsProvider(null) // interrupts the in-flight discovery
             await flush()
             expect(c.currentTrackAds).toBeNull()
         })
 
         it('resolves enterPreroll to null when ad discovery rejects', async () => {
             const c = createController()
-            c.setParentTrack(rejectingTrack())
+            c.setAdsProvider(rejectingTrack())
             await flush()
             expect(await c.enterPreroll()).toBeNull()
         })
@@ -330,11 +330,11 @@ describe('AdControllerImpl', () => {
             track.uri = 't1'
             track.active = true
             track.ads = trackAds(makeBreak())
-            c.setParentTrack(track)
+            c.setAdsProvider(track)
             await flush()
             let changes = 0
             c.on('currentTrackAdsChange', () => changes++)
-            c.setParentTrack(track) // same track → early return, no re-read
+            c.setAdsProvider(track) // same provider → early return, no re-read
             await flush()
             expect(changes).toBe(0)
         })
@@ -369,7 +369,7 @@ describe('AdControllerImpl', () => {
                         }),
                 })
             )
-            c.setParentTrack(track)
+            c.setAdsProvider(track)
             playbackController.playing = true
             await flush() // getAds resolves → midroll registered
             updateTime(1) // enters the break; nextAd awaits the ad list
@@ -393,7 +393,7 @@ describe('AdControllerImpl', () => {
     it('clears the ads when the parent track is cleared', async () => {
         const c = createController()
         await setContent(c, trackAds(makeBreak()))
-        c.setParentTrack(null)
+        c.setAdsProvider(null)
         expect(c.currentTrackAds).toBeNull()
     })
 

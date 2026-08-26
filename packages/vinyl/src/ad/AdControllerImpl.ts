@@ -36,7 +36,7 @@ import type {
 } from './AdController'
 import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
 import { AdError } from './AdError'
-import type { ReadonlyTrack } from '../track/Track'
+import type { AdsProvider } from './AdsProvider'
 
 /**
  * The % playhead start tolerance for playback progress when emitting ad progress events.
@@ -126,9 +126,9 @@ interface AdState {
  * `currentTime > startTime`
  *
  * This class contains no HLS- or DASH-specific logic; discovery code maps its
- * protocol's signals to {@link AdBreakInfo} on the parent track's
- * {@link ReadonlyTrack.getAds}, which this controller reads once the track is
- * set via {@link AdController.setParentTrack} (and re-reads on `adsChange`).
+ * protocol's signals to {@link AdBreakInfo} exposed by an
+ * {@link AdsProvider.getAds}, which this controller reads once the provider is
+ * set via {@link AdController.setAdsProvider} (and re-reads on `adsChange`).
  */
 export class AdControllerImpl
     extends EventHostImpl<AdEventMap>
@@ -140,8 +140,8 @@ export class AdControllerImpl
 
     private readonly options: AdControllerImplOptions
     private _trackAds: TrackAds | null = null
-    private activeTrackSub: Unsubscribe | null = null
-    private activeTrack: ReadonlyTrack | null = null
+    private adsProviderSub: Unsubscribe | null = null
+    private adsProvider: AdsProvider | null = null
     // The start times of the midroll ads, used for fast midroll break find
     private midrollAds: AdBreakList = []
     // Midroll and postroll breaks, sorted by start time — the breaks eligible
@@ -300,45 +300,45 @@ export class AdControllerImpl
     }
 
     /**
-     * Returns a function that returns true if the parent track has changed
+     * Returns a function that returns true if the ads provider has changed
      * since the callback was created.
      */
-    private parentTrackInterrupted(): () => boolean {
-        const track = this.activeTrack
-        return () => track !== this.activeTrack
+    private providerInterrupted(): () => boolean {
+        const provider = this.adsProvider
+        return () => provider !== this.adsProvider
     }
 
-    setParentTrack(track: ReadonlyTrack | null): void {
-        if (this.activeTrack === track) return
+    setAdsProvider(provider: AdsProvider | null): void {
+        if (this.adsProvider === provider) return
         this.pendingAdBreaks = []
         this.completeAdBreak(this.adBreakState, 'contentChange')
 
-        this.activeTrackSub?.()
+        this.adsProviderSub?.()
         const { add, dispose } = createDisposer()
-        this.activeTrackSub = dispose
-        this.activeTrack = track
-        const interrupted = this.parentTrackInterrupted()
+        this.adsProviderSub = dispose
+        this.adsProvider = provider
+        const interrupted = this.providerInterrupted()
         this.clearCompletedAds()
         this.setTrackAds(null)
 
-        if (!track) return
+        if (!provider) return
         const refreshAds = () => {
-            track
+            provider
                 .getAds()
                 .then((ads) => {
                     if (interrupted()) return
                     this.setTrackAds(ads)
                 })
                 .catch((error) => {
-                    // Ad discovery failed for the content track. There is no
-                    // active break to surface an adError against, so log it
-                    // rather than routing through failAd (which would no-op
-                    // with no active ad and swallow the failure silently).
+                    // Ad discovery failed for the provider. There is no active
+                    // break to surface an adError against, so log it rather
+                    // than routing through failAd (which would no-op with no
+                    // active ad and swallow the failure silently).
                     if (interrupted()) return
                     logError(this, 'ad discovery failed', error)
                 })
         }
-        add(track.on('adsChange', refreshAds))
+        add(provider.on('adsChange', refreshAds))
         refreshAds()
     }
 
@@ -353,11 +353,11 @@ export class AdControllerImpl
     private async enterRoll(
         placement: 'preroll' | 'postroll'
     ): Promise<AdBreakInfo | null> {
-        if (!this.activeTrack) return null
+        if (!this.adsProvider) return null
         logVerbose(this, `checking for ${placement} ads`)
         this.lastPlaybackTime = this.deps.playbackController.currentTime
-        const interrupted = this.parentTrackInterrupted()
-        return this.activeTrack
+        const interrupted = this.providerInterrupted()
+        return this.adsProvider
             .getAds()
             .then((ads) => {
                 if (interrupted()) {
@@ -379,8 +379,11 @@ export class AdControllerImpl
             })
     }
 
-    private get contentTrackActive(): boolean {
-        return this.activeTrack?.active ?? false
+    // True when we have an ads provider set. Callers gate off this AND their
+    // own "no ad break in progress" checks (currentAdBreak / pendingAdBreaks),
+    // so this is only about "a provider has committed", not track activation.
+    private get hasProvider(): boolean {
+        return this.adsProvider != null
     }
 
     skipAdBreak(): void {
@@ -590,11 +593,7 @@ export class AdControllerImpl
             return
         }
         const pC = this.deps.playbackController
-        if (
-            this.contentTrackActive &&
-            pC.playing &&
-            !this.pendingAdBreaks.length
-        ) {
+        if (this.hasProvider && pC.playing && !this.pendingAdBreaks.length) {
             // Not an ad playing, main content.
             this.lastPlaybackTime = pC.currentTime
             this.checkAdPreload(pC.currentTime)
