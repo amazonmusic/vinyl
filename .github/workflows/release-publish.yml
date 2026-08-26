@@ -1,3 +1,7 @@
+# Tags and publishes when a release/v* PR merges. GitHub Pages is NOT deployed
+# here: this workflow runs in the pull_request context (github.ref =
+# refs/pull/N/merge), which the github-pages environment rejects. Pushing the
+# v* tag below triggers pages-deploy.yml, which deploys Pages from that tag.
 name: Release Publish
 
 on:
@@ -18,10 +22,6 @@ jobs:
         permissions:
             contents: write
             id-token: write
-            pages: write
-        environment:
-            name: github-pages
-            url: ${{ steps.deployment.outputs.page_url }}
         steps:
             - uses: actions/checkout@v6
               with:
@@ -58,11 +58,3 @@ jobs:
 
             - name: Publish to npm
               run: npx lerna publish from-package --yes
-
-            - name: Upload Pages artifact
-              uses: actions/upload-pages-artifact@v3
-              with:
-                  path: packages/vinyl-website/dist
-
-            - name: Deploy to GitHub Pages
-              uses: actions/deploy-pages@v4

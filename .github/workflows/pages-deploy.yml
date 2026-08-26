@@ -1,6 +1,15 @@
 name: Deploy GitHub Pages
 
 on:
+    # Deploy on a release tag (pushed by release-publish.yml) or a manual run —
+    # never on ordinary pushes to main.
+    #
+    # NOTE: a tag run's ref is refs/tags/v*, so the github-pages environment's
+    # deployment protection must allow the `v*` tag pattern (Settings →
+    # Environments → github-pages → Deployment branches and tags), otherwise the
+    # deploy is rejected like any other non-main ref.
+    push:
+        tags: ['v*']
     workflow_dispatch:
         inputs:
             ref:
@@ -25,7 +34,8 @@ jobs:
         steps:
             - uses: actions/checkout@v6
               with:
-                  ref: ${{ inputs.ref }}
+                  # Tag push → the release tag; manual run → the chosen ref.
+                  ref: ${{ inputs.ref || github.ref }}
 
             - uses: actions/setup-node@v6
               with:
