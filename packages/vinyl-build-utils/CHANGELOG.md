@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0]() (2026-08-26)
+
+### Features
+
+- **test:** fall back to an alternate browser when a BrowserStack session never
+  reports progress
+  ([c988940](https://github.com/amazonmusic/vinyl/commits/c988940adbe739792219c71dc9f5b5ff4be945ff))
+
+### Bug Fixes
+
+- **test:** route Safari/iOS BrowserStack workers through bs-local.com
+  ([39f8a84](https://github.com/amazonmusic/vinyl/commits/39f8a849a5b62a834ec55bd8822ac6f8b2a7ddb4))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [1.2.0]() (2026-07-02)
 
 **Note:** Version bump only for package @amazon/vinyl-build-utils
