@@ -66,6 +66,14 @@ function keptAudio(
 
 const DVS = 'public.accessibility.describes-video'
 
+describe('throwNoPlayableAudio', () => {
+    it('throws (defensive guard — the filter never strands audio)', () => {
+        expect(() => throwNoPlayableAudio()).toThrowError(
+            /No playable audio rendition/
+        )
+    })
+})
+
 describe('isAudioDescription', () => {
     it('detects the HLS describes-video characteristic', () => {
         expect(

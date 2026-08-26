@@ -75,7 +75,7 @@ export async function expectPlaylistPlays<T extends TrackLoadOptions>(
     const trackTimeout = PLAYBACK_DURATION + 60 // Timeout to give each track
     const queueEnded = add(createEventSpy(player, 'queueEnded'))
     const queueChange = add(createEventSpy(player, 'queueChange'))
-    const trackChange = add(createEventSpy(player, 'currentTrackChange'))
+    const trackChange = add(createEventSpy(player, 'trackActivated'))
     function assertQueueChangeCount(count: number) {
         expect(queueChange).toHaveBeenCalledTimes(count)
         queueChange.calls.reset()
@@ -86,8 +86,8 @@ export async function expectPlaylistPlays<T extends TrackLoadOptions>(
     await player.play()
     for (let i = 0; i < playlist.length; i++) {
         const isLastTrack = i === playlist.length - 1
-        expect(player.currentTrack?.uri)
-            .withContext('currentTrack uri')
+        expect(player.activeTrack?.uri)
+            .withContext('activeTrack uri')
             .toBe(playlist[i].uri)
         const nextTrack = isLastTrack
             ? queueEnded.next(trackTimeout)

@@ -264,8 +264,8 @@ describe('TrackControllerImpl', () => {
             trackController.load(...loadOptions1)
             // Content activation is deferred behind the async enterPreroll check.
             await clock.tick()
-            expect(trackController.currentTrack?.uri).toBe(loadOptions1[0].uri)
-            const track1 = trackController.currentTrack as MockTrack
+            expect(trackController.activeTrack?.uri).toBe(loadOptions1[0].uri)
+            const track1 = trackController.activeTrack as MockTrack
             expect(track1.activate).toHaveBeenCalledWith({})
 
             const loadOptions2 = createLoadOptionsList(2)
@@ -273,11 +273,11 @@ describe('TrackControllerImpl', () => {
             loadOptions2[0].config = config1
             trackController.load(...loadOptions2)
             await clock.tick()
-            expect(trackController.currentTrack?.uri).not.toBe(
+            expect(trackController.activeTrack?.uri).not.toBe(
                 loadOptions1[0].uri
             )
-            expect(trackController.currentTrack?.uri).toBe(loadOptions2[0].uri)
-            const track2 = trackController.currentTrack as MockTrack
+            expect(trackController.activeTrack?.uri).toBe(loadOptions2[0].uri)
+            const track2 = trackController.activeTrack as MockTrack
             expect(track1.deactivate).toHaveBeenCalledWith()
             expect(track2.activate).toHaveBeenCalledWith(config1)
         })
@@ -362,7 +362,7 @@ describe('TrackControllerImpl', () => {
                 // Content activation is deferred behind the async enterPreroll.
                 await clock.tick()
 
-                const track = trackController.currentTrack as MockTrack
+                const track = trackController.activeTrack as MockTrack
 
                 expect(track.activate).toHaveBeenCalledWith({})
                 expect(track.deactivate).not.toHaveBeenCalled()
@@ -385,7 +385,7 @@ describe('TrackControllerImpl', () => {
             trackController.load(...loadOptionsList)
             // Content activation is deferred behind the async enterPreroll.
             await clock.tick()
-            const currentTrack = trackController.currentTrack as MockTrack
+            const currentTrack = trackController.activeTrack as MockTrack
             expect(currentTrack.activate).toHaveBeenCalledOnceWith({})
             currentTrack.activate.calls.reset()
             trackController.load({ ...loadOptionsList[0] })
@@ -394,15 +394,17 @@ describe('TrackControllerImpl', () => {
             expect(currentTrack.activate).toHaveBeenCalled()
         })
 
-        it('reuses currentTrack', () => {
+        it('reuses currentTrack', async () => {
             const trackController = new TrackControllerImpl<any>(deps, {
                 trackPrefetchCount: 0, // Only the current track is cached
             })
             const loadOptionsList = createLoadOptionsList(3)
             trackController.load(...loadOptionsList)
-            const currentTrack = trackController.currentTrack
+            await clock.tick() // let the deferred activation complete
+            const currentTrack = trackController.activeTrack
             trackController.load(...loadOptionsList)
-            expect(trackController.currentTrack).toBe(currentTrack)
+            await clock.tick()
+            expect(trackController.activeTrack).toBe(currentTrack)
             trackController.dispose()
         })
 
@@ -444,14 +446,14 @@ describe('TrackControllerImpl', () => {
                 deps.playbackController.dispatch('ended', {})
                 trackController.load(...loadOptionsList)
                 await clock.tick()
-                expect(trackController.currentTrack?.uri).toEqual(
+                expect(trackController.activeTrack?.uri).toEqual(
                     loadOptionsList[0].uri
                 )
 
                 // Does not prevent subsequent ended events from progressing queue.
                 deps.playbackController.dispatch('ended', {})
                 await clock.tick()
-                expect(trackController.currentTrack?.uri).toEqual(
+                expect(trackController.activeTrack?.uri).toEqual(
                     loadOptionsList[1].uri
                 )
             })
@@ -474,7 +476,7 @@ describe('TrackControllerImpl', () => {
     })
 
     describe('enqueue', () => {
-        it('appends the given track load options to the current queue', () => {
+        it('appends the given track load options to the current queue', async () => {
             trackController.enqueue()
             expect(trackController.queue).toEqual([])
 
@@ -482,8 +484,9 @@ describe('TrackControllerImpl', () => {
             const tracks2 = createLoadOptionsList(2)
             const tracks3 = createLoadOptionsList(3)
             trackController.enqueue(...tracks1)
+            await clock.tick() // let the deferred activation complete
             expect(trackController.queue).toEqual([])
-            expect(trackController.currentTrack?.uri).toBe(tracks1[0].uri)
+            expect(trackController.activeTrack?.uri).toBe(tracks1[0].uri)
             trackController.enqueue(...tracks2)
             expect(trackController.queue).toEqual(tracks2)
             trackController.enqueue(...tracks3)
@@ -515,22 +518,24 @@ describe('TrackControllerImpl', () => {
     })
 
     describe('next', () => {
-        it('shifts the queue, activating the next track', () => {
+        it('shifts the queue, activating the next track', async () => {
             trackController.configure({ preloadCapacity: 0 })
             trackController.next()
-            expect(trackController.currentTrack).toBeNull()
+            expect(trackController.activeTrack).toBeNull()
 
             const tracks = createLoadOptionsList(5)
             trackController.load(...tracks)
+            await clock.tick() // let the deferred activation complete
             let currentIndex = 0
 
-            function testNext() {
+            async function testNext() {
                 ++currentIndex
                 trackController.next()
+                await clock.tick() // let the deferred activation complete
                 expect(trackController.queue[0]).toEqual(
                     tracks[currentIndex + 1]
                 )
-                expect(trackController.currentTrack?.uri)
+                expect(trackController.activeTrack?.uri)
                     .withContext(`currentTrack ${currentIndex}`)
                     .toBe(tracks[currentIndex].uri)
 
@@ -545,15 +550,16 @@ describe('TrackControllerImpl', () => {
                 }
             }
 
-            testNext() // 1
-            testNext() // 2
-            testNext() // 3
-            testNext() // 4, last track
+            await testNext() // 1
+            await testNext() // 2
+            await testNext() // 3
+            await testNext() // 4, last track
 
             // Reached the end
             trackController.next()
+            await clock.tick()
             expect(trackController.queue).toEqual([])
-            expect(trackController.currentTrack).toBeNull()
+            expect(trackController.activeTrack).toBeNull()
 
             expect(trackCount).toBe(
                 trackController.options.trackPrefetchCount + 1
@@ -600,14 +606,14 @@ describe('TrackControllerImpl', () => {
                 deps.playbackController.dispatch('ended', {})
                 trackController.next()
                 await clock.tick()
-                expect(trackController.currentTrack?.uri).toEqual(
+                expect(trackController.activeTrack?.uri).toEqual(
                     loadOptionsList[1].uri
                 )
 
                 // Does not prevent subsequent ended events from progressing queue.
                 deps.playbackController.dispatch('ended', {})
                 await clock.tick()
-                expect(trackController.currentTrack?.uri).toEqual(
+                expect(trackController.activeTrack?.uri).toEqual(
                     loadOptionsList[2].uri
                 )
             })
@@ -617,32 +623,27 @@ describe('TrackControllerImpl', () => {
     describe('when the current track ends', () => {
         it('moves to the next track', async () => {
             const loadOptionsList = createLoadOptionsList(3)
-            const trackChangeSpy = createEventSpy(
+            const activatedSpy = createEventSpy(
                 trackController,
-                'currentTrackChange'
+                'trackActivated'
             )
             trackController.load(...loadOptionsList)
-            let nextTrackChange = trackChangeSpy.next()
+            await clock.tick() // flush the first track's deferred activation
+            let nextActivated = activatedSpy.next()
             deps.playbackController.dispatch('ended', {})
             await clock.tick()
 
-            await expectAsync(nextTrackChange).toBeResolvedTo({
-                previous: objectContaining({
-                    uri: loadOptionsList[0].uri,
-                }),
-                current: objectContaining({
+            await expectAsync(nextActivated).toBeResolvedTo({
+                track: objectContaining({
                     uri: loadOptionsList[1].uri,
                 }),
             })
 
-            nextTrackChange = trackChangeSpy.next()
+            nextActivated = activatedSpy.next()
             deps.playbackController.dispatch('ended', {})
             await clock.tick()
-            await expectAsync(nextTrackChange).toBeResolvedTo({
-                previous: objectContaining({
-                    uri: loadOptionsList[1].uri,
-                }),
-                current: objectContaining({
+            await expectAsync(nextActivated).toBeResolvedTo({
+                track: objectContaining({
                     uri: loadOptionsList[2].uri,
                 }),
             })
@@ -654,15 +655,16 @@ describe('TrackControllerImpl', () => {
             trackController.load(...createLoadOptionsList(3))
             trackController.unload()
             expect(trackController.queue).toEqual([])
-            expect(trackController.currentTrack).toBeNull()
+            expect(trackController.activeTrack).toBeNull()
         })
     })
 
     describe('clearTrackCache', () => {
         const loadOptionsList = createLoadOptionsList(3)
 
-        beforeEach(() => {
+        beforeEach(async () => {
             trackController.load(...loadOptionsList)
+            await clock.tick() // let the deferred activation complete
         })
 
         it('clears the cache', () => {
@@ -677,10 +679,10 @@ describe('TrackControllerImpl', () => {
         })
 
         it('deactivates the current track', () => {
-            const track = trackController.currentTrack!
+            const track = trackController.activeTrack!
             expect(track).not.toBeNull()
             trackController.clearTrackCache()
-            expect(trackController.currentTrack).toBeNull()
+            expect(trackController.activeTrack).toBeNull()
             expect(track.active).toBeFalse()
         })
 
@@ -696,7 +698,7 @@ describe('TrackControllerImpl', () => {
                 deps.playbackController.dispatch('ended', {})
                 trackController.clearTrackCache()
                 await clock.tick()
-                expect(trackController.currentTrack).toBeNull()
+                expect(trackController.activeTrack).toBeNull()
             })
         })
 
@@ -733,7 +735,7 @@ describe('TrackControllerImpl', () => {
             )
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
-            const track = trackController.currentTrack as MockTrack
+            const track = trackController.activeTrack as MockTrack
             const ads = {
                 trackUri: main.uri,
                 adBreaks: [
@@ -776,12 +778,13 @@ describe('TrackControllerImpl', () => {
     })
 
     describe('clearQueue', () => {
-        it('clears the queue without unloading the current track', () => {
+        it('clears the queue without unloading the current track', async () => {
             const tracks = createLoadOptionsList(3)
             trackController.load(...tracks)
+            await clock.tick() // let the deferred activation complete
             trackController.clearQueue()
             expect(trackController.queue).toEqual([])
-            expect(trackController.currentTrack?.uri).toBe(tracks[0].uri)
+            expect(trackController.activeTrack?.uri).toBe(tracks[0].uri)
         })
     })
 
@@ -1056,9 +1059,10 @@ describe('TrackControllerImpl', () => {
     })
 
     describe('reset', () => {
-        it('resets current track', () => {
+        it('resets current track', async () => {
             trackController.load(...createLoadOptionsList(1))
-            const track = trackController.currentTrack as MockTrack
+            await clock.tick()
+            const track = trackController.activeTrack as MockTrack
 
             trackController.reset()
 
@@ -1071,18 +1075,20 @@ describe('TrackControllerImpl', () => {
     })
 
     describe('reset', () => {
-        it('delegates a hard reset to the current track', () => {
+        it('delegates a hard reset to the current track', async () => {
             trackController.load(...createLoadOptionsList(1))
-            const track = trackController.currentTrack as MockTrack
+            await clock.tick()
+            const track = trackController.activeTrack as MockTrack
 
             trackController.reset(/* hard */ true)
 
             expect(track.reset).toHaveBeenCalledWith(true)
         })
 
-        it('delegates a soft reset to the current track', () => {
+        it('delegates a soft reset to the current track', async () => {
             trackController.load(...createLoadOptionsList(1))
-            const track = trackController.currentTrack as MockTrack
+            await clock.tick()
+            const track = trackController.activeTrack as MockTrack
 
             trackController.reset()
 
@@ -1312,7 +1318,7 @@ describe('TrackControllerImpl', () => {
             const [main] = createLoadOptionsList(1)
             expect(() => trackController.load(main)).not.toThrow()
             await flushAds()
-            expect(trackController.currentTrack?.uri).toBe(main.uri)
+            expect(trackController.activeTrack?.uri).toBe(main.uri)
         })
 
         // ── adPreload (midroll/postroll warming) ──────────────────────────
@@ -1369,7 +1375,7 @@ describe('TrackControllerImpl', () => {
                 deps.adController.dispatch('adPreload', { adBreak })
             ).not.toThrow()
             await flushAds()
-            expect(trackController.currentTrack?.uri).toBe(main.uri)
+            expect(trackController.activeTrack?.uri).toBe(main.uri)
         })
     })
 
@@ -1412,13 +1418,14 @@ describe('TrackControllerImpl', () => {
                 totalAds: 1,
             })
             await flushAds()
-            expect(trackController.currentTrack?.uri).toBe('https://ads/x.m3u8')
+            expect(trackController.activeTrack?.uri).toBe('https://ads/x.m3u8')
         })
 
-        it('does not re-activate the current track when its ads change again', () => {
+        it('does not re-activate the current track when its ads change again', async () => {
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
-            const track = trackController.currentTrack as MockTrack
+            await clock.tick() // let the deferred activation complete
+            const track = trackController.activeTrack as MockTrack
             track.activate.calls.reset()
             // A later ads update re-runs the refresh; the already-active track
             // must not be activated again.
@@ -1449,7 +1456,7 @@ describe('TrackControllerImpl', () => {
                     resumePosition: 0,
                 })
             ).not.toThrow()
-            expect(trackController.currentTrack).toBeNull()
+            expect(trackController.activeTrack).toBeNull()
         })
 
         it('ignores adEntered when there is no parent track', () => {
@@ -1460,27 +1467,27 @@ describe('TrackControllerImpl', () => {
                     totalAds: 1,
                 })
             ).not.toThrow()
-            expect(trackController.currentTrack).toBeNull()
+            expect(trackController.activeTrack).toBeNull()
         })
 
         it('waits for the next break when another is still active on adBreakCompleted', () => {
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
-            const before = trackController.currentTrack
+            const before = trackController.activeTrack
             // Another break is still active — the completed one must not resume content.
             deps.adController.currentAdBreak = adBreak('midroll')
             deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('midroll'),
                 resumePosition: 5,
             })
-            expect(trackController.currentTrack).toBe(before)
+            expect(trackController.activeTrack).toBe(before)
         })
 
         it('does not resume content on adBreakCompleted for a break that played no ad', async () => {
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
             await clock.tick() // content activates (adParent stays active)
-            const track = trackController.currentTrack as MockTrack
+            const track = trackController.activeTrack as MockTrack
             track.activate.calls.reset()
             // No ad displaced the element (no-fill): content is still active.
             deps.adController.dispatch('adBreakCompleted', {
@@ -1518,7 +1525,7 @@ describe('TrackControllerImpl', () => {
             deps.adController.enterPreroll.and.rejectWith(new Error('boom'))
             trackController.load(main)
             await clock.tick()
-            const track = trackController.currentTrack as MockTrack
+            const track = trackController.activeTrack as MockTrack
             expect(track.activate).toHaveBeenCalled()
         })
 
@@ -1527,7 +1534,12 @@ describe('TrackControllerImpl', () => {
             deps.adController.enterPreroll.and.resolveTo(adBreak('preroll'))
             trackController.load(main)
             await clock.tick()
-            const track = trackController.currentTrack as MockTrack
+            // The content never activates while the preroll is entered, so it is
+            // not the active track — reach it via the cache to assert on it.
+            expect(trackController.activeTrack).toBeNull()
+            const track = trackController.getCachedTrack(
+                main.uri
+            ) as unknown as MockTrack
             // The preroll plays first; content activates later on adBreakCompleted.
             expect(track.activate).not.toHaveBeenCalled()
         })
@@ -1540,7 +1552,7 @@ describe('TrackControllerImpl', () => {
                 resumePosition: 7,
             })
             await clock.tick()
-            const track = trackController.currentTrack as MockTrack
+            const track = trackController.activeTrack as MockTrack
             expect(track.uri).toBe(main.uri)
             expect(track.activate).toHaveBeenCalledWith(
                 objectContaining({ startTime: 7 })
@@ -1556,7 +1568,7 @@ describe('TrackControllerImpl', () => {
                 resumePosition: 99,
             })
             await clock.tick()
-            const track = trackController.currentTrack as MockTrack
+            const track = trackController.activeTrack as MockTrack
             expect(track.activate).toHaveBeenCalledWith(
                 objectContaining({ startTime: 3 })
             )
@@ -1570,10 +1582,7 @@ describe('TrackControllerImpl', () => {
             )
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
-            const changeSpy = createEventSpy(
-                trackController,
-                'currentTrackChange'
-            )
+            const changeSpy = createEventSpy(trackController, 'trackActivated')
             deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('midroll'),
                 resumePosition: 5,
@@ -1594,7 +1603,7 @@ describe('TrackControllerImpl', () => {
                 resumePosition: 0,
             })
             await clock.tick()
-            expect(trackController.currentTrack?.uri).toBe(list[1].uri)
+            expect(trackController.activeTrack?.uri).toBe(list[1].uri)
             // The completed postroll ends the whole track.
             expect(trackEnded).toHaveBeenCalledWith(
                 objectContaining({ track: any(Object) })
@@ -1638,7 +1647,7 @@ describe('TrackControllerImpl', () => {
             await clock.tick()
             expect(deps.adController.enterPostroll).toHaveBeenCalled()
             expect(queueEnded).not.toHaveBeenCalled()
-            expect(trackController.currentTrack?.uri).toBe(main.uri)
+            expect(trackController.activeTrack?.uri).toBe(main.uri)
         })
 
         it('ignores an ended event fired while an ad track is playing', async () => {
@@ -1651,7 +1660,7 @@ describe('TrackControllerImpl', () => {
             })
             await flushAds()
             // The ad track is now current over its parent content track.
-            expect(trackController.currentTrack?.uri).toBe('https://ads/x.m3u8')
+            expect(trackController.activeTrack?.uri).toBe('https://ads/x.m3u8')
             const trackEnded = createEventSpy(trackController, 'trackEnded')
             const queueEnded = createEventSpy(trackController, 'queueEnded')
             // `ended` fires for the ad track too; the ad's end is the
@@ -1663,9 +1672,10 @@ describe('TrackControllerImpl', () => {
             expect(queueEnded).not.toHaveBeenCalled()
         })
 
-        it('fails the ad when the current track errors', () => {
+        it('fails the ad when the current track errors', async () => {
             trackController.load(...createLoadOptionsList(1))
-            const track = trackController.currentTrack as MockTrack
+            await clock.tick() // let the deferred activation complete
+            const track = trackController.activeTrack as MockTrack
             const error = new Error('boom')
             track.dispatch('error', { target: track, error })
             expect(deps.adController.failAd).toHaveBeenCalledWith(error)
@@ -1673,12 +1683,15 @@ describe('TrackControllerImpl', () => {
     })
 
     describe('re-entrant queue changes', () => {
-        it('throws if a currentTrackChange handler mutates the queue', () => {
+        it('throws if a trackDeactivated handler mutates the queue', async () => {
+            // trackDeactivated is dispatched synchronously within setQueue (as
+            // the previous track is torn down), so mutating the queue from it
+            // trips setQueue's guard. (trackActivated is dispatched from the
+            // deferred activate(), outside setQueue, so it is not guarded here.)
+            trackController.load(...createLoadOptionsList(1))
+            await clock.tick() // activate the first track so it can deactivate
             let reentered = false
-            trackController.on('currentTrackChange', () => {
-                // Mutating the queue from within a currentTrackChange handler is
-                // illegal (setQueue's guard rejects it); guard against infinite
-                // recursion in the test.
+            trackController.on('trackDeactivated', () => {
                 if (!reentered) {
                     reentered = true
                     trackController.clearQueue()
@@ -1715,9 +1728,10 @@ describe('TrackControllerImpl', () => {
             expect(deps.playbackController.hasAnyListeners()).toBeFalse()
         })
 
-        it('disposes current track', () => {
+        it('disposes current track', async () => {
             trackController.load(...createLoadOptionsList(1))
-            const track = trackController.currentTrack as MockTrack
+            await clock.tick() // let the deferred activation complete
+            const track = trackController.activeTrack as MockTrack
             trackController.dispose()
             expect(track.dispose).toHaveBeenCalledOnceWith()
         })

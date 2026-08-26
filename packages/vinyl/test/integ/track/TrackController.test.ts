@@ -62,23 +62,33 @@ describe('trackController integ', () => {
             const tracks = createLoadOptionsList(count)
             const duration = 60
             const player = suite.player
+            // Activation is deferred (behind the preroll check), so wait for the
+            // first track to activate before reading activeTrack.
+            const firstActivated = nextEventAsPromise(
+                player,
+                'trackActivated',
+                {
+                    timeout: 30,
+                    timeoutMessage: 'trackActivated timed out in {time}s',
+                }
+            )
             player.load(...tracks)
-            expect(player.currentTrack?.uri).toEqual(tracks[0].uri)
+            await firstActivated
+            expect(player.activeTrack?.uri).toEqual(tracks[0].uri)
             await player.play()
             for (let i = 0; i < count - 1; i++) {
                 const nextTrackChange = nextEventAsPromise(
                     player,
-                    'currentTrackChange',
+                    'trackActivated',
                     {
                         timeout: 30,
-                        timeoutMessage:
-                            'currentTrackChange timed out in {time}s',
+                        timeoutMessage: 'trackActivated timed out in {time}s',
                     }
                 )
                 await player.seekTo(duration)
                 await nextTrackChange
 
-                expect(player.currentTrack?.uri).toEqual(tracks[i + 1].uri)
+                expect(player.activeTrack?.uri).toEqual(tracks[i + 1].uri)
             }
             const nextQueueEnded = nextEventAsPromise(player, 'queueEnded', {
                 timeout: 30,
@@ -86,7 +96,7 @@ describe('trackController integ', () => {
             })
             await player.seekTo(duration)
             await nextQueueEnded
-            expect(player.currentTrack?.uri).toEqual(tracks[count - 1].uri) // Remain on the last track
+            expect(player.activeTrack?.uri).toEqual(tracks[count - 1].uri) // Remain on the last track
         })
     })
 })

@@ -942,7 +942,7 @@ describe('MseTrack', () => {
 
         // Regression: reading a disposed track's controller threw DisposedError
         // (disposed DI-container lazy). An ad track evicted mid-break is still
-        // the outgoing track on the currentTrackChange that resumes content, and
+        // the outgoing track on the track change that resumes content, and
         // the player reads its textTrackController — the throw stalled the ad.
         it('returns null (not throw) when read after disposal', () => {
             const t = (track = createTrack())

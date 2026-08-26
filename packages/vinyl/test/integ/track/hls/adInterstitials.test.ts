@@ -334,16 +334,16 @@ describe('hls ad interstitials integ', () => {
         const player = suite.player
         await playThenSeek(MIDROLL_TIME + 1)
         // The ad track becomes the current track and begins playing (the ad
-        // track replaces content as `currentTrack` while the break is active;
+        // track replaces content as the `activeTrack` while the break is active;
         // the suspended content is restored when the break ends).
         expect(
-            await poll(() => player.currentTrack?.uri === AD_ASSET, {
+            await poll(() => player.activeTrack?.uri === AD_ASSET, {
                 timeout: 30,
             })
         )
-            .withContext('player.currentTrack?.uri === AD_ASSET')
+            .withContext('player.activeTrack?.uri === AD_ASSET')
             .toBeTrue()
-        expect(player.currentTrack!.uri).toBe(AD_ASSET)
+        expect(player.activeTrack!.uri).toBe(AD_ASSET)
         // The ad plays within the active break over the (suspended) content.
         expect(player.currentAd).not.toBeNull()
         expect(player.currentAdBreak?.id).toBe(AD_ID)
@@ -433,7 +433,7 @@ describe('hls ad interstitials integ', () => {
         expect(
             await poll(
                 () =>
-                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    player.activeTrack?.uri === 'integ-interstitial' &&
                     !player.paused,
                 { timeout: 20 }
             )
@@ -472,7 +472,7 @@ describe('hls ad interstitials integ', () => {
         expect(
             await poll(
                 () =>
-                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    player.activeTrack?.uri === 'integ-interstitial' &&
                     !player.paused &&
                     player.currentTime > 0,
                 { timeout: 20 }
@@ -522,7 +522,7 @@ describe('hls ad interstitials integ', () => {
         expect(
             await poll(
                 () =>
-                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    player.activeTrack?.uri === 'integ-interstitial' &&
                     !player.paused &&
                     player.currentTime >= MIDROLL_TIME + 10 - 1,
                 { timeout: 20 }
@@ -550,7 +550,7 @@ describe('hls ad interstitials integ', () => {
             await poll(
                 () =>
                     player.currentAdBreak == null &&
-                    player.currentTrack?.uri === 'integ-interstitial' &&
+                    player.activeTrack?.uri === 'integ-interstitial' &&
                     player.currentTime >= MIDROLL_TIME,
                 { timeout: 20 }
             )
@@ -577,7 +577,7 @@ describe('hls ad interstitials integ', () => {
             await poll(
                 () =>
                     player.currentAdBreak == null &&
-                    player.currentTrack?.uri === 'integ-interstitial',
+                    player.activeTrack?.uri === 'integ-interstitial',
                 { timeout: 20 }
             )
         )
@@ -598,7 +598,7 @@ describe('hls ad interstitials integ', () => {
                 await poll(
                     () =>
                         player.currentAdBreak == null &&
-                        player.currentTrack?.uri === 'integ-interstitial' &&
+                        player.activeTrack?.uri === 'integ-interstitial' &&
                         player.currentTime >= MIDROLL_TIME + 1,
                     { timeout: 30 }
                 )
@@ -799,7 +799,7 @@ describe('hls ad interstitials integ', () => {
         // app-observable paused state (paused || ended) is true — no replay.
         // The resume is deferred a frame past adCompleted, so poll for it.
         expect(
-            await poll(() => player.currentTrack?.uri === 'integ-postroll', {
+            await poll(() => player.activeTrack?.uri === 'integ-postroll', {
                 timeout: 20,
             })
         )
@@ -867,7 +867,7 @@ describe('hls ad interstitials integ', () => {
             // Content resumes on the content track after the break.
             expect(
                 await poll(
-                    () => player.currentTrack?.uri === 'integ-postroll-replay',
+                    () => player.activeTrack?.uri === 'integ-postroll-replay',
                     { timeout: 20 }
                 )
             )
@@ -907,7 +907,7 @@ describe('hls ad interstitials integ', () => {
         // New content plays.
         await player.play()
         expect(
-            await poll(() => player.currentTrack?.uri === CONTENT_ASSET, {
+            await poll(() => player.activeTrack?.uri === CONTENT_ASSET, {
                 timeout: 15,
             })
         ).toBeTrue()
@@ -1022,7 +1022,7 @@ describe('hls ad interstitials integ', () => {
         // Advance to the next queued track (same reused ad ID "1").
         player.next()
         expect(
-            await poll(() => player.currentTrack?.uri === 'queue-b', {
+            await poll(() => player.activeTrack?.uri === 'queue-b', {
                 timeout: 15,
             })
         ).toBeTrue()
