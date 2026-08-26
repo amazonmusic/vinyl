@@ -9,11 +9,12 @@ import {
     playerState,
     setMaxVideoHeight,
     setPlaybackRate,
+    setPreferDescriptiveAudio,
     setPreferredAudioLanguage,
     setPreferredTextLanguage,
 } from '../player'
 import { Icon } from './icons'
-import type { MediaQualityMetadata } from '@amazon/vinyl'
+import { isAudioDescription, type MediaQualityMetadata } from '@amazon/vinyl'
 
 /** Which panel of the settings menu is currently shown. */
 type View = 'main' | 'captions' | 'speed' | 'resolution' | 'audio'
@@ -34,6 +35,7 @@ export function SettingsControl() {
         maxVideoHeight$,
         preferredAudioLanguage$,
         preferredTextLanguage$,
+        preferDescriptiveAudio$,
         hasVideo$,
     } = playerState
 
@@ -129,6 +131,18 @@ export function SettingsControl() {
                                         preferredAudioLanguage$.value
                                     ),
                                     () => (view$.value = 'audio')
+                                )
+                            )
+                        }
+                        if (hasAudioDescription()) {
+                            rows.push(
+                                toggleRow(
+                                    'Audio description',
+                                    preferDescriptiveAudio$.value,
+                                    () =>
+                                        setPreferDescriptiveAudio(
+                                            !preferDescriptiveAudio$.value
+                                        )
                                 )
                             )
                         }
@@ -258,6 +272,16 @@ export function SettingsControl() {
                         ),
                     ]
 
+                    // Whether the stream offers an audio-description
+                    // (described-video) rendition, so the toggle only appears
+                    // when it can do something.
+                    const hasAudioDescription = (): boolean =>
+                        qualitiesUnfiltered$.value.some(
+                            (q) =>
+                                q.contentType === 'audio' &&
+                                isAudioDescription(q)
+                        )
+
                     // Distinct caption language tags from the discovered text
                     // tracks (forced-only tracks are excluded — the user picks a
                     // language and the player chooses the full track for it).
@@ -344,6 +368,7 @@ export function SettingsControl() {
                         qualitiesUnfiltered$.onData(render),
                         maxVideoHeight$.onData(render),
                         preferredAudioLanguage$.onData(render),
+                        preferDescriptiveAudio$.onData(render),
                         hasVideo$.onData(render),
                         inPip$.onData(render),
                     ]

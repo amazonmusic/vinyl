@@ -88,6 +88,11 @@ export const playerState = {
             ? player.options.preferredTextLanguage
             : null
     ),
+    // Mirrors the `preferDescriptiveAudio` option: whether to select
+    // audio-description (described-video) renditions.
+    preferDescriptiveAudio$: data<boolean>(
+        player.options.preferDescriptiveAudio
+    ),
     maxVideoHeight$: data<number | null>(player.options.abr.maxHeight ?? null),
 }
 
@@ -278,6 +283,16 @@ export function setPreferredAudioLanguage(language: string | null) {
 export function setPreferredTextLanguage(language: string | null) {
     player.configure({ preferredTextLanguage: language })
     playerState.preferredTextLanguage$.value = language
+}
+
+/**
+ * Opts in/out of audio-description (described-video) audio renditions. When on,
+ * the player selects a description rendition where one exists for the current
+ * language instead of the main audio.
+ */
+export function setPreferDescriptiveAudio(on: boolean) {
+    player.configure({ preferDescriptiveAudio: on })
+    playerState.preferDescriptiveAudio$.value = on
 }
 
 /**

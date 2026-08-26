@@ -43,13 +43,18 @@ describe('createDefaultMediaTimelineTransformer', () => {
     function createDeps(
         timeline: MediaTimeline,
         preferredAudioLanguage: string | null = null,
-        codecOverrides: Record<string, 'allow' | 'deny'> = {}
+        codecOverrides: Record<string, 'allow' | 'deny'> = {},
+        preferDescriptiveAudio = false
     ): DefaultMediaTimelineTransformerDeps {
         return {
             capabilities,
             drmController,
             mediaTimeline: data(Promise.resolve(timeline)),
-            options: data({ preferredAudioLanguage, codecOverrides }),
+            options: data({
+                preferredAudioLanguage,
+                codecOverrides,
+                preferDescriptiveAudio,
+            }),
         }
     }
 
@@ -77,6 +82,49 @@ describe('createDefaultMediaTimelineTransformer', () => {
         ).value
         expect(result.periods[0].qualities.length).toBe(1)
         expect(result.periods[0].qualities[0].metadata.qualityId).toBe('q1')
+    })
+
+    it('selects main vs audio-description audio per preferDescriptiveAudio', async () => {
+        const makeTimeline = (): MediaTimeline => ({
+            periods: [
+                {
+                    startTime: 0,
+                    endTime: 100,
+                    qualities: [
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'main',
+                            lang: 'en',
+                        }),
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'dvs',
+                            lang: 'en',
+                            characteristics: [
+                                'public.accessibility.describes-video',
+                            ],
+                        }),
+                    ],
+                },
+            ],
+            minBufferTime: 2,
+            getAdBreaks: () => Promise.resolve([]),
+            getDuration: () => Promise.resolve(Infinity),
+        })
+        const audioIds = (t: MediaTimeline) =>
+            t.periods[0].qualities.map((q) => q.metadata.qualityId)
+
+        const byDefault = await createDefaultMediaTimelineTransformer(
+            createDeps(makeTimeline())
+        ).value
+        expect(audioIds(byDefault)).toEqual(['main'])
+
+        const optedIn = await createDefaultMediaTimelineTransformer(
+            createDeps(makeTimeline(), null, {}, true)
+        ).value
+        expect(audioIds(optedIn)).toEqual(['dvs'])
     })
 
     it('filters out unsupported mime types', async () => {

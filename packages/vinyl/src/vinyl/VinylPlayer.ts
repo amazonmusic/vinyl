@@ -391,6 +391,19 @@ export class VinylPlayer<
                     }
                 })
         )
+        // Toggling audio description changes which audio rendition is selected;
+        // rebuild so it takes effect immediately rather than after buffered
+        // audio drains (same treatment as a preferred-audio-language change).
+        add(
+            this.deps.options
+                .pick('preferDescriptiveAudio')
+                .onData((_value, previous) => {
+                    if (previous !== undefined) {
+                        this.clearPrefetch()
+                        this.trackController.reset(/* hard */ true)
+                    }
+                })
+        )
         // Text selection is driven by the preferred-text-language option,
         // mirroring audio. On an explicit change apply it immediately (a `null`
         // preference clears the selection = captions off). Text tracks are not
