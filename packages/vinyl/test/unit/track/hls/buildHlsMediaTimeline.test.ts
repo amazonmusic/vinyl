@@ -5,10 +5,16 @@
 
 import {
     buildHlsMediaTimeline,
+    createDefaultMediaTimelineTransformer,
     createEmptyMediaQualityMetadata,
     type HlsManifestData,
 } from '@amazon/vinyl'
 import { noop } from '@amazon/vinyl-util'
+import { data } from '@amazon/vinyl-observable'
+import {
+    MockCapabilities,
+    MockDrmController,
+} from '@amazon/vinyl/vinylTestUtil'
 import type {
     HlsMainPlaylist,
     HlsMediaPlaylist,
@@ -381,6 +387,117 @@ describe('buildHlsMediaTimeline', () => {
         requestedUris.length = 0
         await audioQuality.getSegment(2)
         expect(requestedUris).toEqual(['audio.m3u8'])
+    })
+
+    // Shaka's mixed-codec shape: a single audio group whose renditions are
+    // different codecs (aac/opus/flac), each paired with an audio-only variant
+    // whose CODECS describes that one rendition. The flac variant is first, so
+    // resolving the codec from "the first variant of the group" would mislabel
+    // every rendition as flac.
+    function createMixedCodecAudioManifest(
+        playlist: HlsMediaPlaylist
+    ): HlsManifestData {
+        return {
+            mainPlaylist: {
+                variants: [
+                    {
+                        bandwidth: 141296,
+                        uri: 'flac.m3u8',
+                        codecs: 'flac',
+                        audioGroup: 'default-audio-group',
+                    },
+                    {
+                        bandwidth: 96017,
+                        uri: 'opus.m3u8',
+                        codecs: 'opus',
+                        audioGroup: 'default-audio-group',
+                    },
+                    {
+                        bandwidth: 51205,
+                        uri: 'aac.m3u8',
+                        codecs: 'mp4a.40.2',
+                        audioGroup: 'default-audio-group',
+                    },
+                ],
+                alternativeRenditions: [
+                    {
+                        type: 'AUDIO',
+                        groupId: 'default-audio-group',
+                        uri: 'flac.m3u8',
+                        name: 'stream_flac',
+                    },
+                    {
+                        type: 'AUDIO',
+                        groupId: 'default-audio-group',
+                        uri: 'opus.m3u8',
+                        name: 'stream_opus',
+                    },
+                    {
+                        type: 'AUDIO',
+                        groupId: 'default-audio-group',
+                        uri: 'aac.m3u8',
+                        name: 'stream_aac',
+                    },
+                ],
+            } as unknown as HlsMainPlaylist,
+            baseUrl: 'https://example.com/',
+            getMediaPlaylist: () => Promise.resolve(playlist),
+        }
+    }
+
+    it('assigns each rendition its own codec in a mixed-codec audio group', () => {
+        const manifestData = createMixedCodecAudioManifest(
+            createMediaPlaylist([5, 5])
+        )
+        const timeline = buildHlsMediaTimeline(deps, manifestData)
+        const byUri = (uri: string) =>
+            timeline.periods[0].qualities.find(
+                (q) => q.metadata.decoderId === uri
+            )!.metadata
+
+        expect(byUri('aac.m3u8').codecs).toBe('mp4a.40.2')
+        expect(byUri('aac.m3u8').mimeType).toBe('audio/mp4; codecs="mp4a.40.2"')
+        expect(byUri('opus.m3u8').codecs).toBe('opus')
+        expect(byUri('opus.m3u8').mimeType).toBe('audio/mp4; codecs="opus"')
+        expect(byUri('flac.m3u8').codecs).toBe('flac')
+        expect(byUri('flac.m3u8').mimeType).toBe('audio/mp4; codecs="flac"')
+    })
+
+    it('keeps the AAC rendition playable when the browser rejects opus and flac', async () => {
+        const capabilities = new MockCapabilities()
+        // Safari-like: only AAC is playable via MSE.
+        capabilities.canPlayTypeMse.and.callFake((type: string) =>
+            type.includes('mp4a')
+        )
+        capabilities.sampleRate = 192_000
+        const drmController = new MockDrmController()
+        drmController.isSupported.and.resolveTo({
+            supported: true,
+            persistentState: false,
+        })
+
+        const manifestData = createMixedCodecAudioManifest(
+            createMediaPlaylist([5, 5])
+        )
+        const timeline = buildHlsMediaTimeline(deps, manifestData)
+
+        const result = await createDefaultMediaTimelineTransformer({
+            capabilities,
+            drmController,
+            mediaTimeline: data(Promise.resolve(timeline)),
+            options: data({
+                preferredAudioLanguage: null,
+                codecOverrides: {},
+                preferDescriptiveAudio: false,
+            }),
+        }).value
+
+        const audio = result.periods[0].qualities.filter(
+            (q) => q.metadata.contentType === 'audio'
+        )
+        // Only the AAC rendition survives; the period is not emptied, so no
+        // MediaUnsupportedError is thrown.
+        expect(audio.map((q) => q.metadata.codecs)).toEqual(['mp4a.40.2'])
     })
 
     it('uses transmux path when no EXT-X-MAP is present', async () => {
