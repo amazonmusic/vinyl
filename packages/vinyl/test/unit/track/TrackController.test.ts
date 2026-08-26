@@ -1611,9 +1611,26 @@ describe('TrackControllerImpl', () => {
         })
 
         it('ends the queue after a postroll ad when there is no next track', async () => {
-            trackController.load(...createLoadOptionsList(1))
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            await clock.tick() // let the content activate and play
+            // A postroll ad takes over, deactivating the content track.
+            deps.adController.currentAd = ad
+            deps.adController.dispatch('adEntered', {
+                ad,
+                index: 0,
+                totalAds: 1,
+            })
+            await flushAds()
+            expect(trackController.activeTrack?.uri).toBe('https://ads/x.m3u8')
+
             const queueEnded = createEventSpy(trackController, 'queueEnded')
             const trackEnded = createEventSpy(trackController, 'trackEnded')
+            const trackActivated = createEventSpy(
+                trackController,
+                'trackActivated'
+            )
+            deps.adController.currentAd = null
             deps.adController.dispatch('adBreakCompleted', {
                 adBreak: adBreak('postroll'),
                 resumePosition: 0,
@@ -1623,6 +1640,14 @@ describe('TrackControllerImpl', () => {
                 objectContaining({ track: any(Object) })
             )
             expect(queueEnded).toHaveBeenCalled()
+            // With no next track the content is re-activated (kept current)
+            // rather than left on the ad, and that trackActivated precedes
+            // queueEnded.
+            expect(trackController.activeTrack?.uri).toBe(main.uri)
+            expect(trackActivated).toHaveBeenCalledWith(
+                objectContaining({ track: objectContaining({ uri: main.uri }) })
+            )
+            expect(trackActivated).toHaveBeenCalledBefore(queueEnded)
         })
 
         it('does not treat a completed midroll ad as the track ending', async () => {
