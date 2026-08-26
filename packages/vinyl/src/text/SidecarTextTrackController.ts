@@ -37,11 +37,12 @@ export interface SidecarTextTrackControllerDeps {
     readonly requestInit?: Maybe<RequestInitOptions>
 
     /**
-     * Preferred caption language(s), most-preferred first. When provided, a
-     * non-null preference auto-selects the best-matching track (re-applied as
-     * the track list changes) and a null preference turns captions off. When
-     * absent, selection falls back to forced auto-selection until the app
-     * makes an explicit choice.
+     * Preferred caption language(s), most-preferred first. A non-null
+     * preference auto-selects the best-matching track, re-applied as the track
+     * list changes. Changing the preference to null clears the selection
+     * (captions off). An initial null (or an absent observable) is "no
+     * preference": forced tracks still auto-select until the app makes an
+     * explicit choice — it does not force captions off.
      */
     readonly preferredTextLanguage?: ObservableValue<
         string | readonly string[] | null
