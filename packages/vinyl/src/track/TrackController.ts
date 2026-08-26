@@ -39,24 +39,27 @@ export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,
 > {
     /**
-     * Emitted when the current track has changed.
-     * If there is a queue change, the currentTrackChange event is always emitted first.
-     * This is emitted after the previous track has been deactivated and
-     * new track has been activated.
+     * A track became active. For content this may be deferred behind a preroll;
+     * for an ad it fires as the ad activates. {@link queueChange} precedes it.
      */
-    readonly currentTrackChange: ChangeEvent<ReadonlyTrack | null>
+    readonly trackActivated: TrackLifecycleEvent
+
+    /**
+     * A previously-active track was torn down (superseded or unloaded).
+     */
+    readonly trackDeactivated: TrackLifecycleEvent
 
     /**
      * Dispatched when the queue has changed.
      *
-     * Will be emitted before currentTrackChange.
+     * Will be emitted before {@link trackActivated}.
      */
     readonly queueChange: ChangeEvent<readonly TrackLoadOptionsType[]>
 
     /**
      * Emitted when the current track — including any postroll ads — has finished
      * playing. Fires once per track: as the queue advances it precedes the
-     * resulting `currentTrackChange`, and for the final track it precedes
+     * resulting {@link trackActivated}, and for the final track it precedes
      * `queueEnded`. Distinct from the media element's `ended` (which also fires
      * for each ad) and from an individual ad's `adEnded`, so applications can act
      * on true track completion (e.g. logging a play) without confusing it with
@@ -66,18 +69,24 @@ export interface TrackControllerEventMap<
 
     /**
      * Emitted when the last track of the playback queue has ended.
-     * When the last track in a queue has ended, the track will not change and therefore a `currentTrackChange`
+     * When the last track in a queue has ended, the track will not change and therefore a `trackActivated`
      * event will not be emitted.
      */
     readonly queueEnded: AnyRecord
 }
 
 export const ALL_TRACK_CONTROLLER_EVENTS = [
-    'currentTrackChange',
+    'trackActivated',
+    'trackDeactivated',
     'queueChange',
     'trackEnded',
     'queueEnded',
 ] as const satisfies readonly (keyof TrackControllerEventMap<any>)[]
+
+/** Payload for {@link trackActivated} / {@link trackDeactivated}. */
+export interface TrackLifecycleEvent {
+    readonly track: ReadonlyTrack
+}
 
 /**
  * Payload for the {@link TrackControllerEventMap.trackEnded} event: the load
@@ -94,9 +103,10 @@ export interface ReadonlyTrackController<
     TrackLoadOptionsType extends TrackLoadOptions,
 > extends ReadonlyEventHost<TrackControllerEventMap<TrackLoadOptionsType>> {
     /**
-     * Returns the current track.
+     * The active track, or null when the selected track has not yet activated
+     * (e.g. behind a preroll) or nothing is loaded.
      */
-    readonly currentTrack: ReadonlyTrack | null
+    readonly activeTrack: ReadonlyTrack | null
 
     /**
      * Returns the current queue of TrackLoadOptions.
@@ -281,9 +291,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     // The parent content track. Used as a reference to the track that initiated an ad break.
     private adParent: Track | null = null
 
-    // Forwards the current track's `error` events to adController.failAd.
-    // Re-subscribed on each setCurrentTrack, cleared when the track changes.
-    private currentTrackErrorSub: Unsubscribe | null = null
+    // Current-track subscriptions (e.g. `error` → adController.failAd),
+    // re-bound per setCurrentTrack. Promote to a disposer if more are added.
+    private currentTrackSub: Unsubscribe | null = null
 
     // Ad tracks keyed by parent content URI, kept out of the content cache.
     // Pegged to the parent: disposed when the parent is evicted (see onEvict).
@@ -694,7 +704,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         logDebug(this, `enqueue ${loadOptionsList.length} items`)
         loadOptionsList.forEach(this.validateLoadOptions)
         this.setQueue(this._current, this._queue.concat(loadOptionsList))
-        if (this.currentTrack == null && this.hasNext()) this.next()
+        if (this._currentTrack == null && this.hasNext()) this.next()
     }
 
     hasNext(): boolean {
@@ -772,8 +782,9 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     /**
      * Sets the current track and following queue.
      *
-     * If the given track is already current, it will be de-activated and re-activated and the currentTrackChange
-     * event will still be emitted. The same track may be in the queue multiple times.
+     * If the given track is already current, it will be de-activated and re-activated and the
+     * trackDeactivated/trackActivated events will still be emitted. The same track may be in the
+     * queue multiple times.
      */
     private setQueue(
         current: Maybe<TrackLoadOptionsType>,
@@ -816,7 +827,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         this._preload(this.getPrefetched())
         logDebug(
             this,
-            `currentTrackChange, previous: ${previous?.uri} current: ${current?.uri}`
+            `track change, previous: ${previous?.uri} current: ${current?.uri}`
         )
         if (previousQueue !== queue) {
             this.dispatch('queueChange', {
@@ -826,7 +837,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         }
         if (interrupted()) {
             throw new IllegalStateError(
-                `cannot change the queue on a 'queueChange' or 'currentTrackChange' event`
+                `cannot change the queue on a 'queueChange' or 'trackDeactivated' event`
             )
         }
     }
@@ -852,17 +863,21 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     ): void {
         const { adController } = this.deps
         const previousTrack = this._currentTrack
+        const previousWasActive = previousTrack?.active ?? false
         this._currentTrack = newTrack
         const interrupted = () => this._currentTrack !== newTrack
         previousTrack?.deactivate()
+        if (previousTrack && previousWasActive) {
+            this.dispatch('trackDeactivated', { track: previousTrack })
+        }
 
         // Forward the active track's errors to the ad controller. When an ad
         // track errors (fails to load or errors mid-playback), this fails the
         // ad so the break advances rather than stalling on the broken ad; on a
         // content track failAd is a no-op (the error still surfaces as a player
         // error). Re-subscribed per track and torn down on the next change.
-        this.currentTrackErrorSub?.()
-        this.currentTrackErrorSub =
+        this.currentTrackSub?.()
+        this.currentTrackSub =
             newTrack?.on('error', (event) =>
                 adController.failAd(event.error)
             ) ?? null
@@ -875,6 +890,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             const activate = () => {
                 if (interrupted()) return
                 newTrack.activate(options.config ?? {})
+                this.dispatch('trackActivated', { track: newTrack })
             }
             if (options.isFromAd) {
                 activate() // Ads cannot have prerolls.
@@ -891,10 +907,6 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     })
             }
         }
-        this.dispatch('currentTrackChange', {
-            previous: previousTrack,
-            current: newTrack,
-        })
     }
 
     /**
@@ -916,8 +928,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         return () => this.disposed || this.queueIdx !== idx
     }
 
-    get currentTrack(): ReadonlyTrack | null {
-        return this._currentTrack
+    get activeTrack(): ReadonlyTrack | null {
+        return this._currentTrack?.active ? this._currentTrack : null
     }
 
     reset(hard = false) {

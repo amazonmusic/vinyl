@@ -230,30 +230,31 @@ describe('VinylPlayer', () => {
         expect(spy).toHaveBeenCalledOnceWith(event)
     })
 
-    it('re-dispatches currentTrackChange from the track controller', () => {
-        const spy = createSpy('currentTrackChange')
-        player.on('currentTrackChange', spy)
+    it('re-dispatches trackActivated and trackDeactivated from the track controller', () => {
+        const activatedSpy = createSpy('trackActivated')
+        const deactivatedSpy = createSpy('trackDeactivated')
+        player.on('trackActivated', activatedSpy)
+        player.on('trackDeactivated', deactivatedSpy)
         const trackController = deps.trackController
-        const mockTrackA = new MockTrack()
-        const mockTrackB = new MockTrack()
+        const mockTrack = new MockTrack()
 
-        trackController.dispatch('currentTrackChange', {
-            previous: mockTrackA,
-            current: mockTrackB,
-        })
-        expect(spy).toHaveBeenCalledOnceWith({
-            previous: mockTrackA,
-            current: mockTrackB,
-        })
-        spy.calls.reset()
-        trackController.dispatch('currentTrackChange', {
-            previous: mockTrackB,
-            current: null,
-        })
-        expect(spy).toHaveBeenCalledOnceWith({
-            previous: mockTrackB,
-            current: null,
-        })
+        trackController.dispatch('trackActivated', { track: mockTrack })
+        expect(activatedSpy).toHaveBeenCalledOnceWith({ track: mockTrack })
+
+        trackController.dispatch('trackDeactivated', { track: mockTrack })
+        expect(deactivatedSpy).toHaveBeenCalledOnceWith({ track: mockTrack })
+    })
+
+    it('ignores a repeat trackActivated for the already-active track', () => {
+        const trackController = deps.trackController
+        const mockTrack = new MockTrack()
+        const seekRangeSpy = createSpy('seekRangeChange')
+        trackController.dispatch('trackActivated', { track: mockTrack })
+        player.on('seekRangeChange', seekRangeSpy)
+        // Re-activating the same track is a no-op transition (no re-wiring or
+        // state-change events).
+        trackController.dispatch('trackActivated', { track: mockTrack })
+        expect(seekRangeSpy).not.toHaveBeenCalled()
     })
 
     describe('load span metrics', () => {
@@ -262,9 +263,8 @@ describe('VinylPlayer', () => {
             player.on('loadSpan', spy)
             const mockTrack = new MockTrack()
             mockTrack.uri = 'track-a'
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: null,
-                current: mockTrack,
+            deps.trackController.dispatch('trackActivated', {
+                track: mockTrack,
             })
             mockTrack.dispatch('loadSpanMeasured', {
                 kind: 'initSegment',
@@ -287,7 +287,7 @@ describe('VinylPlayer', () => {
             // attribute to the track the measurement carries.
             const currentTrack = new MockTrack()
             currentTrack.uri = 'track-current'
-            deps.trackController.currentTrack = currentTrack
+            deps.trackController.activeTrack = currentTrack
             deps.drmController.dispatch('loadSpanMeasured', {
                 kind: 'license',
                 startTime: 3,
@@ -307,7 +307,7 @@ describe('VinylPlayer', () => {
             player.on('loadSpan', spy)
             const currentTrack = new MockTrack()
             currentTrack.uri = 'track-current'
-            deps.trackController.currentTrack = currentTrack
+            deps.trackController.activeTrack = currentTrack
             // A measurement with no trackUri (the initiating track was unknown)
             // is dropped rather than misattributed to the current track.
             deps.drmController.dispatch('loadSpanMeasured', {
@@ -323,13 +323,11 @@ describe('VinylPlayer', () => {
             player.on('loadSpan', spy)
             const mockTrack = new MockTrack()
             mockTrack.uri = 'track-a'
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: null,
-                current: mockTrack,
+            deps.trackController.dispatch('trackActivated', {
+                track: mockTrack,
             })
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: mockTrack,
-                current: null,
+            deps.trackController.dispatch('trackDeactivated', {
+                track: mockTrack,
             })
             mockTrack.dispatch('loadSpanMeasured', {
                 kind: 'manifest',
@@ -345,10 +343,7 @@ describe('VinylPlayer', () => {
         const mockTrack = new MockTrack()
         // Make the track the current one so its streaming events are
         // redispatched onto the player.
-        trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: mockTrack,
-        })
+        trackController.dispatch('trackActivated', { track: mockTrack })
         mockTrack.dispatch('codecUnsupported', {
             mimeType: 'video/mp4; codecs="hvc1.1"',
             contentType: 'video',
@@ -374,10 +369,7 @@ describe('VinylPlayer', () => {
         }
 
         const mockTrack = new MockTrack()
-        trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: mockTrack,
-        })
+        trackController.dispatch('trackActivated', { track: mockTrack })
         mockTrack.dispatch('codecUnsupported', {
             mimeType: 'video/mp4; codecs="hvc1.1"',
             contentType: 'video',
@@ -427,16 +419,16 @@ describe('VinylPlayer', () => {
 
     describe('currentTrack', () => {
         it('returns the currently active track', () => {
-            expect(player.currentTrack).toBeNull()
+            expect(player.activeTrack).toBeNull()
             const mockTrackA = new MockTrack()
             mockTrackA.uri = 'srcA'
             const mockTrackB = new MockTrack()
             mockTrackB.uri = 'srcB'
-            expect(player.currentTrack).toBeNull()
-            deps.trackController.currentTrack = mockTrackA
-            expect(player.currentTrack).toBe(mockTrackA)
-            deps.trackController.currentTrack = mockTrackB
-            expect(player.currentTrack).toBe(mockTrackB)
+            expect(player.activeTrack).toBeNull()
+            deps.trackController.activeTrack = mockTrackA
+            expect(player.activeTrack).toBe(mockTrackA)
+            deps.trackController.activeTrack = mockTrackB
+            expect(player.activeTrack).toBe(mockTrackB)
         })
     })
 
@@ -446,7 +438,7 @@ describe('VinylPlayer', () => {
             const mockTrackA = new MockTrack()
             const expectedRanges = new RangesImpl([[0, 10]])
             mockTrackA.fetchedRanges = expectedRanges
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
             expect(player.fetchedRanges).toEqual(expectedRanges)
         })
     })
@@ -459,7 +451,7 @@ describe('VinylPlayer', () => {
                 [0, 10],
                 [30, 60],
             ])
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
             expect(player.fetchedTime).toEqual(10)
             deps.playbackController.currentTime = 6
             expect(player.fetchedTime).toEqual(10)
@@ -475,7 +467,7 @@ describe('VinylPlayer', () => {
             expect(player.fetchedTimePercent).toBe(0)
             const mockTrackA = new MockTrack()
             mockTrackA.fetchedRanges = new RangesImpl([[0, 50]])
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
             deps.playbackController.duration = 100
             expect(player.fetchedTimePercent).toEqual(0.5)
             deps.playbackController.duration = Number.NaN
@@ -495,9 +487,8 @@ describe('VinylPlayer', () => {
             mockTrackA.dispatch('fetchedRangesChange', event)
             expect(fetchedRangesChangeSpy).not.toHaveBeenCalled()
 
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: null,
-                current: mockTrackA,
+            deps.trackController.dispatch('trackActivated', {
+                track: mockTrackA,
             })
             expect(fetchedRangesChangeSpy).toHaveBeenCalledOnceWith(event) // Emitted on track change
             fetchedRangesChangeSpy.calls.reset()
@@ -506,9 +497,8 @@ describe('VinylPlayer', () => {
             expect(fetchedRangesChangeSpy).toHaveBeenCalledOnceWith(event)
             fetchedRangesChangeSpy.calls.reset()
 
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: mockTrackA,
-                current: null,
+            deps.trackController.dispatch('trackDeactivated', {
+                track: mockTrackA,
             })
             expect(fetchedRangesChangeSpy).toHaveBeenCalledOnceWith(event) // Emitted on track change
             fetchedRangesChangeSpy.calls.reset()
@@ -541,7 +531,7 @@ describe('VinylPlayer', () => {
             mockTrackA.getStreamingQuality.and.returnValue(streamingQuality)
             mockTrackA.getBufferingQuality.and.returnValue(bufferingQuality)
             mockTrackA.getPlaybackQuality.and.returnValue(playbackQuality)
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
             expect(player.getStreamingQuality('audio')).toEqual(
                 streamingQuality
             )
@@ -555,7 +545,7 @@ describe('VinylPlayer', () => {
             expect(player.contentTypes).toEqual(new Set())
             const mockTrackA = new MockTrack()
             mockTrackA.contentTypes = new Set(['audio', 'video'])
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
             expect(player.contentTypes).toEqual(new Set(['audio', 'video']))
         })
 
@@ -564,7 +554,7 @@ describe('VinylPlayer', () => {
             const mockTrackA = new MockTrack()
             const q = [createEmptyMediaQualityMetadata()]
             mockTrackA.qualities = q
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
             expect(player.qualities).toBe(q)
         })
 
@@ -573,7 +563,7 @@ describe('VinylPlayer', () => {
             const mockTrackA = new MockTrack()
             const q = [createEmptyMediaQualityMetadata()]
             mockTrackA.qualitiesUnfiltered = q
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
             expect(player.qualitiesUnfiltered).toBe(q)
         })
 
@@ -597,7 +587,7 @@ describe('VinylPlayer', () => {
                 (contentType: ContentType) =>
                     contentType === 'audio' ? audioQuality : null
             )
-            deps.trackController.currentTrack = mockTrackA
+            deps.trackController.activeTrack = mockTrackA
 
             // Test deprecated getters
             // eslint-disable-next-line @typescript-eslint/no-deprecated
@@ -633,9 +623,8 @@ describe('VinylPlayer', () => {
                         contentType === 'audio' ? qualityA : null
                 )
 
-                deps.trackController.dispatch('currentTrackChange', {
-                    previous: null,
-                    current: mockTrackA,
+                deps.trackController.dispatch('trackActivated', {
+                    track: mockTrackA,
                 })
                 expect(playbackQualityChangeSpy).toHaveBeenCalledOnceWith({
                     previous: null,
@@ -657,9 +646,8 @@ describe('VinylPlayer', () => {
                 })
                 playbackQualityChangeSpy.calls.reset()
 
-                deps.trackController.dispatch('currentTrackChange', {
-                    previous: mockTrackA,
-                    current: null,
+                deps.trackController.dispatch('trackDeactivated', {
+                    track: mockTrackA,
                 })
                 expect(playbackQualityChangeSpy).toHaveBeenCalledOnceWith({
                     previous: qualityB,
@@ -673,9 +661,8 @@ describe('VinylPlayer', () => {
             const mockTrackA = new MockTrack()
             const q = [createEmptyMediaQualityMetadata()]
             mockTrackA.qualities = q
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: null,
-                current: mockTrackA,
+            deps.trackController.dispatch('trackActivated', {
+                track: mockTrackA,
             })
             expect(spy).toHaveBeenCalledOnceWith({
                 previous: [],
@@ -688,9 +675,8 @@ describe('VinylPlayer', () => {
             const mockTrackA = new MockTrack()
             const q = [createEmptyMediaQualityMetadata()]
             mockTrackA.qualitiesUnfiltered = q
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: null,
-                current: mockTrackA,
+            deps.trackController.dispatch('trackActivated', {
+                track: mockTrackA,
             })
             expect(spy).toHaveBeenCalledOnceWith({
                 previous: [],
@@ -798,6 +784,30 @@ describe('VinylPlayer', () => {
             // emission during construction.
             expect(deps.trackController.reset).not.toHaveBeenCalled()
             expect(deps.trackController.clearPrefetch).not.toHaveBeenCalled()
+        })
+    })
+
+    describe('when preferDescriptiveAudio changes', () => {
+        it('reloads the current track and clears prefetch', () => {
+            const trackController = deps.trackController
+            expect(trackController.reset).not.toHaveBeenCalled()
+
+            player.configure({ preferDescriptiveAudio: true })
+
+            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
+            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
+        })
+
+        it('does not reload when the value is unchanged', () => {
+            const trackController = deps.trackController
+            player.configure({ preferDescriptiveAudio: true })
+            trackController.reset.calls.reset()
+            trackController.clearPrefetch.calls.reset()
+
+            player.configure({ preferDescriptiveAudio: true })
+
+            expect(trackController.reset).not.toHaveBeenCalled()
+            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
         })
     })
 
@@ -909,9 +919,8 @@ describe('VinylPlayer', () => {
             const mockTrack = new MockTrack()
 
             // Set current track
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: null,
-                current: mockTrack,
+            deps.trackController.dispatch('trackActivated', {
+                track: mockTrack,
             })
 
             // Simulate track emitting reset event
@@ -925,9 +934,8 @@ describe('VinylPlayer', () => {
             const mockTrack = new MockTrack()
 
             // Set current track
-            deps.trackController.dispatch('currentTrackChange', {
-                previous: null,
-                current: mockTrack,
+            deps.trackController.dispatch('trackActivated', {
+                track: mockTrack,
             })
 
             // Track reset events should not bubble
@@ -1039,7 +1047,7 @@ describe('VinylPlayer', () => {
             const player = createVinylPlayer(mockOptions, depFactories)
             const track = new MockTrack()
             track.seekRange = { start: 0, end: 120 }
-            deps.trackController.currentTrack = track
+            deps.trackController.activeTrack = track
             expect(player.seekRange).toEqual({ start: 0, end: 120 })
             player.dispose()
         })

@@ -15,7 +15,7 @@ import { onDuration } from '../../vinylTestUtil/util/playback/eventPromises'
  * Changing the allow list adds or removes whole media streams (and their
  * SourceBuffers). The current track is hard-reset in place: its MediaSource is
  * torn down and recreated with the new set of streams, preserving the playhead
- * and play state. The track object itself is retained (no currentTrackChange).
+ * and play state. The track object itself is retained (no trackActivated/trackDeactivated).
  * These tests assert that switching works without errors, that playback
  * resumes at the prior playhead, and that the track exposes only the allowed
  * content types.
@@ -50,7 +50,7 @@ describe('allowedContentTypes switching integ', () => {
         const wantsVideo =
             allowedContentTypes == null || allowedContentTypes.includes('video')
         player.configure({ allowedContentTypes })
-        // The current track is hard-reset in place (no currentTrackChange);
+        // The current track is hard-reset in place (no trackActivated/trackDeactivated);
         // wait until its content types reflect the new allow list.
         expect(
             await poll(() => player.contentTypes.has('video') === wantsVideo, {

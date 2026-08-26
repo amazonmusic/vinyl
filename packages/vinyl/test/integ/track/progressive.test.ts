@@ -9,6 +9,7 @@ import {
     onDuration,
     vinylTestAssets,
 } from '@amazon/vinyl/vinylTestUtil'
+import { nextEventAsPromise } from '@amazon/vinyl-util'
 
 describe('progressive integ', () => {
     const suite = createVinylSuite()
@@ -28,8 +29,14 @@ describe('progressive integ', () => {
         await expectTrackPlaysUntil(player, player.currentTime + 3)
     })
 
-    it('provides the extra property from load config for active track', () => {
+    it('provides the extra property from load config for active track', async () => {
         const player = suite.player
+        // Activation is deferred (behind the preroll check), so activeTrack is
+        // only set once trackActivated fires — await it before reading extra.
+        const firstActivated = nextEventAsPromise(player, 'trackActivated', {
+            timeout: 30,
+            timeoutMessage: 'trackActivated timed out in {time}s',
+        })
         player.load({
             type: 'src',
             uri: vinylTestAssets.prog.libmp3lame_60s_2ch_16bit_44100Hz_48kbps,
@@ -44,7 +51,12 @@ describe('progressive integ', () => {
                 extra: 2,
             },
         })
-        expect(player.currentTrack?.extra).toBe(1)
+        await firstActivated
+        expect(player.activeTrack?.extra).toBe(1)
+        const secondActivated = nextEventAsPromise(player, 'trackActivated', {
+            timeout: 30,
+            timeoutMessage: 'trackActivated timed out in {time}s',
+        })
         player.load({
             type: 'src',
             uri: vinylTestAssets.prog.libmp3lame_60s_2ch_16bit_44100Hz_48kbps,
@@ -52,7 +64,8 @@ describe('progressive integ', () => {
                 extra: 2,
             },
         })
-        const track = player.currentTrack
+        await secondActivated
+        const track = player.activeTrack
         expect(track?.extra).toBe(2)
         player.unload()
         expect(track?.extra).toBeNull()

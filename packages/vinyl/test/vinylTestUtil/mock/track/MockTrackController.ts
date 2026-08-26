@@ -20,7 +20,7 @@ export class MockTrackController<
     extends MockEventHost<TrackControllerEventMap<TrackLoadOptionsType>>
     implements TrackController<TrackLoadOptionsType>
 {
-    currentTrack: Track | null = null
+    activeTrack: Track | null = null
 
     currentAdTrack: Track | null = null
 

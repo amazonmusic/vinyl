@@ -97,6 +97,7 @@ describe('SidecarTextTrackController', () => {
             this.endTime = endTime
             this.text = text
             this.id = ''
+            this.size = 100
         }
     })
 
@@ -199,6 +200,10 @@ describe('SidecarTextTrackController', () => {
         )
         expect(media.lastTrack?.mode).toBe('showing')
         expect(media.lastTrack?.cues.length).toBe(1)
+        // Cue box is inset from the default full width so it doesn't clip in
+        // fullscreen.
+        const cue = media.lastTrack?.cues[0] as unknown as { size: number }
+        expect(cue.size).toBe(90)
     })
 
     it('preserves cue id when present', async () => {

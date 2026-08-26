@@ -21,7 +21,7 @@ import { poll } from '@amazon/vinyl-util'
  * Selecting a language removes the other-language audio qualities from the
  * timeline before ABR, so `player.qualities` exposes only the kept language(s):
  * asserting on it is deterministic and does not depend on which rendition ABR
- * happens to pick. During an ad break the ad track is `currentTrack`, so the
+ * happens to pick. During an ad break the ad track is `activeTrack`, so the
  * same getter reflects the ad's (filtered) audio qualities.
  */
 describe('preferredAudioLanguage HLS integ', () => {

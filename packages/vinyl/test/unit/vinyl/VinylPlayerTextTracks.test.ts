@@ -65,11 +65,8 @@ describe('VinylPlayer text track API', () => {
                 mimeType: 'text/vtt',
             },
         ])
-        deps.trackController.currentTrack = track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: track,
-        })
+        deps.trackController.activeTrack = track
+        deps.trackController.dispatch('trackActivated', { track: track })
         expect(player.textTracks.length).toBe(1)
     })
 
@@ -88,11 +85,8 @@ describe('VinylPlayer text track API', () => {
                 mimeType: 'text/vtt',
             },
         ])
-        deps.trackController.currentTrack = track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: track,
-        })
+        deps.trackController.activeTrack = track
+        deps.trackController.dispatch('trackActivated', { track: track })
         player.setActiveTextTrack('t1')
         expect(player.activeTextTrack?.id).toBe('t1')
         player.setActiveTextTrack(null)
@@ -101,11 +95,8 @@ describe('VinylPlayer text track API', () => {
 
     it('ignores setActiveTextTrack when current track has no controller', () => {
         const track = new MockTrack()
-        deps.trackController.currentTrack = track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: track,
-        })
+        deps.trackController.activeTrack = track
+        deps.trackController.dispatch('trackActivated', { track: track })
         // No throw, and activeTextTrack stays null.
         player.setActiveTextTrack('anything')
         expect(player.activeTextTrack).toBeNull()
@@ -113,11 +104,8 @@ describe('VinylPlayer text track API', () => {
 
     it('redispatches textTracksChange events from the active controller', () => {
         const { track, controller } = makeTrackWithController()
-        deps.trackController.currentTrack = track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: track,
-        })
+        deps.trackController.activeTrack = track
+        deps.trackController.dispatch('trackActivated', { track: track })
         const spy = createEventSpy(player, 'textTracksChange')
         controller.setTextTracks([
             {
@@ -162,21 +150,15 @@ describe('VinylPlayer text track API', () => {
         }
         a.controller.setTextTracks([trackInfoA])
         b.controller.setTextTracks([trackInfoB])
-        deps.trackController.currentTrack = a.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: a.track,
-        })
+        deps.trackController.activeTrack = a.track
+        deps.trackController.dispatch('trackActivated', { track: a.track })
         const spy = createEventSpy(player, 'textTracksChange')
-        deps.trackController.currentTrack = b.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: a.track,
-            current: b.track,
-        })
+        deps.trackController.activeTrack = b.track
+        deps.trackController.dispatch('trackActivated', { track: b.track })
         expect(spy).toHaveBeenCalled()
     })
 
-    it("deactivates the previous track's captions on currentTrackChange", () => {
+    it("deactivates the previous track's captions on trackDeactivated", () => {
         // Tracks are cached, not disposed, when unloaded. The previous
         // controller retains its DOM TextTrack unless we deactivate it.
         const a = makeTrackWithController()
@@ -193,19 +175,13 @@ describe('VinylPlayer text track API', () => {
                 mimeType: 'text/vtt',
             },
         ])
-        deps.trackController.currentTrack = a.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: a.track,
-        })
+        deps.trackController.activeTrack = a.track
+        deps.trackController.dispatch('trackActivated', { track: a.track })
         a.controller.setActiveTextTrack('t1')
         expect(a.controller.activeTextTrack?.id).toBe('t1')
         // Unload: current → null.
-        deps.trackController.currentTrack = null
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: a.track,
-            current: null,
-        })
+        deps.trackController.activeTrack = null
+        deps.trackController.dispatch('trackDeactivated', { track: a.track })
         expect(a.controller.activeTextTrack).toBeNull()
     })
 
@@ -226,17 +202,11 @@ describe('VinylPlayer text track API', () => {
             },
         ])
         a.controller.setActiveTextTrack('t1')
-        deps.trackController.currentTrack = a.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: a.track,
-        })
+        deps.trackController.activeTrack = a.track
+        deps.trackController.dispatch('trackActivated', { track: a.track })
         const spy = createEventSpy(player, 'activeTextTrackChange')
-        deps.trackController.currentTrack = b.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: a.track,
-            current: b.track,
-        })
+        deps.trackController.activeTrack = b.track
+        deps.trackController.dispatch('trackActivated', { track: b.track })
         expect(spy).toHaveBeenCalled()
     })
 
@@ -279,21 +249,17 @@ describe('VinylPlayer text track API', () => {
         ])
 
         // Content becomes current.
-        deps.trackController.currentTrack = content.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: content.track,
+        deps.trackController.activeTrack = content.track
+        deps.trackController.dispatch('trackActivated', {
+            track: content.track,
         })
 
         // Enter the ad break: the swap preserves the content selection
         // (suspend keeps _active) rather than clearing it.
         deps.adController.currentAdBreak = { placement: 'midroll' } as never
         content.controller.suspend()
-        deps.trackController.currentTrack = ad.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: content.track,
-            current: ad.track,
-        })
+        deps.trackController.activeTrack = ad.track
+        deps.trackController.dispatch('trackActivated', { track: ad.track })
 
         // Viewer enables the ad's captions during the break.
         player.setActiveTextTrack('ad-cc')
@@ -302,11 +268,10 @@ describe('VinylPlayer text track API', () => {
         // Ad ends, content resumes.
         deps.adController.currentAdBreak = null
         const spy = createEventSpy(player, 'activeTextTrackChange')
-        deps.trackController.currentTrack = content.track
+        deps.trackController.activeTrack = content.track
         content.controller.resume()
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: ad.track,
-            current: content.track,
+        deps.trackController.dispatch('trackActivated', {
+            track: content.track,
         })
 
         // The player reports the content's forced caption as active again and,
@@ -323,17 +288,65 @@ describe('VinylPlayer text track API', () => {
         // track change should not manufacture a spurious active-change event.
         const a = makeTrackWithController()
         const b = makeTrackWithController()
-        deps.trackController.currentTrack = a.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: null,
-            current: a.track,
-        })
+        deps.trackController.activeTrack = a.track
+        deps.trackController.dispatch('trackActivated', { track: a.track })
         const spy = createEventSpy(player, 'activeTextTrackChange')
-        deps.trackController.currentTrack = b.track
-        deps.trackController.dispatch('currentTrackChange', {
-            previous: a.track,
-            current: b.track,
-        })
+        deps.trackController.activeTrack = b.track
+        deps.trackController.dispatch('trackActivated', { track: b.track })
         expect(spy).not.toHaveBeenCalled()
+    })
+
+    describe('preferredTextLanguage', () => {
+        const enTrack = {
+            id: 'en',
+            kind: 'subtitles' as const,
+            language: 'en',
+            label: 'English',
+            default: false,
+            forced: false,
+            characteristics: [],
+            uri: 'en.vtt',
+            mimeType: 'text/vtt',
+        }
+        const esTrack = { ...enTrack, id: 'es', language: 'es', label: 'Es' }
+
+        it('selects the matching text track when the preference is set', () => {
+            const { track, controller } = makeTrackWithController()
+            controller.setTextTracks([enTrack, esTrack])
+            deps.trackController.activeTrack = track
+            deps.trackController.dispatch('trackActivated', { track })
+            player.configure({ preferredTextLanguage: 'es' })
+            expect(player.activeTextTrack?.id).toBe('es')
+        })
+
+        it('clears the selection when the preference is set to null', () => {
+            const { track, controller } = makeTrackWithController()
+            controller.setTextTracks([enTrack, esTrack])
+            deps.trackController.activeTrack = track
+            deps.trackController.dispatch('trackActivated', { track })
+            player.configure({ preferredTextLanguage: 'es' })
+            expect(player.activeTextTrack?.id).toBe('es')
+            player.configure({ preferredTextLanguage: null })
+            expect(player.activeTextTrack).toBeNull()
+        })
+
+        it('re-applies the preference when the text track list changes', () => {
+            const { track, controller } = makeTrackWithController()
+            deps.trackController.activeTrack = track
+            deps.trackController.dispatch('trackActivated', { track })
+            player.configure({ preferredTextLanguage: 'es' })
+            // Tracks arrive after the preference was set (e.g. a new track).
+            controller.setTextTracks([enTrack, esTrack])
+            expect(player.activeTextTrack?.id).toBe('es')
+        })
+
+        it('is a no-op when the active track has no text controller', () => {
+            const track = new MockTrack()
+            deps.trackController.activeTrack = track
+            deps.trackController.dispatch('trackActivated', { track })
+            expect(() =>
+                player.configure({ preferredTextLanguage: 'en' })
+            ).not.toThrow()
+        })
     })
 })

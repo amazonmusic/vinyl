@@ -244,104 +244,116 @@ export class VinylPlayer<
         let sub: Unsubscribe | null = null
         let textSub: Unsubscribe | null = null
         let metricSub: Unsubscribe | null = null
+        // Track currently redispatched, driven by trackActivated/Deactivated.
+        let activeTrack: ReadonlyTrack | null = null
         const add = this.disposer.add
-        add(
-            this.trackController.on('currentTrackChange', (event) => {
-                // The previous track may stay cached, so its text track
-                // controller isn't disposed here. Deactivate its selection
-                // so the DOM TextTrack is disabled and cues cleared. Done
-                // before tearing down redispatch subs so the resulting
-                // activeTextTrackChange event flows through to the player.
-                //
-                // Exception: if an ad break is currently active, this change
-                // is an ad-swap. The previous track (the content) will be
-                // reactivated when the ad completes, and its caption selection
-                // must survive so `resume()` can restore the cues. Track
-                // deactivation already suspends the DOM output via
-                // MseTrack.onDeactivated → textTrackController.suspend().
-                // currentTrackChange exposes ReadonlyTrack, but the concrete
-                // controller is a full TextTrackController.
-                const prevTextController = event.previous
-                    ?.textTrackController as TextTrackController | null
-                if (!this.deps.adController.currentAdBreak) {
-                    prevTextController?.setActiveTextTrack(null)
-                }
-                sub?.()
-                sub = null
-                textSub?.()
-                textSub = null
-                metricSub?.()
-                metricSub = null
-                if (event.current) {
-                    const current = event.current
-                    sub = redispatchEvents(
+
+        // Re-wires redispatch previous→current and emits the state changes
+        // (text, seek range, qualities).
+        const transition = (current: ReadonlyTrack | null) => {
+            const previous = activeTrack
+            if (previous === current) return
+            activeTrack = current
+
+            // Clear the previous track's caption selection (it may stay cached),
+            // before tearing down subs so activeTextTrackChange flows through.
+            // Skip during an ad break: the content will resume, and its caption
+            // selection must survive for resume() (deactivation only suspends
+            // it). Tracks expose ReadonlyTrack; the controller is a full one.
+            const prevTextController =
+                previous?.textTrackController as TextTrackController | null
+            if (!this.deps.adController.currentAdBreak) {
+                prevTextController?.setActiveTextTrack(null)
+            }
+            sub?.()
+            sub = null
+            textSub?.()
+            textSub = null
+            metricSub?.()
+            metricSub = null
+            if (current) {
+                sub = redispatchEvents(
+                    this,
+                    current,
+                    ALL_STREAMING_EVENTS.filter(notResetEvent).filter(
+                        notLoadSpanMeasuredEvent
+                    )
+                )
+                metricSub = current.on('loadSpanMeasured', (measurement) =>
+                    this.dispatch('loadSpan', {
+                        ...measurement,
+                        // The track stamps its own uri at the source; fall
+                        // back to the current track for any span that has
+                        // not been attributed upstream.
+                        trackUri: measurement.trackUri ?? current.uri,
+                    })
+                )
+                if (current.textTrackController) {
+                    textSub = redispatchEvents(
                         this,
-                        current,
-                        ALL_STREAMING_EVENTS.filter(notResetEvent).filter(
-                            notLoadSpanMeasuredEvent
-                        )
+                        current.textTrackController,
+                        ALL_TEXT_TRACK_EVENTS
                     )
-                    metricSub = current.on('loadSpanMeasured', (measurement) =>
-                        this.dispatch('loadSpan', {
-                            ...measurement,
-                            // The track stamps its own uri at the source; fall
-                            // back to the current track for any span that has
-                            // not been attributed upstream.
-                            trackUri: measurement.trackUri ?? current.uri,
+                }
+            }
+            this.emitTextTrackChangeEventsFor(previous, current)
+            this.dispatch('fetchedRangesChange', {})
+            this.dispatch('seekRangeChange', {
+                previous: previous?.seekRange ?? null,
+                current: current?.seekRange ?? null,
+            })
+
+            // Emit a quality change event for every stream that has changed
+            // for streaming, buffering, and playback
+            for (const contentType of ALL_CONTENT_TYPES) {
+                for (const [eventType, getterName] of qualityEventsAndGetters) {
+                    const previousQuality =
+                        previous?.[getterName](contentType) ?? null
+                    const currentQuality =
+                        current?.[getterName](contentType) ?? null
+                    if (previousQuality !== currentQuality) {
+                        this.dispatch(eventType, {
+                            previous: previousQuality,
+                            current: currentQuality,
                         })
-                    )
-                    if (event.current.textTrackController) {
-                        textSub = redispatchEvents(
-                            this,
-                            event.current.textTrackController,
-                            ALL_TEXT_TRACK_EVENTS
-                        )
                     }
                 }
-                this.emitTextTrackChangeEventsFor(event.previous, event.current)
-                this.dispatch('fetchedRangesChange', {})
-                this.dispatch('seekRangeChange', {
-                    previous: event.previous?.seekRange ?? null,
-                    current: event.current?.seekRange ?? null,
+            }
+
+            // Emit qualities change events on track switch
+            const prevQualities = previous?.qualities ?? null
+            const curQualities = current?.qualities ?? null
+            if (prevQualities !== curQualities && curQualities) {
+                this.dispatch('qualitiesChange', {
+                    previous: prevQualities ?? [],
+                    current: curQualities,
                 })
+            }
+            const prevUnfiltered = previous?.qualitiesUnfiltered ?? null
+            const curUnfiltered = current?.qualitiesUnfiltered ?? null
+            if (prevUnfiltered !== curUnfiltered && curUnfiltered) {
+                this.dispatch('qualitiesUnfilteredChange', {
+                    previous: prevUnfiltered ?? [],
+                    current: curUnfiltered,
+                })
+            }
+        }
 
-                // Emit a quality change event for every stream that has changed
-                // for streaming, buffering, and playback
-                for (const contentType of ALL_CONTENT_TYPES) {
-                    for (const [
-                        eventType,
-                        getterName,
-                    ] of qualityEventsAndGetters) {
-                        const previous =
-                            event.previous?.[getterName](contentType) ?? null
-                        const current =
-                            event.current?.[getterName](contentType) ?? null
-                        if (previous !== current) {
-                            this.dispatch(eventType, {
-                                previous,
-                                current,
-                            })
-                        }
-                    }
-                }
-
-                // Emit qualities change events on track switch
-                const prevQualities = event.previous?.qualities ?? null
-                const curQualities = event.current?.qualities ?? null
-                if (prevQualities !== curQualities && curQualities) {
-                    this.dispatch('qualitiesChange', {
-                        previous: prevQualities ?? [],
-                        current: curQualities,
-                    })
-                }
-                const prevUnfiltered =
-                    event.previous?.qualitiesUnfiltered ?? null
-                const curUnfiltered = event.current?.qualitiesUnfiltered ?? null
-                if (prevUnfiltered !== curUnfiltered && curUnfiltered) {
-                    this.dispatch('qualitiesUnfilteredChange', {
-                        previous: prevUnfiltered ?? [],
-                        current: curUnfiltered,
-                    })
+        add(
+            this.trackController.on('trackActivated', ({ track }) =>
+                transition(track)
+            )
+        )
+        add(
+            this.trackController.on('trackDeactivated', ({ track }) => {
+                // Clear to no-active-track only on a real teardown (unload). In
+                // an ad-swap the ad's trackActivated drives the transition, so
+                // skip to avoid an intermediate clear and preserve captions.
+                if (
+                    track === activeTrack &&
+                    !this.deps.adController.currentAdBreak
+                ) {
+                    transition(null)
                 }
             })
         )
@@ -441,7 +453,7 @@ export class VinylPlayer<
     private selectPreferredTextTrack(
         preferred: VinylOptions['preferredTextLanguage']
     ): void {
-        const controller = this.deps.trackController.currentTrack
+        const controller = this.deps.trackController.activeTrack
             ?.textTrackController as TextTrackController | null
         if (!controller) return
         const target = pickPreferredTextTrack(controller.textTracks, preferred)
@@ -600,7 +612,7 @@ export class VinylPlayer<
      * when no track is loaded or the timeline is not yet resolved.
      */
     get seekRange(): SeekRange | null {
-        return this.currentTrack?.seekRange ?? null
+        return this.activeTrack?.seekRange ?? null
     }
 
     get seeking(): boolean {
@@ -649,8 +661,8 @@ export class VinylPlayer<
     // TrackController delegate methods
     //----------------------------------------------------
 
-    get currentTrack(): ReadonlyTrack | null {
-        return this.trackController.currentTrack
+    get activeTrack(): ReadonlyTrack | null {
+        return this.trackController.activeTrack
     }
 
     get queue(): readonly TrackLoadOptionsType[] {
@@ -716,7 +728,7 @@ export class VinylPlayer<
      * Listen to {@link VinylPlayerEventMap.fetchedRangesChange} for changes.
      */
     get fetchedRanges(): ReadonlyRanges {
-        return this.currentTrack?.fetchedRanges ?? emptyRanges
+        return this.activeTrack?.fetchedRanges ?? emptyRanges
     }
 
     /**
@@ -746,7 +758,7 @@ export class VinylPlayer<
      * Returns the current content types for active streams.
      */
     get contentTypes(): ReadonlySet<ContentType> {
-        return this.currentTrack?.contentTypes ?? emptyContentTypes
+        return this.activeTrack?.contentTypes ?? emptyContentTypes
     }
 
     /**
@@ -754,7 +766,7 @@ export class VinylPlayer<
      * Null if no track is active or the timeline is not yet available.
      */
     get qualities(): readonly MediaQualityMetadata[] | null {
-        return this.currentTrack?.qualities ?? null
+        return this.activeTrack?.qualities ?? null
     }
 
     /**
@@ -762,7 +774,7 @@ export class VinylPlayer<
      * Null if no track is active or the timeline is not yet available.
      */
     get qualitiesUnfiltered(): readonly MediaQualityMetadata[] | null {
-        return this.currentTrack?.qualitiesUnfiltered ?? null
+        return this.activeTrack?.qualitiesUnfiltered ?? null
     }
 
     /**
@@ -791,21 +803,21 @@ export class VinylPlayer<
      * Note that this does not represent the quality of inactive preloading tracks.
      */
     getStreamingQuality(contentType: ContentType): MediaQualityMetadata | null {
-        return this.currentTrack?.getStreamingQuality(contentType) ?? null
+        return this.activeTrack?.getStreamingQuality(contentType) ?? null
     }
 
     /**
      * The currently buffering quality, or null if no data is buffered.
      */
     getBufferingQuality(contentType: ContentType): MediaQualityMetadata | null {
-        return this.currentTrack?.getBufferingQuality(contentType) ?? null
+        return this.activeTrack?.getBufferingQuality(contentType) ?? null
     }
 
     /**
      * The currently playing quality, or null if no media is playing.
      */
     getPlaybackQuality(contentType: ContentType): MediaQualityMetadata | null {
-        return this.currentTrack?.getPlaybackQuality(contentType) ?? null
+        return this.activeTrack?.getPlaybackQuality(contentType) ?? null
     }
 
     //----------------------------------------------------
@@ -818,14 +830,14 @@ export class VinylPlayer<
      * carries no text.
      */
     get textTracks(): readonly TextTrackInfo[] {
-        return this.currentTrack?.textTrackController?.textTracks ?? []
+        return this.activeTrack?.textTrackController?.textTracks ?? []
     }
 
     /**
      * The currently active text track, or null if no track is selected.
      */
     get activeTextTrack(): TextTrackInfo | null {
-        return this.currentTrack?.textTrackController?.activeTextTrack ?? null
+        return this.activeTrack?.textTrackController?.activeTextTrack ?? null
     }
 
     /**
@@ -834,9 +846,9 @@ export class VinylPlayer<
      * surface text tracks or the id is unknown.
      */
     setActiveTextTrack(id: string | null): void {
-        // currentTrack exposes ReadonlyTrack, but the concrete controller is a
+        // activeTrack exposes ReadonlyTrack, but the concrete controller is a
         // full TextTrackController.
-        const controller = this.deps.trackController.currentTrack
+        const controller = this.deps.trackController.activeTrack
             ?.textTrackController as TextTrackController | null
         controller?.setActiveTextTrack(id)
     }

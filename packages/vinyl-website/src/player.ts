@@ -151,7 +151,7 @@ player.on('activeTextTrackChange', ({ current }) => {
     playerState.activeTextTrack$.value = current
 })
 
-player.on('currentTrackChange', () => {
+onAny(player, ['trackActivated', 'trackDeactivated'], () => {
     playerState.activeTextTrack$.value = player.activeTextTrack
     playerState.qualitiesUnfiltered$.value = player.qualitiesUnfiltered ?? []
 })
