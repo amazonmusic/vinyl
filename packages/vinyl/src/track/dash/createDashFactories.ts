@@ -61,6 +61,7 @@ export interface DashFactoryDeps {
             | 'allowedContentTypes'
             | 'preferDescriptiveAudio'
             | 'preferredTextLanguage'
+            | 'textCueStyle'
         >
     >
     readonly playbackController: PlaybackController
@@ -164,7 +165,10 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                         Promise<DashManifestData>
                     >
                     readonly options: ObservableValue<
-                        Pick<VinylOptions, 'preferredTextLanguage'>
+                        Pick<
+                            VinylOptions,
+                            'preferredTextLanguage' | 'textCueStyle'
+                        >
                     >
                 }) => {
                     const controller = new SidecarTextTrackController({
@@ -173,6 +177,7 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                         preferredTextLanguage: deps.options.pick(
                             'preferredTextLanguage'
                         ),
+                        cueStyle: deps.options.pick('textCueStyle'),
                     })
                     deps.manifestTransformed.onData((manifestPromise) => {
                         manifestPromise

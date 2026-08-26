@@ -27,6 +27,7 @@ import {
     type LoudnessNormalizationControllerImplOptions,
     loudnessNormalizationControllerImplOptionsValidator,
 } from '../playback/loudness/LoudnessNormalizationControllerImplOptions'
+import { type VttCueStyle, vttCueStyleValidator } from '../text/VttCueStyle'
 
 export interface VinylOptions {
     /**
@@ -97,6 +98,17 @@ export interface VinylOptions {
      * available.
      */
     readonly allowedContentTypes: readonly RestrictableContentType[] | null
+
+    /**
+     * Layout style applied to rendered WebVTT cues (the settable `VTTCue`
+     * positioning properties: size, line, position, align, etc.). Applied to
+     * each cue as it is added, on platforms that support `VTTCue`.
+     *
+     * Defaults to `{ size: 90 }`, insetting the cue box from the full video
+     * width so long lines don't clip at the screen edges in fullscreen (which
+     * `::cue` CSS cannot fix). Set to `null` to keep the browser defaults.
+     */
+    readonly textCueStyle: VttCueStyle | null
 }
 
 export const defaultVinylOptions: VinylOptions = {
@@ -107,6 +119,7 @@ export const defaultVinylOptions: VinylOptions = {
     preferDescriptiveAudio: false,
     codecOverrides: {},
     allowedContentTypes: null,
+    textCueStyle: { size: 90 },
 }
 
 export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
@@ -122,4 +135,5 @@ export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
             'Allow list of media content types (audio, video) to stream; other media streams are ignored. Text tracks are unaffected.'
         )
         .orNull(),
+    textCueStyle: vttCueStyleValidator.orNull(),
 })

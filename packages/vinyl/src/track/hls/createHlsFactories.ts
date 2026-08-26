@@ -54,6 +54,7 @@ export interface HlsFactoryDeps {
             | 'allowedContentTypes'
             | 'preferDescriptiveAudio'
             | 'preferredTextLanguage'
+            | 'textCueStyle'
         >
     >
     readonly playbackController: PlaybackController
@@ -157,7 +158,10 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                         Promise<HlsManifestData>
                     >
                     readonly options: ObservableValue<
-                        Pick<VinylOptions, 'preferredTextLanguage'>
+                        Pick<
+                            VinylOptions,
+                            'preferredTextLanguage' | 'textCueStyle'
+                        >
                     >
                 }) => {
                     const controller = new SidecarTextTrackController({
@@ -166,6 +170,7 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                         preferredTextLanguage: deps.options.pick(
                             'preferredTextLanguage'
                         ),
+                        cueStyle: deps.options.pick('textCueStyle'),
                     })
                     deps.manifestTransformed.onData((manifestPromise) => {
                         manifestPromise

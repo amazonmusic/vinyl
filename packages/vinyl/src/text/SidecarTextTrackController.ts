@@ -20,6 +20,7 @@ import { loadWebVttCues } from './SidecarTextTrackLoader'
 import type { WebVttCue } from './parseWebVtt'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import { pickPreferredTextTrack } from './pickPreferredTextTrack'
+import { applyVttCueStyle, isVttCue, type VttCueStyle } from './VttCueStyle'
 
 export interface SidecarTextTrackControllerDeps {
     /**
@@ -45,6 +46,13 @@ export interface SidecarTextTrackControllerDeps {
     readonly preferredTextLanguage?: ObservableValue<
         string | readonly string[] | null
     >
+
+    /**
+     * Layout style applied to each rendered VTTCue (see
+     * {@link VttCueStyle}). Read per cue as it is appended, so a change affects
+     * subsequently-rendered cues. Absent means no styling (browser defaults).
+     */
+    readonly cueStyle?: ObservableValue<VttCueStyle | null>
 }
 
 /**
@@ -265,13 +273,12 @@ export class SidecarTextTrackController
             seen.add(key)
             const domCue = new CueCtor(cue.startTime, cue.endTime, cue.text)
             if (cue.id != null) domCue.id = cue.id
-            // Native WebVTT cues default to size:100% (the full video width). At
-            // that width, long lines clip at the screen edges in fullscreen, and
-            // `::cue` CSS cannot apply width/padding/margin to inset them. Shrink
-            // the cue box so text keeps a safe margin from the edges. Guarded: a
-            // plain TextTrackCue (on VTTCue-less platforms) has no `size`.
-            if ('size' in domCue) {
-                ;(domCue as unknown as { size: number }).size = 90
+            // Apply the configured cue layout style (e.g. the default `size: 90`
+            // inset so long lines don't clip in fullscreen, which `::cue` CSS
+            // cannot fix). Only VTTCues carry these properties.
+            const cueStyle = this.deps.cueStyle?.value
+            if (cueStyle && isVttCue(domCue)) {
+                applyVttCueStyle(domCue, cueStyle)
             }
             dom.addCue(domCue)
         }
