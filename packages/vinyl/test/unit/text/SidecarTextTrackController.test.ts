@@ -85,6 +85,7 @@ describe('SidecarTextTrackController', () => {
         media = new FakeMediaElement()
         controller = new SidecarTextTrackController({
             media: media as unknown as HTMLMediaElement,
+            cueStyle: data({ size: 90 }),
         })
         originalCue = (globalThis as any).VTTCue
         // Provide a minimal VTTCue stub for jsdom-less node environment.
@@ -205,6 +206,63 @@ describe('SidecarTextTrackController', () => {
         // fullscreen.
         const cue = media.lastTrack?.cues[0] as unknown as { size: number }
         expect(cue.size).toBe(90)
+    })
+
+    describe('cueStyle', () => {
+        async function loadFirstCue(
+            ctrl: SidecarTextTrackController
+        ): Promise<{ size: number }> {
+            respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nfirst`)
+            const t = makeTrack()
+            ctrl.setTextTracks([t])
+            ctrl.setActiveTextTrack(t.id)
+            await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
+            return media.lastTrack?.cues[0] as unknown as { size: number }
+        }
+
+        it('does not style cues when cueStyle is null', async () => {
+            const ctrl = new SidecarTextTrackController({
+                media: media as unknown as HTMLMediaElement,
+                cueStyle: data(null),
+            })
+            const cue = await loadFirstCue(ctrl)
+            expect(cue.size).toBe(100) // stub default, unchanged
+            ctrl.dispose()
+        })
+
+        it('does not style cues when no cueStyle dep is provided', async () => {
+            const ctrl = new SidecarTextTrackController({
+                media: media as unknown as HTMLMediaElement,
+            })
+            const cue = await loadFirstCue(ctrl)
+            expect(cue.size).toBe(100)
+            ctrl.dispose()
+        })
+
+        it('does not style non-VTTCue cues', async () => {
+            // VTTCue-less platform: cues are plain TextTrackCues, not styleable.
+            ;(globalThis as any).VTTCue = undefined
+            ;(globalThis as any).TextTrackCue = function TextTrackCue(
+                this: any,
+                start: number,
+                end: number,
+                text: string
+            ) {
+                this.startTime = start
+                this.endTime = end
+                this.text = text
+                this.id = ''
+                this.size = 100
+            }
+            const ctrl = new SidecarTextTrackController({
+                media: media as unknown as HTMLMediaElement,
+                cueStyle: data({ size: 80 }),
+            })
+            const cue = await loadFirstCue(ctrl)
+            expect(cue.size).toBe(100) // not a VTTCue → not styled
+            ctrl.dispose()
+            ;(globalThis as any).TextTrackCue = undefined
+        })
     })
 
     it('preserves cue id when present', async () => {
