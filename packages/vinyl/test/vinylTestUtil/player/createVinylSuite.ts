@@ -8,7 +8,12 @@ import {
     type VinylDependencyOptions,
     type VinylPlayer,
 } from '@amazon/vinyl'
-import type { Unsubscribe } from '@amazon/vinyl-util'
+import {
+    createDisposer,
+    logError,
+    toJson,
+    type Unsubscribe,
+} from '@amazon/vinyl-util'
 import {
     createLogPrefix,
     createRequester,
@@ -69,9 +74,11 @@ export class VinylSuite<T extends VinylPlayer<any, any> = VinylPlayer> {
      * Initializes jasmine test setup.
      */
     init() {
-        let playerErrorSub: Unsubscribe | null = null
+        let playerSub: Unsubscribe | null = null
         setTestTimeout(this.options?.timeout ?? 60)
         beforeEach(() => {
+            const { add, dispose } = createDisposer()
+            playerSub = dispose
             // Browserstack's network is flaky and prone to transient drops;
             // give integ requests more retries than the production default.
             requesterWithRetryRef.set(() =>
@@ -84,16 +91,23 @@ export class VinylSuite<T extends VinylPlayer<any, any> = VinylPlayer> {
                 this.visibilityChangeHandler
             )
             this._player = this.playerFactory()
-            if (this.options?.failOnError !== false) {
-                playerErrorSub = this._player.on('error', (e) => {
-                    fail(e)
+            add(
+                this._player.on('error', (e) => {
+                    logError(this, 'player emitted error event', toJson(e))
                 })
+            )
+            if (this.options?.failOnError !== false) {
+                add(
+                    this._player.on('error', (e) => {
+                        fail(e.error)
+                    })
+                )
             }
         })
 
         afterEach(() => {
             logDebug(this, 'disposing')
-            if (playerErrorSub) playerErrorSub()
+            if (playerSub) playerSub()
             this._player?.dispose()
             this._player = null
             document.removeEventListener(
