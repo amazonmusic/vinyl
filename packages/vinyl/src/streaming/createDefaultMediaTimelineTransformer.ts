@@ -91,21 +91,29 @@ export function createDefaultMediaTimelineTransformer(
             throwSamplingRatesUnsupported,
             t
         )
+        // Resolve audio-description eligibility BEFORE the language filter.
+        // Description renditions are an accessibility opt-in, not general audio,
+        // so they must be gated out (unless opted in via preferDescriptiveAudio)
+        // before language selection runs. Otherwise a description rendition
+        // whose language tag happens to score higher than the main audio's
+        // (e.g. a described 'en' beating a main 'en-US') could win language
+        // selection and evict the main audio, stranding the listener on
+        // described audio they never opted into. With this gate first, the
+        // language filter only ever picks among eligible (main, or opted-in
+        // description) renditions.
+        t = filterTimelineQualities(
+            createAudioDescriptionFilter(
+                deps.options.value.preferDescriptiveAudio ?? false
+            ),
+            throwNoPlayableAudio,
+            t
+        )
         t = filterTimelineQualities(
             createLanguageFilter(
                 deps.options.value.preferredAudioLanguage,
                 'audio'
             ),
             throwLanguagesUnsupported,
-            t
-        )
-        // Keep audio-description renditions from being auto-selected as the
-        // default audio, unless the app opts in via preferDescriptiveAudio.
-        t = filterTimelineQualities(
-            createAudioDescriptionFilter(
-                deps.options.value.preferDescriptiveAudio ?? false
-            ),
-            throwNoPlayableAudio,
             t
         )
         return t
