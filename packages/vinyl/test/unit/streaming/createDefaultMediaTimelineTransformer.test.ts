@@ -127,6 +127,57 @@ describe('createDefaultMediaTimelineTransformer', () => {
         expect(audioIds(optedIn)).toEqual(['dvs'])
     })
 
+    it('does not let a described rendition with a closer language tag evict the main audio', async () => {
+        // The main audio is region-tagged ('en-US') while the described
+        // rendition carries the generic 'en'. Against a preference of 'en',
+        // 'en' scores an exact match and 'en-US' only a related one, so if the
+        // language filter ran before the audio-description gate it would drop
+        // the main audio and strand the (not-opted-in) listener on described
+        // audio. The description gate must run first so the main audio wins.
+        const makeTimeline = (): MediaTimeline => ({
+            periods: [
+                {
+                    startTime: 0,
+                    endTime: 100,
+                    qualities: [
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'main',
+                            lang: 'en-US',
+                        }),
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'dvs',
+                            lang: 'en',
+                            characteristics: [
+                                'public.accessibility.describes-video',
+                            ],
+                        }),
+                    ],
+                },
+            ],
+            minBufferTime: 2,
+            getAdBreaks: () => Promise.resolve([]),
+            getDuration: () => Promise.resolve(Infinity),
+        })
+        const audioIds = (t: MediaTimeline) =>
+            t.periods[0].qualities.map((q) => q.metadata.qualityId)
+
+        const byDefault = await createDefaultMediaTimelineTransformer(
+            createDeps(makeTimeline(), 'en')
+        ).value
+        expect(audioIds(byDefault)).toEqual(['main'])
+
+        // Opting in still yields the described rendition (the eligibility gate
+        // keeps only it, then language selection picks among what remains).
+        const optedIn = await createDefaultMediaTimelineTransformer(
+            createDeps(makeTimeline(), 'en', {}, true)
+        ).value
+        expect(audioIds(optedIn)).toEqual(['dvs'])
+    })
+
     it('filters out unsupported mime types', async () => {
         capabilities.canPlayTypeMse.and.callFake((type: string) =>
             type.includes('mp4a')
