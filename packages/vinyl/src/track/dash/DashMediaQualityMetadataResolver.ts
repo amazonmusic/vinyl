@@ -125,6 +125,19 @@ export function createMediaQualityMetadataFromDashRepresentation(
         return mapDescriptors([...arr1, ...arr2])
     }
 
+    // Role / Accessibility descriptor values describe the rendition's purpose
+    // (e.g. `description` for audio description). Surfaced as characteristics so
+    // accessibility renditions aren't auto-selected by default. Mirrors the
+    // derivation in discoverDashTextTracks.
+    const roleValues = (adaptationSet.Role ?? [])
+        .filter((d) => d.schemeIdUri === 'urn:mpeg:dash:role:2011')
+        .map((d) => d.value)
+        .filter((v): v is string => v != null)
+    const accessibilityValues = (adaptationSet.Accessibility ?? [])
+        .map((d) => d.value)
+        .filter((v): v is string => v != null)
+    const characteristics = [...roleValues, ...accessibilityValues]
+
     const contentProtections = [
         ...(adaptationSet.ContentProtection ?? []),
         ...(representation.ContentProtection ?? []),
@@ -158,6 +171,7 @@ export function createMediaQualityMetadataFromDashRepresentation(
         width: pick('width'),
         height: pick('height'),
         lang: adaptationSet.lang ?? null,
+        characteristics,
         contentProtections: contentProtections.flatMap((cP) =>
             contentProtectionToMetadata(cP, deps)
         ),

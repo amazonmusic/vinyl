@@ -252,6 +252,58 @@ describe('buildHlsMediaTimeline', () => {
         expect(audio.map((q) => q.metadata.lang)).toEqual(['en'])
     })
 
+    it('gives same-language audio renditions distinct ids and carries characteristics', () => {
+        const playlist = createMediaPlaylist([5, 5])
+        const manifestData: HlsManifestData = {
+            mainPlaylist: {
+                variants: [
+                    {
+                        bandwidth: 5_000_000,
+                        uri: 'video.m3u8',
+                        codecs: 'avc1.640015,mp4a.40.2',
+                        audioGroup: 'audio',
+                    },
+                ],
+                alternativeRenditions: [
+                    {
+                        type: 'AUDIO',
+                        groupId: 'audio',
+                        uri: 'main.m3u8',
+                        language: 'en-US',
+                        name: 'English',
+                    },
+                    {
+                        type: 'AUDIO',
+                        groupId: 'audio',
+                        uri: 'dvs.m3u8',
+                        language: 'en-US',
+                        name: 'English (DVS)',
+                        characteristics: [
+                            'public.accessibility.describes-video',
+                        ],
+                    },
+                ],
+            } as unknown as HlsMainPlaylist,
+            baseUrl: 'https://example.com/',
+            getMediaPlaylist: () => Promise.resolve(playlist),
+        }
+        const timeline = buildHlsMediaTimeline(deps, manifestData)
+        const audio = timeline.periods[0].qualities.filter(
+            (q) => q.metadata.contentType === 'audio'
+        )
+        expect(audio.length).toBe(2)
+        // Same group + language would otherwise collide; names disambiguate.
+        expect(new Set(audio.map((q) => q.metadata.qualityId)).size).toBe(2)
+        const dvs = audio.find((q) =>
+            q.metadata.characteristics.includes(
+                'public.accessibility.describes-video'
+            )
+        )
+        const main = audio.find((q) => q.metadata.characteristics.length === 0)
+        expect(dvs).toBeDefined()
+        expect(main).toBeDefined()
+    })
+
     it('handles an audio rendition with no language and a variant with no audio codec', () => {
         const playlist = createMediaPlaylist([5, 5])
         const manifestData: HlsManifestData = {

@@ -190,6 +190,15 @@ export interface MediaQualityMetadata extends MediaFormatMetadata {
     readonly lang: string | null
 
     /**
+     * Media characteristics / accessibility roles describing this rendition,
+     * e.g. `public.accessibility.describes-video` (HLS CHARACTERISTICS) or a
+     * DASH Role / Accessibility scheme value such as `description`. Used to keep
+     * accessibility renditions (e.g. audio description) from being auto-selected
+     * by default. Empty when none are signaled.
+     */
+    readonly characteristics: readonly string[]
+
+    /**
      * Identifies the group this quality belongs to (e.g. the adaptation set).
      */
     readonly groupId: string
@@ -237,6 +246,7 @@ export function createEmptyMediaQualityMetadata(): MutableDeep<MediaQualityMetad
         height: null,
         width: null,
         lang: null,
+        characteristics: [],
         groupId: createShortUid(),
         switchingGroupIds: null,
     }
@@ -255,6 +265,7 @@ export const mediaQualityMetadataValidator: ObjectSchema<MediaQualityMetadata> =
         supplementalProperties: descriptorRecordValidator,
         width: number().orNull(),
         lang: string().orNull(),
+        characteristics: array(string()).readonly(),
         groupId: string(),
         switchingGroupIds: array(string()).readonly().orNull(),
     })
