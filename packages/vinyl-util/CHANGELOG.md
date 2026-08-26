@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.0]() (2026-08-26)
+
+### Features
+
+- **ad:** add HLS SGAI ad interstitials (AdController + TrackController)
+  ([aa18318](https://github.com/amazonmusic/vinyl/commits/aa183182304fadffb6b060636610a0430639d387))
+- **util:** add poll async utility
+  ([3144b18](https://github.com/amazonmusic/vinyl/commits/3144b184888029e19e9a6c7d7649bb167b91c495))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [1.2.0]() (2026-07-02)
 
 **Note:** Version bump only for package @amazon/vinyl-util
