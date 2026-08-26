@@ -77,6 +77,25 @@ describe('createHlsFactories', () => {
         )
     })
 
+    it('wires per-track option observables from the player options', () => {
+        const factoryCreator = createHlsFactories(null)
+        const factories = factoryCreator(hlsFactoryDeps)({
+            uri: 'https://example.com/main.m3u8',
+            type: 'hls',
+            manifestProvider,
+        })
+        const deps = createContainer(factories).dependencies
+        const options = hlsFactoryDeps.options.value
+        expect(deps.preferredAudioLanguage.value).toBe(
+            options.preferredAudioLanguage
+        )
+        expect(deps.allowedContentTypes.value).toBe(options.allowedContentTypes)
+        expect(deps.preferDescriptiveAudio.value).toBe(
+            options.preferDescriptiveAudio
+        )
+        expect(deps.abr.value).toBe(options.abr)
+    })
+
     it('exposes the shared adController without owning it', () => {
         const factoryCreator = createHlsFactories(null)
         // Make the shared controller Disposable: if the track container owned

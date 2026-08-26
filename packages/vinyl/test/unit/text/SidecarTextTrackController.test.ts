@@ -7,6 +7,7 @@ import { SidecarTextTrackController, type TextTrackInfo } from '@amazon/vinyl'
 import { requesterWithRetryRef } from '@amazon/vinyl-util'
 import { flushPromises } from '@amazon/vinyl-util/browserTestUtil'
 import { MockRequester } from '@amazon/vinyl-util/testUtil'
+import { data, type MutableValue } from '@amazon/vinyl-observable'
 
 /**
  * Flushes the microtask/macrotask queue repeatedly until `predicate` holds or
@@ -579,5 +580,65 @@ d.vtt
         controller.on('activeTextTrackChange', handler)
         controller.setActiveTextTrack(t.id)
         expect(handler).not.toHaveBeenCalled()
+    })
+
+    describe('preferredTextLanguage', () => {
+        const en = makeTrack({ id: 'en', language: 'en', label: 'English' })
+        const es = makeTrack({ id: 'es', language: 'es', label: 'Espanol' })
+        let preferredTextLanguage: MutableValue<
+            string | readonly string[] | null
+        >
+        let prefController: SidecarTextTrackController
+
+        beforeEach(() => {
+            preferredTextLanguage = data<string | readonly string[] | null>(
+                null
+            )
+            prefController = new SidecarTextTrackController({
+                media: null,
+                preferredTextLanguage,
+            })
+        })
+
+        afterEach(() => prefController.dispose())
+
+        it('selects the matching track when the preference changes', () => {
+            prefController.setTextTracks([en, es])
+            expect(prefController.activeTextTrack).toBeNull()
+            preferredTextLanguage.value = 'es'
+            expect(prefController.activeTextTrack?.id).toBe('es')
+        })
+
+        it('clears the selection when the preference is set back to null', () => {
+            prefController.setTextTracks([en, es])
+            preferredTextLanguage.value = 'es'
+            expect(prefController.activeTextTrack?.id).toBe('es')
+            preferredTextLanguage.value = null
+            expect(prefController.activeTextTrack).toBeNull()
+        })
+
+        it('re-applies the preference when the track list changes', () => {
+            preferredTextLanguage.value = 'es'
+            // No tracks yet, so nothing matches.
+            expect(prefController.activeTextTrack).toBeNull()
+            prefController.setTextTracks([en, es])
+            expect(prefController.activeTextTrack?.id).toBe('es')
+        })
+
+        it('a preferred language wins over forced auto-selection', () => {
+            preferredTextLanguage.value = 'es'
+            prefController.setTextTracks([
+                makeTrack({ id: 'en-forced', language: 'en', forced: true }),
+                es,
+            ])
+            expect(prefController.activeTextTrack?.id).toBe('es')
+        })
+
+        it('leaves forced auto-selection intact while no preference is set', () => {
+            prefController.setTextTracks([
+                makeTrack({ id: 'forced', forced: true }),
+            ])
+            expect(prefController.activeTextTrack?.id).toBe('forced')
+        })
     })
 })

@@ -6,9 +6,11 @@
 import {
     type ContentType,
     createEmptyMediaQualityMetadata,
+    defaultQualitySelectorImplOptions,
     type HlsMediaQualityMetadataResolver,
     type HlsTrackDeps,
     type MediaTimeline,
+    type VinylOptions,
 } from '@amazon/vinyl'
 import { MockHlsManifestController } from '../../hls/MockHlsManifestController'
 import { MockMediaSourceController } from '../../streaming/buffering/MockMediaSourceController'
@@ -56,6 +58,12 @@ export function createMockHlsDependencies() {
             createSpy<HlsMediaQualityMetadataResolver>().and.callFake(() =>
                 createEmptyMediaQualityMetadata()
             ),
+        preferredAudioLanguage:
+            data<VinylOptions['preferredAudioLanguage']>(null),
+        allowedContentTypes: data<VinylOptions['allowedContentTypes']>(null),
+        preferDescriptiveAudio:
+            data<VinylOptions['preferDescriptiveAudio']>(false),
+        abr: data<VinylOptions['abr']>(defaultQualitySelectorImplOptions),
     } as const satisfies HlsTrackDeps
 }
 

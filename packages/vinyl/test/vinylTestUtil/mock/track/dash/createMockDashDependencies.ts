@@ -8,7 +8,9 @@ import {
     createEmptyMediaQualityMetadata,
     type DashMediaQualityMetadataResolver,
     type DashTrackDeps,
+    defaultQualitySelectorImplOptions,
     type MediaTimeline,
+    type VinylOptions,
 } from '@amazon/vinyl'
 import { MockDashManifestController } from '../../dash/MockDashManifestController'
 import { MockMediaSourceController } from '../../streaming/buffering/MockMediaSourceController'
@@ -58,6 +60,12 @@ export function createMockDashDependencies() {
             createSpy<DashMediaQualityMetadataResolver>().and.callFake(() =>
                 createEmptyMediaQualityMetadata()
             ),
+        preferredAudioLanguage:
+            data<VinylOptions['preferredAudioLanguage']>(null),
+        allowedContentTypes: data<VinylOptions['allowedContentTypes']>(null),
+        preferDescriptiveAudio:
+            data<VinylOptions['preferDescriptiveAudio']>(false),
+        abr: data<VinylOptions['abr']>(defaultQualitySelectorImplOptions),
     } as const satisfies DashTrackDeps
 }
 

@@ -9,6 +9,7 @@ import {
     EventHostImpl,
     type Maybe,
     type RequestInitOptions,
+    type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type {
     TextTrackController,
@@ -17,6 +18,8 @@ import type {
 } from './TextTrack'
 import { loadWebVttCues } from './SidecarTextTrackLoader'
 import type { WebVttCue } from './parseWebVtt'
+import type { ObservableValue } from '@amazon/vinyl-observable'
+import { pickPreferredTextTrack } from './pickPreferredTextTrack'
 
 export interface SidecarTextTrackControllerDeps {
     /**
@@ -31,6 +34,17 @@ export interface SidecarTextTrackControllerDeps {
      * Optional request init options forwarded with each VTT fetch (e.g. CORS).
      */
     readonly requestInit?: Maybe<RequestInitOptions>
+
+    /**
+     * Preferred caption language(s), most-preferred first. When provided, a
+     * non-null preference auto-selects the best-matching track (re-applied as
+     * the track list changes) and a null preference turns captions off. When
+     * absent, selection falls back to forced auto-selection until the app
+     * makes an explicit choice.
+     */
+    readonly preferredTextLanguage?: ObservableValue<
+        string | readonly string[] | null
+    >
 }
 
 /**
@@ -60,9 +74,14 @@ export class SidecarTextTrackController
     // True once the app has made an explicit selection (including null). Until
     // then, forced tracks auto-select on discovery.
     private _userSelected = false
+    private readonly preferredLanguageSub: Unsubscribe | null
 
     constructor(private readonly deps: SidecarTextTrackControllerDeps) {
         super()
+        this.preferredLanguageSub =
+            deps.preferredTextLanguage?.onData((value, previous) => {
+                if (previous !== undefined) this.applyPreferredLanguage(value)
+            }) ?? null
     }
 
     get textTracks(): readonly TextTrackInfo[] {
@@ -89,8 +108,13 @@ export class SidecarTextTrackController
             this.selectById(null)
         }
 
-        // Auto-show forced captions until the app makes an explicit choice.
-        if (!this._userSelected && !this._active) {
+        // A preferred language re-selects the best match as the list changes;
+        // otherwise auto-show forced captions until the app makes an explicit
+        // choice.
+        const preferred = this.deps.preferredTextLanguage?.value
+        if (preferred != null) {
+            this.applyPreferredLanguage(preferred)
+        } else if (!this._userSelected && !this._active) {
             const forced = this.pickForcedTrack(tracks)
             if (forced) this.selectById(forced.id)
         }
@@ -100,6 +124,17 @@ export class SidecarTextTrackController
         // An explicit app choice; stop auto-selecting forced tracks.
         this._userSelected = true
         this.selectById(id)
+    }
+
+    /**
+     * Selects the track best matching the preferred language(s), or clears the
+     * selection when the preference is null or nothing matches.
+     */
+    private applyPreferredLanguage(
+        preferred: string | readonly string[] | null
+    ): void {
+        const target = pickPreferredTextTrack(this._tracks, preferred)
+        this.setActiveTextTrack(target?.id ?? null)
     }
 
     /**
@@ -160,6 +195,7 @@ export class SidecarTextTrackController
      */
     dispose(): void {
         super.dispose()
+        this.preferredLanguageSub?.()
         this.loadAbort?.abort()
         this.loadAbort = null
         this.clearDomTrack()

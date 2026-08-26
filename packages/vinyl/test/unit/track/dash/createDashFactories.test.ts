@@ -89,6 +89,25 @@ describe('createDashFactories', () => {
         )
     })
 
+    it('wires per-track option observables from the player options', () => {
+        const factoryCreator = createDashFactories(null)
+        const factories = factoryCreator(dashFactoryDeps)({
+            uri: 'test://manifest.mpd',
+            type: 'dash',
+            manifestProvider,
+        })
+        const deps = createContainer(factories).dependencies
+        const options = dashFactoryDeps.options.value
+        expect(deps.preferredAudioLanguage.value).toBe(
+            options.preferredAudioLanguage
+        )
+        expect(deps.allowedContentTypes.value).toBe(options.allowedContentTypes)
+        expect(deps.preferDescriptiveAudio.value).toBe(
+            options.preferDescriptiveAudio
+        )
+        expect(deps.abr.value).toBe(options.abr)
+    })
+
     it('provides streaming options to createContentStreamFactories', () => {
         const factoryCreator = createDashFactories({
             streaming: {

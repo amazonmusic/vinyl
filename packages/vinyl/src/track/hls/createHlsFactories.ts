@@ -20,7 +20,6 @@ import {
 import type { ContentStreamingOptions } from '../../streaming/ContentStreamingOptions'
 import { createHlsContentTypesValue } from './createHlsContentTypesValue'
 import { createAllowedContentTypesValue } from '../../streaming/createAllowedContentTypesValue'
-import type { RestrictableContentType } from '../../streaming/MediaQualityMetadata'
 import { createHlsContentStreamFactories } from './createHlsContentStreamFactories'
 import { createContentStreamFactory } from '../../streaming/ContentStream'
 import type { ObservableValue } from '@amazon/vinyl-observable'
@@ -29,7 +28,6 @@ import type { DrmKeySystemResolver } from '../../drm/DrmKeySystemResolver'
 import type { DrmController } from '../../drm/DrmController'
 import type { Capabilities } from '../../client/Capabilities'
 import type { PlaybackSource } from '../../playback/PlaybackSource'
-import type { QualitySelectorImplOptions } from '../../streaming/abr/QualitySelectorImpl'
 import { QualitySelectorImpl } from '../../streaming/abr/QualitySelectorImpl'
 import type { VinylOptions } from '../../vinyl/VinylOptions'
 import { createDefaultHlsManifestTransformer } from './createDefaultHlsManifestTransformer'
@@ -48,11 +46,16 @@ import {
 import { createHlsManifestProvider } from './createHlsManifestProvider'
 
 export interface HlsFactoryDeps {
-    readonly options: ObservableValue<{
-        readonly abr: QualitySelectorImplOptions
-        readonly preferredAudioLanguage: string | readonly string[] | null
-        readonly allowedContentTypes: readonly RestrictableContentType[] | null
-    }>
+    readonly options: ObservableValue<
+        Pick<
+            VinylOptions,
+            | 'abr'
+            | 'preferredAudioLanguage'
+            | 'allowedContentTypes'
+            | 'preferDescriptiveAudio'
+            | 'preferredTextLanguage'
+        >
+    >
     readonly playbackController: PlaybackController
     readonly playbackSource: PlaybackSource
     readonly drmKeySystemResolver: DrmKeySystemResolver
@@ -117,6 +120,25 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                         options: deps.options.pick('abr'),
                     }),
 
+                preferredAudioLanguage: (deps: {
+                    options: ObservableValue<
+                        Pick<VinylOptions, 'preferredAudioLanguage'>
+                    >
+                }) => deps.options.pick('preferredAudioLanguage'),
+                allowedContentTypes: (deps: {
+                    options: ObservableValue<
+                        Pick<VinylOptions, 'allowedContentTypes'>
+                    >
+                }) => deps.options.pick('allowedContentTypes'),
+                preferDescriptiveAudio: (deps: {
+                    options: ObservableValue<
+                        Pick<VinylOptions, 'preferDescriptiveAudio'>
+                    >
+                }) => deps.options.pick('preferDescriptiveAudio'),
+                abr: (deps: {
+                    options: ObservableValue<Pick<VinylOptions, 'abr'>>
+                }) => deps.options.pick('abr'),
+
                 mediaTimeline: (
                     deps: BuildHlsMediaTimelineDeps & {
                         readonly manifestTransformed: ObservableValue<
@@ -134,10 +156,16 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                     readonly manifestTransformed: ObservableValue<
                         Promise<HlsManifestData>
                     >
+                    readonly options: ObservableValue<
+                        Pick<VinylOptions, 'preferredTextLanguage'>
+                    >
                 }) => {
                     const controller = new SidecarTextTrackController({
                         media: deps.media,
                         requestInit: loadOptions.requestInit ?? undefined,
+                        preferredTextLanguage: deps.options.pick(
+                            'preferredTextLanguage'
+                        ),
                     })
                     deps.manifestTransformed.onData((manifestPromise) => {
                         manifestPromise

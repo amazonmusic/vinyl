@@ -377,46 +377,6 @@ describe('VinylPlayer', () => {
         expect(trackController.reset).not.toHaveBeenCalled()
     })
 
-    describe('allowedContentTypes', () => {
-        it('reloads the current track and clears prefetch when the allow list changes', () => {
-            const trackController = deps.trackController
-            // Sanity: the handler must not fire on the initial (undefined
-            // previous) emission during construction.
-            expect(trackController.reset).not.toHaveBeenCalled()
-            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
-
-            player.configure({ allowedContentTypes: ['audio'] })
-
-            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
-            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
-        })
-
-        it('does not reload when the allow list is unchanged', () => {
-            const trackController = deps.trackController
-            player.configure({ allowedContentTypes: ['audio'] })
-            trackController.reset.calls.reset()
-            trackController.clearPrefetch.calls.reset()
-
-            // Re-applying the same value is a no-op (configure diffs deeply).
-            player.configure({ allowedContentTypes: ['audio'] })
-
-            expect(trackController.reset).not.toHaveBeenCalled()
-            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
-        })
-
-        it('reloads again when the allow list is later cleared', () => {
-            const trackController = deps.trackController
-            player.configure({ allowedContentTypes: ['audio'] })
-            trackController.reset.calls.reset()
-            trackController.clearPrefetch.calls.reset()
-
-            player.configure({ allowedContentTypes: null })
-
-            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
-            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
-        })
-    })
-
     describe('currentTrack', () => {
         it('returns the currently active track', () => {
             expect(player.activeTrack).toBeNull()
@@ -745,69 +705,6 @@ describe('VinylPlayer', () => {
             })
 
             expect(configSpy).not.toHaveBeenCalled()
-        })
-    })
-
-    describe('when preferredAudioLanguage changes', () => {
-        it('reloads the current track and clears prefetch', () => {
-            const trackController = deps.trackController
-            expect(trackController.reset).not.toHaveBeenCalled()
-            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
-
-            player.configure({ preferredAudioLanguage: 'ja' })
-
-            // A language change re-filters the timeline, so the track is
-            // hard-reset in place (buffers cleared) — like an allow-list change.
-            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
-            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
-        })
-
-        it('accepts an ordered array preference', () => {
-            const trackController = deps.trackController
-            player.configure({ preferredAudioLanguage: ['ja', 'en'] })
-            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
-            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
-        })
-
-        it('does not reload when the value is unchanged', () => {
-            const trackController = deps.trackController
-            player.configure({ preferredAudioLanguage: 'ja' })
-            trackController.reset.calls.reset()
-            trackController.clearPrefetch.calls.reset()
-            player.configure({ preferredAudioLanguage: 'ja' })
-            expect(trackController.reset).not.toHaveBeenCalled()
-            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
-        })
-
-        it('does not reload on initial options', () => {
-            // The handler must not fire on the initial (undefined previous)
-            // emission during construction.
-            expect(deps.trackController.reset).not.toHaveBeenCalled()
-            expect(deps.trackController.clearPrefetch).not.toHaveBeenCalled()
-        })
-    })
-
-    describe('when preferDescriptiveAudio changes', () => {
-        it('reloads the current track and clears prefetch', () => {
-            const trackController = deps.trackController
-            expect(trackController.reset).not.toHaveBeenCalled()
-
-            player.configure({ preferDescriptiveAudio: true })
-
-            expect(trackController.clearPrefetch).toHaveBeenCalledOnceWith()
-            expect(trackController.reset).toHaveBeenCalledOnceWith(true)
-        })
-
-        it('does not reload when the value is unchanged', () => {
-            const trackController = deps.trackController
-            player.configure({ preferDescriptiveAudio: true })
-            trackController.reset.calls.reset()
-            trackController.clearPrefetch.calls.reset()
-
-            player.configure({ preferDescriptiveAudio: true })
-
-            expect(trackController.reset).not.toHaveBeenCalled()
-            expect(trackController.clearPrefetch).not.toHaveBeenCalled()
         })
     })
 
