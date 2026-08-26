@@ -48,6 +48,9 @@ export function createDefaultHlsMediaQualityMetadataResolver(): HlsMediaQualityM
             // creates one audio quality per rendition), and video is
             // language-agnostic. Muxed variants have a single implicit language.
             lang: null,
+            // Audio-rendition characteristics are applied per rendition in
+            // buildHlsMediaTimeline; the variant itself carries none.
+            characteristics: [],
             contentProtections: [],
             encryptionScheme: null,
             initDataType: null,

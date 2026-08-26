@@ -14,6 +14,10 @@ import {
 } from './mediaTimelineFilter'
 import { createLanguageFilter } from './mediaTimelineLanguageFilter'
 import {
+    createAudioDescriptionFilter,
+    throwNoPlayableAudio,
+} from './mediaTimelineAccessibilityFilter'
+import {
     canPlayMimeType,
     throwMimeTypesUnsupported,
 } from '../track/filters/resourceTypeFilter'
@@ -92,6 +96,13 @@ export function createDefaultMediaTimelineTransformer(
                 'audio'
             ),
             throwLanguagesUnsupported,
+            t
+        )
+        // Keep audio-description renditions from being auto-selected as the
+        // default audio (they remain available for explicit opt-in).
+        t = filterTimelineQualities(
+            createAudioDescriptionFilter(/* preferDescription */ false),
+            throwNoPlayableAudio,
             t
         )
         return t

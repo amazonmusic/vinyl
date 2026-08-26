@@ -117,12 +117,16 @@ export function buildHlsMediaTimeline(
             variant,
             renditions
         )
+        // Disambiguate renditions that share a group and language (e.g. a main
+        // and an audio-description track) by their unique NAME, so their
+        // qualityIds don't collide.
+        const qualitySuffix = rendition.language
+            ? `${rendition.language}-${rendition.name}`
+            : rendition.name
         qualities.push(
             createHlsQualityData(deps, data, baseUrl, uri, {
                 ...baseMetadata,
-                qualityId: `audio-${rendition.groupId}-${
-                    rendition.language ?? rendition.name
-                }`,
+                qualityId: `audio-${rendition.groupId}-${qualitySuffix}`,
                 decoderId: uri,
                 contentType: 'audio',
                 codecs: audioCodec,
@@ -131,6 +135,7 @@ export function buildHlsMediaTimeline(
                 height: null,
                 frameRate: null,
                 lang: rendition.language ?? null,
+                characteristics: rendition.characteristics ?? [],
             })
         )
     }
