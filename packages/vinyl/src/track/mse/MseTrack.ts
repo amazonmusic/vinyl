@@ -190,7 +190,7 @@ export class MseTrack extends TrackBase {
      * Updates the cached qualities list from the transformed timeline for the current period.
      */
     private updateQualities(): void {
-        this.withTimeline((timeline) => {
+        this.withTimeline(this.deps.mediaTimelineTransformed, (timeline) => {
             const time = this.deps.playbackController.currentTime
             const period = getMediaPeriodAtTime(timeline, time)
             this._cachedPeriod = period
@@ -222,7 +222,7 @@ export class MseTrack extends TrackBase {
      * Updates the cached unfiltered qualities list from the raw timeline for the current period.
      */
     private updateQualitiesUnfiltered(): void {
-        this.withTimeline((timeline) => {
+        this.withTimeline(this.deps.mediaTimeline, (timeline) => {
             const time = this.deps.playbackController.currentTime
             const period = getMediaPeriodAtTime(timeline, time)
             const newQualities = period
@@ -242,36 +242,39 @@ export class MseTrack extends TrackBase {
     }
 
     private updateSeekRanges(): void {
-        this.withTimeline((timeline, interrupted) => {
-            timeline
-                .getDuration()
-                .then((duration) => {
-                    if (interrupted()) return
-                    const start = first(timeline.periods)?.startTime ?? 0
-                    this.setSeekRange({
-                        start,
-                        end: start + duration,
+        this.withTimeline(
+            this.deps.mediaTimelineTransformed,
+            (timeline, interrupted) => {
+                timeline
+                    .getDuration()
+                    .then((duration) => {
+                        if (interrupted()) return
+                        const start = first(timeline.periods)?.startTime ?? 0
+                        this.setSeekRange({
+                            start,
+                            end: start + duration,
+                        })
                     })
-                })
-                .catch(this.errorHandler)
-        })
+                    .catch(this.errorHandler)
+            }
+        )
     }
 
     /**
-     * Invokes a callback when the media timeline promise resolves and was not
-     * interrupted by a timeline change or track disposal.
+     * Invokes a callback when the given timeline promise resolves and was not
+     * interrupted by that timeline changing or the track being disposed.
      *
-     * @param callback The function to call when the media timeline resolves.
-     * This will not be invoked if the
+     * Pass `mediaTimelineTransformed` for the playable (filtered) view or
+     * `mediaTimeline` for the raw, unfiltered view.
      */
     private withTimeline(
+        timelineSource: ObservableValue<Promise<MediaTimeline>>,
         callback: (timeline: MediaTimeline, interrupted: () => boolean) => void
     ) {
-        const mediaTimelinePromise = this.deps.mediaTimeline.value
+        const timelinePromise = timelineSource.value
         const interrupted = () =>
-            this.disposed ||
-            mediaTimelinePromise !== this.deps.mediaTimeline.value
-        this.deps.mediaTimelineTransformed.value
+            this.disposed || timelinePromise !== timelineSource.value
+        timelinePromise
             .then((timeline) => {
                 if (!interrupted()) callback(timeline, interrupted)
             })

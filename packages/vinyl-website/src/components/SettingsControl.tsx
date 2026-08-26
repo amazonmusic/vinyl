@@ -13,7 +13,7 @@ import {
     setPreferredAudioLanguage,
     setPreferredTextLanguage,
 } from '../player'
-import { Icon } from './icons'
+import { Icon, type IconName } from './icons'
 import { isAudioDescription, type MediaQualityMetadata } from '@amazon/vinyl'
 
 /** Which panel of the settings menu is currently shown. */
@@ -56,25 +56,33 @@ export function SettingsControl() {
         }
     }
 
+    const gearButton = (
+        <button
+            className="transportBtn"
+            title="Settings"
+            aria-label="Settings"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            onclick={() => {
+                if (menuOpen$.value) {
+                    closeMenu()
+                } else {
+                    view$.value = 'main'
+                    menuOpen$.value = true
+                }
+            }}
+        >
+            <Icon name="settings" />
+        </button>
+    ) as HTMLButtonElement
+
     return (
         <div className="settingsControl">
-            <button
-                className="transportBtn"
-                title="Settings"
-                aria-label="Settings"
-                onclick={() => {
-                    if (menuOpen$.value) {
-                        closeMenu()
-                    } else {
-                        view$.value = 'main'
-                        menuOpen$.value = true
-                    }
-                }}
-            >
-                <Icon name="settings" />
-            </button>
+            {gearButton}
             <div
                 className="settingsMenu"
+                role="menu"
+                aria-label="Settings"
                 visible={menuOpen$}
                 onConnect={(el) => {
                     const render = () => el.replaceChildren(...buildView())
@@ -99,6 +107,7 @@ export function SettingsControl() {
                         if (captionLanguages().length > 0) {
                             rows.push(
                                 mainRow(
+                                    'closed_caption',
                                     'Subtitles/CC',
                                     captionLanguageLabel(
                                         preferredTextLanguage$.value
@@ -109,6 +118,7 @@ export function SettingsControl() {
                         }
                         rows.push(
                             mainRow(
+                                'speed',
                                 'Playback speed',
                                 rateLabel(playbackRate$.value),
                                 () => (view$.value = 'speed')
@@ -117,32 +127,28 @@ export function SettingsControl() {
                         if (hasVideo$.value) {
                             rows.push(
                                 mainRow(
+                                    'high_quality',
                                     'Quality',
                                     heightLabel(maxVideoHeight$.value),
                                     () => (view$.value = 'resolution')
                                 )
                             )
                         }
-                        if (audioLanguages().length > 1) {
+                        // Reachable when there is a real choice of audio
+                        // languages, or when a descriptive-audio rendition
+                        // offers a toggle even on a single-language stream.
+                        if (
+                            audioLanguages().length > 1 ||
+                            hasAudioDescription()
+                        ) {
                             rows.push(
                                 mainRow(
+                                    'language',
                                     'Audio language',
                                     languageLabel(
                                         preferredAudioLanguage$.value
                                     ),
                                     () => (view$.value = 'audio')
-                                )
-                            )
-                        }
-                        if (hasAudioDescription()) {
-                            rows.push(
-                                toggleRow(
-                                    'Audio description',
-                                    preferDescriptiveAudio$.value,
-                                    () =>
-                                        setPreferDescriptiveAudio(
-                                            !preferDescriptiveAudio$.value
-                                        )
                                 )
                             )
                         }
@@ -152,6 +158,7 @@ export function SettingsControl() {
                         ) {
                             rows.push(
                                 toggleRow(
+                                    'picture_in_picture_alt',
                                     'Picture in picture',
                                     inPip$.value,
                                     togglePip
@@ -215,7 +222,7 @@ export function SettingsControl() {
 
                     const buildAudioView = (): HTMLElement[] => {
                         const current = preferredAudioLanguage$.value
-                        return [
+                        const rows = [
                             header('Audio language'),
                             optionRow('Auto', current == null, () => {
                                 setPreferredAudioLanguage(null)
@@ -232,6 +239,20 @@ export function SettingsControl() {
                                 )
                             ),
                         ]
+                        if (hasAudioDescription()) {
+                            rows.push(
+                                toggleRow(
+                                    'audio_description',
+                                    'Audio description',
+                                    preferDescriptiveAudio$.value,
+                                    () =>
+                                        setPreferDescriptiveAudio(
+                                            !preferDescriptiveAudio$.value
+                                        )
+                                )
+                            )
+                        }
+                        return rows
                     }
 
                     // Distinct video heights (descending) drawn from the
@@ -301,6 +322,9 @@ export function SettingsControl() {
                     const header = (title: string): HTMLElement => (
                         <button
                             className="settingsHeader"
+                            role="menuitem"
+                            tabIndex={0}
+                            aria-label={`${title}, back`}
                             onclick={() => (view$.value = 'main')}
                         >
                             <Icon name="arrow_back" />
@@ -309,11 +333,21 @@ export function SettingsControl() {
                     )
 
                     const mainRow = (
+                        icon: IconName,
                         label: string,
                         value: string,
                         onClick: () => void
                     ): HTMLElement => (
-                        <button className="settingsRow" onclick={onClick}>
+                        <button
+                            className="settingsRow"
+                            role="menuitem"
+                            tabIndex={0}
+                            aria-label={`${label}, ${value}`}
+                            onclick={onClick}
+                        >
+                            <span className="settingsRowIcon">
+                                <Icon name={icon} />
+                            </span>
                             <span className="settingsLabel">{label}</span>
                             <span className="settingsValue">
                                 {value}
@@ -323,12 +357,23 @@ export function SettingsControl() {
                     )
 
                     const toggleRow = (
+                        icon: IconName,
                         label: string,
                         on: boolean,
                         onClick: () => void
                     ): HTMLElement => {
                         const row = (
-                            <button className="settingsRow" onclick={onClick}>
+                            <button
+                                className="settingsRow"
+                                role="menuitemcheckbox"
+                                tabIndex={0}
+                                aria-checked={on ? 'true' : 'false'}
+                                aria-label={label}
+                                onclick={onClick}
+                            >
+                                <span className="settingsRowIcon">
+                                    <Icon name={icon} />
+                                </span>
                                 <span className="settingsLabel">{label}</span>
                                 <span className="settingsValue">
                                     {on ? 'On' : 'Off'}
@@ -347,6 +392,10 @@ export function SettingsControl() {
                         const row = (
                             <button
                                 className="settingsOption"
+                                role="menuitemradio"
+                                tabIndex={0}
+                                aria-checked={selected ? 'true' : 'false'}
+                                aria-label={label}
                                 onclick={onClick}
                             >
                                 <span className="settingsCheck">
@@ -373,6 +422,42 @@ export function SettingsControl() {
                         inPip$.onData(render),
                     ]
                     render()
+
+                    // Keyboard and focus management (ARIA menu pattern):
+                    // arrows roam items within the current panel, Escape closes
+                    // and returns focus to the gear button.
+                    const menuItems = (): HTMLElement[] => [
+                        ...el.querySelectorAll<HTMLElement>(
+                            '[role^="menuitem"]'
+                        ),
+                    ]
+                    const focusFirstItem = () => menuItems()[0]?.focus()
+                    const onMenuKeydown = (e: KeyboardEvent) => {
+                        if (e.key === 'Escape') {
+                            closeMenu()
+                            gearButton.focus()
+                            return
+                        }
+                        if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+                        e.preventDefault()
+                        const items = menuItems()
+                        if (items.length === 0) return
+                        const index = items.indexOf(
+                            document.activeElement as HTMLElement
+                        )
+                        const delta = e.key === 'ArrowDown' ? 1 : -1
+                        items[
+                            (index + delta + items.length) % items.length
+                        ].focus()
+                    }
+                    el.addEventListener('keydown', onMenuKeydown)
+
+                    // Move focus to the top of a freshly rendered panel when
+                    // drilling in or back out (render runs first, via the sub
+                    // above), but not on incidental content re-renders.
+                    const unViewFocus = view$.onData(() => {
+                        if (menuOpen$.value) focusFirstItem()
+                    })
 
                     // Keep the PiP toggle in sync with the media element.
                     const onEnterPip = () => (inPip$.value = true)
@@ -407,8 +492,10 @@ export function SettingsControl() {
                         document.removeEventListener('click', onDocClick)
                     }
                     const unMenuOpen = menuOpen$.onData((open) => {
+                        gearButton.setAttribute('aria-expanded', String(open))
                         detachDocClick()
                         if (open) {
+                            focusFirstItem()
                             timerId = setTimeout(() => {
                                 timerId = null
                                 document.addEventListener('click', onDocClick)
@@ -422,6 +509,8 @@ export function SettingsControl() {
                     return () => {
                         detachDocClick()
                         unMenuOpen()
+                        unViewFocus()
+                        el.removeEventListener('keydown', onMenuKeydown)
                         for (const un of subs) un()
                         media.removeEventListener(
                             'enterpictureinpicture',

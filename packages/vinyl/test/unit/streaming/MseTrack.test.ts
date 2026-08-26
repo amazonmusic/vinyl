@@ -23,7 +23,6 @@ import { createEventSpy, useMockLogger } from '@amazon/vinyl-util/testUtil'
 import { flushPromises, useMockTime } from '@amazon/vinyl-util/browserTestUtil'
 import { externalDependencies } from '@amazon/vinyl-di'
 import { Abort } from '@amazon/vinyl-util'
-import { data } from '@amazon/vinyl-observable'
 import any = jasmine.any
 
 describe('MseTrack', () => {
@@ -771,11 +770,15 @@ describe('MseTrack', () => {
             qualityId: 'q2',
         }
 
-        function setTimeline(timeline: MediaTimeline) {
-            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
-            ;(deps as any).mediaTimelineTransformed = data(
-                Promise.resolve(timeline)
-            )
+        // Sets the raw and (optionally) the filtered/transformed timelines. They
+        // default to the same timeline; pass a distinct `transformed` to model
+        // the language/codec filter narrowing the playable set.
+        function setTimeline(
+            timeline: MediaTimeline,
+            transformed: MediaTimeline = timeline
+        ) {
+            deps.mediaTimeline.value = Promise.resolve(timeline)
+            deps.mediaTimelineTransformed.value = Promise.resolve(transformed)
         }
 
         it('returns null when timeline has no periods', () => {
@@ -806,6 +809,41 @@ describe('MseTrack', () => {
             await flushPromises()
             expect(track.qualities).toEqual([qualityMetadata])
             expect(track.qualitiesUnfiltered).toEqual([qualityMetadata])
+        })
+
+        it('reads qualities from the filtered timeline but qualitiesUnfiltered from the raw one', async () => {
+            // The transformed timeline is filtered (e.g. by preferred audio
+            // language) down to one quality; the raw timeline keeps them all.
+            // `qualitiesUnfiltered` must reflect the RAW timeline so consumers
+            // (e.g. a language picker) still see every option.
+            const makeTimeline = (
+                qualities: (typeof qualityMetadata)[]
+            ): MediaTimeline => ({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 100,
+                        qualities: qualities.map((metadata) => ({
+                            metadata,
+                            getSegment: () => Promise.resolve(null),
+                        })),
+                    },
+                ],
+                minBufferTime: 2,
+                getAdBreaks: () => Promise.resolve([]),
+                getDuration: () => Promise.resolve(Infinity),
+            })
+            setTimeline(
+                makeTimeline([qualityMetadata, qualityMetadata2]),
+                makeTimeline([qualityMetadata])
+            )
+            track = createTrack()
+            await flushPromises()
+            expect(track.qualities).toEqual([qualityMetadata])
+            expect(track.qualitiesUnfiltered).toEqual([
+                qualityMetadata,
+                qualityMetadata2,
+            ])
         })
 
         it('dispatches qualitiesChange event', async () => {
@@ -961,11 +999,15 @@ describe('MseTrack', () => {
     })
 
     describe('seekRange', () => {
-        function setTimeline(timeline: MediaTimeline) {
-            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
-            ;(deps as any).mediaTimelineTransformed = data(
-                Promise.resolve(timeline)
-            )
+        // Sets the raw and (optionally) the filtered/transformed timelines. They
+        // default to the same timeline; pass a distinct `transformed` to model
+        // the language/codec filter narrowing the playable set.
+        function setTimeline(
+            timeline: MediaTimeline,
+            transformed: MediaTimeline = timeline
+        ) {
+            deps.mediaTimeline.value = Promise.resolve(timeline)
+            deps.mediaTimelineTransformed.value = Promise.resolve(transformed)
         }
 
         it('is null initially', () => {
@@ -1046,17 +1088,15 @@ describe('MseTrack', () => {
                 getAdBreaks: () => Promise.resolve([]),
                 getDuration: () => Promise.resolve(60),
             }
-            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
-            ;(deps as any).mediaTimelineTransformed = data(
-                Promise.resolve(timeline)
-            )
+            deps.mediaTimeline.value = Promise.resolve(timeline)
+            deps.mediaTimelineTransformed.value = Promise.resolve(timeline)
             track = createTrack()
             await flushPromises()
             expect(track.seekRange).toEqual({ start: 0, end: 60 })
 
             const spy = createEventSpy(track, 'seekRangeChange')
             // Re-emit the same timeline
-            ;(deps as any).mediaTimeline.value = Promise.resolve(timeline)
+            deps.mediaTimeline.value = Promise.resolve(timeline)
             await flushPromises()
             expect(spy).not.toHaveBeenCalled()
         })
@@ -1072,10 +1112,8 @@ describe('MseTrack', () => {
                         resolveDuration = r
                     }),
             }
-            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
-            ;(deps as any).mediaTimelineTransformed = data(
-                Promise.resolve(timeline)
-            )
+            deps.mediaTimeline.value = Promise.resolve(timeline)
+            deps.mediaTimelineTransformed.value = Promise.resolve(timeline)
             track = createTrack()
             await flushPromises()
             // Dispose before getDuration resolves
@@ -1087,11 +1125,15 @@ describe('MseTrack', () => {
     })
 
     describe('ads', () => {
-        function setTimeline(timeline: MediaTimeline) {
-            ;(deps as any).mediaTimeline = data(Promise.resolve(timeline))
-            ;(deps as any).mediaTimelineTransformed = data(
-                Promise.resolve(timeline)
-            )
+        // Sets the raw and (optionally) the filtered/transformed timelines. They
+        // default to the same timeline; pass a distinct `transformed` to model
+        // the language/codec filter narrowing the playable set.
+        function setTimeline(
+            timeline: MediaTimeline,
+            transformed: MediaTimeline = timeline
+        ) {
+            deps.mediaTimeline.value = Promise.resolve(timeline)
+            deps.mediaTimelineTransformed.value = Promise.resolve(transformed)
         }
 
         function makeTimeline(adBreaks: AdBreakList): MediaTimeline {
@@ -1148,7 +1190,7 @@ describe('MseTrack', () => {
             const spy = createEventSpy(track, 'adsChange')
             // A subsequent transformed-timeline emission re-signals that the
             // track's ads may have changed; consumers re-read via getAds().
-            ;(deps as any).mediaTimelineTransformed.value = Promise.resolve(
+            deps.mediaTimelineTransformed.value = Promise.resolve(
                 makeTimeline(sampleAdBreaks)
             )
             await flushPromises()
@@ -1161,7 +1203,7 @@ describe('MseTrack', () => {
             expect((await track.getAds()).adBreaks).toEqual([])
             // The timeline changes; getAds() awaits the current value, so a
             // later call reflects the new breaks rather than a cached result.
-            ;(deps as any).mediaTimeline.value = Promise.resolve(
+            deps.mediaTimeline.value = Promise.resolve(
                 makeTimeline(sampleAdBreaks)
             )
             expect((await track.getAds()).adBreaks).toEqual(sampleAdBreaks)
