@@ -39,6 +39,7 @@ export interface DefaultMediaTimelineTransformerDeps {
     readonly mediaTimeline: ObservableValue<Promise<MediaTimeline>>
     readonly options: ObservableValue<{
         readonly preferredAudioLanguage: string | readonly string[] | null
+        readonly preferDescriptiveAudio?: boolean
         readonly codecOverrides?: CodecOverrides
     }>
 }
@@ -99,9 +100,11 @@ export function createDefaultMediaTimelineTransformer(
             t
         )
         // Keep audio-description renditions from being auto-selected as the
-        // default audio (they remain available for explicit opt-in).
+        // default audio, unless the app opts in via preferDescriptiveAudio.
         t = filterTimelineQualities(
-            createAudioDescriptionFilter(/* preferDescription */ false),
+            createAudioDescriptionFilter(
+                deps.options.value.preferDescriptiveAudio ?? false
+            ),
             throwNoPlayableAudio,
             t
         )
@@ -111,6 +114,7 @@ export function createDefaultMediaTimelineTransformer(
     return combineData({
         timeline: deps.mediaTimeline,
         preferredAudioLanguage: deps.options.pick('preferredAudioLanguage'),
+        preferDescriptiveAudio: deps.options.pick('preferDescriptiveAudio'),
         codecOverrides: deps.options.pick('codecOverrides'),
     }).map(async ({ timeline }) => {
         return transformTimeline(await timeline)

@@ -11,6 +11,7 @@ import {
 import type { ObjectSchema } from '@amazon/vinyl-validation'
 import {
     array,
+    boolean,
     isOneOf,
     object,
     record,
@@ -64,6 +65,16 @@ export interface VinylOptions {
     readonly preferredTextLanguage: string | readonly string[] | null
 
     /**
+     * Opt in to audio-description (a.k.a. described-video / DVS) audio: audio
+     * renditions carrying an accessibility "describes video" characteristic that
+     * narrate on-screen action. `false` (the default) keeps them out of the
+     * automatic default-audio selection — they are chosen only when this is set.
+     * When `true`, a description rendition is preferred where one exists for the
+     * selected language. Changing this reselects audio immediately.
+     */
+    readonly preferDescriptiveAudio: boolean
+
+    /**
      * Explicit codec allow/deny overrides that bypass browser support
      * detection. Keys are RFC 6381 codec strings or prefixes (e.g. `"hvc1"`),
      * values are `'allow'` or `'deny'`. An `'allow'` forces a codec to be
@@ -93,6 +104,7 @@ export const defaultVinylOptions: VinylOptions = {
     loudnessNormalization: defaultLoudnessNormalizationControllerImplOptions,
     preferredAudioLanguage: null,
     preferredTextLanguage: null,
+    preferDescriptiveAudio: false,
     codecOverrides: {},
     allowedContentTypes: null,
 }
@@ -102,6 +114,7 @@ export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
     loudnessNormalization: loudnessNormalizationControllerImplOptionsValidator,
     preferredAudioLanguage: string().or(array(string()).readonly()).orNull(),
     preferredTextLanguage: string().or(array(string()).readonly()).orNull(),
+    preferDescriptiveAudio: boolean(),
     codecOverrides: record(string(), isOneOf('allow', 'deny')),
     allowedContentTypes: array(isOneOf(...RESTRICTABLE_CONTENT_TYPES))
         .cast<readonly RestrictableContentType[]>()
