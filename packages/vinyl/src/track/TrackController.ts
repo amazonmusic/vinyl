@@ -68,9 +68,8 @@ export interface TrackControllerEventMap<
     readonly trackEnded: TrackEndedEvent
 
     /**
-     * Emitted when the last track of the playback queue has ended.
-     * When the last track in a queue has ended, the track will not change and therefore a `trackActivated`
-     * event will not be emitted.
+     * Emitted when the last track of the playback queue (and any of its
+     * postroll ads) have ended.
      */
     readonly queueEnded: AnyRecord
 }
@@ -372,7 +371,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                                         adTrack
                                     ),
                                     {
-                                        isFromAd: true,
+                                        isAd: true,
+                                        checkPreroll: false,
                                         config: {},
                                     }
                                 )
@@ -426,7 +426,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                             ...adParentLoad.config,
                             startTime,
                         },
-                        isFromAd: false,
+                        isAd: false,
+                        checkPreroll: false,
                     })
                     if (isPostroll) {
                         logInfo(this, 'queueEnded after postroll ad(s)')
@@ -811,7 +812,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             this.setCurrentTrack(
                 current ? this.getOrCreateTrack(current) : null,
                 {
-                    isFromAd: false,
+                    isAd: false,
+                    checkPreroll: true,
                     config: current?.config,
                 }
             )
@@ -858,7 +860,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         newTrack: Track | null,
         options: {
             config?: Maybe<TrackConfigOptions>
-            isFromAd: boolean
+            isAd: boolean
+            checkPreroll: boolean
         }
     ): void {
         const { adController } = this.deps
@@ -882,7 +885,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 adController.failAd(event.error)
             ) ?? null
 
-        if (!options.isFromAd) {
+        if (!options.isAd) {
             this.adParent = newTrack
             adController.setParentTrack(newTrack)
         }
@@ -892,7 +895,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 newTrack.activate(options.config ?? {})
                 this.dispatch('trackActivated', { track: newTrack })
             }
-            if (options.isFromAd) {
+            if (options.isAd || !options.checkPreroll) {
                 activate() // Ads cannot have prerolls.
             } else {
                 adController
