@@ -198,7 +198,7 @@ To append tracks to the current queue without affecting playback, use `enqueue`.
 Usage example:
 
 ```typescript
-player.on('currentTrackChange', () => {
+player.on('trackActivated', () => {
     if (player.queue.length < 2) {
         // Queue is nearing exhaustion, append more tracks
         player.enqueue(
@@ -221,22 +221,25 @@ player.on('currentTrackChange', () => {
 
 ### Track Events
 
-There are two events related to track queues.
-
 See `TrackControllerEventMap` in API Docs for full documentation.
 
-`queueEnded` - Emitted when the last track of the playback queue has ended.
-
-`currentTrackChange` - Emitted when the current track has changed.
+- `trackActivated` - Emitted when a track becomes active (carries the track).
+- `trackDeactivated` - Emitted when the active track is torn down, because it
+  was superseded by another track or unloaded.
+- `trackEnded` - Emitted once a track has fully finished, _after_ its postroll
+  ad if any. Prefer this over `ended` to detect true track completion.
+- `queueEnded` - Emitted when the last track of the playback queue has ended.
 
 When the last track in the queue has ended, it will not automatically be
 unloaded. To automatically unload when the queue ends, one could write:
 
 `player.on('queueEnded', () => player.unload())`
 
-When a track ends, an `ended` event is emitted. This event is emitted before the
-queue moves to the next track. If an `ended` handler changes the queue, the
-automatic track transition will be canceled.
+When a track ends, a low-level `ended` event is emitted before the queue moves
+to the next track; if an `ended` handler changes the queue, the automatic track
+transition is canceled. Note that `ended` also fires for each ad (ads share the
+media element) and, for a track with a postroll, fires _before_ the postroll
+plays — so use `trackEnded` (above) to detect that a track is actually done.
 
 For example, to interrupt an automatic queue transition, one could write:
 
@@ -536,8 +539,9 @@ listen for the `currentTrackAdsChange` event or read `player.currentTrackAds`.
 ```typescript
 // Inspect the ad breaks known for the current media (ordered by start time).
 console.log(player.currentTrackAds)
-// → [{ id, startTime: 12, duration: 15, placement: 'midroll',
-//      ads: [{ id, startTime, duration, uri }], metadata: { ... } }, ...]
+// → { trackUri, adBreaks: [{ id, startTime: 12, duration: 15,
+//      placement: 'midroll', restrict, once, resumeOffset,
+//      ads /* resolver → AdInfo[] */ }, ...] }
 
 // Inspect the break currently containing the playhead, if any.
 console.log(player.currentAdBreak)
@@ -546,16 +550,16 @@ console.log(player.currentAdBreak)
 player.on('currentTrackAdsChange', (event) => {
     console.log('Ad breaks updated:', event.current)
 })
-player.on('adBreakEnter', (adBreak) => {
+player.on('adBreakEntered', ({ adBreak }) => {
     console.log('Entered ad break', adBreak.id)
 })
-player.on('adBreakExit', (adBreak) => {
-    console.log('Exited ad break', adBreak.id)
+player.on('adBreakCompleted', ({ adBreak, resumePosition }) => {
+    console.log('Completed ad break', adBreak.id, '→ resume at', resumePosition)
 })
 ```
 
-`adBreakEnter` / `adBreakExit` are derived from the playhead as it crosses each
-break's `[startTime, startTime + duration)` region, so they fire on normal
-playback and on seeks alike. Breaks with an unknown duration surface in
-`currentTrackAds` but never mark the playhead as inside a break until their span
-resolves.
+`adBreakEntered` fires when the playhead enters a break; `adBreakCompleted`
+fires when it finishes (all ads played, were skipped, or it had none), carrying
+the `resumePosition` at which content resumes. Breaks with an unknown duration
+surface in `currentTrackAds` but never mark the playhead as inside a break until
+their span resolves. See [ADS.md](./ADS.md) for the full ad event set.

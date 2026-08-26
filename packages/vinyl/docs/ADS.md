@@ -16,26 +16,28 @@ through the player; they never deal with HLS- or DASH-specific tags.
 
 - **`AdBreakInfo`** — a span of the timeline that carries advertising instead of
   primary content. It has an `id`, a `startTime` and `duration` (in seconds on
-  the media timeline), a `placement` (`preroll` | `midroll` | `postroll`),
-  optional `restrict` rules, and an `ads()` resolver. It also carries fields
-  that govern replay and resumption: `once` (play the break at most once, never
-  replaying it when the playhead re-crosses), `resumeOffset` (where primary
-  content resumes relative to the break start; `null` advances by the break's
-  actual playout duration, `0` resumes in place), `playoutLimit` (a cap on the
-  break's total playout, or `null` when uncapped), `resolutionTimeOffset` (how
-  far ahead of the break its assets should be resolved and preloaded; `null`
-  falls back to the controller's `preloadAheadTime` option — see
-  [Preloading](#preloading)), and `skipControl()` (a resolver for the window
+  the media timeline), a `placement` (`preroll` | `midroll` | `postroll`), a
+  `restrict` rule set (each of `skip`/`jump` optional), and an `ads` resolver.
+  It also carries fields that govern replay and resumption: `once` (play the
+  break at most once, never replaying it when the playhead re-crosses),
+  `resumeOffset` (where primary content resumes relative to the break start;
+  `null` advances by the break's actual playout duration, `0` resumes in place),
+  `playoutLimit` (a cap on the break's total playout, or `null` when uncapped),
+  `resolutionTimeOffset` (how far ahead of the break its assets should be
+  resolved and preloaded; `null` falls back to the controller's
+  `preloadAheadTime` option — see [Preloading](#preloading)), and a
+  `skipControl` resolver (resolving to the window — `{ offset, duration }` —
   during which the ad may be skipped, or `null` when the break carries none).
   These are provider-agnostic; an HLS interstitial, for example, populates them
   from its `CUE=ONCE`, `X-RESUME-OFFSET`, `X-PLAYOUT-LIMIT`,
   `X-RESOLUTION-TIME-OFFSET`, and `X-ASSET-LIST` `SKIP-CONTROL` signals.
 - **`AdInfo`** — a single ad within a break, with its own `id`, `startTime`,
-  `duration`, and asset `uri`. Playback of an ad is capped at its `duration`
-  when that is known.
-- **`ads()`** — a function returning `Promise<readonly AdInfo[]>`. Asset lists
-  that are fetched lazily (e.g. an HLS `X-ASSET-LIST`) resolve on first call and
-  cache; breaks whose assets are known up front resolve immediately.
+  `duration`, and asset `uri` (or `null`). Playback of an ad is capped at its
+  `duration` when that is known.
+- **`ads`** — a `ValueProvider<AdList>`; resolve it (via `resolveValueProvider`)
+  to the break's `readonly AdInfo[]`. Asset lists fetched lazily (e.g. an HLS
+  `X-ASSET-LIST`) resolve on first call and cache; breaks whose assets are known
+  up front resolve immediately.
 
 Ad assets are full tracks. An ad can be another HLS manifest, an MP4, or any
 source the player can otherwise play. The track type is inferred from the asset
@@ -45,16 +47,20 @@ follow-up.
 ## Player API
 
 ```typescript
-// The ad breaks discovered for the current media, ordered by start time.
-player.currentTrackAds // readonly AdBreakInfo[]
+// The ad breaks discovered for the current media (a TrackAds carrying the
+// break list), or null before any are known.
+player.currentTrackAds // TrackAds | null
 
 // The break currently containing the playhead, or null in primary content.
 player.currentAdBreak // AdBreakInfo | null
 
-// The ad track currently playing over the (suspended) content track, or null.
-// This is exposed separately from `currentTrack`, which keeps referencing the
-// content track while an ad plays.
-player.currentAdTrack // ReadonlyTrack | null
+// The ad currently playing within the active break, or null.
+player.currentAd // AdInfo | null
+
+// While an ad plays it is the active track, so `activeTrack` refers to the ad
+// track (not content) during a break. `currentAdBreak != null` likewise tells
+// you an ad is currently playing.
+player.activeTrack // ReadonlyTrack | null
 
 // Skip the current ad. If more ads remain in the break the next one begins;
 // otherwise the break ends and content resumes. No-op with no active break.
@@ -66,25 +72,70 @@ player.skipAdBreak()
 
 ### Events
 
+All of these are dispatched by the `AdController` and redispatched on the
+player, so you can listen on `player` directly.
+
 ```typescript
 // The set of known ad breaks changed (e.g. a live manifest revealed one).
-player.on('currentTrackAdsChange', ({ current }) => {
-    /* current: AdBreakInfo[] */
+player.on('currentTrackAdsChange', ({ previous, current }) => {
+    /* current: TrackAds | null */
 })
 
-// The break containing the playhead changed. `current` is the newly active
-// break, or null when the playhead moved back into primary content (the break
-// played through, was skipped, or the media changed).
-player.on('currentAdBreakChange', ({ previous, current }) => {
+// The playhead is approaching a midroll/postroll break (within its
+// resolution/preload window) and its assets are being warmed. Not emitted for
+// prerolls (they are warmed up front). See Preloading.
+player.on('adPreload', ({ adBreak }) => {
     /* … */
 })
 
-// Per-tick ad timing while a break plays. Carries elapsed/remaining time for
-// the current ad and the whole break, plus the skip state — `canSkip` (whether
-// the ad may be skipped right now) and `skipIn` (seconds until it can be, or
-// null). Prefer this over deriving ad timing from the media element.
+// An ad break was entered — its ads may still be resolving.
+player.on('adBreakEntered', ({ adBreak }) => {
+    /* … */
+})
+
+// The active ad break completed (all ads played, were skipped, it hit its
+// playout limit, or it had no ads). `resumePosition` is the absolute
+// media-timeline position where content resumes; `reason` is one of
+// 'ended' | 'skipped' | 'contentChange' | 'error'.
+player.on('adBreakCompleted', ({ adBreak, resumePosition, reason }) => {
+    /* … */
+})
+
+// An individual ad within the break became active / started playing. Each
+// carries { adBreak, ad, index, totalAds }.
+player.on('adEntered', (e) => {
+    /* … */
+})
+player.on('adPlaying', (e) => {
+    /* … */
+})
+
+// Per-tick ad timing while a break plays. Carries elapsed and remaining time
+// for the current ad and for the whole break, plus the skip state — `canSkip`
+// (whether the ad may be skipped right now) and `skipIn` (seconds until it can
+// be, or null). Prefer this over deriving ad timing from the media element.
 player.on('adTimeUpdate', (e) => {
-    /* e.adTimeRemaining, e.breakTimeRemaining, e.canSkip, e.skipIn */
+    /* e.adCurrentTime, e.adTimeRemaining, e.breakCurrentTime,
+       e.breakTimeRemaining, e.canSkip, e.skipIn */
+})
+
+// Ad progress milestones. `adEnded` fires at 100%, just before `adCompleted`.
+// Each carries { adBreak, ad, index, totalAds, playbackRateAvg }.
+player.on('adFirstQuartile', (e) => {})
+player.on('adMidpoint', (e) => {})
+player.on('adThirdQuartile', (e) => {})
+player.on('adEnded', (e) => {})
+
+// An ad stopped playing for any reason (ended, skipped, error). Carries
+// { adBreak, ad, index, totalAds, reason }.
+player.on('adCompleted', ({ ad, reason }) => {
+    /* … */
+})
+
+// An ad list failed to load, or an individual ad failed. `currentAd` is set
+// only when a specific ad failed (null when the list itself failed to load).
+player.on('adError', ({ adBreak, currentAd, error }) => {
+    /* … */
 })
 ```
 
@@ -142,61 +193,29 @@ break's rules so applications can decide whether to expose those controls:
 
 ```typescript
 const activeBreak = player.currentAdBreak
-const canSkip = !activeBreak?.restrict?.skip // hide the Skip button when true
-const canSeek = !activeBreak?.restrict?.jump // disable seeking past the ad
+const canSkip = !activeBreak?.restrict.skip // hide the Skip button when true
+const canSeek = !activeBreak?.restrict.jump // disable seeking past the ad
 ```
 
-## Distinguishing ad `ended` from content `ended`
+## Detecting track completion
 
-> **This is the most important integration note.** Read it if you act on `ended`
-> events yourself.
+> **This is the most important integration note.** Read it if you act on track
+> completion yourself.
 
 If you rely on Vinyl's queue (`load`, `enqueue`, `next`), you do not need to do
 anything — the player suppresses queue advancement during ads, plays the ad, and
 resumes content automatically.
 
-However, ads play on the same media element as content, so the underlying
-`ended` event fires **for each ad as well as for content**. If your application
-listens for `ended` (or `emptied`, etc.) to drive its own logic — advancing your
-own queue, logging completion, updating UI — you must differentiate an
-ad-originated `ended` from a content-originated one. **Treating an ad's `ended`
-as content completion is the classic bug**: you would advance your queue while
-an ad is still playing.
+If your application drives its own logic off completion — advancing your own
+queue, logging a play, updating UI — do **not** listen to the raw media `ended`
+event. It fires for every ad as well as for content, and a track's content
+`ended` fires _before_ its postroll plays, so even a content `ended` does not
+mean the track is done. **Treating either as track completion is the classic
+bug.**
 
-Use `player.currentAdBreak` (or the convenience `currentAdTrack`) to tell them
-apart:
-
-```typescript
-player.on('ended', () => {
-    if (player.currentAdBreak != null) {
-        // An ad ended. The player handles sequencing to the next ad or
-        // resuming content — do NOT advance your own queue here.
-        return
-    }
-    // Genuine content completion — safe to advance your queue / update UI.
-    playNextInMyQueue()
-})
-```
-
-The rule of thumb: **an `ended` (or `emptied`) while `currentAdBreak` is
-non-null originated from an ad, not from content.** `currentAdTrack` is
-equivalent and reads more directly if you think in terms of tracks:
-
-```typescript
-player.on('ended', () => {
-    if (player.currentAdTrack != null) return // ad ended; ignore
-    playNextInMyQueue()
-})
-```
-
-### The simpler signal: `trackEnded`
-
-The `ended` dance above still misses a subtlety: when a track has a
-**postroll**, the content's own `ended` fires _before_ the postroll plays, so
-treating it as track completion is premature. To avoid all of this, the player
-emits **`trackEnded`** — it fires once when the current track has fully
-finished, _after_ its postroll if any, and never for an ad or for the content
-ending ahead of a postroll. Prefer it when you mean "this track is done":
+Use the **`trackEnded`** event instead. It fires once, when the current track
+has fully finished — after its postroll if any — and never for an ad or for
+content ending ahead of a postroll:
 
 ```typescript
 player.on('trackEnded', () => {
@@ -228,19 +247,15 @@ import { createVinylPlayer } from '@amazon/vinyl'
 const player = createVinylPlayer({ media: videoElement })
 
 // Reflect ad state in your UI.
-player.on('currentAdBreakChange', ({ current }) => {
-    if (current) {
-        showAdOverlay({
-            canSkip: !current.restrict?.skip,
-        })
-    } else {
-        hideAdOverlay()
-    }
+player.on('adBreakEntered', ({ adBreak }) => {
+    showAdOverlay({ canSkip: !adBreak.restrict.skip })
+})
+player.on('adBreakCompleted', () => {
+    hideAdOverlay()
 })
 
-// If you drive your own queue off `ended`, guard against ad ends.
-player.on('ended', () => {
-    if (player.currentAdBreak != null) return
+// Advance your own queue only on true track completion (handles ads + postroll).
+player.on('trackEnded', () => {
     playNextInMyQueue()
 })
 
