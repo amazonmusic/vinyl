@@ -12,10 +12,12 @@ describe('max resolution integ', () => {
 
     it('applies a lowered max resolution to the playing quality without waiting for the buffer to drain', async () => {
         const player = suite.player
-        // BEST so the player starts at the highest available resolution
-        // (the asset offers 360p / 720p / 1080p video).
+        // HIGHEST pins the top rung deterministically (the asset offers
+        // 360p / 720p / 1080p video). BEST is *adaptive* — on a constrained
+        // network it can cold-start at 360p and never climb within the wait
+        // window, which makes the "started high" precondition flaky.
         player.configure({
-            abr: { ...player.options.abr, strategy: AbrStrategy.BEST },
+            abr: { ...player.options.abr, strategy: AbrStrategy.HIGHEST },
         })
         player.load({
             type: 'hls',
@@ -26,14 +28,21 @@ describe('max resolution integ', () => {
         // Wait until a resolution above the cap we're about to set is playing.
         const startedHigh = await poll(
             () => (player.getPlaybackQuality('video')?.height ?? 0) > 360,
-            { timeout: 20 }
+            { timeout: 30 }
         )
         expect(startedHigh).withContext('started playing above 360p').toBeTrue()
 
-        // Lower the cap. The prefetched/buffered higher-res content must be
-        // cleared so the capped quality is selected promptly, rather than only
-        // after the old buffer drains.
-        player.configure({ abr: { ...player.options.abr, maxHeight: 360 } })
+        // Lower the cap under adaptive ABR (HIGHEST intentionally ignores the
+        // resolution cap; BEST honors it). The prefetched/buffered higher-res
+        // content must be cleared so the capped quality is selected promptly,
+        // rather than only after the old buffer drains.
+        player.configure({
+            abr: {
+                ...player.options.abr,
+                strategy: AbrStrategy.BEST,
+                maxHeight: 360,
+            },
+        })
 
         const cappedPromptly = await poll(
             () =>
