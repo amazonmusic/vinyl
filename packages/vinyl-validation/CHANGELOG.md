@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.0]() (2026-08-26)
+
+### Features
+
+- **validation:** add describe metadata and JSON Schema export
+  ([c06780a](https://github.com/amazonmusic/vinyl/commits/c06780ac80ccea97eacfb6791403f45a60cdd670))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [2.0.0]() (2026-08-26)
 
 ### Features
