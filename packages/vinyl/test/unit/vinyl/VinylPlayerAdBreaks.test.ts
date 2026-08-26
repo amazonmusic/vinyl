@@ -96,7 +96,7 @@ describe('VinylPlayer ad break API', () => {
         track.active = true
         track.ads = ads
         base.playbackController.playing = true
-        adController.setParentTrack(track)
+        adController.setAdsProvider(track)
         await flush()
     }
 

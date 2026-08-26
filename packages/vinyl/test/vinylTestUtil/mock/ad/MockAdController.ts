@@ -18,7 +18,7 @@ export class MockAdController extends MockEventHost implements AdController {
     currentAd: AdInfo | null = null
     currentAdBreak: AdBreakInfo | null = null
 
-    setParentTrack = spyFactory('setParentTrack')
+    setAdsProvider = spyFactory('setAdsProvider')
     failAd = spyFactory('failAd')
     skipAd = spyFactory('skipAd')
     skipAdBreak = spyFactory('skipAdBreak')

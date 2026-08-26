@@ -6,7 +6,7 @@
 import type { ChangeEvent } from '../event/ChangeEvent'
 import { type ReadonlyEventHost } from '@amazon/vinyl-util'
 import { type AdBreakInfo, type AdInfo, type TrackAds } from './AdBreakInfo'
-import type { ReadonlyTrack } from '../track/Track'
+import type { AdsProvider } from './AdsProvider'
 
 /**
  * Events dispatched by an {@link AdController}. These are provider-agnostic:
@@ -239,16 +239,17 @@ export interface ReadonlyAdController extends ReadonlyEventHost<AdEventMap> {
  * enters and exits them.
  *
  * The controller is deliberately agnostic of HLS/DASH discovery details: its
- * input is a list of {@link AdBreakInfo} produced by a provider-specific
- * discovery step and surfaced on the parent track (set via
- * {@link setParentTrack}); it derives the active break from the playhead by
- * observing the playback controller.
+ * input is a list of {@link AdBreakInfo} sourced from an {@link AdsProvider}
+ * (set via {@link setAdsProvider}); it derives the active break from the
+ * playhead by observing the playback controller.
  */
 export interface AdController extends ReadonlyAdController {
     /**
-     * Sets the current active track, or null if no track is active.
+     * Sets the source of ad breaks, or null when no source is active. A
+     * `ReadonlyTrack` satisfies {@link AdsProvider} directly, so the current
+     * playing track can be passed as-is.
      */
-    setParentTrack(track: ReadonlyTrack | null): void
+    setAdsProvider(provider: AdsProvider | null): void
 
     /**
      * Skips the entire active ad break, advancing past all remaining ads.
