@@ -97,17 +97,25 @@ export function buildHlsMediaTimeline(
     }
 
     // One audio quality per demuxed audio rendition (per language), so the
-    // media-timeline language filter can select among them. The audio codec is
-    // taken from a variant that references the rendition's group.
+    // media-timeline language filter can select among them.
     const seenAudio = new Set<string>()
     for (const rendition of audioRenditions) {
         const uri = rendition.uri
         if (uri == null || seenAudio.has(uri)) continue
         seenAudio.add(uri)
-        const variant = mainPlaylist.variants.find(
-            (v) => v.audioGroup === rendition.groupId
-        )
-        // A rendition group referenced by no variant has no codec to play with.
+        // Prefer the variant whose own playlist IS this rendition: its CODECS
+        // then describes this exact audio, the only reliable per-rendition codec
+        // for a mixed-codec group (one group referenced by variants of differing
+        // codecs). Fall back to any variant referencing the group for the common
+        // demuxed case where the variant playlist is video and every group
+        // variant shares one audio codec.
+        const variant =
+            mainPlaylist.variants.find((v) => v.uri === uri) ??
+            mainPlaylist.variants.find(
+                (v) => v.audioGroup === rendition.groupId
+            )
+        // A rendition neither self-described by a variant nor referenced by one
+        // has no codec to play with.
         if (!variant) continue
         const audioCodec =
             variant.codecs
