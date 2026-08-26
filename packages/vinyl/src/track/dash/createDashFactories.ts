@@ -21,10 +21,7 @@ import { createDashContentStreamFactories } from './createDashContentStreamFacto
 import type { DrmKeySystemResolver } from '../../drm/DrmKeySystemResolver'
 import type { DrmController } from '../../drm/DrmController'
 import type { Capabilities } from '../../client/Capabilities'
-import {
-    QualitySelectorImpl,
-    type QualitySelectorImplOptions,
-} from '../../streaming/abr/QualitySelectorImpl'
+import { QualitySelectorImpl } from '../../streaming/abr/QualitySelectorImpl'
 import type { PlaybackSource } from '../../playback/PlaybackSource'
 import {
     externalDependencies,
@@ -36,7 +33,6 @@ import { createContentStreamFactory } from '../../streaming/ContentStream'
 import type { ContentStreamingOptions } from '../../streaming/ContentStreamingOptions'
 import { createDashContentTypesValue } from './createDashContentTypesValue'
 import { createAllowedContentTypesValue } from '../../streaming/createAllowedContentTypesValue'
-import type { RestrictableContentType } from '../../streaming/MediaQualityMetadata'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import type { VinylOptions } from '../../vinyl/VinylOptions'
 import {
@@ -57,11 +53,16 @@ import {
  * Player-level dependencies needed for the Dash-specific factories.
  */
 export interface DashFactoryDeps {
-    readonly options: ObservableValue<{
-        readonly abr: QualitySelectorImplOptions
-        readonly preferredAudioLanguage: string | readonly string[] | null
-        readonly allowedContentTypes: readonly RestrictableContentType[] | null
-    }>
+    readonly options: ObservableValue<
+        Pick<
+            VinylOptions,
+            | 'abr'
+            | 'preferredAudioLanguage'
+            | 'allowedContentTypes'
+            | 'preferDescriptiveAudio'
+            | 'preferredTextLanguage'
+        >
+    >
     readonly playbackController: PlaybackController
     readonly playbackSource: PlaybackSource
     readonly drmKeySystemResolver: DrmKeySystemResolver
@@ -126,6 +127,24 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                     new QualitySelectorImpl({
                         options: deps.options.pick('abr'),
                     }),
+                preferredAudioLanguage: (deps: {
+                    options: ObservableValue<
+                        Pick<VinylOptions, 'preferredAudioLanguage'>
+                    >
+                }) => deps.options.pick('preferredAudioLanguage'),
+                allowedContentTypes: (deps: {
+                    options: ObservableValue<
+                        Pick<VinylOptions, 'allowedContentTypes'>
+                    >
+                }) => deps.options.pick('allowedContentTypes'),
+                preferDescriptiveAudio: (deps: {
+                    options: ObservableValue<
+                        Pick<VinylOptions, 'preferDescriptiveAudio'>
+                    >
+                }) => deps.options.pick('preferDescriptiveAudio'),
+                abr: (deps: {
+                    options: ObservableValue<Pick<VinylOptions, 'abr'>>
+                }) => deps.options.pick('abr'),
                 manifestTransformed: createDefaultDashManifestTransformer,
                 mediaTimeline: (
                     deps: BuildDashMediaTimelineDeps & {
@@ -144,10 +163,16 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                     readonly manifestTransformed: ObservableValue<
                         Promise<DashManifestData>
                     >
+                    readonly options: ObservableValue<
+                        Pick<VinylOptions, 'preferredTextLanguage'>
+                    >
                 }) => {
                     const controller = new SidecarTextTrackController({
                         media: deps.media,
                         requestInit: loadOptions.requestInit ?? undefined,
+                        preferredTextLanguage: deps.options.pick(
+                            'preferredTextLanguage'
+                        ),
                     })
                     deps.manifestTransformed.onData((manifestPromise) => {
                         manifestPromise

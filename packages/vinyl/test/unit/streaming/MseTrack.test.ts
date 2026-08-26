@@ -10,6 +10,7 @@ import {
     type MediaTimeline,
     MseTrack,
     PLAYHEAD_NUDGE,
+    type RestrictableContentType,
     SEEKING_STALL_TIME_CHECK,
     type TrackConfigOptions,
     type TrackPreloadOptions,
@@ -1207,6 +1208,83 @@ describe('MseTrack', () => {
                 makeTimeline(sampleAdBreaks)
             )
             expect((await track.getAds()).adBreaks).toEqual(sampleAdBreaks)
+        })
+    })
+
+    describe('option-driven stream effects', () => {
+        beforeEach(async () => {
+            track = createTrack()
+            await awaitContentTypes()
+        })
+
+        it('does not react to the initial option values on construction', () => {
+            // Each binding is guarded on previous === undefined, so the initial
+            // emission during construction must not rebuild the track.
+            expect(deps.manifestController.reset).not.toHaveBeenCalled()
+            expect(getAudioStream().reset).not.toHaveBeenCalled()
+        })
+
+        // A shared array reference so re-applying it reads as unchanged.
+        const allowed: readonly RestrictableContentType[] = ['audio']
+        for (const scenario of [
+            {
+                name: 'preferredAudioLanguage',
+                apply: () => (deps.preferredAudioLanguage.value = 'ja'),
+            },
+            {
+                name: 'allowedContentTypes',
+                apply: () => (deps.allowedContentTypes.value = allowed),
+            },
+            {
+                name: 'preferDescriptiveAudio',
+                apply: () => (deps.preferDescriptiveAudio.value = true),
+            },
+        ]) {
+            describe(`when ${scenario.name} changes`, () => {
+                it('clears prefetch and hard-resets this track', () => {
+                    const clearSpy = spyOn(track!, 'clearPrefetch')
+                    const resetSpy = spyOn(track!, 'reset')
+                    scenario.apply()
+                    expect(clearSpy).toHaveBeenCalledOnceWith()
+                    expect(resetSpy).toHaveBeenCalledOnceWith(true)
+                })
+
+                it('does not react when the value is unchanged', () => {
+                    scenario.apply()
+                    const clearSpy = spyOn(track!, 'clearPrefetch')
+                    const resetSpy = spyOn(track!, 'reset')
+                    // Re-applying the identical value is not a change.
+                    scenario.apply()
+                    expect(clearSpy).not.toHaveBeenCalled()
+                    expect(resetSpy).not.toHaveBeenCalled()
+                })
+            })
+        }
+
+        describe('when abr resolution restrictions change', () => {
+            it('clears prefetch (without a rebuild) when maxHeight changes', () => {
+                const clearSpy = spyOn(track!, 'clearPrefetch')
+                const resetSpy = spyOn(track!, 'reset')
+                deps.abr.value = { ...deps.abr.value, maxHeight: 480 }
+                expect(clearSpy).toHaveBeenCalledOnceWith()
+                // The same streams just re-select a quality — no stream rebuild.
+                expect(resetSpy).not.toHaveBeenCalled()
+            })
+
+            it('clears prefetch when maxWidth changes', () => {
+                const clearSpy = spyOn(track!, 'clearPrefetch')
+                deps.abr.value = { ...deps.abr.value, maxWidth: 640 }
+                expect(clearSpy).toHaveBeenCalledOnceWith()
+            })
+
+            it('does not clear prefetch for a non-restriction abr change', () => {
+                const clearSpy = spyOn(track!, 'clearPrefetch')
+                deps.abr.value = {
+                    ...deps.abr.value,
+                    highBufferThreshold: 42,
+                }
+                expect(clearSpy).not.toHaveBeenCalled()
+            })
         })
     })
 })

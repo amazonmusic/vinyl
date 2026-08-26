@@ -42,6 +42,7 @@ import type { TextTrackController } from '../../text/TextTrack'
 import type { TrackConfigOptions } from '../TrackFactory'
 import type { LoadSpanMeasurement } from '../../streaming/LoadMetric'
 import type { TrackAds } from '../../ad/AdBreakInfo'
+import type { VinylOptions } from '../../vinyl/VinylOptions'
 
 /**
  * How long to wait after all streams have data before checking whether a seek
@@ -68,6 +69,22 @@ export type MseTrackDeps = TrackBaseDeps & {
      * disposed when the track itself is disposed.
      */
     readonly textTrackController?: TextTrackController | null
+
+    /**
+     * Player options that re-select this track's audio/streams. A change (not
+     * the initial value) is applied to this track immediately so it takes
+     * effect without waiting for the buffered media to drain.
+     */
+    readonly preferredAudioLanguage: ObservableValue<
+        VinylOptions['preferredAudioLanguage']
+    >
+    readonly allowedContentTypes: ObservableValue<
+        VinylOptions['allowedContentTypes']
+    >
+    readonly preferDescriptiveAudio: ObservableValue<
+        VinylOptions['preferDescriptiveAudio']
+    >
+    readonly abr: ObservableValue<VinylOptions['abr']>
 }
 
 type FunctionKeys<T> = {
@@ -173,6 +190,48 @@ export class MseTrack extends TrackBase {
                 this.dispatchLoadSpan(measurement)
             )
         )
+
+        // Audio/stream selection options: a change (never the initial value)
+        // re-filters the timeline, so rebuild this track's streams in place.
+        add(
+            deps.preferredAudioLanguage.onData((_value, previous) => {
+                if (previous !== undefined) this.reloadStreams()
+            })
+        )
+        add(
+            deps.allowedContentTypes.onData((_value, previous) => {
+                if (previous !== undefined) this.reloadStreams()
+            })
+        )
+        add(
+            deps.preferDescriptiveAudio.onData((_value, previous) => {
+                if (previous !== undefined) this.reloadStreams()
+            })
+        )
+        // A resolution-restriction change re-selects a quality from the same
+        // streams, so clearing the buffer is enough — no rebuild is needed.
+        add(
+            deps.abr.onData((value, previous) => {
+                if (previous === undefined) return
+                if (
+                    value.maxHeight !== previous.maxHeight ||
+                    value.maxWidth !== previous.maxWidth
+                ) {
+                    this.clearPrefetch()
+                }
+            })
+        )
+    }
+
+    /**
+     * Clears this track's buffers and rebuilds its streams so a changed
+     * audio/language/content-type selection applies immediately.
+     * {@link reset} with `hard` safely no-ops the rebuild for an inactive
+     * (cached) track.
+     */
+    private reloadStreams(): void {
+        this.clearPrefetch()
+        this.reset(/* hard */ true)
     }
 
     /**
