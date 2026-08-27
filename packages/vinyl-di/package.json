@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-di",
-    "version": "2.0.3",
+    "version": "2.0.4",
     "description": "Simple dependency injection",
     "repository": {
         "type": "git",
@@ -69,11 +69,11 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^2.0.3",
-        "@amazon/vinyl-jasmine-wrapper": "^2.0.3"
+        "@amazon/vinyl-build-utils": "^2.0.4",
+        "@amazon/vinyl-jasmine-wrapper": "^2.0.4"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^2.0.3"
+        "@amazon/vinyl-util": "^2.0.4"
     },
     "publishConfig": {
         "access": "public"
