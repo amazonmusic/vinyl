@@ -62,8 +62,9 @@ jobs:
               run: npm run prepare:publish
 
             - name: Publish to npm
-              # `npm publish -ws` (not `lerna publish`) because the strip above
-              # leaves the tree dirty and lerna aborts on that (EUNCOMMIT).
-              # npm publish has no clean-tree check; vinyl-website (private) is
-              # skipped automatically.
-              run: npm publish -ws
+              # `npm publish --workspaces` (not `lerna publish`) because the
+              # strip above leaves the tree dirty and lerna aborts on that
+              # (EUNCOMMIT). npm publish has no clean-tree check; vinyl-website
+              # (private) is skipped automatically. Use the full --workspaces
+              # flag: the `-ws` shorthand is a hard error in current npm.
+              run: npm publish --workspaces
