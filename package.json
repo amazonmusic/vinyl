@@ -71,5 +71,8 @@
         "@nx/nx-linux-x64-gnu": "^22.7.2",
         "@rollup/rollup-linux-x64-gnu": "^4.60.4"
     },
-    "prettier": "./.prettierrc.json"
+    "prettier": "./.prettierrc.json",
+    "overrides": {
+        "conventional-changelog-conventionalcommits": "^9.3.1"
+    }
 }
