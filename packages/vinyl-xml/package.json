@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-xml",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "A SAX XML parser",
     "repository": {
         "type": "git",
@@ -69,11 +69,11 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^2.0.0",
-        "@amazon/vinyl-jasmine-wrapper": "^2.0.0"
+        "@amazon/vinyl-build-utils": "^2.0.1",
+        "@amazon/vinyl-jasmine-wrapper": "^2.0.1"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^2.0.0",
-        "@amazon/vinyl-validation": "^2.0.0"
+        "@amazon/vinyl-util": "^2.0.1",
+        "@amazon/vinyl-validation": "^2.0.1"
     }
 }

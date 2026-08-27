@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-tsx",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "TSX declarative markup for creating UI",
     "repository": {
         "type": "git",
@@ -69,11 +69,11 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^2.0.0",
-        "@amazon/vinyl-jasmine-wrapper": "^2.0.0"
+        "@amazon/vinyl-build-utils": "^2.0.1",
+        "@amazon/vinyl-jasmine-wrapper": "^2.0.1"
     },
     "dependencies": {
-        "@amazon/vinyl-observable": "^2.0.0",
-        "@amazon/vinyl-util": "^2.0.0"
+        "@amazon/vinyl-observable": "^2.0.1",
+        "@amazon/vinyl-util": "^2.0.1"
     }
 }
