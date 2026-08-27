@@ -27,6 +27,7 @@
         "pretest:browserstack": "lerna run build:release",
         "test:browserstack": "npm run test:browserstack -ws --if-present",
         "release": "nx run-many -t lint test:coverage build:release analyzeExports --parallel=8 && npm run prettier:check",
+        "prepare:publish": "tsx buildSrc/stripDevExports.ts",
         "start": "npm run start -w @amazon/vinyl-website",
         "watch": "lerna run watch --parallel --scope @amazon/*",
         "prepare": "husky"
