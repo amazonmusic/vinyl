@@ -3,6 +3,20 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [2.0.4]() (2026-08-27)
+
+### Bug Fixes
+
+- **build:** publish with npm publish --workspaces
+  ([2051160](https://github.com/amazonmusic/vinyl/commits/2051160fb16418328c3a5323ab620001d92fce97))
+- **deps:** pin conventional-changelog-conventionalcommits to 9.x
+  ([c9dda3b](https://github.com/amazonmusic/vinyl/commits/c9dda3b90f0c2fa29645f639d92a0f2ed1cda9b1))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [2.0.3]() (2026-08-27)
 
 **Note:** Version bump only for package @amazon/vinyl-composite
