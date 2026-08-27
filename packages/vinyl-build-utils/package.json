@@ -54,5 +54,8 @@
     "dependencies": {
         "express": "^5.1.0",
         "http-proxy-middleware": "^3.0.7"
+    },
+    "publishConfig": {
+        "access": "public"
     }
 }

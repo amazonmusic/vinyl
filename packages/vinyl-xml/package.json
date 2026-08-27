@@ -75,5 +75,8 @@
     "dependencies": {
         "@amazon/vinyl-util": "^2.0.1",
         "@amazon/vinyl-validation": "^2.0.1"
+    },
+    "publishConfig": {
+        "access": "public"
     }
 }
