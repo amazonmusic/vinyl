@@ -57,7 +57,13 @@ jobs:
                   "require('./lerna.json').version")" --generate-notes
 
             - name: Strip dev-only exports before publish
+              # Strips the development export condition (which points at ./src,
+              # not shipped in published tarballs). This dirties the tree.
               run: npm run prepare:publish
 
             - name: Publish to npm
-              run: npx lerna publish from-package --yes
+              # `npm publish -ws` (not `lerna publish`) because the strip above
+              # leaves the tree dirty and lerna aborts on that (EUNCOMMIT).
+              # npm publish has no clean-tree check; vinyl-website (private) is
+              # skipped automatically.
+              run: npm publish -ws
