@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-observable",
-    "version": "2.0.2",
+    "version": "2.0.3",
     "description": "A simple active model",
     "repository": {
         "type": "git",
@@ -69,11 +69,11 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^2.0.2",
-        "@amazon/vinyl-jasmine-wrapper": "^2.0.2"
+        "@amazon/vinyl-build-utils": "^2.0.3",
+        "@amazon/vinyl-jasmine-wrapper": "^2.0.3"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^2.0.2"
+        "@amazon/vinyl-util": "^2.0.3"
     },
     "publishConfig": {
         "access": "public"
