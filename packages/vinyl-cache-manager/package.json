@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-cache-manager",
-    "version": "2.0.1",
+    "version": "2.0.2",
     "description": "A mediator for the Cache API",
     "repository": {
         "type": "git",
@@ -69,11 +69,11 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^2.0.1",
-        "@amazon/vinyl-jasmine-wrapper": "^2.0.1"
+        "@amazon/vinyl-build-utils": "^2.0.2",
+        "@amazon/vinyl-jasmine-wrapper": "^2.0.2"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^2.0.1"
+        "@amazon/vinyl-util": "^2.0.2"
     },
     "publishConfig": {
         "access": "public"
