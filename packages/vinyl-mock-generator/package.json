@@ -33,5 +33,8 @@
             "import": "./dist/index.js"
         }
     },
-    "typesVersions": {}
+    "typesVersions": {},
+    "publishConfig": {
+        "access": "public"
+    }
 }
