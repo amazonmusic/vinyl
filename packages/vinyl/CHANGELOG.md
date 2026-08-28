@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.0]() (2026-08-28)
+
+### ⚠ BREAKING CHANGES
+
+- **audio:** &#x60;VinylOptions.preferredAudioLanguage&#x60; and
+  &#x60;VinylOptions.preferDescriptiveAudio&#x60; are removed. Use
+  &#x60;audio.selection.language&#x60; and
+  &#x60;audio.selection.descriptive&#x60; instead, e.g. &#x60;player.configure({
+  audio: { selection: { language: &#x27;en&#x27;, descriptive: true } }
+  })&#x60;.
+
+### Features
+
+- **audio:** group audio prefs under audio.selection
+  ([251a087](https://github.com/amazonmusic/vinyl/commits/251a087891c2cfee7fc86003db763beb70cc5be4))
+- **text:** options-driven selection and HTML overlay caption renderer
+  ([8f3e44f](https://github.com/amazonmusic/vinyl/commits/8f3e44f49f4c1547658ee981914bca9d4cccf97e))
+
+### Bug Fixes
+
+- **text:** avoid polynomial backtracking in cue tag tokenizer
+  ([3f84a80](https://github.com/amazonmusic/vinyl/commits/3f84a809950c9b1e193a8bddca06000288bef47f))
+- **text:** harden WebVTT timing parser and tighten spec compliance
+  ([5f5aca9](https://github.com/amazonmusic/vinyl/commits/5f5aca9ac9e72c51e708e6168137945f51f18aaa))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [2.0.4]() (2026-08-27)
 
 **Note:** Version bump only for package @amazon/vinyl
