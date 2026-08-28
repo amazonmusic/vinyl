@@ -2,6 +2,8 @@
 import './logging/Logging.bench'
 import './manifest/dash/parseDashManifest.bench'
 export * from './setup'
+import './text/parseWebVtt.bench'
+export * from './text/sampleVtt'
 import './util/collection/LinkedList.bench'
 import './util/object/mergeDeep.bench'
 import './util/serialization/toJson.bench'

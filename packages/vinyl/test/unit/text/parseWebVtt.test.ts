@@ -269,6 +269,107 @@ good`
         expect(cues[0].text).toBe('good')
     })
 
+    it('skips a line with --> but an invalid start timestamp', () => {
+        const text = `WEBVTT
+
+BForced --> 00:00:02.000
+skipped
+
+00:00:02.000 --> 00:00:03.000
+good`
+        const cues = parseWebVtt(text).cues
+        expect(cues.length).toBe(1)
+        expect(cues[0].text).toBe('good')
+    })
+
+    it('ignores unparseable text glued after the end timestamp', () => {
+        // Per the spec, timestamp collection stops after the milliseconds; any
+        // trailing text is parsed as (here, invalid, ignored) cue settings.
+        const cue = parseWebVtt(
+            'WEBVTT\n\n00:00:01.000 --> 00:00:02.000x\ntext'
+        ).cues[0]
+        expect(cue.endTime).toBe(2)
+        expect(cue.settings).toBeUndefined()
+        expect(cue.text).toBe('text')
+    })
+
+    it('parses multi-digit hours (spec allows two or more)', () => {
+        const cues = parseWebVtt(
+            'WEBVTT\n\n100:00:01.000 --> 100:00:02.500\nhi'
+        ).cues
+        expect(cues.length).toBe(1)
+        expect(cues[0].startTime).toBe(360001)
+        expect(cues[0].endTime).toBe(360002.5)
+    })
+
+    it('treats consecutive blank lines between cues as separators', () => {
+        const text =
+            'WEBVTT\n\n00:00:01.000 --> 00:00:02.000\none\n\n\n' +
+            '00:00:03.000 --> 00:00:04.000\ntwo'
+        expect(parseWebVtt(text).cues.map((c) => c.text)).toEqual([
+            'one',
+            'two',
+        ])
+    })
+
+    // Each line exercises a distinct timestamp-parser rejection branch; all are
+    // treated as a (dropped) identifier so only the trailing valid cue survives.
+    for (const timing of [
+        '12 --> 00:00:02.000', // two digits then no ':'
+        '7 --> 00:00:02.000', // one digit then no second digit
+        '00:00:01.000 00:00:02.000', // no --> ⇒ treated as an identifier
+        '5:30.000 --> 00:00:02.000', // MM:SS minutes not two digits
+        '75:30.000 --> 00:00:02.000', // MM:SS minutes > 59
+        '12:34 --> 00:00:02.000', // seconds not terminated by '.'
+        '00:99:00.000 --> 00:00:02.000', // HH:MM:SS minutes > 59
+        '00:00:99.000 --> 00:00:02.000', // HH:MM:SS seconds > 59
+        '00:00:0.400 --> 00:00:02.000', // HH:MM:SS seconds not two digits
+        '12:3:45.000 --> 00:00:02.000', // minutes not two digits before ':'
+        '00:00:00 --> 00:00:02.000', // HH:MM:SS missing .mmm
+        '00:00:00.00 --> 00:00:02.000', // milliseconds only two digits
+        '00:00.0 --> 00:00:02.000', // milliseconds only one digit
+        '00:00. --> 00:00:02.000', // milliseconds missing
+        '12:ab --> 00:00:02.000', // non-digit minute/second
+        '00:00:01.0', // truncated timestamp at end of input
+    ]) {
+        it(`skips a line with an invalid timestamp: "${timing}"`, () => {
+            const text = `WEBVTT\n\n${timing}\nfiller\n\n00:00:05.000 --> 00:00:06.000\nok`
+            expect(parseWebVtt(text).cues.map((c) => c.text)).toEqual(['ok'])
+        })
+    }
+
+    // Keyword prefixes (NOTES/REGIONAL/STYLES) are ordinary cue identifiers, not
+    // NOTE/REGION/STYLE blocks — this also exercises each keyword's fall-through.
+    for (const identifier of ['NOTES', 'REGIONAL', 'STYLES']) {
+        it(`treats keyword prefix "${identifier}" as an identifier`, () => {
+            const cues = parseWebVtt(
+                `WEBVTT\n\n${identifier}\n00:00:01.000 --> 00:00:02.000\nhi`
+            ).cues
+            expect(cues.length).toBe(1)
+            expect(cues[0].id).toBe(identifier)
+        })
+    }
+
+    it('normalizes CRLF line endings and splits CRLF-separated cues', () => {
+        const text =
+            'WEBVTT\r\n\r\n00:00:01.000 --> 00:00:02.000\r\nline one\r\nline two' +
+            '\r\n\r\n00:00:03.000 --> 00:00:04.000\r\nsecond'
+        expect(parseWebVtt(text).cues.map((c) => c.text)).toEqual([
+            'line one\nline two',
+            'second',
+        ])
+    })
+
+    it('accepts a NOTE block at end of input', () => {
+        expect(parseWebVtt('WEBVTT\n\nNOTE').cues).toEqual([])
+    })
+
+    it('handles input that ends mid-timestamp', () => {
+        expect(parseWebVtt('WEBVTT\n\n00:00:00.000 --> 00:00:0').cues).toEqual(
+            []
+        )
+    })
+
     it('returns empty cues on header-only input', () => {
         expect(parseWebVtt('WEBVTT\n').cues).toEqual([])
     })
