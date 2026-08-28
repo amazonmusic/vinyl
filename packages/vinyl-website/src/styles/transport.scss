@@ -48,7 +48,11 @@
         bottom: 4.5rem;
     }
 
-    &.controlsHidden {
+    // Hide the cursor along with the controls. The root rule alone isn't
+    // enough: the fullscreen video fills the screen and sets its own
+    // `cursor: pointer`, so it must be overridden where the pointer actually is.
+    &.controlsHidden,
+    &.controlsHidden .transportVideo video {
         cursor: none;
     }
 
