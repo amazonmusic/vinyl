@@ -14,6 +14,7 @@ import {
     SEEKING_STALL_TIME_CHECK,
     type TrackConfigOptions,
     type TrackPreloadOptions,
+    type VinylOptions,
 } from '@amazon/vinyl'
 import type { MockContentStream } from '@amazon/vinyl/vinylTestUtil'
 import {
@@ -1224,20 +1225,26 @@ describe('MseTrack', () => {
             expect(getAudioStream().reset).not.toHaveBeenCalled()
         })
 
-        // A shared array reference so re-applying it reads as unchanged.
+        // Shared references so re-applying them reads as unchanged.
         const allowed: readonly RestrictableContentType[] = ['audio']
+        const jaAudio: VinylOptions['audio'] = {
+            selection: { language: 'ja' },
+        }
+        const descriptiveAudio: VinylOptions['audio'] = {
+            selection: { descriptive: true },
+        }
         for (const scenario of [
             {
-                name: 'preferredAudioLanguage',
-                apply: () => (deps.preferredAudioLanguage.value = 'ja'),
+                name: 'audio language',
+                apply: () => (deps.audio.value = jaAudio),
             },
             {
                 name: 'allowedContentTypes',
                 apply: () => (deps.allowedContentTypes.value = allowed),
             },
             {
-                name: 'preferDescriptiveAudio',
-                apply: () => (deps.preferDescriptiveAudio.value = true),
+                name: 'audio descriptive',
+                apply: () => (deps.audio.value = descriptiveAudio),
             },
         ]) {
             describe(`when ${scenario.name} changes`, () => {

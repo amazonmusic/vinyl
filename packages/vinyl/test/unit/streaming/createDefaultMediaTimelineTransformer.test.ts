@@ -51,9 +51,13 @@ describe('createDefaultMediaTimelineTransformer', () => {
             drmController,
             mediaTimeline: data(Promise.resolve(timeline)),
             options: data({
-                preferredAudioLanguage,
+                audio: {
+                    selection: {
+                        language: preferredAudioLanguage,
+                        descriptive: preferDescriptiveAudio,
+                    },
+                },
                 codecOverrides,
-                preferDescriptiveAudio,
             }),
         }
     }
@@ -380,7 +384,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
             getDuration: () => Promise.resolve(Infinity),
         }
         const options = data({
-            preferredAudioLanguage: 'en',
+            audio: { selection: { language: 'en' } },
         })
         const deps: DefaultMediaTimelineTransformerDeps = {
             capabilities,
@@ -393,7 +397,7 @@ describe('createDefaultMediaTimelineTransformer', () => {
         let result = await transformed.value
         expect(result.periods[0].qualities[0].metadata.qualityId).toBe('en')
 
-        options.value = { preferredAudioLanguage: 'ja' }
+        options.value = { audio: { selection: { language: 'ja' } } }
         result = await transformed.value
         expect(result.periods[0].qualities[0].metadata.qualityId).toBe('ja')
         unsub()

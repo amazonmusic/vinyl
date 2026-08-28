@@ -32,14 +32,14 @@ import {
 import { throwLanguagesUnsupported } from '../track/filters/languageFilter'
 import type { CodecOverrides } from '../util/media/codecOverrides'
 import { resolveCodecOverride } from '../util/media/codecOverrides'
+import type { AudioOptions } from './AudioOptions'
 
 export interface DefaultMediaTimelineTransformerDeps {
     readonly capabilities: Capabilities
     readonly drmController: DrmController
     readonly mediaTimeline: ObservableValue<Promise<MediaTimeline>>
     readonly options: ObservableValue<{
-        readonly preferredAudioLanguage: string | readonly string[] | null
-        readonly preferDescriptiveAudio?: boolean
+        readonly audio: AudioOptions
         readonly codecOverrides?: CodecOverrides
     }>
 }
@@ -93,7 +93,7 @@ export function createDefaultMediaTimelineTransformer(
         )
         // Resolve audio-description eligibility BEFORE the language filter.
         // Description renditions are an accessibility opt-in, not general audio,
-        // so they must be gated out (unless opted in via preferDescriptiveAudio)
+        // so they must be gated out (unless opted in via audio.selection.descriptive)
         // before language selection runs. Otherwise a description rendition
         // whose language tag happens to score higher than the main audio's
         // (e.g. a described 'en' beating a main 'en-US') could win language
@@ -101,18 +101,14 @@ export function createDefaultMediaTimelineTransformer(
         // described audio they never opted into. With this gate first, the
         // language filter only ever picks among eligible (main, or opted-in
         // description) renditions.
+        const selection = deps.options.value.audio.selection
         t = filterTimelineQualities(
-            createAudioDescriptionFilter(
-                deps.options.value.preferDescriptiveAudio ?? false
-            ),
+            createAudioDescriptionFilter(selection?.descriptive ?? false),
             throwNoPlayableAudio,
             t
         )
         t = filterTimelineQualities(
-            createLanguageFilter(
-                deps.options.value.preferredAudioLanguage,
-                'audio'
-            ),
+            createLanguageFilter(selection?.language ?? null, 'audio'),
             throwLanguagesUnsupported,
             t
         )
@@ -121,8 +117,7 @@ export function createDefaultMediaTimelineTransformer(
 
     return combineData({
         timeline: deps.mediaTimeline,
-        preferredAudioLanguage: deps.options.pick('preferredAudioLanguage'),
-        preferDescriptiveAudio: deps.options.pick('preferDescriptiveAudio'),
+        audio: deps.options.pick('audio'),
         codecOverrides: deps.options.pick('codecOverrides'),
     }).map(async ({ timeline }) => {
         return transformTimeline(await timeline)

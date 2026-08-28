@@ -77,19 +77,19 @@ export const playerState = {
     qualitiesUnfiltered$: data<readonly MediaQualityMetadata[]>([]),
     playbackRate$: data(player.playbackRate),
     // Mirrors the corresponding player options so the settings menu reflects the
-    // active selection. Updated via the setters below. `preferredAudioLanguage`
-    // is being widened to `string | readonly string[] | null`; the settings menu
-    // only ever sets a single tag, so a non-string initial value (an array or
-    // null) is treated as "no single preference" for display purposes.
+    // active selection. Updated via the setters below. `audio.selection.language`
+    // may be an ordered list; the settings menu only ever sets a single tag, so a
+    // non-string value (an array or null) is treated as "no single preference"
+    // for display purposes.
     preferredAudioLanguage$: data<string | null>(
-        typeof player.options.preferredAudioLanguage === 'string'
-            ? player.options.preferredAudioLanguage
+        typeof player.options.audio.selection?.language === 'string'
+            ? player.options.audio.selection.language
             : null
     ),
-    // Mirrors the `preferDescriptiveAudio` option: whether to select
+    // Mirrors the `audio.selection.descriptive` option: whether to select
     // audio-description (described-video) renditions.
     preferDescriptiveAudio$: data<boolean>(
-        player.options.preferDescriptiveAudio
+        player.options.audio.selection?.descriptive ?? false
     ),
     maxVideoHeight$: data<number | null>(player.options.abr.maxHeight ?? null),
 }
@@ -269,7 +269,11 @@ export function setPlaybackRate(rate: number) {
  * widened `string | readonly string[] | null` form of this option.
  */
 export function setPreferredAudioLanguage(language: string | null) {
-    player.configure({ preferredAudioLanguage: language })
+    player.configure({
+        audio: {
+            selection: { ...player.options.audio.selection, language },
+        },
+    })
     playerState.preferredAudioLanguage$.value = language
 }
 
@@ -302,7 +306,11 @@ export function selectTextTrack(track: TextTrackInfo | null) {
  * language instead of the main audio.
  */
 export function setPreferDescriptiveAudio(on: boolean) {
-    player.configure({ preferDescriptiveAudio: on })
+    player.configure({
+        audio: {
+            selection: { ...player.options.audio.selection, descriptive: on },
+        },
+    })
     playerState.preferDescriptiveAudio$.value = on
 }
 
