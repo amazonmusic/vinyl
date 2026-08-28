@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.1]() (2026-08-28)
+
+### Bug Fixes
+
+- **ad:** end the track after an empty postroll break
+  ([d946447](https://github.com/amazonmusic/vinyl/commits/d94644747d94123042c60a006001174fa9ebfc40))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.0.0]() (2026-08-28)
 
 ### ⚠ BREAKING CHANGES

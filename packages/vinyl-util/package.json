@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-util",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "description": "Standard utilities for browser and node.",
     "repository": {
         "type": "git",
@@ -111,9 +111,9 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^3.0.0",
-        "@amazon/vinyl-jasmine-wrapper": "^3.0.0",
-        "@amazon/vinyl-mock-generator": "^3.0.0"
+        "@amazon/vinyl-build-utils": "^3.0.1",
+        "@amazon/vinyl-jasmine-wrapper": "^3.0.1",
+        "@amazon/vinyl-mock-generator": "^3.0.1"
     },
     "publishConfig": {
         "access": "public"
