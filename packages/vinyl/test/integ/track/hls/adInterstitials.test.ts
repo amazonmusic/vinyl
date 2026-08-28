@@ -820,6 +820,90 @@ describe('hls ad interstitials integ', () => {
             .toBeTrue()
     })
 
+    // The `empty_breaks_pre_mid_post` asset carries real pre/mid/post
+    // interstitial breaks whose asset lists resolve to zero ads — the postroll
+    // is what exercises the "content ended, empty postroll" path.
+    const EMPTY_BREAKS_ASSET =
+        vinylTestAssets.hls.vinyl_ad_breaks_av__empty_breaks_pre_mid_post
+
+    it('ends the track after an empty postroll (no ads) instead of hanging', async () => {
+        const player = suite.player
+        player.load({ type: 'hls', uri: EMPTY_BREAKS_ASSET })
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
+
+        // Subscribe before driving to the end so the events can't be missed.
+        // Before the fix, an empty postroll swallowed the end: no ad began, so
+        // the adBreakCompleted handler bailed on the "no ads began" guard and
+        // never dispatched trackEnded/queueEnded — the track hung "playing"
+        // forever after `ended` deferred to the postroll.
+        const trackEnded = nextEventAsPromise(player, 'trackEnded', {
+            filter: (e) => e.track.uri === EMPTY_BREAKS_ASSET,
+            timeout: 40,
+            timeoutMessage: 'trackEnded not received for the empty postroll',
+        })
+        const queueEnded = nextEventAsPromise(player, 'queueEnded', {
+            timeout: 40,
+            timeoutMessage: 'queueEnded not received after the empty postroll',
+        })
+
+        await player.play().catch(noop)
+        // Drive content to its end so the postroll triggers on `ended`.
+        await player
+            .seekTo(Math.max(0, player.duration - 1.5), 1)
+            .catch(() => undefined)
+
+        // Single-track queue: the track ends, the queue ends, no ad played.
+        await trackEnded
+        await queueEnded
+        expect(player.currentAd)
+            .withContext('no ad played for the empty break')
+            .toBeNull()
+    })
+
+    it('advances to the next track after an empty postroll (no ads)', async () => {
+        const player = suite.player
+        const nextAsset = vinylTestAssets.hls.live_static_video_audio_60s_4s
+        player.load(
+            { type: 'hls', uri: EMPTY_BREAKS_ASSET },
+            { type: 'hls', uri: nextAsset }
+        )
+        await poll(() => (player.currentTrackAds?.adBreaks.length ?? 0) > 0, {
+            timeout: 15,
+        })
+
+        // The empty postroll ends the first track, and because a track follows
+        // in the queue, playback advances to it rather than ending the queue.
+        const firstTrackEnded = nextEventAsPromise(player, 'trackEnded', {
+            filter: (e) => e.track.uri === EMPTY_BREAKS_ASSET,
+            timeout: 40,
+            timeoutMessage: 'trackEnded not received for the first track',
+        })
+        // The filter ignores the first track's own activation.
+        const nextActivated = nextEventAsPromise(player, 'trackActivated', {
+            filter: (e) => e.track.uri === nextAsset,
+            timeout: 40,
+            timeoutMessage: 'the next queued track was not activated',
+        })
+
+        await player.play().catch(noop)
+        // Drive the first track's content to its end so the postroll triggers
+        // on `ended`.
+        await player
+            .seekTo(Math.max(0, player.duration - 1.5), 1)
+            .catch(() => undefined)
+
+        await firstTrackEnded
+        await nextActivated
+        expect(player.activeTrack?.uri)
+            .withContext('advanced to the next queued track')
+            .toBe(nextAsset)
+        expect(player.currentAd)
+            .withContext('no ad played for the empty break')
+            .toBeNull()
+    })
+
     it('does not replay a postroll after it finishes naturally', async () => {
         const player = suite.player
         // A postroll that is never suppressed re-enters on each content

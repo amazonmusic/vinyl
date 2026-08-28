@@ -398,44 +398,50 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                     logDebug(this, 'more adbreaks')
                     return
                 }
-                if (adParent.active) {
-                    logDebug(this, 'no ads began')
-                    return
-                }
                 const adParentLoad = this._current!
                 const placement = event.adBreak.placement
                 const isPreroll = placement === 'preroll'
                 const isPostroll = placement === 'postroll'
+                // When the content track is still active no ad ever took over
+                // (an empty break): there is no ad track to switch away from.
+                const noAdBegan = adParent.active
 
-                // A completed postroll marks the end of the whole track
-                // (content + postroll); preroll/midroll only resume content.
-                if (isPostroll) {
-                    logDebug(this, 'trackEnded after postroll')
-                    this.dispatch('trackEnded', { track: adParentLoad })
-                }
-                if (isPostroll && this.hasNext()) {
-                    this.next()
-                } else {
-                    // Overrides the config startTime to resume from the correct position.
-                    const startTime = isPreroll
-                        ? adParentLoad.config?.startTime
-                        : event.resumePosition
-                    // Resume the main track.
+                // Resumes/restores the content track at the given position.
+                const resumeContent = (startTime: Maybe<number>) =>
                     this.setCurrentTrack(adParent, {
-                        config: {
-                            ...adParentLoad.config,
-                            startTime,
-                        },
+                        config: { ...adParentLoad.config, startTime },
                         isAd: false,
                         checkPreroll: false,
                     })
-                    if (isPostroll) {
-                        logInfo(this, 'queueEnded after postroll ad(s)')
-                        this.dispatch('queueEnded', {})
-                    } else {
-                        playbackController.play().catch(noop)
+
+                if (isPostroll) {
+                    // The whole track (content + any postroll) is done.
+                    logDebug(this, 'trackEnded after postroll')
+                    this.dispatch('trackEnded', { track: adParentLoad })
+                    if (this.hasNext()) {
+                        this.next()
+                        return
                     }
+                    // Last track: restore the content track (parked at the end)
+                    // if an ad had taken over; an empty break never left it.
+                    if (!noAdBegan) resumeContent(event.resumePosition)
+                    logInfo(this, 'queueEnded after postroll')
+                    this.dispatch('queueEnded', {})
+                    return
                 }
+
+                // Preroll/midroll resume content — unless the break was empty,
+                // in which case content was never interrupted.
+                if (noAdBegan) {
+                    logDebug(this, 'no ads began')
+                    return
+                }
+                resumeContent(
+                    isPreroll
+                        ? adParentLoad.config?.startTime
+                        : event.resumePosition
+                )
+                playbackController.play().catch(noop)
             })
         )
     }

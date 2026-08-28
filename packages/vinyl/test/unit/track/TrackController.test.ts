@@ -1650,6 +1650,50 @@ describe('TrackControllerImpl', () => {
             expect(trackActivated).toHaveBeenCalledBefore(queueEnded)
         })
 
+        it('ends the track after an empty postroll where no ad ever began', async () => {
+            // An empty postroll (a break that resolves to no ads) completes
+            // without any adEntered, so the content track is never deactivated
+            // and stays active. onEnded has already deferred the trackEnded to
+            // adBreakCompleted, so this must still end the track and the queue
+            // rather than hang.
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            await clock.tick() // content activates (stays active — no ad plays)
+            expect((trackController.activeTrack as MockTrack).active).toBeTrue()
+
+            const trackEnded = createEventSpy(trackController, 'trackEnded')
+            const queueEnded = createEventSpy(trackController, 'queueEnded')
+            deps.adController.dispatch('adBreakCompleted', {
+                adBreak: adBreak('postroll'),
+                resumePosition: 0,
+            })
+            await clock.tick()
+            expect(trackEnded).toHaveBeenCalledWith(
+                objectContaining({
+                    track: objectContaining({ uri: main.uri }),
+                })
+            )
+            expect(queueEnded).toHaveBeenCalled()
+        })
+
+        it('advances to the next track after an empty postroll where no ad ever began', async () => {
+            const list = createLoadOptionsList(2)
+            trackController.load(...list)
+            await clock.tick() // content activates and stays active
+            expect((trackController.activeTrack as MockTrack).active).toBeTrue()
+
+            const trackEnded = createEventSpy(trackController, 'trackEnded')
+            deps.adController.dispatch('adBreakCompleted', {
+                adBreak: adBreak('postroll'),
+                resumePosition: 0,
+            })
+            await clock.tick()
+            expect(trackEnded).toHaveBeenCalledWith(
+                objectContaining({ track: any(Object) })
+            )
+            expect(trackController.activeTrack?.uri).toBe(list[1].uri)
+        })
+
         it('does not treat a completed midroll ad as the track ending', async () => {
             trackController.load(...createLoadOptionsList(1))
             const trackEnded = createEventSpy(trackController, 'trackEnded')
