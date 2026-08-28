@@ -162,13 +162,6 @@ export function PlayerPage() {
 
     return (
         <div className="page">
-            <div className="pageHeader">
-                <h1>Player</h1>
-                <div className="subtitle">
-                    Load content by URL or play a demo track
-                </div>
-            </div>
-
             <div className="card">
                 <div className="cardHeader">
                     <h2>Add Content</h2>

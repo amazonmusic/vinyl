@@ -10,12 +10,15 @@ import { readFileSync } from 'fs'
 import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import hljs from 'highlight.js'
+import { withBase } from './siteConfig'
 
-interface DocInfo {
+export interface DocInfo {
     slug: string
     title: string
     category: string
     html: string
+    /** Plain-text excerpt (first paragraph) for meta descriptions. */
+    description: string
 }
 
 const MANIFEST_ID = 'virtual:docs-manifest'
@@ -55,6 +58,49 @@ function titleFor(content: string, slug: string): string {
     const titleMatch = content.match(/^#\s+(.*)$/m)
     const raw = titleMatch ? titleMatch[1].trim() : slug
     return raw.replace(/^@[^/]+\//, '')
+}
+
+/**
+ * Derives a plain-text meta-description excerpt: the first prose paragraph,
+ * stripped of Markdown/HTML syntax and truncated to a search-friendly length.
+ */
+function descriptionFor(content: string, title: string): string {
+    const clean = (line: string): string =>
+        line
+            .replace(/!\[[^\]]*\]\([^)]*\)/g, '') // images / badges
+            .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // links → text
+            .replace(/`([^`]*)`/g, '$1') // inline code
+            .replace(/[*_~]/g, '') // emphasis marks
+            .replace(/<[^>]+>/g, '') // stray html
+            .replace(/\s+/g, ' ')
+            .trim()
+
+    let text = ''
+    for (const line of content.split(/\r?\n/)) {
+        const trimmed = line.trim()
+        // Skip structural lines (headings, fences, tables, comments, quotes).
+        if (
+            trimmed === '' ||
+            trimmed.startsWith('#') ||
+            trimmed.startsWith('```') ||
+            trimmed.startsWith('|') ||
+            trimmed.startsWith('<!--') ||
+            trimmed.startsWith('>')
+        ) {
+            if (text) break
+            continue
+        }
+        const cleaned = clean(trimmed)
+        // Skip lines that are only badges/images/links (clean to nothing).
+        if (!cleaned) {
+            if (text) break
+            continue
+        }
+        text = text ? `${text} ${cleaned}` : cleaned
+        if (text.length > 200) break
+    }
+    const source = text || `${title} — Amazon Vinyl documentation.`
+    return source.length > 155 ? source.slice(0, 152).trimEnd() + '…' : source
 }
 
 const EXCLUDED_PACKAGES = new Set(['vinyl-build-utils', 'vinyl-mock-generator'])
@@ -125,12 +171,12 @@ function rewriteLinks(
 
             const directSlug = knownDocs.get(resolved)
             if (directSlug) {
-                return `](#!/docs/${directSlug}${hash})${title}`
+                return `](${withBase(`/docs/${directSlug}/`)}${hash})${title}`
             }
 
             const dirReadme = knownDocs.get(posix.join(resolved, 'README.md'))
             if (dirReadme) {
-                return `](#!/docs/${dirReadme}${hash})${title}`
+                return `](${withBase(`/docs/${dirReadme}/`)}${hash})${title}`
             }
 
             return `](${GITHUB_BASE}/${resolved}${hash})${title}`
@@ -138,40 +184,42 @@ function rewriteLinks(
     )
 }
 
+/**
+ * Reads every public Markdown doc under `root` and renders it to HTML with
+ * rewritten cross-links and a meta-description excerpt. Shared by the dev-time
+ * virtual manifest and the static-site generator.
+ */
+export function buildDocs(root: string): DocInfo[] {
+    const mdFiles = listMdFiles(root)
+    const knownDocs = new Map(mdFiles.map((f) => [f, slugFor(f)]))
+
+    return mdFiles.map((file) => {
+        const content = readFileSync(resolve(root, file), 'utf-8')
+        const slug = knownDocs.get(file)!
+        const title = titleFor(content, slug)
+        const category = categoryFor(file)
+        const description = descriptionFor(content, title)
+        const processed = rewriteLinks(content, file, knownDocs)
+        const html = md.parse(processed) as string
+        return { slug, title, category, html, description }
+    })
+}
+
 export function docsPlugin(root: string): Plugin {
-    let mdFiles = listMdFiles(root)
-
-    function buildDocs(): DocInfo[] {
-        const knownDocs = new Map(mdFiles.map((f) => [f, slugFor(f)]))
-
-        return mdFiles.map((file) => {
-            const content = readFileSync(resolve(root, file), 'utf-8')
-            const slug = knownDocs.get(file)!
-            const title = titleFor(content, slug)
-            const category = categoryFor(file)
-            const processed = rewriteLinks(content, file, knownDocs)
-            const html = md.parse(processed) as string
-            return { slug, title, category, html }
-        })
-    }
-
     let docs: DocInfo[] = []
 
     return {
         name: 'vinyl-docs',
         buildStart() {
-            mdFiles = listMdFiles(root)
-            docs = buildDocs()
+            docs = buildDocs(root)
         },
         configureServer(server: ViteDevServer) {
-            mdFiles = listMdFiles(root)
-            docs = buildDocs()
-            for (const file of mdFiles) {
+            docs = buildDocs(root)
+            for (const file of listMdFiles(root)) {
                 server.watcher.add(resolve(root, file))
             }
             const reload = () => {
-                mdFiles = listMdFiles(root)
-                docs = buildDocs()
+                docs = buildDocs(root)
                 const mod = server.moduleGraph.getModuleById(RESOLVED_ID)
                 if (mod) server.moduleGraph.invalidateModule(mod)
                 server.ws.send({ type: 'full-reload' })
