@@ -119,15 +119,31 @@ ok`
         expect(doc.cues.length).toBe(1)
     })
 
-    it('skips STYLE blocks', () => {
+    it('captures STYLE block CSS while still parsing cues', () => {
         const text = `WEBVTT
 
 STYLE
-::cue { color: red; }
+::cue(.loud) { font-weight: bold }
+
+STYLE
+::cue { color: red }
 
 00:00:01.000 --> 00:00:02.000
 styled`
-        expect(parseWebVtt(text).cues.length).toBe(1)
+        const doc = parseWebVtt(text)
+        expect(doc.cues.length).toBe(1)
+        expect(doc.styles).toEqual([
+            '::cue(.loud) { font-weight: bold }',
+            '::cue { color: red }',
+        ])
+    })
+
+    it('reports no styles when there are no STYLE blocks', () => {
+        const text = `WEBVTT
+
+00:00:01.000 --> 00:00:02.000
+x`
+        expect(parseWebVtt(text).styles).toEqual([])
     })
 
     it('skips REGION blocks', () => {
@@ -139,15 +155,104 @@ width:40%
 
 00:00:01.000 --> 00:00:02.000
 regional`
-        expect(parseWebVtt(text).cues.length).toBe(1)
+        const doc = parseWebVtt(text)
+        expect(doc.cues.length).toBe(1)
+        expect(doc.styles).toEqual([])
     })
 
-    it('tolerates cue settings on the timing line', () => {
+    it('parses cue settings on the timing line', () => {
         const text = `WEBVTT
 
 00:00:01.000 --> 00:00:02.000 line:50% align:start
 positioned`
-        expect(parseWebVtt(text).cues[0].text).toBe('positioned')
+        const cue = parseWebVtt(text).cues[0]
+        expect(cue.text).toBe('positioned')
+        expect(cue.settings).toEqual({
+            line: 50,
+            snapToLines: false,
+            align: 'start',
+        })
+    })
+
+    it('parses integer/negative lines as snap-to-lines, with lineAlign', () => {
+        const text = `WEBVTT
+
+00:00:01.000 --> 00:00:02.000 line:-3,end
+a
+
+00:00:03.000 --> 00:00:04.000 line:5
+b`
+        const [a, b] = parseWebVtt(text).cues
+        expect(a.settings).toEqual({
+            line: -3,
+            snapToLines: true,
+            lineAlign: 'end',
+        })
+        expect(b.settings).toEqual({ line: 5, snapToLines: true })
+    })
+
+    it("maps the legacy 'middle' keyword to 'center'", () => {
+        const text = `WEBVTT
+
+00:00:01.000 --> 00:00:02.000 align:middle line:85%,middle position:50%,middle
+a`
+        expect(parseWebVtt(text).cues[0].settings).toEqual({
+            align: 'center',
+            line: 85,
+            snapToLines: false,
+            lineAlign: 'center',
+            position: 50,
+            positionAlign: 'center',
+        })
+    })
+
+    it('parses position (with align), size and vertical', () => {
+        const text = `WEBVTT
+
+00:00:01.000 --> 00:00:02.000 position:20%,line-left size:80% vertical:rl
+a`
+        expect(parseWebVtt(text).cues[0].settings).toEqual({
+            position: 20,
+            positionAlign: 'line-left',
+            size: 80,
+            vertical: 'rl',
+        })
+    })
+
+    it('omits settings and skips malformed/unknown tokens', () => {
+        const text = `WEBVTT
+
+00:00:01.000 --> 00:00:02.000
+plain
+
+00:00:03.000 --> 00:00:04.000 align:bogus size:oops region:foo bareword
+b`
+        const [plain, b] = parseWebVtt(text).cues
+        expect(plain.settings).toBeUndefined()
+        // align invalid, size not a %, unknown key, and a colon-less token.
+        expect(b.settings).toBeUndefined()
+    })
+
+    it('skips malformed line/position/percent values and invalid aligns', () => {
+        const text = `WEBVTT
+
+00:00:01.000 --> 00:00:02.000 line:x% size:y%
+a
+
+00:00:03.000 --> 00:00:04.000 line:1.5 position:bad
+b
+
+00:00:05.000 --> 00:00:06.000 line:5,bogus position:20%,nope
+c`
+        const [a, b, c] = parseWebVtt(text).cues
+        expect(a.settings).toBeUndefined() // non-numeric percentages → dropped
+        expect(b.settings).toBeUndefined() // non-integer line, non-% position
+        // Valid values kept; invalid *Align keywords dropped.
+        expect(c.settings).toEqual({
+            line: 5,
+            snapToLines: true,
+            position: 20,
+        })
     })
 
     it('skips a malformed cue and continues', () => {

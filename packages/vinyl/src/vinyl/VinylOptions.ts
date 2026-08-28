@@ -27,7 +27,10 @@ import {
     type LoudnessNormalizationControllerImplOptions,
     loudnessNormalizationControllerImplOptionsValidator,
 } from '../playback/loudness/LoudnessNormalizationControllerImplOptions'
-import { type VttCueStyle, vttCueStyleValidator } from '../text/VttCueStyle'
+import {
+    type TextTrackControllerOptions,
+    textTrackControllerOptionsValidator,
+} from '../text/TextTrack'
 
 export interface VinylOptions {
     /**
@@ -47,23 +50,6 @@ export interface VinylOptions {
      * mechanism — omit language content or pass a tag matching all.
      */
     readonly preferredAudioLanguage: string | readonly string[] | null
-
-    /**
-     * Preferred language(s) for text tracks (subtitles / closed captions), as
-     * RFC 5646 codes (e.g. `'en'`, `'ja'`, `'fr-CA'`). May be a single tag or
-     * an ordered list of tags — earlier entries are preferred, with the best
-     * relatedness match chosen among the discovered text tracks. When set, the
-     * matching text track is selected automatically and the choice carries
-     * across track changes (e.g. across an ad break), mirroring how
-     * {@link preferredAudioLanguage} drives audio selection.
-     *
-     * Unlike audio, `null` (the default) means *no caption preference*: it does
-     * NOT fall back to `navigator.languages` and does NOT force captions on —
-     * forced narrative subtitles still auto-display as usual. Setting it to a
-     * language turns captions on in that language; setting it back to `null`
-     * after a prior selection turns captions off.
-     */
-    readonly preferredTextLanguage: string | readonly string[] | null
 
     /**
      * Opt in to audio-description (a.k.a. described-video / DVS) audio: audio
@@ -100,40 +86,43 @@ export interface VinylOptions {
     readonly allowedContentTypes: readonly RestrictableContentType[] | null
 
     /**
-     * Layout style applied to rendered WebVTT cues (the settable `VTTCue`
-     * positioning properties: size, line, position, align, etc.). Applied to
-     * each cue as it is added, on platforms that support `VTTCue`.
+     * Text-track (subtitles / closed captions) configuration: enable/disable
+     * and the selection criteria. See {@link TextTrackControllerOptions}.
      *
-     * Defaults to `{ size: 90 }`, insetting the cue box from the full video
-     * width so long lines don't clip at the screen edges in fullscreen (which
-     * `::cue` CSS cannot fix). Set to `null` to keep the browser defaults.
+     * The default is `{ enabled: 'forced' }`: with no
+     * explicit language, the platform's `navigator.languages` are preferred,
+     * showing only forced (narrative) tracks. Set `enabled` to `'on'` for full
+     * subtitle tracks or `'off'` to render nothing;
+     * `selection.language`/`selection.id` choose a specific rendition.
      */
-    readonly textCueStyle: VttCueStyle | null
+    readonly text: TextTrackControllerOptions
 }
 
 export const defaultVinylOptions: VinylOptions = {
     abr: defaultQualitySelectorImplOptions,
     loudnessNormalization: defaultLoudnessNormalizationControllerImplOptions,
     preferredAudioLanguage: null,
-    preferredTextLanguage: null,
     preferDescriptiveAudio: false,
     codecOverrides: {},
     allowedContentTypes: null,
-    textCueStyle: { size: 90 },
+    text: {
+        // Forced-only captions in the platform's preferred languages (no
+        // explicit language → navigator.languages).
+        enabled: 'forced',
+    },
 }
 
 export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
     abr: qualitySelectorImplOptionsValidator,
     loudnessNormalization: loudnessNormalizationControllerImplOptionsValidator,
     preferredAudioLanguage: string().or(array(string()).readonly()).orNull(),
-    preferredTextLanguage: string().or(array(string()).readonly()).orNull(),
     preferDescriptiveAudio: boolean(),
     codecOverrides: record(string(), isOneOf('allow', 'deny')),
     allowedContentTypes: array(isOneOf(...RESTRICTABLE_CONTENT_TYPES))
-        .cast<readonly RestrictableContentType[]>()
+        .readonly()
         .describe(
             'Allow list of media content types (audio, video) to stream; other media streams are ignored. Text tracks are unaffected.'
         )
         .orNull(),
-    textCueStyle: vttCueStyleValidator.orNull(),
+    text: textTrackControllerOptionsValidator,
 })

@@ -95,6 +95,41 @@ seg.vtt
         expect(batches.flat().map((c) => c.text)).toEqual(['from-segment'])
     })
 
+    it('forwards STYLE blocks parsed from a segment via onStyles', async () => {
+        const playlistText = `#EXTM3U
+#EXT-X-TARGETDURATION:10
+#EXTINF:10.0,
+seg.vtt
+#EXT-X-ENDLIST
+`
+        const segmentText = `WEBVTT
+
+STYLE
+::cue { color: red }
+
+00:00:01.000 --> 00:00:02.000
+from-segment`
+        let call = 0
+        requester.request.and.callFake(() => {
+            call++
+            if (call === 1) {
+                return respondText(
+                    playlistText,
+                    'application/vnd.apple.mpegurl',
+                    'https://x.test/sub.m3u8'
+                )
+            }
+            return respondText(segmentText, 'text/vtt')
+        })
+        const styleBatches: readonly string[][] = []
+        const { options } = streamingOpts({
+            onStyles: (styles: readonly string[]) =>
+                (styleBatches as string[][]).push([...styles]),
+        })
+        await loadWebVttCues('https://x.test/sub.m3u8', options)
+        expect(styleBatches).toEqual([['::cue { color: red }']])
+    })
+
     it('falls back to the request URI when response.url is empty (body sniffed)', async () => {
         const playlistText = `#EXTM3U
 #EXT-X-VERSION:3

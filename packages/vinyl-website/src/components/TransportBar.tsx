@@ -2,6 +2,7 @@ import type { JsxElementProps } from '@amazon/vinyl-tsx'
 import { jsx } from '@amazon/vinyl-tsx'
 import {
     playerState,
+    captionRenderer,
     seekToPercent,
     skipAd,
     togglePlayPause,
@@ -121,16 +122,16 @@ export function TransportBar(props: JsxElementProps<'div'>) {
 
                 // In fullscreen, keep the custom controls visible but auto-hide
                 // them after a period without user interaction (each interaction
-                // debounces the hide by restarting the timer).
+                // debounces the hide by restarting the timer). The `controlsHidden`
+                // class also drives the caption overlay's bottom inset (CSS).
                 let hideTimer: ReturnType<typeof setTimeout> | undefined
+                const hideControls = () =>
+                    element.classList.add('controlsHidden')
                 const showControls = () => {
                     element.classList.remove('controlsHidden')
                     clearTimeout(hideTimer)
                     if (document.fullscreenElement === element) {
-                        hideTimer = setTimeout(
-                            () => element.classList.add('controlsHidden'),
-                            HIDE_CONTROLS_MS
-                        )
+                        hideTimer = setTimeout(hideControls, HIDE_CONTROLS_MS)
                     }
                 }
                 const onFullscreenChange = () => {
@@ -170,6 +171,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
         >
             <div className="transportVideo" visible={showVideo$}>
                 {media}
+                {captionRenderer.element}
                 <div className="adOverlay" visible={adBreakActive$}>
                     <span className="adBadge">{adLabel$}</span>
                     <span className="adRemaining">{adRemainingLabel$}</span>
@@ -261,7 +263,14 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                 <button
                     className="transportBtn"
                     title="Close"
-                    onclick={unloadTrack}
+                    onclick={() => {
+                        // Leave fullscreen first — the transport (and its
+                        // fullscreen target) is torn down on unload.
+                        if (document.fullscreenElement) {
+                            document.exitFullscreen().catch(() => {})
+                        }
+                        unloadTrack()
+                    }}
                 >
                     <Icon name="close" />
                 </button>

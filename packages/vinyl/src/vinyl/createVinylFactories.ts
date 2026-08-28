@@ -36,6 +36,11 @@ import {
 } from '../ad/AdControllerImpl'
 import { createDashFactories } from '../track/dash/createDashFactories'
 import { createHlsFactories } from '../track/hls/createHlsFactories'
+import {
+    createMediaTextTrackProvider,
+    type MediaTextTrackProvider,
+} from '../text/mediaTextTrackProvider'
+import type { TextTrackRenderer } from '../text/TextTrackRenderer'
 import { type DrmOptions } from '../drm/DrmOptions'
 import { commonEmeFactory } from '../drm/commonEme/CommonEmeFactory'
 import {
@@ -72,6 +77,13 @@ export interface VinylDependencyOptions {
      * The media element.
      */
     readonly media: HTMLMediaElement
+
+    /**
+     * Optional renderer for text-track cues (an HTML overlay). When provided,
+     * captions are painted by the renderer and the DOM text track is kept
+     * `'hidden'`; without one they render natively. See `TextTrackRenderer`.
+     */
+    readonly textTrackRenderer?: TextTrackRenderer
 
     /**
      * Flags for patches that should be applied browser-specifically.
@@ -139,6 +151,15 @@ export function createVinylFactories(options: VinylDependencyOptions) {
                 readonly patched: HTMLMediaElement
             }
         }): HTMLMediaElement => deps.patchedMedia.patched,
+        // One provider per media element (the player container creates each
+        // dependency once), so text tracks are reused rather than accumulated.
+        textTrackProvider: (deps: {
+            readonly media: HTMLMediaElement
+        }): MediaTextTrackProvider =>
+            createMediaTextTrackProvider({ media: deps.media }),
+        // App-provided cue renderer (or null for native rendering).
+        textTrackRenderer: (): TextTrackRenderer | null =>
+            options.textTrackRenderer ?? null,
         playbackController: (deps: PlaybackControllerImplDeps) =>
             new PlaybackControllerImpl(deps, options.playbackController),
         playbackSource: (deps: PlaybackSourceImplDeps) =>

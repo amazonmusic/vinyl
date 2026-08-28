@@ -181,7 +181,7 @@ export interface ReadonlyTrack
     readonly error: Error | null
 
     /**
-     * Controller for sidecar text tracks discovered for this track, or null
+     * Controller for text tracks discovered for this track, or null
      * if the track type does not surface text tracks.
      */
     readonly textTrackController: ReadonlyTextTrackController | null

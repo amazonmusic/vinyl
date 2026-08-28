@@ -1100,7 +1100,9 @@ describe('hls ad interstitials integ', () => {
         // Activate a caption and wait for cues to render on the DOM track.
         await poll(() => player.textTracks.length > 0, { timeout: 15 })
         const track = player.textTracks[0]
-        player.setActiveTextTrack(track.id)
+        player.configure({
+            text: { enabled: 'on', selection: { id: track.id } },
+        })
         const showingWithCues = () => {
             const dom = mediaRef.value.textTracks
             return Array.from({ length: dom.length }, (_, i) => dom[i]).filter(

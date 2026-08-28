@@ -974,9 +974,9 @@ describe('MseTrack', () => {
         it('suspends the controller on deactivate and resumes it on activate', () => {
             track = createTrack()
             track.activate({})
-            expect(deps.textTrackController.resume).toHaveBeenCalled()
+            expect(deps.textTrackController.activate).toHaveBeenCalled()
             track.deactivate()
-            expect(deps.textTrackController.suspend).toHaveBeenCalled()
+            expect(deps.textTrackController.deactivate).toHaveBeenCalled()
         })
 
         // Regression: reading a disposed track's controller threw DisposedError

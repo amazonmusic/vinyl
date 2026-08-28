@@ -4,6 +4,7 @@
  */
 
 import { ErrorOrigin, ValidationError } from '@amazon/vinyl-util'
+import type { VttCueStyle } from './VttCueStyle'
 
 /**
  * A single WebVTT cue.
@@ -30,6 +31,18 @@ export interface WebVttCue {
      * The cue text payload, with line breaks preserved as `\n`.
      */
     readonly text: string
+
+    /**
+     * The authored cue settings from the timing line (position/line/size/
+     * align/vertical), when any were present. Preserved so a renderer can
+     * position the cue faithfully. Absent when the cue declared no settings.
+     */
+    readonly settings?: VttCueStyle
+}
+
+/** Mutable builder for the cue settings accumulated while parsing. */
+type MutableCueStyle = {
+    -readonly [K in keyof VttCueStyle]?: VttCueStyle[K]
 }
 
 /**
@@ -40,17 +53,24 @@ export interface WebVttDocument {
      * Parsed cues in document order.
      */
     readonly cues: readonly WebVttCue[]
+
+    /**
+     * The raw CSS body of each `STYLE` block, in document order. These carry
+     * `::cue` rules (e.g. `::cue(.loud) { font-weight: bold }`) an HTML renderer
+     * can apply. Empty when the document declared no styles.
+     */
+    readonly styles: readonly string[]
 }
 
 const WEBVTT_HEADER = 'WEBVTT'
 
-// Trailing cue settings are tolerated but ignored. They are separated from the
-// end timestamp by whitespace, so the tail is matched as an optional group that
-// begins with a whitespace character. Using `(?:\s.*)?$` rather than `\s*(.*)$`
-// avoids the ambiguous overlap between `\s*` and `.*` (both match spaces), which
-// would allow polynomial backtracking on space-heavy input.
+// Trailing cue settings are captured (group 9) for the renderer. They are
+// separated from the end timestamp by whitespace, so the tail is an optional
+// group beginning with a whitespace run. `(?:\s+(.*))?$` (a single `\s+` then a
+// non-nested `.*`) avoids the polynomial backtracking a `\s*(.*)$` overlap would
+// allow on space-heavy input.
 const TIME_RE =
-    /^\s*(?:(\d+):)?([0-5]?\d):([0-5]?\d)\.(\d{3})\s*-->\s*(?:(\d+):)?([0-5]?\d):([0-5]?\d)\.(\d{3})(?:\s.*)?$/
+    /^\s*(?:(\d+):)?([0-5]?\d):([0-5]?\d)\.(\d{3})\s*-->\s*(?:(\d+):)?([0-5]?\d):([0-5]?\d)\.(\d{3})(?:\s+(.*))?$/
 
 /**
  * Parses a WebVTT document into a list of cues.
@@ -85,6 +105,7 @@ export function parseWebVtt(input: string): WebVttDocument {
     }
 
     const cues: WebVttCue[] = []
+    const styles: string[] = []
     // Per the WebVTT spec, everything from the `WEBVTT` signature up to (and
     // including) the first blank line is the file header — any metadata
     // header lines (e.g. HLS's `X-TIMESTAMP-MAP=...`) belong in that block
@@ -104,8 +125,17 @@ export function parseWebVtt(input: string): WebVttDocument {
             while (i < lines.length && lines[i] !== '') i++
             continue
         }
-        // STYLE / REGION blocks - skip until blank line.
-        if (lines[i] === 'STYLE' || lines[i] === 'REGION') {
+        // STYLE block: capture its CSS body (up to the blank line).
+        if (lines[i] === 'STYLE') {
+            i++
+            const start = i
+            while (i < lines.length && lines[i] !== '') i++
+            const css = lines.slice(start, i).join('\n').trim()
+            if (css) styles.push(css)
+            continue
+        }
+        // REGION blocks - skip until blank line.
+        if (lines[i] === 'REGION') {
             i++
             while (i < lines.length && lines[i] !== '') i++
             continue
@@ -135,6 +165,7 @@ export function parseWebVtt(input: string): WebVttDocument {
 
         const startTime = toSeconds(match[1], match[2], match[3], match[4])
         const endTime = toSeconds(match[5], match[6], match[7], match[8])
+        const settings = parseCueSettings(match[9])
 
         const payloadLines: string[] = []
         while (i < lines.length && lines[i] !== '') {
@@ -147,10 +178,92 @@ export function parseWebVtt(input: string): WebVttDocument {
             startTime,
             endTime,
             text: payloadLines.join('\n'),
+            ...(settings && { settings }),
         })
     }
 
-    return { cues }
+    return { cues, styles }
+}
+
+const ALIGN = new Set(['start', 'center', 'end', 'left', 'right'])
+const LINE_ALIGN = new Set(['start', 'center', 'end'])
+const POSITION_ALIGN = new Set(['line-left', 'center', 'line-right', 'auto'])
+const VERTICAL = new Set(['rl', 'lr'])
+
+/**
+ * Parses the cue-settings tail of a timing line (e.g.
+ * `align:center line:80% position:50%,center size:90% vertical:rl`) into a
+ * {@link VttCueStyle}. Unknown keys and malformed values are skipped; returns
+ * undefined when nothing valid was found.
+ */
+function parseCueSettings(text: string | undefined): VttCueStyle | undefined {
+    if (!text) return undefined
+    const settings: MutableCueStyle = {}
+    for (const token of text.trim().split(/\s+/)) {
+        const colon = token.indexOf(':')
+        if (colon <= 0) continue
+        const key = token.slice(0, colon)
+        const value = token.slice(colon + 1)
+        switch (key) {
+            case 'align': {
+                // 'middle' is the legacy spelling of 'center'.
+                const align = value === 'middle' ? 'center' : value
+                if (ALIGN.has(align)) settings.align = align as AlignSetting
+                break
+            }
+            case 'vertical':
+                if (VERTICAL.has(value))
+                    settings.vertical = value as DirectionSetting
+                break
+            case 'size': {
+                const size = parsePercent(value)
+                if (size != null) settings.size = size
+                break
+            }
+            case 'line':
+                parseLine(value, settings)
+                break
+            case 'position':
+                parsePosition(value, settings)
+                break
+        }
+    }
+    return Object.keys(settings).length > 0 ? settings : undefined
+}
+
+function parseLine(value: string, settings: MutableCueStyle): void {
+    const [pos, align] = value.split(',') as [string, string?]
+    if (pos.endsWith('%')) {
+        const percent = parsePercent(pos)
+        if (percent == null) return
+        settings.line = percent
+        settings.snapToLines = false
+    } else {
+        const n = Number(pos)
+        if (!Number.isInteger(n)) return
+        settings.line = n
+        settings.snapToLines = true
+    }
+    const lineAlign = align === 'middle' ? 'center' : align
+    if (lineAlign && LINE_ALIGN.has(lineAlign))
+        settings.lineAlign = lineAlign as LineAlignSetting
+}
+
+function parsePosition(value: string, settings: MutableCueStyle): void {
+    const [pos, align] = value.split(',') as [string, string?]
+    const percent = parsePercent(pos)
+    if (percent == null) return
+    settings.position = percent
+    const positionAlign = align === 'middle' ? 'center' : align
+    if (positionAlign && POSITION_ALIGN.has(positionAlign))
+        settings.positionAlign = positionAlign as PositionAlignSetting
+}
+
+/** Parses an `N%` token to its numeric percentage, or null when malformed. */
+function parsePercent(value: string): number | null {
+    if (!value.endsWith('%')) return null
+    const n = Number(value.slice(0, -1))
+    return Number.isFinite(n) ? n : null
 }
 
 function isWebVttHeader(line: string): boolean {

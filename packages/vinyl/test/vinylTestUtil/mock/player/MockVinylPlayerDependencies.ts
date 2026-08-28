@@ -4,6 +4,7 @@
  */
 
 import {
+    createMediaTextTrackProvider,
     type DashFactoryDeps,
     defaultVinylOptions,
     type DrmKeySystemResolver,
@@ -33,6 +34,7 @@ export type MockVinylDependencies = ReturnType<
  */
 export function createMockVinylDependencies() {
     const playbackController = new MockPlaybackController()
+    const media = createMockMedia()
     return {
         options: data<VinylOptions>(defaultVinylOptions),
         trackController: new MockTrackController(),
@@ -40,7 +42,9 @@ export function createMockVinylDependencies() {
         playbackController,
         capabilities: new MockCapabilities(),
         drmController: new MockDrmController(),
-        media: createMockMedia(),
+        media,
+        textTrackProvider: createMediaTextTrackProvider({ media }),
+        textTrackRenderer: null,
         createDashFactories: (_loadOptions) =>
             externalDependencies(createMockDashDependencies()),
         createHlsFactories: (_loadOptions) =>

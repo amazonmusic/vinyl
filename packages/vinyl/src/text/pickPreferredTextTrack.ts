@@ -5,18 +5,21 @@
 
 import { languageRelatedness } from '../track/filters/languageFilter'
 import type { TextTrackInfo } from './TextTrack'
+import type { Maybe } from '@amazon/vinyl-util'
 
 /**
  * Resolves the preferred-text-language option to an ordered list of BCP 47
- * tags, most-preferred first. Unlike the audio equivalent, `null` resolves to
- * an empty list (no preference) rather than falling back to
- * `navigator.languages` — captions default to off.
+ * tags, most-preferred first. A string becomes a single-element list; an array
+ * is used as-is; unset (null/undefined) falls back to the platform's
+ * `navigator.languages`. Returns an empty list only when there is no preference
+ * and no `navigator.languages` — in which case nothing is selected.
  */
 function resolvePreferredTextLanguages(
-    preferred: string | readonly string[] | null
+    preferred: Maybe<string | readonly string[]>
 ): readonly string[] {
     if (typeof preferred === 'string') return [preferred]
     if (preferred) return preferred
+    if (typeof navigator !== 'undefined') return [...navigator.languages]
     return []
 }
 
@@ -33,7 +36,7 @@ function resolvePreferredTextLanguages(
  */
 export function pickPreferredTextTrack(
     tracks: readonly TextTrackInfo[],
-    preferred: string | readonly string[] | null
+    preferred: Maybe<string | readonly string[]>
 ): TextTrackInfo | null {
     const prefs = resolvePreferredTextLanguages(preferred)
     if (tracks.length === 0 || prefs.length === 0) return null

@@ -3,11 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SidecarTextTrackController, type TextTrackInfo } from '@amazon/vinyl'
+import {
+    type MediaTextTrackProvider,
+    type ReadonlyPlaybackController,
+    resolveSelectedTrack,
+    SidecarTextTrackController,
+    type TextTrackControllerOptions,
+    type TextTrackInfo,
+    type TextTrackRef,
+    type TextTrackRenderer,
+    type TextTrackSelection,
+} from '@amazon/vinyl'
+import type { RequestInitOptions } from '@amazon/vinyl-util'
 import { requesterWithRetryRef } from '@amazon/vinyl-util'
 import { flushPromises } from '@amazon/vinyl-util/browserTestUtil'
 import { MockRequester } from '@amazon/vinyl-util/testUtil'
-import { data, type MutableValue } from '@amazon/vinyl-observable'
+import { data } from '@amazon/vinyl-observable'
 
 /**
  * Flushes the microtask/macrotask queue repeatedly until `predicate` holds or
@@ -27,35 +38,73 @@ interface FakeTextTrack {
     label: string
     language: string
     mode: TextTrackMode
-    cues: TextTrackCue[]
+    // `cues` is null while disabled (spec-accurate); `storedCues` always reads.
+    readonly cues: TextTrackCue[] | null
+    readonly storedCues: TextTrackCue[]
     addCue(cue: TextTrackCue): void
     removeCue(cue: TextTrackCue): void
 }
 
-class FakeMediaElement {
-    readonly addTextTrack = jasmine
-        .createSpy<HTMLMediaElement['addTextTrack']>('addTextTrack')
+/**
+ * A memoized fake provider mirroring {@link MediaTextTrackProvider}: one track
+ * per `(kind,label,language)` key, so the number of distinct tracks reveals
+ * whether the controller accumulates tracks or reuses them.
+ */
+class FakeTextTrackProvider implements MediaTextTrackProvider {
+    // Every distinct track created (one per rendition key).
+    readonly created: FakeTextTrack[] = []
+    // The track handed out by the most recent getOrCreate (the active one).
+    lastTrack: FakeTextTrack | null = null
+    private readonly cache = new Map<string, TextTrackRef>()
+
+    readonly getOrCreate = jasmine
+        .createSpy<MediaTextTrackProvider['getOrCreate']>('getOrCreate')
         .and.callFake((kind, label, language) => {
+            const key = `${kind}-${label}-${language}`
+            const existing = this.cache.get(key)
+            if (existing) {
+                this.lastTrack = existing.track as unknown as FakeTextTrack
+                return existing
+            }
+            const storedCues: TextTrackCue[] = []
             const track: FakeTextTrack = {
                 kind,
                 label: label ?? '',
                 language: language ?? '',
                 mode: 'disabled',
-                cues: [],
+                storedCues,
+                // Real TextTrack.cues returns null when mode is 'disabled'.
+                get cues() {
+                    return this.mode === 'disabled' ? null : storedCues
+                },
                 addCue(cue) {
-                    this.cues.push(cue)
+                    storedCues.push(cue)
                 },
                 removeCue(cue) {
-                    const i = this.cues.indexOf(cue)
-                    if (i >= 0) this.cues.splice(i, 1)
+                    const i = storedCues.indexOf(cue)
+                    if (i >= 0) storedCues.splice(i, 1)
                 },
             }
+            const ref: TextTrackRef = {
+                track: track as unknown as TextTrack,
+                clear() {
+                    // Mirrors the real ref: cues only clear while not disabled.
+                    if (track.mode === 'disabled') return
+                    storedCues.length = 0
+                },
+            }
+            this.created.push(track)
+            this.cache.set(key, ref)
             this.lastTrack = track
-            return track as unknown as TextTrack
+            return ref
         })
 
-    lastTrack: FakeTextTrack | null = null
-    currentTime = 0
+    /** Tracks currently rendering captions (showing with at least one cue). */
+    showingWithCues(): FakeTextTrack[] {
+        return this.created.filter(
+            (t) => t.mode === 'showing' && (t.cues?.length ?? 0) > 0
+        )
+    }
 }
 
 function makeTrack(overrides: Partial<TextTrackInfo> = {}): TextTrackInfo {
@@ -74,21 +123,68 @@ function makeTrack(overrides: Partial<TextTrackInfo> = {}): TextTrackInfo {
 }
 
 describe('SidecarTextTrackController', () => {
-    let media: FakeMediaElement
-    let controller: SidecarTextTrackController
     let requester: MockRequester
     let originalCue: typeof globalThis.VTTCue
+    const disposers: Array<() => void> = []
+
+    interface Harness {
+        controller: SidecarTextTrackController
+        provider: FakeTextTrackProvider
+        options$: ReturnType<typeof data<TextTrackControllerOptions>>
+        textTracks$: ReturnType<typeof data<Promise<readonly TextTrackInfo[]>>>
+        playback: { currentTime: number }
+        setTracks(tracks: readonly TextTrackInfo[]): Promise<void>
+        select(selection: TextTrackSelection): void
+    }
+
+    function build(opts?: {
+        options?: TextTrackControllerOptions
+        requestInit?: RequestInitOptions
+        activate?: boolean
+        textTrackRenderer?: TextTrackRenderer
+    }): Harness {
+        const provider = new FakeTextTrackProvider()
+        const textTracks$ = data<Promise<readonly TextTrackInfo[]>>(
+            Promise.resolve<readonly TextTrackInfo[]>([])
+        )
+        const options$ = data<TextTrackControllerOptions>(
+            opts?.options ?? { selection: {} }
+        )
+        const playback = { currentTime: 0 }
+        const controller = new SidecarTextTrackController({
+            textTrackProvider: provider,
+            textTracks: textTracks$,
+            options: options$,
+            playbackController:
+                playback as unknown as ReadonlyPlaybackController,
+            requestInit: opts?.requestInit,
+            textTrackRenderer: opts?.textTrackRenderer,
+        })
+        // The owning media track activates the controller once current; do the
+        // same so cues render (unless a test wants to control activation).
+        if (opts?.activate !== false) controller.activate()
+        disposers.push(() => controller.dispose())
+        return {
+            controller,
+            provider,
+            options$,
+            textTracks$,
+            playback,
+            async setTracks(tracks) {
+                textTracks$.value = Promise.resolve(tracks)
+                await flushPromises()
+            },
+            select(selection) {
+                options$.value = { ...options$.value, selection }
+            },
+        }
+    }
 
     beforeEach(() => {
         requester = new MockRequester()
         requesterWithRetryRef.set(() => requester)
-        media = new FakeMediaElement()
-        controller = new SidecarTextTrackController({
-            media: media as unknown as HTMLMediaElement,
-            cueStyle: data({ size: 90 }),
-        })
         originalCue = (globalThis as any).VTTCue
-        // Provide a minimal VTTCue stub for jsdom-less node environment.
+        // Provide a minimal VTTCue stub for the jsdom-less node environment.
         ;(globalThis as any).VTTCue = function VTTCue(
             this: any,
             startTime: number,
@@ -104,7 +200,7 @@ describe('SidecarTextTrackController', () => {
     })
 
     afterEach(() => {
-        controller.dispose()
+        for (const dispose of disposers.splice(0)) dispose()
         ;(globalThis as any).VTTCue = originalCue
     })
 
@@ -113,134 +209,168 @@ describe('SidecarTextTrackController', () => {
     }
 
     it('starts with no tracks and no active selection', () => {
+        const { controller } = build()
         expect(controller.textTracks).toEqual([])
         expect(controller.activeTextTrack).toBeNull()
     })
 
-    describe('forced auto-selection', () => {
-        it('auto-selects a forced track on discovery', () => {
-            controller.setTextTracks([
-                makeTrack({ id: 'full', label: 'English' }),
-                makeTrack({ id: 'forced', label: 'Forced', forced: true }),
-            ])
-            expect(controller.activeTextTrack?.id).toBe('forced')
+    describe('resolveSelectedTrack', () => {
+        const full = makeTrack({ id: 'full', language: 'en', forced: false })
+        const forced = makeTrack({ id: 'forced', language: 'en', forced: true })
+        const captions = makeTrack({
+            id: 'cc',
+            language: 'en',
+            forced: false,
+            kind: 'captions',
         })
 
-        it('prefers the forced track matching the default language', () => {
-            controller.setTextTracks([
-                makeTrack({ id: 'en-f', language: 'en', forced: true }),
-                makeTrack({
-                    id: 'es-f',
-                    language: 'es',
-                    forced: true,
-                    default: true,
-                }),
-            ])
-            expect(controller.activeTextTrack?.id).toBe('es-f')
+        it("renders nothing when enabled is 'off' (even with an id)", () => {
+            expect(
+                resolveSelectedTrack([full, forced], {
+                    enabled: 'off',
+                    selection: { id: 'full' },
+                })
+            ).toBeNull()
         })
 
-        it('does not auto-select when there is no forced track', () => {
-            controller.setTextTracks([makeTrack({ id: 'full' })])
-            expect(controller.activeTextTrack).toBeNull()
+        it("enabled 'on' selects the full track", () => {
+            expect(
+                resolveSelectedTrack([full, forced], {
+                    enabled: 'on',
+                    selection: { language: 'en' },
+                })?.id
+            ).toBe('full')
         })
 
-        it('does not auto-select after the app made an explicit choice', () => {
-            // App explicitly turned captions off (null) before tracks arrive.
-            controller.setActiveTextTrack(null)
-            controller.setTextTracks([
-                makeTrack({ id: 'forced', forced: true }),
-            ])
-            expect(controller.activeTextTrack).toBeNull()
+        it("enabled 'forced' selects the forced track", () => {
+            expect(
+                resolveSelectedTrack([full, forced], {
+                    enabled: 'forced',
+                    selection: { language: 'en' },
+                })?.id
+            ).toBe('forced')
         })
 
-        it('does not override an explicit selection with a forced track', () => {
-            controller.setTextTracks([makeTrack({ id: 'full' })])
-            controller.setActiveTextTrack('full')
-            // A later list reveals a forced track; the explicit choice stands.
-            controller.setTextTracks([
-                makeTrack({ id: 'full' }),
-                makeTrack({ id: 'forced', forced: true }),
-            ])
-            expect(controller.activeTextTrack?.id).toBe('full')
+        it('selection.forced overrides the enabled mode', () => {
+            expect(
+                resolveSelectedTrack([full, forced], {
+                    enabled: 'on',
+                    selection: { language: 'en', forced: true },
+                })?.id
+            ).toBe('forced')
         })
-    })
 
-    it('emits textTracksChange when discovered list changes', () => {
-        const handler = jasmine.createSpy('textTracksChange')
-        controller.on('textTracksChange', handler)
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        expect(handler).toHaveBeenCalledTimes(1)
-        // Same list contents → no event.
-        controller.setTextTracks([t])
-        expect(handler).toHaveBeenCalledTimes(1)
-    })
+        it('an explicit id wins over other criteria', () => {
+            expect(
+                resolveSelectedTrack([full, forced], {
+                    selection: { id: 'forced', language: 'en', forced: false },
+                })?.id
+            ).toBe('forced')
+        })
 
-    it('detects changed track properties', () => {
-        const handler = jasmine.createSpy()
-        controller.on('textTracksChange', handler)
-        controller.setTextTracks([makeTrack({ label: 'A' })])
-        controller.setTextTracks([makeTrack({ label: 'B' })])
-        expect(handler).toHaveBeenCalledTimes(2)
+        it('unknown id selects nothing', () => {
+            expect(
+                resolveSelectedTrack([full], { selection: { id: 'nope' } })
+            ).toBeNull()
+        })
+
+        it('forced defaults to true (only forced tracks)', () => {
+            expect(
+                resolveSelectedTrack([full, forced], {
+                    selection: { language: 'en' },
+                })?.id
+            ).toBe('forced')
+        })
+
+        it('forced:false selects the full track', () => {
+            expect(
+                resolveSelectedTrack([full, forced], {
+                    selection: { language: 'en', forced: false },
+                })?.id
+            ).toBe('full')
+        })
+
+        it('kind restricts the candidate pool', () => {
+            expect(
+                resolveSelectedTrack([full, captions], {
+                    selection: {
+                        language: 'en',
+                        forced: false,
+                        kind: 'captions',
+                    },
+                })?.id
+            ).toBe('cc')
+        })
+
+        it('falls back to navigator.languages when no language is given', () => {
+            // Node exposes navigator.languages === ['en-US'], relating to 'en'.
+            expect(
+                resolveSelectedTrack([full], { selection: { forced: false } })
+                    ?.id
+            ).toBe('full')
+        })
+
+        it('an ordered language list prefers earlier entries', () => {
+            const es = makeTrack({ id: 'es', language: 'es', forced: false })
+            expect(
+                resolveSelectedTrack([full, es], {
+                    selection: { language: ['es', 'en'], forced: false },
+                })?.id
+            ).toBe('es')
+        })
     })
 
     it('selecting a known id loads cues and creates a TextTrack', async () => {
         respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nfirst`)
-        const t = makeTrack()
-        controller.setTextTracks([t])
+        const h = build({ options: { selection: { id: 'a' } } })
         const activeChange = jasmine.createSpy()
-        controller.on('activeTextTrackChange', activeChange)
-        controller.setActiveTextTrack(t.id)
-        expect(controller.activeTextTrack).toBe(t)
+        h.controller.on('activeTextTrackChange', activeChange)
+        await h.setTracks([makeTrack()])
+        expect(h.controller.activeTextTrack?.id).toBe('a')
         expect(activeChange).toHaveBeenCalledTimes(1)
-        // Wait for the load chain (fetch -> text -> parse -> onCues) to resolve.
-        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
-        expect(media.addTextTrack).toHaveBeenCalledWith(
+        await flushUntil(() => (h.provider.lastTrack?.cues?.length ?? 0) > 0)
+        expect(h.provider.getOrCreate).toHaveBeenCalledWith(
             'subtitles',
             'English',
             'en'
         )
-        expect(media.lastTrack?.mode).toBe('showing')
-        expect(media.lastTrack?.cues.length).toBe(1)
-        // Cue box is inset from the default full width so it doesn't clip in
-        // fullscreen.
-        const cue = media.lastTrack?.cues[0] as unknown as { size: number }
-        expect(cue.size).toBe(90)
+        expect(h.provider.lastTrack?.mode).toBe('showing')
+        expect(h.provider.lastTrack?.cues?.length).toBe(1)
     })
 
-    describe('cueStyle', () => {
-        async function loadFirstCue(
-            ctrl: SidecarTextTrackController
-        ): Promise<{ size: number }> {
-            respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nfirst`)
-            const t = makeTrack()
-            ctrl.setTextTracks([t])
-            ctrl.setActiveTextTrack(t.id)
-            await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
-            return media.lastTrack?.cues[0] as unknown as { size: number }
-        }
-
-        it('does not style cues when cueStyle is null', async () => {
-            const ctrl = new SidecarTextTrackController({
-                media: media as unknown as HTMLMediaElement,
-                cueStyle: data(null),
-            })
-            const cue = await loadFirstCue(ctrl)
-            expect(cue.size).toBe(100) // stub default, unchanged
-            ctrl.dispose()
+    describe('authored cue settings', () => {
+        it("applies the cue's own parsed settings to the VTTCue", async () => {
+            respondVtt(
+                `WEBVTT\n\n00:00:01.000 --> 00:00:02.000 align:left size:80%\nx`
+            )
+            const h = build({ options: { selection: { id: 'a' } } })
+            await h.setTracks([makeTrack()])
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            const cue = h.provider.lastTrack?.cues?.[0] as unknown as {
+                align: string
+                size: number
+            }
+            expect(cue.align).toBe('left')
+            expect(cue.size).toBe(80)
         })
 
-        it('does not style cues when no cueStyle dep is provided', async () => {
-            const ctrl = new SidecarTextTrackController({
-                media: media as unknown as HTMLMediaElement,
-            })
-            const cue = await loadFirstCue(ctrl)
+        it('leaves the cue at defaults when it declares no settings', async () => {
+            respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nx`)
+            const h = build({ options: { selection: { id: 'a' } } })
+            await h.setTracks([makeTrack()])
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            // The VTTCue stub defaults size to 100; unset settings don't touch it.
+            const cue = h.provider.lastTrack?.cues?.[0] as unknown as {
+                size: number
+            }
             expect(cue.size).toBe(100)
-            ctrl.dispose()
         })
 
-        it('does not style non-VTTCue cues', async () => {
-            // VTTCue-less platform: cues are plain TextTrackCues, not styleable.
+        it('does not apply settings to non-VTTCue cues', async () => {
             ;(globalThis as any).VTTCue = undefined
             ;(globalThis as any).TextTrackCue = function TextTrackCue(
                 this: any,
@@ -254,24 +384,148 @@ describe('SidecarTextTrackController', () => {
                 this.id = ''
                 this.size = 100
             }
-            const ctrl = new SidecarTextTrackController({
-                media: media as unknown as HTMLMediaElement,
-                cueStyle: data({ size: 80 }),
-            })
-            const cue = await loadFirstCue(ctrl)
-            expect(cue.size).toBe(100) // not a VTTCue → not styled
-            ctrl.dispose()
+            respondVtt(
+                `WEBVTT\n\n00:00:01.000 --> 00:00:02.000 size:80%\nignored`
+            )
+            const h = build({ options: { selection: { id: 'a' } } })
+            await h.setTracks([makeTrack()])
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            const cue = h.provider.lastTrack?.cues?.[0] as unknown as {
+                size: number
+            }
+            expect(cue.size).toBe(100) // not a VTTCue → never styled
             ;(globalThis as any).TextTrackCue = undefined
+        })
+    })
+
+    describe('text track renderer', () => {
+        function fakeRenderer() {
+            return {
+                setTextTrack:
+                    jasmine.createSpy<(track: TextTrack | null) => void>(
+                        'setTextTrack'
+                    ),
+                setStyles:
+                    jasmine.createSpy<(styles: readonly string[]) => void>(
+                        'setStyles'
+                    ),
+            }
+        }
+
+        it("keeps the DOM track 'hidden' and hands it to the renderer", async () => {
+            respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nx`)
+            const renderer = fakeRenderer()
+            const h = build({
+                options: { selection: { id: 'a' } },
+                textTrackRenderer: renderer,
+            })
+            await h.setTracks([makeTrack()])
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            expect(h.provider.lastTrack?.mode).toBe('hidden')
+            expect(renderer.setTextTrack).toHaveBeenCalledWith(
+                h.provider.lastTrack as unknown as TextTrack
+            )
+        })
+
+        it('detaches the renderer when captions are turned off', async () => {
+            respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nx`)
+            const renderer = fakeRenderer()
+            const h = build({
+                options: { selection: { id: 'a' } },
+                textTrackRenderer: renderer,
+            })
+            await h.setTracks([makeTrack()])
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            renderer.setTextTrack.calls.reset()
+            h.options$.value = { enabled: 'off' }
+            expect(renderer.setTextTrack).toHaveBeenCalledWith(null)
+        })
+
+        it('forwards authored STYLE blocks to the renderer', async () => {
+            respondVtt(
+                `WEBVTT\n\nSTYLE\n::cue { color: red }\n\n00:00:01.000 --> 00:00:02.000\nx`
+            )
+            const renderer = fakeRenderer()
+            const h = build({
+                options: { selection: { id: 'a' } },
+                textTrackRenderer: renderer,
+            })
+            await h.setTracks([makeTrack()])
+            await flushUntil(() => renderer.setStyles.calls.count() > 0)
+            expect(renderer.setStyles).toHaveBeenCalledWith([
+                '::cue { color: red }',
+            ])
+        })
+
+        it('ignores styles that arrive after the load is cancelled', async () => {
+            let resolveFetch: (r: Response) => void = () => {}
+            requester.request.and.returnValue(
+                new Promise<Response>((res) => {
+                    resolveFetch = res
+                })
+            )
+            const renderer = fakeRenderer()
+            const h = build({
+                options: { selection: { id: 'a' } },
+                textTrackRenderer: renderer,
+            })
+            await h.setTracks([makeTrack()])
+            h.options$.value = { enabled: 'off' } // cancels the load
+            renderer.setStyles.calls.reset()
+            resolveFetch(
+                new Response(
+                    `WEBVTT\n\nSTYLE\n::cue { color: red }\n\n00:00:01.000 --> 00:00:02.000\nx`
+                )
+            )
+            await flushPromises()
+            expect(renderer.setStyles).not.toHaveBeenCalled()
+        })
+
+        it('works with a renderer that cannot consume styles', async () => {
+            respondVtt(
+                `WEBVTT\n\nSTYLE\n::cue { color: red }\n\n00:00:01.000 --> 00:00:02.000\nx`
+            )
+            // A renderer implementing only setTextTrack (setStyles is optional).
+            const renderer = {
+                setTextTrack:
+                    jasmine.createSpy<(track: TextTrack | null) => void>(
+                        'setTextTrack'
+                    ),
+            }
+            const h = build({
+                options: { selection: { id: 'a' } },
+                textTrackRenderer: renderer,
+            })
+            await h.setTracks([makeTrack()])
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            expect(renderer.setTextTrack).toHaveBeenCalled()
+        })
+
+        it("renders natively ('showing') when no renderer is injected", async () => {
+            respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nx`)
+            const h = build({ options: { selection: { id: 'a' } } })
+            await h.setTracks([makeTrack()])
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            expect(h.provider.lastTrack?.mode).toBe('showing')
         })
     })
 
     it('preserves cue id when present', async () => {
         respondVtt(`WEBVTT\n\nidA\n00:00:01.000 --> 00:00:02.000\nfirst`)
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
-        const cue = media.lastTrack?.cues[0] as unknown as { id: string }
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
+        await flushUntil(() => (h.provider.lastTrack?.cues?.length ?? 0) > 0)
+        const cue = h.provider.lastTrack?.cues?.[0] as unknown as { id: string }
         expect(cue.id).toBe('idA')
     })
 
@@ -297,62 +551,63 @@ b.vtt
             if (call === 2) return Promise.resolve(new Response(segA))
             return Promise.resolve(new Response(segB))
         })
-        const t = makeTrack({ uri: 'https://x.test/sub.m3u8' })
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        // Two segments + dedup: wait until all three distinct cues have loaded.
-        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) >= 3)
-        const texts = (media.lastTrack?.cues ?? []).map(
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack({ uri: 'https://x.test/sub.m3u8' })])
+        await flushUntil(() => (h.provider.lastTrack?.cues?.length ?? 0) >= 3)
+        const texts = (h.provider.lastTrack?.cues ?? []).map(
             (c) => (c as unknown as { text: string }).text
         )
         expect(texts).toEqual(['only-a', 'shared', 'only-b'])
     })
 
-    it('selecting an unknown id is a no-op', () => {
+    it('selecting an unknown id renders nothing and stays inactive', async () => {
         const handler = jasmine.createSpy()
-        controller.on('activeTextTrackChange', handler)
-        controller.setTextTracks([makeTrack()])
-        controller.setActiveTextTrack('unknown')
+        const h = build({ options: { selection: { id: 'unknown' } } })
+        h.controller.on('activeTextTrackChange', handler)
+        await h.setTracks([makeTrack()])
         expect(handler).not.toHaveBeenCalled()
-        expect(controller.activeTextTrack).toBeNull()
+        expect(h.controller.activeTextTrack).toBeNull()
+        expect(h.provider.getOrCreate).not.toHaveBeenCalled()
     })
 
-    it('selecting null clears the current active track', () => {
+    it('disabling clears the current active track', async () => {
         respondVtt(`WEBVTT\n`)
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        controller.setActiveTextTrack(null)
-        expect(controller.activeTextTrack).toBeNull()
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
+        expect(h.controller.activeTextTrack?.id).toBe('a')
+        h.options$.value = { enabled: 'off' }
+        expect(h.controller.activeTextTrack).toBeNull()
     })
 
-    it('clears active selection when its track is removed', () => {
+    it('clears active selection when its track is removed', async () => {
         respondVtt(`WEBVTT\n`)
+        const h = build({ options: { selection: { id: 'a' } } })
         const t1 = makeTrack({ id: 'a' })
         const t2 = makeTrack({ id: 'b', uri: 'https://x.test/b.vtt' })
-        controller.setTextTracks([t1, t2])
-        controller.setActiveTextTrack('a')
-        controller.setTextTracks([t2])
-        expect(controller.activeTextTrack).toBeNull()
+        await h.setTracks([t1, t2])
+        expect(h.controller.activeTextTrack?.id).toBe('a')
+        await h.setTracks([t2])
+        expect(h.controller.activeTextTrack).toBeNull()
     })
 
-    it('keeps active selection when track list updates with same active', () => {
+    it('keeps the active selection when the list updates with it still present', async () => {
         respondVtt(`WEBVTT\n`)
+        const h = build({ options: { selection: { id: 'a' } } })
         const t1 = makeTrack({ id: 'a' })
         const t2 = makeTrack({ id: 'b' })
-        controller.setTextTracks([t1])
-        controller.setActiveTextTrack('a')
-        controller.setTextTracks([t1, t2])
-        expect(controller.activeTextTrack?.id).toBe('a')
+        await h.setTracks([t1])
+        expect(h.controller.activeTextTrack?.id).toBe('a')
+        await h.setTracks([t1, t2])
+        expect(h.controller.activeTextTrack?.id).toBe('a')
     })
 
     it('emits textTrackError on fetch failure', async () => {
         requester.request.and.rejectWith(new Error('boom'))
+        const h = build({ options: { selection: { id: 'a' } } })
         const onError = jasmine.createSpy('textTrackError')
-        controller.on('textTrackError', onError)
+        h.controller.on('textTrackError', onError)
         const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
+        await h.setTracks([t])
         await flushUntil(() => onError.calls.count() > 0)
         expect(onError).toHaveBeenCalledTimes(1)
         const arg = onError.calls.mostRecent().args[0]
@@ -362,14 +617,12 @@ b.vtt
 
     it('wraps non-Error rejections', async () => {
         requester.request.and.rejectWith('plain')
+        const h = build({ options: { selection: { id: 'a' } } })
         const onError = jasmine.createSpy()
-        controller.on('textTrackError', onError)
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
+        h.controller.on('textTrackError', onError)
+        await h.setTracks([makeTrack()])
         await flushUntil(() => onError.calls.count() > 0)
-        const arg = onError.calls.mostRecent().args[0]
-        expect(arg.error.message).toBe('plain')
+        expect(onError.calls.mostRecent().args[0].error.message).toBe('plain')
     })
 
     it('drops cues that arrive after the load has been cancelled', async () => {
@@ -381,21 +634,19 @@ b.vtt
                 resolveFetch = res
             })
         )
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        controller.setActiveTextTrack(null)
-        // Now respond — but the abort has already fired.
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
+        const track = h.provider.lastTrack
+        // Turn captions off — aborts the in-flight load.
+        h.options$.value = { enabled: 'off' }
         resolveFetch(
             new Response(`WEBVTT\n\n00:00:00.500 --> 00:00:01.500\npost`)
         )
         await flushPromises()
-        expect(media.lastTrack?.cues.length ?? 0).toBe(0)
+        expect(track?.storedCues.length ?? 0).toBe(0)
     })
 
-    it('does not emit textTrackError when load is cancelled by switching tracks', async () => {
-        // First request hangs until we resolve it. Deactivate the track,
-        // then resolve with a rejection — the abort should suppress the error.
+    it('does not emit textTrackError when a load is cancelled by switching', async () => {
         let rejectFirst: (e: Error) => void = () => {}
         let callCount = 0
         requester.request.and.callFake(
@@ -406,19 +657,17 @@ b.vtt
                     else rej(new Error('unused'))
                 })
         )
+        const h = build({ options: { selection: { id: 'a' } } })
         const onError = jasmine.createSpy('textTrackError')
-        controller.on('textTrackError', onError)
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        // Now cancel by clearing.
-        controller.setActiveTextTrack(null)
+        h.controller.on('textTrackError', onError)
+        await h.setTracks([makeTrack()])
+        h.options$.value = { enabled: 'off' }
         rejectFirst(new Error('would-be error'))
         await flushPromises()
         expect(onError).not.toHaveBeenCalled()
     })
 
-    it('switching active track clears the previous DOM cues', async () => {
+    it('switching language reuses the per-rendition track and swaps its cues', async () => {
         let call = 0
         requester.request.and.callFake(() => {
             call++
@@ -430,120 +679,144 @@ b.vtt
                 )
             )
         })
-        const a = makeTrack({ id: 'a' })
-        const b = makeTrack({
-            id: 'b',
-            uri: 'https://x.test/b.vtt',
-            label: 'Two',
+        const en = makeTrack({ id: 'en', language: 'en', label: 'English' })
+        const es = makeTrack({
+            id: 'es',
+            language: 'es',
+            label: 'Espanol',
+            uri: 'https://x.test/es.vtt',
         })
-        controller.setTextTracks([a, b])
-        controller.setActiveTextTrack('a')
-        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
-        const firstTrack = media.lastTrack
-        expect(firstTrack?.cues.length).toBe(1)
-        controller.setActiveTextTrack('b')
-        // First track should be cleared synchronously on switch.
-        expect(firstTrack?.cues.length).toBe(0)
-        expect(firstTrack?.mode).toBe('disabled')
-        // The second track loads its own cue.
+        const h = build({ options: { selection: { id: 'en' } } })
+        await h.setTracks([en, es])
+        await flushUntil(() => (h.provider.lastTrack?.cues?.length ?? 0) > 0)
+        const enTrack = h.provider.lastTrack
+
+        h.select({ id: 'es' })
+        // The outgoing English track is hidden and cleared; a distinct Spanish
+        // track (its own rendition) renders instead.
+        expect(enTrack?.storedCues.length).toBe(0)
+        expect(enTrack?.mode).toBe('disabled')
         await flushUntil(
             () =>
-                media.lastTrack !== firstTrack &&
-                (media.lastTrack?.cues.length ?? 0) > 0
+                h.provider.lastTrack !== enTrack &&
+                (h.provider.lastTrack?.cues?.length ?? 0) > 0
         )
-        expect(media.lastTrack?.cues.length).toBe(1)
+        expect(h.provider.lastTrack).not.toBe(enTrack)
+        expect(h.provider.lastTrack?.language).toBe('es')
+        expect(h.provider.showingWithCues().length).toBe(1)
     })
 
-    it('suspend clears the DOM track and resume rebuilds it, keeping the selection', async () => {
-        // Fresh Response per call — resume() re-fetches and a Response body can
-        // only be read once.
+    it('cycling languages never accumulates or double-shows cues', async () => {
+        requester.request.and.callFake(() =>
+            Promise.resolve(
+                new Response(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\ncue`)
+            )
+        )
+        const langs = ['en', 'es', 'ja'].map((language) =>
+            makeTrack({
+                id: language,
+                language,
+                uri: `https://x.test/${language}.vtt`,
+            })
+        )
+        const h = build({ options: { selection: { id: 'en' } } })
+        await h.setTracks(langs)
+
+        for (const id of ['en', 'es', 'ja', 'en']) {
+            h.select({ id })
+            await flushUntil(
+                () => (h.provider.lastTrack?.cues?.length ?? 0) > 0
+            )
+            expect(h.provider.showingWithCues().length)
+                .withContext(`after selecting ${id}`)
+                .toBe(1)
+        }
+        // One track per distinct rendition (3), reused on the repeat of 'en' —
+        // never one per activation (which would be 4).
+        expect(h.provider.created.length).toBe(3)
+    })
+
+    it('deactivate hides the DOM track and activate rebuilds it, keeping the selection', async () => {
         requester.request.and.callFake(() =>
             Promise.resolve(
                 new Response(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\none`)
             )
         )
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
-        const first = media.lastTrack
-        expect(first?.mode).toBe('showing')
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
+        await flushUntil(() => (h.provider.lastTrack?.cues?.length ?? 0) > 0)
+        const track = h.provider.lastTrack
+        expect(track?.mode).toBe('showing')
+        expect(h.controller.active).toBeTrue()
 
-        // Suspend (track deactivated for an ad): DOM track torn down, selection kept.
-        controller.suspend()
-        expect(first?.cues.length).toBe(0)
-        expect(first?.mode).toBe('disabled')
-        expect(controller.activeTextTrack?.id).toBe(t.id)
+        h.controller.deactivate()
+        expect(h.controller.active).toBeFalse()
+        expect(track?.storedCues.length).toBe(0)
+        expect(track?.mode).toBe('disabled')
+        expect(h.controller.activeTextTrack?.id).toBe('a')
 
-        // Resume (content reactivated): a fresh DOM track renders the cues again.
-        controller.resume()
-        await flushUntil(
-            () =>
-                media.lastTrack !== first &&
-                (media.lastTrack?.cues.length ?? 0) > 0
-        )
-        expect(media.lastTrack?.mode).toBe('showing')
-        expect(media.lastTrack?.cues.length).toBe(1)
+        h.controller.activate()
+        expect(h.controller.active).toBeTrue()
+        await flushUntil(() => (h.provider.lastTrack?.cues?.length ?? 0) > 0)
+        expect(h.provider.lastTrack?.mode).toBe('showing')
+        expect(h.provider.lastTrack?.cues?.length).toBe(1)
     })
 
-    it('resume is a no-op when nothing is active', () => {
-        controller.resume()
-        expect(media.addTextTrack).not.toHaveBeenCalled()
+    it('activate is a no-op when nothing is selected', () => {
+        const h = build()
+        h.controller.activate()
+        expect(h.provider.getOrCreate).not.toHaveBeenCalled()
     })
 
-    it('resume is a no-op when already rendering', async () => {
+    it('activate is a no-op when already rendering', async () => {
         respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\none`)
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        await flushUntil(() => (media.lastTrack?.cues.length ?? 0) > 0)
-        media.addTextTrack.calls.reset()
-        controller.resume()
-        expect(media.addTextTrack).not.toHaveBeenCalled()
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
+        await flushUntil(() => (h.provider.lastTrack?.cues?.length ?? 0) > 0)
+        h.provider.getOrCreate.calls.reset()
+        h.controller.activate()
+        expect(h.provider.getOrCreate).not.toHaveBeenCalled()
+    })
+
+    it('does not render while deactivated even as the selection resolves', async () => {
+        respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\none`)
+        const h = build({
+            options: { selection: { id: 'a' } },
+            activate: false,
+        })
+        h.controller.deactivate()
+        await h.setTracks([makeTrack()])
+        // Selection is tracked, but nothing is rendered until activate().
+        expect(h.controller.activeTextTrack?.id).toBe('a')
+        expect(h.provider.getOrCreate).not.toHaveBeenCalled()
     })
 
     it('skips DOM cue creation when no VTTCue ctor is available', async () => {
         ;(globalThis as any).VTTCue = undefined
         respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nignored`)
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
         await flushPromises()
-        expect(media.lastTrack?.cues.length).toBe(0)
-    })
-
-    it('can run without a DOM media element', async () => {
-        const headless = new SidecarTextTrackController({ media: null })
-        const t = makeTrack()
-        respondVtt(`WEBVTT\n\n00:00:01.000 --> 00:00:02.000\nx`)
-        headless.setTextTracks([t])
-        headless.setActiveTextTrack(t.id)
-        await flushPromises()
-        expect(headless.activeTextTrack).toBe(t)
-        headless.dispose()
+        expect(h.provider.lastTrack?.cues?.length ?? 0).toBe(0)
     })
 
     it('forwards requestInit when configured', async () => {
-        const customController = new SidecarTextTrackController({
-            media: media as unknown as HTMLMediaElement,
+        respondVtt(`WEBVTT\n`)
+        const h = build({
+            options: { selection: { id: 'a' } },
             requestInit: { credentials: 'include' },
         })
-        respondVtt(`WEBVTT\n`)
         const t = makeTrack()
-        customController.setTextTracks([t])
-        customController.setActiveTextTrack(t.id)
+        await h.setTracks([t])
         await flushPromises()
         expect(requester.request).toHaveBeenCalledWith(
             t.uri,
             jasmine.objectContaining({ credentials: 'include' }),
             jasmine.any(Object)
         )
-        customController.dispose()
     })
 
     it('drives HLS caption segment order from the media playhead', async () => {
-        // Media at t=12s should cause seg2 (10s..15s) to be fetched first.
-        media.currentTime = 12
         const playlistBody = `#EXTM3U
 #EXT-X-TARGETDURATION:5
 #EXTINF:5.0,
@@ -567,9 +840,10 @@ d.vtt
                 new Response(`WEBVTT\n\n00:00:00.000 --> 00:00:01.000\n${path}`)
             )
         })
-        const t = makeTrack({ uri: 'https://x.test/sub.m3u8' })
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
+        const h = build({ options: { selection: { id: 'a' } } })
+        // Media at t=12s should cause seg3 (10s..15s) to be fetched first.
+        h.playback.currentTime = 12
+        await h.setTracks([makeTrack({ uri: 'https://x.test/sub.m3u8' })])
         await flushUntil(() => fetched.length > 0)
         expect(fetched[0]).toBe('c.vtt')
     })
@@ -582,121 +856,51 @@ d.vtt
                     resolveResponse = res
                 })
         )
-        const t = makeTrack()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        // The DOM TextTrack is created eagerly on activation so cues can be
-        // rendered as they arrive during load.
-        expect(media.lastTrack).not.toBeNull()
-        controller.dispose()
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
+        const track = h.provider.lastTrack
+        expect(track).not.toBeNull()
+        h.controller.dispose()
         // Resolving after dispose must not throw or push cues onto the track.
         resolveResponse(
             new Response(`WEBVTT\n\n00:00:00.500 --> 00:00:01.500\npost`)
         )
         await flushPromises()
-        expect(media.lastTrack?.mode).toBe('disabled')
-        expect(media.lastTrack?.cues.length).toBe(0)
-        expect(controller.activeTextTrack).toBeNull()
-        expect(controller.textTracks).toEqual([])
+        expect(track?.mode).toBe('disabled')
+        expect(track?.storedCues.length).toBe(0)
+        expect(h.controller.activeTextTrack).toBeNull()
+        expect(h.controller.textTracks).toEqual([])
     })
 
-    it('handles tracks with null language', async () => {
+    it('creates the DOM track with an undefined language for null-language tracks', async () => {
         respondVtt(`WEBVTT\n`)
-        const t = makeTrack({ language: null })
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack({ language: null })])
         await flushPromises()
-        expect(media.addTextTrack).toHaveBeenCalledWith(
+        expect(h.provider.getOrCreate).toHaveBeenCalledWith(
             'subtitles',
             'English',
             undefined
         )
     })
 
-    it('setTextTracks with same array reference is a no-op', () => {
+    it('setting the same resolved track list twice emits textTracksChange once', async () => {
         const handler = jasmine.createSpy()
-        controller.on('textTracksChange', handler)
+        const h = build()
+        h.controller.on('textTracksChange', handler)
         const list = [makeTrack()]
-        controller.setTextTracks(list)
-        controller.setTextTracks(list)
+        await h.setTracks(list)
+        await h.setTracks([makeTrack()]) // deep-equal contents
         expect(handler).toHaveBeenCalledTimes(1)
     })
 
-    it('clearing active when none is active is a no-op', () => {
-        const handler = jasmine.createSpy()
-        controller.on('activeTextTrackChange', handler)
-        controller.setActiveTextTrack(null)
-        expect(handler).not.toHaveBeenCalled()
-    })
-
-    it('selecting same id is a no-op', () => {
+    it('re-selecting the same id is a no-op', async () => {
         respondVtt(`WEBVTT\n`)
-        const t = makeTrack()
+        const h = build({ options: { selection: { id: 'a' } } })
+        await h.setTracks([makeTrack()])
         const handler = jasmine.createSpy()
-        controller.setTextTracks([t])
-        controller.setActiveTextTrack(t.id)
-        controller.on('activeTextTrackChange', handler)
-        controller.setActiveTextTrack(t.id)
+        h.controller.on('activeTextTrackChange', handler)
+        h.select({ id: 'a' })
         expect(handler).not.toHaveBeenCalled()
-    })
-
-    describe('preferredTextLanguage', () => {
-        const en = makeTrack({ id: 'en', language: 'en', label: 'English' })
-        const es = makeTrack({ id: 'es', language: 'es', label: 'Espanol' })
-        let preferredTextLanguage: MutableValue<
-            string | readonly string[] | null
-        >
-        let prefController: SidecarTextTrackController
-
-        beforeEach(() => {
-            preferredTextLanguage = data<string | readonly string[] | null>(
-                null
-            )
-            prefController = new SidecarTextTrackController({
-                media: null,
-                preferredTextLanguage,
-            })
-        })
-
-        afterEach(() => prefController.dispose())
-
-        it('selects the matching track when the preference changes', () => {
-            prefController.setTextTracks([en, es])
-            expect(prefController.activeTextTrack).toBeNull()
-            preferredTextLanguage.value = 'es'
-            expect(prefController.activeTextTrack?.id).toBe('es')
-        })
-
-        it('clears the selection when the preference is set back to null', () => {
-            prefController.setTextTracks([en, es])
-            preferredTextLanguage.value = 'es'
-            expect(prefController.activeTextTrack?.id).toBe('es')
-            preferredTextLanguage.value = null
-            expect(prefController.activeTextTrack).toBeNull()
-        })
-
-        it('re-applies the preference when the track list changes', () => {
-            preferredTextLanguage.value = 'es'
-            // No tracks yet, so nothing matches.
-            expect(prefController.activeTextTrack).toBeNull()
-            prefController.setTextTracks([en, es])
-            expect(prefController.activeTextTrack?.id).toBe('es')
-        })
-
-        it('a preferred language wins over forced auto-selection', () => {
-            preferredTextLanguage.value = 'es'
-            prefController.setTextTracks([
-                makeTrack({ id: 'en-forced', language: 'en', forced: true }),
-                es,
-            ])
-            expect(prefController.activeTextTrack?.id).toBe('es')
-        })
-
-        it('leaves forced auto-selection intact while no preference is set', () => {
-            prefController.setTextTracks([
-                makeTrack({ id: 'forced', forced: true }),
-            ])
-            expect(prefController.activeTextTrack?.id).toBe('forced')
-        })
     })
 })

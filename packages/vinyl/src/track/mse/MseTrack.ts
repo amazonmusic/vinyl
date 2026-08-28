@@ -448,7 +448,7 @@ export class MseTrack extends TrackBase {
         // Rebuild the DOM text track. The element's added TextTracks are
         // dropped when the source is reset on deactivation (e.g. suspended for
         // an ad), so the active selection must be re-rendered on reactivation.
-        this.deps.textTrackController?.resume()
+        this.deps.textTrackController?.activate()
         // AirPlay not supported using managed media sources
         this.deps.playbackSource.disableRemotePlayback = true
 
@@ -497,7 +497,7 @@ export class MseTrack extends TrackBase {
         // Tear down the DOM text track so its cues stop showing while this
         // track is suspended (e.g. an ad playing over it). The selection is
         // retained and re-rendered on reactivation via resume().
-        this.deps.textTrackController?.suspend()
+        this.deps.textTrackController?.deactivate()
 
         this.deps.playbackSource.src = null
         this.deps.playbackSource.load()

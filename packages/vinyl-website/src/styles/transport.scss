@@ -43,6 +43,11 @@
             transform var(--transition-fast);
     }
 
+    // Lift captions above the control bar while it's visible.
+    .vinyl-text-container {
+        bottom: 4.5rem;
+    }
+
     &.controlsHidden {
         cursor: none;
     }
@@ -52,6 +57,11 @@
         transform: translateY(100%);
         pointer-events: none;
     }
+
+    // Controls hidden: drop captions back to the small bottom margin.
+    &.controlsHidden .vinyl-text-container {
+        bottom: 0;
+    }
 }
 
 .transportVideo {
@@ -59,22 +69,42 @@
     background: black;
     display: flex;
     justify-content: center;
+    overflow: hidden;
 
     video {
         max-height: 240px;
         width: 100%;
         object-fit: contain;
         cursor: pointer;
-
-        &::cue {
-            background: rgba(0, 0, 0, 0.75);
-            color: white;
-            font-family: var(--font-sans, sans-serif);
-            font-size: 1em;
-            line-height: 1.3;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-        }
     }
+}
+
+// HTML caption overlay (vinyl's TextView). Fills the video area; cues stack at
+// the bottom. In fullscreen the bottom is inset so captions clear the control
+// bar while it shows, dropping to a small margin once it hides.
+.vinyl-text-container {
+    position: absolute;
+    inset: 0;
+    padding: 0 2.5% 0.8em;
+    transition: bottom var(--transition-fast);
+    // A size container so cue text can scale with the video/overlay height.
+    container-type: size;
+}
+
+.vinyl-text-cue {
+    display: inline-block;
+    max-width: 100%;
+    margin-top: 0.15em;
+    padding: 0.1em 0.4em;
+    color: white;
+    background-color: rgba(0, 0, 0, 0.75);
+    font-family: var(--font-sans, sans-serif);
+    // Proportional to the overlay (video) height via container-query units,
+    // clamped so it stays legible when small and not oversized in fullscreen.
+    font-size: clamp(0.9rem, 6cqh, 2.5rem);
+    line-height: 1.35;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+    white-space: pre-wrap;
 }
 
 .adOverlay {
