@@ -152,8 +152,10 @@ function closeTag(name: string): string {
 export function renderCueText(text: string): string {
     let html = ''
     // Each match is one tag (`<…>`), a run of non-`<` text, or a stray `<`.
-    // Simple alternation with no nested quantifiers — no backtracking blowup.
-    for (const token of text.match(/<[^>]*>|[^<]+|</g) ?? []) {
+    // The tag body excludes `<` (as well as `>`) so a failed tag match on a
+    // `<`-heavy string bails after one char rather than scanning to the end —
+    // keeping this linear (no polynomial backtracking) on adversarial input.
+    for (const token of text.match(/<[^<>]*>|[^<]+|</g) ?? []) {
         if (token[0] !== '<' || token === '<') {
             html += escapeHtml(token).replace(/\n/g, '<br>')
         } else {
