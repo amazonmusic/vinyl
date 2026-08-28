@@ -24,7 +24,7 @@ resulting in smooth, responsive audio playback.
 ## Footprint
 
 Amazon Vinyl takes an opinionated, zero-runtime-dependency stance. By shedding
-any dependent frameworks or libraries, Amazon Vinyl bundles at 200 KiB (75 KiB
+any dependent frameworks or libraries, Amazon Vinyl bundles at 290 kB (90 kB
 gzipped), making it 50-90% smaller than alternatives, which improves
 performance, compatibility, and project longevity. Provided configuration can be
 tuned to optimize for low-memory or variable network-devices.
