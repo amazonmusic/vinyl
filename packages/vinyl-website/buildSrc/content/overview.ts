@@ -54,7 +54,7 @@ const COMPAT: readonly (readonly [string, string])[] = [
 ]
 
 const STATS: readonly (readonly [string, string])[] = [
-    ['75 KiB', 'Size (Gzipped)'],
+    ['90 kB', 'Size (Gzipped)'],
     ['100%', 'Test Coverage'],
     ['0', 'Dependencies'],
     ['99.9%', 'Browser Support'],
