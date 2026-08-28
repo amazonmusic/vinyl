@@ -54,7 +54,7 @@
         "jasmine-core": "^5.1.1",
         "lerna": "^10.0.1",
         "marked": "^14.0.0",
-        "nx": "^22.7.2",
+        "nx": "^23.1.2",
         "oxlint": "^1.74.0",
         "oxlint-tsgolint": "^0.24.0",
         "prettier": "^3.4.2",
