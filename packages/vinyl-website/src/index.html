@@ -21,31 +21,28 @@
             name="apple-mobile-web-app-status-bar-style"
             content="black-translucent"
         />
-        <title>Amazon Vinyl - HTML5 Streaming Playback Engine</title>
-        <meta
-            name="description"
-            content="Amazon Vinyl is a high-performance HTML5 playback engine for DASH and HLS streaming with Widevine, FairPlay, and PlayReady DRM support."
-        />
-        <meta
-            name="keywords"
-            content="Amazon Vinyl, HTML5, streaming, DASH, HLS, DRM, Widevine, FairPlay, PlayReady, audio, video, playback engine"
-        />
-        <meta name="author" content="Amazon" />
-        <meta name="robots" content="index, follow" />
-        <meta
-            property="og:title"
-            content="Amazon Vinyl - HTML5 Streaming Playback Engine"
-        />
-        <meta
-            property="og:description"
-            content="High-performance HTML5 playback engine for DASH and HLS streaming. Zero runtime dependencies, 75 KiB gzipped."
-        />
-        <meta property="og:type" content="website" />
-        <meta property="og:image" content="./img/logo-256.png" />
-        <link rel="icon" href="./favicon.ico" type="image/x-icon" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="stylesheet" href="/styles/index.scss" />
+        <script>
+            // Set the theme before first paint to avoid a flash of the wrong theme.
+            ;(function () {
+                try {
+                    var stored = localStorage.getItem('vinyl-theme')
+                    var theme =
+                        stored === 'light' || stored === 'dark'
+                            ? stored
+                            : window.matchMedia('(prefers-color-scheme: dark)')
+                                    .matches
+                              ? 'dark'
+                              : 'light'
+                    document.documentElement.setAttribute('data-theme', theme)
+                } catch (e) {}
+            })()
+        </script>
+        <!-- ssg:head -->
     </head>
     <body>
-        <div id="app"></div>
-        <script type="module" src="./app.tsx"></script>
+        <!-- ssg:body -->
+        <script type="module" src="/client.ts"></script>
     </body>
 </html>

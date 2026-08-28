@@ -8,10 +8,14 @@ import legacy from '@vitejs/plugin-legacy'
 import { resolve } from 'path'
 import { docsPlugin } from './buildSrc/docsPlugin'
 import { highlightPlugin } from './buildSrc/highlightPlugin'
+import { ssgPlugin } from './buildSrc/ssgPlugin'
+import { BASE_PATH } from './buildSrc/siteConfig'
 import packageJson from './package.json' with { type: 'json' }
 
 export default defineConfig({
-    base: './',
+    // Served under a base path (default /vinyl/); absolute so nested static
+    // routes (e.g. /docs/<slug>/) resolve assets. Override with BASE_PATH env.
+    base: BASE_PATH,
     root: 'src',
     publicDir: '../public',
     define: {
@@ -43,6 +47,7 @@ export default defineConfig({
         legacy({
             targets: ['chrome >= 64', 'firefox >= 67', 'safari >= 11.1'],
         }),
+        ssgPlugin(resolve(__dirname, '../..')),
     ],
     server: {
         port: 8080,
