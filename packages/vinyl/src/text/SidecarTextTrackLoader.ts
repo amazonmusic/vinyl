@@ -48,6 +48,12 @@ export interface LoadWebVttCuesOptions {
     readonly onCues: (cues: readonly WebVttCue[]) => void
 
     /**
+     * Invoked with the CSS body of any `STYLE` blocks parsed from a document.
+     * Only called when a document actually declares styles.
+     */
+    readonly onStyles?: Maybe<(styles: readonly string[]) => void>
+
+    /**
      * Returns the current playback time (seconds on the presentation
      * timeline). Used to fetch caption segments in a window around the
      * playhead rather than draining the entire playlist up front.
@@ -86,7 +92,8 @@ export async function loadWebVttCues(
     uri: string,
     options: LoadWebVttCuesOptions
 ): Promise<void> {
-    const { abort, requestInit, variables, onCues, getCurrentTime } = options
+    const { abort, requestInit, variables, onCues, onStyles, getCurrentTime } =
+        options
     const lookAhead = options.lookAhead ?? DEFAULT_TEXT_LOOK_AHEAD
     const lookBehind = options.lookBehind ?? DEFAULT_TEXT_LOOK_BEHIND
     const init = requestInit ?? undefined
@@ -98,6 +105,7 @@ export async function loadWebVttCues(
             abort,
             variables: variables ?? undefined,
             onCues,
+            onStyles,
             getCurrentTime,
             lookAhead,
             lookBehind,
@@ -116,13 +124,15 @@ export async function loadWebVttCues(
             abort,
             variables: variables ?? undefined,
             onCues,
+            onStyles,
             getCurrentTime,
             lookAhead,
             lookBehind,
         })
     }
-    const cues = parseWebVtt(body).cues
-    if (cues.length > 0) onCues(cues)
+    const doc = parseWebVtt(body)
+    if (doc.cues.length > 0) onCues(doc.cues)
+    if (onStyles && doc.styles.length > 0) onStyles(doc.styles)
 }
 
 function looksLikeMediaPlaylist(uri: string): boolean {
@@ -138,6 +148,7 @@ interface StreamCtx {
     readonly abort: Maybe<ReadonlyAbort>
     readonly variables: Readonly<Record<string, string>> | undefined
     readonly onCues: (cues: readonly WebVttCue[]) => void
+    readonly onStyles?: Maybe<(styles: readonly string[]) => void>
     readonly getCurrentTime: () => number
     readonly lookAhead: number
     readonly lookBehind: number
@@ -179,8 +190,9 @@ async function streamMediaPlaylistText(ctx: StreamCtx): Promise<void> {
             abort: ctx.abort,
         })
         const body = await res.text()
-        const cues = parseWebVtt(body).cues
-        if (cues.length > 0) ctx.onCues(cues)
+        const doc = parseWebVtt(body)
+        if (doc.cues.length > 0) ctx.onCues(doc.cues)
+        if (ctx.onStyles && doc.styles.length > 0) ctx.onStyles(doc.styles)
     }
 }
 

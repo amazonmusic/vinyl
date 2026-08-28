@@ -4,6 +4,10 @@
  */
 
 import { pickPreferredTextTrack, type TextTrackInfo } from '@amazon/vinyl'
+import {
+    setMockNavigator,
+    spyOnPropertySafe,
+} from '@amazon/vinyl-util/testUtil'
 
 let nextId = 0
 function track(overrides: Partial<TextTrackInfo> = {}): TextTrackInfo {
@@ -22,7 +26,23 @@ function track(overrides: Partial<TextTrackInfo> = {}): TextTrackInfo {
 }
 
 describe('pickPreferredTextTrack', () => {
-    it('returns null when the preference is null (captions off)', () => {
+    it('falls back to navigator.languages when the preference is null', () => {
+        setMockNavigator().languages = ['en']
+        const en = track({ id: 'en', language: 'en' })
+        expect(pickPreferredTextTrack([en], null)).toBe(en)
+    })
+
+    it('returns null when no track relates to navigator.languages', () => {
+        setMockNavigator().languages = ['en']
+        expect(
+            pickPreferredTextTrack([track({ language: 'ja' })], null)
+        ).toBeNull()
+    })
+
+    it('returns null for a null preference when navigator is unavailable', () => {
+        spyOnPropertySafe(global, 'navigator').and.returnValue(
+            undefined as unknown as Navigator
+        )
         expect(pickPreferredTextTrack([track()], null)).toBeNull()
     })
 

@@ -5,6 +5,14 @@
 
 import type { ChangeEvent } from '../event/ChangeEvent'
 import type { ReadonlyEventHost } from '@amazon/vinyl-util'
+import type { ObjectSchema } from '@amazon/vinyl-validation'
+import {
+    array,
+    boolean,
+    isOneOf,
+    object,
+    string,
+} from '@amazon/vinyl-validation'
 
 /**
  * Categorizes the role of a text track. Mirrors HTMLMediaElement.TextTrackKind.
@@ -105,6 +113,93 @@ export interface TextTrackErrorEvent {
     readonly error: Error
 }
 
+/**
+ * Which captions render:
+ * - `'off'` — nothing renders (not even forced narrative captions).
+ * - `'forced'` — only forced (narrative) tracks, so nothing shows unless the
+ *   content carries a forced track for the preferred language.
+ * - `'on'` — the full (non-forced) subtitle track for the preferred language.
+ */
+export type CaptionMode = 'on' | 'off' | 'forced'
+
+/**
+ * Criteria used to pick which text track to render. Applied in priority order:
+ * an explicit {@link id} wins; otherwise the best {@link language} match is
+ * chosen among tracks filtered by {@link kind} and by forced-ness (from
+ * {@link forced} when set, else from the controller's
+ * {@link TextTrackControllerOptions.enabled} mode).
+ */
+export interface TextTrackSelection {
+    /**
+     * Selects the text track with this exact identifier, ignoring the other
+     * criteria (but still gated by the `'off'` mode). If no track has this id,
+     * nothing is selected.
+     */
+    readonly id?: string | null
+
+    /**
+     * Restricts selection to tracks of this kind (e.g. `'captions'`). Unset
+     * considers all kinds.
+     */
+    readonly kind?: TextTrackKind | null
+
+    /**
+     * Preferred caption language(s), most-preferred first, as RFC 5646 tags.
+     * When unset (or empty) selection falls back to the platform's
+     * `navigator.languages`.
+     */
+    readonly language?: string | readonly string[] | null
+
+    /**
+     * Explicit forced-ness filter. When set, only tracks whose `forced` flag
+     * equals this value are considered, overriding the forced/full split
+     * implied by the `enabled` mode. Unset means the mode decides.
+     */
+    readonly forced?: boolean | null
+}
+
+/**
+ * Declarative configuration for a {@link TextTrackController}. Rendering is
+ * driven entirely by this value (via `VinylOptions.text`); there is no
+ * imperative track-select call.
+ */
+export interface TextTrackControllerOptions {
+    /**
+     * Which captions render (see {@link CaptionMode}). Unset defaults to
+     * `'forced'`.
+     */
+    readonly enabled?: CaptionMode | null
+
+    /**
+     * The selection criteria (language / id / kind). When unset, the preferred
+     * languages fall back to the platform's `navigator.languages`.
+     */
+    readonly selection?: TextTrackSelection | null
+}
+
+const TEXT_TRACK_KINDS = [
+    'subtitles',
+    'captions',
+    'descriptions',
+    'chapters',
+    'metadata',
+] as const satisfies readonly TextTrackKind[]
+
+const textTrackSelectionValidator: ObjectSchema<TextTrackSelection> = object({
+    id: string().orNull().optional(),
+    kind: isOneOf(...TEXT_TRACK_KINDS)
+        .orNull()
+        .optional(),
+    language: string().or(array(string()).readonly()).orNull().optional(),
+    forced: boolean().orNull().optional(),
+})
+
+export const textTrackControllerOptionsValidator: ObjectSchema<TextTrackControllerOptions> =
+    object({
+        enabled: isOneOf('on', 'off', 'forced').orNull().optional(),
+        selection: textTrackSelectionValidator.orNull().optional(),
+    })
+
 export const ALL_TEXT_TRACK_EVENTS = [
     'textTracksChange',
     'activeTextTrackChange',
@@ -124,36 +219,31 @@ export interface ReadonlyTextTrackController extends ReadonlyEventHost<TextTrack
      * The currently active text track, or null if none is active.
      */
     readonly activeTextTrack: TextTrackInfo | null
+
+    /**
+     * Returns true if this text track controller is active.
+     */
+    get active(): boolean
 }
 
 /**
- * Provides access to the text tracks of the current media and allows
- * selecting one for playback.
- *
- * Selection is persisted across track changes only when applications choose
- * to call {@link setActiveTextTrack} again on the new track. This matches
- * how audio tracks are typically driven.
+ * Full controller for the current media's text tracks. Selection is driven
+ * declaratively through the controller's options (`VinylOptions.text`); this
+ * interface only adds the render lifecycle used by the owning media track.
  */
 export interface TextTrackController extends ReadonlyTextTrackController {
     /**
-     * Selects the text track with the given id, or clears the active text
-     * track when called with null. No-op if the id does not match a known
-     * text track.
-     */
-    setActiveTextTrack(id: string | null): void
-
-    /**
      * Suspends cue rendering without changing the active selection: cancels any
-     * in-flight load and tears down the DOM text track (so its cues stop
-     * showing). Called when the owning media track is deactivated — e.g. while
-     * an ad plays over the suspended content. {@link resume} rebuilds it.
+     * in-flight load and hides the DOM text track (so its cues stop showing).
+     * Called when the owning media track is deactivated — e.g. while an ad
+     * plays over the suspended content. {@link activate} rebuilds it.
      */
-    suspend(): void
+    deactivate(): void
 
     /**
-     * Rebuilds the DOM text track for the active selection after a
-     * {@link suspend}, reloading its cues. No-op when nothing is active or when
-     * already rendering. Called when the owning media track is reactivated.
+     * Resumes rendering the active selection after a {@link deactivate},
+     * reloading its cues. No-op when nothing is selected or already rendering.
+     * Called when the owning media track is reactivated.
      */
-    resume(): void
+    activate(): void
 }

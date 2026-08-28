@@ -454,37 +454,63 @@ text track URL. Segmented text codecs (`stpp`, `wvtt`) are not surfaced in v1.
 Discovery happens automatically when a track loads — applications need only
 listen for the `textTracksChange` event or read `player.textTracks`.
 
-### Forced subtitles
+### Selecting captions
 
-A track flagged `forced` carries essential text (e.g. translations of
-foreign-language dialogue) that is meant to display even when the user has not
-enabled subtitles. A `forced` track shares its `language` with the full track,
-so selection distinguishes them by the `forced` flag rather than language alone.
-Media characteristics / accessibility roles are surfaced in `characteristics`
-(HLS `CHARACTERISTICS`, DASH `Role`/`Accessibility`).
-
-Until the application makes an explicit selection, the player auto-selects a
-forced track when one is discovered (preferring the default track's language).
-Any `setActiveTextTrack` call — including `setActiveTextTrack(null)` to turn
-captions off — is treated as an explicit choice and disables the auto-select.
-
-### API
+Caption selection is **declarative**: it is driven entirely by the `text` option
+(`VinylOptions.text`), so a choice persists across track changes (e.g. across an
+ad break) and re-resolves against whatever the next source exposes. There is no
+imperative `setActiveTextTrack` call.
 
 ```typescript
-// Inspect available text tracks for the current media.
+type CaptionMode = 'on' | 'off' | 'forced'
+
+interface TextTrackSelection {
+    id?: string | null // exact track id (wins over the other criteria)
+    kind?: TextTrackKind | null // restrict to a kind, e.g. 'captions'
+    language?: string | readonly string[] | null // preferred language(s)
+    forced?: boolean | null // explicit forced-ness filter (overrides the mode)
+}
+
+interface TextTrackControllerOptions {
+    enabled?: CaptionMode | null // default 'forced'
+    selection?: TextTrackSelection | null
+}
+```
+
+- `enabled` gates rendering: `'off'` shows nothing, `'forced'` shows only forced
+  (narrative) tracks, `'on'` shows the full subtitle track. The default is
+  `'forced'`.
+- `selection.language` unset (or empty) falls back to the platform's
+  `navigator.languages`.
+- `selection.forced`, when set, is an explicit filter that overrides the
+  forced/full split implied by `enabled`.
+
+```typescript
+// Default (no config): forced captions in the platform's preferred languages.
+
+// Full subtitles in a specific language:
+player.configure({ text: { enabled: 'on', selection: { language: 'en' } } })
+
+// Forced narrative captions only, for a language:
+player.configure({ text: { enabled: 'forced', selection: { language: 'es' } } })
+
+// A specific discovered track by id:
+player.configure({ text: { enabled: 'on', selection: { id: someTrack.id } } })
+
+// Turn captions off:
+player.configure({ text: { enabled: 'off' } })
+```
+
+The player still exposes the discovered list, the active selection, and change
+events (read-only):
+
+```typescript
 console.log(player.textTracks)
 // → [{ id, kind: 'subtitles', language: 'en', label: 'English', default: true,
 //      forced: false, characteristics: [], uri: 'https://.../subs/en.vtt',
 //      mimeType: 'text/vtt' }, ...]
-
-// Activate a track.
-player.setActiveTextTrack(player.textTracks[0].id)
-
-// Inspect or clear the active track.
 console.log(player.activeTextTrack)
-player.setActiveTextTrack(null)
 
-// React to changes.
 player.on('textTracksChange', (event) => {
     console.log('Text tracks updated:', event.current)
 })
@@ -496,19 +522,44 @@ player.on('textTrackError', (event) => {
 })
 ```
 
-When a track is activated, Vinyl fetches the WebVTT, parses it, and adds the
-resulting cues to a `TextTrack` on the underlying `<video>` / `<audio>` element
-via `HTMLMediaElement.addTextTrack`. The browser handles cue rendering according
-to the `default` controls or any custom UI you build on top of the DOM
-`TextTrack` API.
+### Forced subtitles
 
-### Generating Test Content
+A track flagged `forced` carries essential text (e.g. translations of
+foreign-language dialogue) that is meant to display even when the user has not
+enabled full subtitles. A `forced` track shares its `language` with the full
+track, so selection distinguishes them by the `forced` flag rather than language
+alone. Media characteristics / accessibility roles are surfaced in
+`characteristics` (HLS `CHARACTERISTICS`, DASH `Role`/`Accessibility`).
 
-`DMTestAssetBuilder` generates English / Spanish / Japanese sidecar VTT files
-for every produced HLS and DASH asset. The text-track wiring lives in
-`src/addTextTracks.ts`; running `npm run generate` produces VTT files in
-`subs/<lang>.vtt` next to each manifest, with the manifest patched to reference
-them.
+Because `enabled` defaults to `'forced'`, out of the box the player shows a
+forced track for the platform's preferred languages when one is discovered, and
+nothing otherwise.
+
+### Rendering
+
+When a track is selected, Vinyl fetches the WebVTT, parses it, and adds the cues
+to a `TextTrack` on the underlying media element via
+`HTMLMediaElement.addTextTrack`. By default that track is `'showing'` and the
+**browser renders** the cues (styleable only through the limited `::cue`
+pseudo-element).
+
+For full control over caption styling and placement, inject a
+`TextTrackRenderer` — Vinyl ships `HtmlTextTrackRenderer`, which paints cues as
+an HTML overlay you position yourself:
+
+```typescript
+import { createVinylPlayer, HtmlTextTrackRenderer } from '@amazon/vinyl'
+
+const captions = new HtmlTextTrackRenderer()
+const player = createVinylPlayer({ media, textTrackRenderer: captions })
+videoContainer.appendChild(captions.element) // position it over the video
+```
+
+With a renderer injected, the DOM `TextTrack` is kept `'hidden'` (used only for
+cue timing) and the renderer paints the active cues, honoring each cue's WebVTT
+settings (`position` / `line` / `size` / `align` / `vertical`), cue payload tags
+(`<c.class>`, `<i>`, `<b>`, `<v>`, `<lang>`, …), and `STYLE`-block `::cue`
+rules. Implement the `TextTrackRenderer` interface for a fully custom renderer.
 
 ## Ad Breaks (Server-Guided Ad Insertion)
 

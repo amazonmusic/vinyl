@@ -55,6 +55,11 @@ describe('text track integ', () => {
         }
     }
 
+    /** Selects a full subtitle track by id (declarative, via the text option). */
+    function selectTextById(id: string): void {
+        suite.player.configure({ text: { enabled: 'on', selection: { id } } })
+    }
+
     it('DASH discovers sidecar text tracks', async () => {
         await loadAndAwaitTextTracks(dashPlaylist)
         const tracks = suite.player.textTracks
@@ -69,7 +74,7 @@ describe('text track integ', () => {
         const tracks = suite.player.textTracks
         if (tracks.length === 0) pending('no text tracks discovered')
         const target = tracks.find((t) => t.language === 'en') ?? tracks[0]
-        suite.player.setActiveTextTrack(target.id)
+        selectTextById(target.id)
         // Wait for the sidecar VTT to be fetched and applied.
         const deadline = Date.now() + 10_000
         let found = false
@@ -96,9 +101,51 @@ describe('text track integ', () => {
         await loadAndAwaitTextTracks(dashPlaylist)
         const tracks = suite.player.textTracks
         if (tracks.length === 0) pending('no text tracks discovered')
-        suite.player.setActiveTextTrack(tracks[0].id)
+        selectTextById(tracks[0].id)
         expect(suite.player.activeTextTrack).not.toBeNull()
-        suite.player.setActiveTextTrack(null)
+        suite.player.configure({ text: { enabled: 'off' } })
         expect(suite.player.activeTextTrack).toBeNull()
+    })
+
+    async function awaitCuesShowing(): Promise<boolean> {
+        const deadline = Date.now() + 10_000
+        while (Date.now() < deadline) {
+            if (showingWithCues() > 0) return true
+            await new Promise((r) => setTimeout(r, 50))
+        }
+        return false
+    }
+
+    // Counts DOM text tracks currently in 'showing' mode with at least one cue
+    // — i.e. tracks whose captions are actually rendering.
+    function showingWithCues(): number {
+        const dom = mediaRef.value.textTracks
+        let n = 0
+        for (let i = 0; i < dom.length; i++) {
+            if (dom[i].mode === 'showing' && (dom[i].cues?.length ?? 0) > 0) n++
+        }
+        return n
+    }
+
+    // Regression: cycling through languages must never leave more than one
+    // caption track rendering — otherwise the previous language "bleeds
+    // through" beneath the new one. media.addTextTrack tracks can't be removed,
+    // so the provider reuses one track per rendition and the controller hides
+    // all but the active one.
+    it('cycling languages never leaves more than one caption track showing', async () => {
+        await loadAndAwaitTextTracks(dashPlaylist)
+        const tracks = suite.player.textTracks
+        if (tracks.length < 2) pending('need at least two text tracks')
+
+        // Cycle every discovered language twice to exercise reuse.
+        for (const track of [...tracks, ...tracks]) {
+            selectTextById(track.id)
+            await awaitCuesShowing()
+            expect(showingWithCues())
+                .withContext(
+                    `more than one caption track rendering after selecting ${track.language}`
+                )
+                .toBeLessThanOrEqual(1)
+        }
     })
 })

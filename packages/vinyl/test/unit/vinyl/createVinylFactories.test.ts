@@ -131,6 +131,8 @@ describe('createVinylFactories', () => {
             objectContaining<Dependencies<DefaultVinylFactories>>({
                 patchedMedia: any(Object),
                 media: any(Object),
+                textTrackProvider: any(Object),
+                textTrackRenderer: null,
                 playbackController: any(PlaybackControllerImpl),
                 playbackSource: any(PlaybackSourceImpl),
                 loudnessNormalizationController: any(

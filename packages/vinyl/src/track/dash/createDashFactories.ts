@@ -42,6 +42,8 @@ import {
 import { createDefaultMediaTimelineTransformer } from '../../streaming/createDefaultMediaTimelineTransformer'
 import type { DashManifestData } from './DashManifestProvider'
 import { SidecarTextTrackController } from '../../text/SidecarTextTrackController'
+import type { MediaTextTrackProvider } from '../../text/mediaTextTrackProvider'
+import type { TextTrackRenderer } from '../../text/TextTrackRenderer'
 import { discoverDashTextTracks } from '../../text/discoverDashTextTracks'
 import type { AdController } from '../../ad/AdController'
 import {
@@ -60,8 +62,7 @@ export interface DashFactoryDeps {
             | 'preferredAudioLanguage'
             | 'allowedContentTypes'
             | 'preferDescriptiveAudio'
-            | 'preferredTextLanguage'
-            | 'textCueStyle'
+            | 'text'
         >
     >
     readonly playbackController: PlaybackController
@@ -75,6 +76,16 @@ export interface DashFactoryDeps {
      * `media.addTextTrack`.
      */
     readonly media: HTMLMediaElement
+
+    /**
+     * Creates and reuses the DOM text tracks for sidecar captions.
+     */
+    readonly textTrackProvider: MediaTextTrackProvider
+
+    /**
+     * Optional HTML cue renderer; null for native rendering.
+     */
+    readonly textTrackRenderer: TextTrackRenderer | null
 
     /**
      * The player-level ad controller. MseTrack sets discovered ad breaks on it
@@ -160,42 +171,32 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                     }),
                 mediaTimelineTransformed: createDefaultMediaTimelineTransformer,
                 textTrackController: (deps: {
-                    readonly media: HTMLMediaElement
+                    readonly textTrackProvider: MediaTextTrackProvider
+                    readonly textTrackRenderer: TextTrackRenderer | null
+                    readonly playbackController: PlaybackController
                     readonly manifestTransformed: ObservableValue<
                         Promise<DashManifestData>
                     >
                     readonly options: ObservableValue<
-                        Pick<
-                            VinylOptions,
-                            'preferredTextLanguage' | 'textCueStyle'
-                        >
+                        Pick<VinylOptions, 'text'>
                     >
-                }) => {
-                    const controller = new SidecarTextTrackController({
-                        media: deps.media,
+                }) =>
+                    new SidecarTextTrackController({
+                        textTrackProvider: deps.textTrackProvider,
+                        textTrackRenderer: deps.textTrackRenderer,
+                        playbackController: deps.playbackController,
                         requestInit: loadOptions.requestInit ?? undefined,
-                        preferredTextLanguage: deps.options.pick(
-                            'preferredTextLanguage'
-                        ),
-                        cueStyle: deps.options.pick('textCueStyle'),
-                    })
-                    deps.manifestTransformed.onData((manifestPromise) => {
-                        manifestPromise
-                            .then((data) => {
-                                controller.setTextTracks(
+                        options: deps.options.pick('text'),
+                        textTracks: deps.manifestTransformed.map(
+                            (manifestPromise) =>
+                                manifestPromise.then((data) =>
                                     discoverDashTextTracks(
                                         data.manifest,
                                         data.baseUrl
                                     )
                                 )
-                            })
-                            .catch(() => {
-                                // Manifest errors are surfaced through the
-                                // manifest controller. Don't double-report.
-                            })
-                    })
-                    return controller
-                },
+                        ),
+                    }),
             } as const) satisfies Factories<DashTrackDeps>
     }
 }

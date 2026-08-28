@@ -15,8 +15,8 @@ export class MockTextTrackController
 {
     textTracks: readonly TextTrackInfo[] = []
     activeTextTrack: TextTrackInfo | null = null
+    active = false
 
-    setActiveTextTrack = spyFactory('setActiveTextTrack')
-    suspend = spyFactory('suspend')
-    resume = spyFactory('resume')
+    deactivate = spyFactory('deactivate')
+    activate = spyFactory('activate')
 }

@@ -4,15 +4,18 @@
  */
 
 import {
-    Abort,
+    type AbortSlot,
+    createAbortSlot,
+    createDisposer,
     equalDeep,
     EventHostImpl,
+    logError,
     type Maybe,
     type RequestInitOptions,
-    type Unsubscribe,
 } from '@amazon/vinyl-util'
 import type {
     TextTrackController,
+    TextTrackControllerOptions,
     TextTrackEventMap,
     TextTrackInfo,
 } from './TextTrack'
@@ -20,16 +23,21 @@ import { loadWebVttCues } from './SidecarTextTrackLoader'
 import type { WebVttCue } from './parseWebVtt'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import { pickPreferredTextTrack } from './pickPreferredTextTrack'
-import { applyVttCueStyle, isVttCue, type VttCueStyle } from './VttCueStyle'
+import { applyVttCueStyle, isVttCue } from './VttCueStyle'
+import type {
+    MediaTextTrackProvider,
+    TextTrackRef,
+} from './mediaTextTrackProvider'
+import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
+import type { TextTrackRenderer } from './TextTrackRenderer'
 
 export interface SidecarTextTrackControllerDeps {
     /**
-     * The HTML media element on which to attach the in-band TextTrack
-     * representation. Cues for the active text track are added to a TextTrack
-     * created via `media.addTextTrack`. Setting this to null disables DOM
-     * integration; cues are still loaded and surfaced via events.
+     * Hands out (memoized) DOM text tracks. Text tracks can only be created on a
+     * media element and never removed, so the provider reuses one track per
+     * rendition rather than accumulating them.
      */
-    readonly media: HTMLMediaElement | null
+    readonly textTrackProvider: MediaTextTrackProvider
 
     /**
      * Optional request init options forwarded with each VTT fetch (e.g. CORS).
@@ -37,36 +45,75 @@ export interface SidecarTextTrackControllerDeps {
     readonly requestInit?: Maybe<RequestInitOptions>
 
     /**
-     * Preferred caption language(s), most-preferred first. A non-null
-     * preference auto-selects the best-matching track, re-applied as the track
-     * list changes. Changing the preference to null clears the selection
-     * (captions off). An initial null (or an absent observable) is "no
-     * preference": forced tracks still auto-select until the app makes an
-     * explicit choice — it does not force captions off.
+     * The discovered text tracks, re-emitted whenever the manifest changes.
      */
-    readonly preferredTextLanguage?: ObservableValue<
-        string | readonly string[] | null
-    >
+    readonly textTracks: ObservableValue<Promise<readonly TextTrackInfo[]>>
 
     /**
-     * Layout style applied to each rendered VTTCue (see
-     * {@link VttCueStyle}). Read per cue as it is appended, so a change affects
-     * subsequently-rendered cues. Absent means no styling (browser defaults).
+     * Declarative selection / rendering configuration. Re-applied on change.
      */
-    readonly cueStyle?: ObservableValue<VttCueStyle | null>
+    readonly options: ObservableValue<TextTrackControllerOptions>
+
+    /**
+     * Supplies the current playhead used to fetch caption segments in a window
+     * around it.
+     */
+    readonly playbackController: ReadonlyPlaybackController
+
+    /**
+     * Optional renderer that paints cues itself (HTML overlay). When provided,
+     * the DOM text track is kept `'hidden'` (timing only) and the renderer is
+     * handed the active track; without one, the track renders natively
+     * (`'showing'`).
+     */
+    readonly textTrackRenderer?: Maybe<TextTrackRenderer>
+}
+
+/**
+ * Selects the text track that matches the given options, or null for none.
+ *
+ * The `enabled` mode gates everything: `'off'` renders nothing (default is
+ * `'forced'`). Otherwise an explicit {@link TextTrackSelection.id} wins; else
+ * the best language match is chosen among tracks filtered by kind and
+ * forced-ness. Forced-ness comes from {@link TextTrackSelection.forced} when
+ * set, otherwise from the mode (`'forced'` keeps only forced tracks, `'on'`
+ * only full tracks).
+ *
+ * @private
+ */
+export function resolveSelectedTrack(
+    tracks: readonly TextTrackInfo[],
+    options: TextTrackControllerOptions
+): TextTrackInfo | null {
+    const mode = options.enabled ?? 'forced'
+    if (mode === 'off') return null
+    const selection = options.selection ?? {}
+    if (selection.id != null) {
+        return tracks.find((t) => t.id === selection.id) ?? null
+    }
+    let pool = tracks
+    if (selection.kind != null) {
+        pool = pool.filter((t) => t.kind === selection.kind)
+    }
+    // Explicit forced filter overrides the mode's forced/full split.
+    const forced = selection.forced ?? mode === 'forced'
+    pool = pool.filter((t) => t.forced === forced)
+    // pickPreferredTextTrack falls back to navigator.languages when no language
+    // preference is supplied.
+    return pickPreferredTextTrack(pool, selection.language)
 }
 
 /**
  * Manages a sidecar WebVTT-based text track lifecycle:
  *
- *  - holds a discovered list of {@link TextTrackInfo}
- *  - on activation, fetches the chosen track's WebVTT and pushes cues to a
- *    `TextTrack` created on the `HTMLMediaElement`
- *  - clears any previously activated cues when switching tracks
+ *  - tracks the discovered {@link TextTrackInfo} list (from the `textTracks`
+ *    observable) and the current selection (from the `options` observable)
+ *  - on selection, fetches the chosen track's WebVTT and pushes cues to a DOM
+ *    `TextTrack` obtained from the {@link MediaTextTrackProvider}
+ *  - clears cues and hides the DOM track when the selection changes or clears
  *
- * The controller is intentionally agnostic of HLS/DASH discovery details. Its
- * input is whatever list of {@link TextTrackInfo} entries the manifest layer
- * decides to surface.
+ * The controller is agnostic of HLS/DASH discovery details; its inputs are the
+ * observables supplied by the manifest layer.
  */
 export class SidecarTextTrackController
     extends EventHostImpl<TextTrackEventMap>
@@ -76,21 +123,35 @@ export class SidecarTextTrackController
         return 'SidecarTextTrackController'
     }
 
+    // Whether the owning media track is current (rendering allowed). Toggled by
+    // activate()/deactivate() across suspensions such as ad breaks.
+    private _active = false
+
     private _tracks: readonly TextTrackInfo[] = []
-    private _active: TextTrackInfo | null = null
-    private _domTrack: TextTrack | null = null
-    private loadAbort: Abort | null = null
-    // True once the app has made an explicit selection (including null). Until
-    // then, forced tracks auto-select on discovery.
-    private _userSelected = false
-    private readonly preferredLanguageSub: Unsubscribe | null
+    private _activeTextTrack: TextTrackInfo | null = null
+    // The DOM text track currently rendering cues, or null when hidden. Owned by
+    // the provider (never created/removed here).
+    private _ref: TextTrackRef | null = null
+    private readonly loadAbort: AbortSlot = createAbortSlot()
+    private readonly disposer = createDisposer()
 
     constructor(private readonly deps: SidecarTextTrackControllerDeps) {
         super()
-        this.preferredLanguageSub =
-            deps.preferredTextLanguage?.onData((value, previous) => {
-                if (previous !== undefined) this.applyPreferredLanguage(value)
-            }) ?? null
+        const { add } = this.disposer
+        // Both fire immediately with the current value, resolving the initial
+        // track list and selection on construction.
+        add(deps.options.onData(() => this.refreshSelection()))
+        add(
+            deps.textTracks.onData((tracksPromise) => {
+                tracksPromise
+                    .then((tracks) => this.setTracks(tracks))
+                    .catch((error) => {
+                        // Manifest errors surface through the manifest
+                        // controller; just note and don't double-report.
+                        logError(this, 'text tracks promise rejected', error)
+                    })
+            })
+        )
     }
 
     get textTracks(): readonly TextTrackInfo[] {
@@ -98,146 +159,113 @@ export class SidecarTextTrackController
     }
 
     get activeTextTrack(): TextTrackInfo | null {
+        return this._activeTextTrack
+    }
+
+    get active(): boolean {
         return this._active
     }
 
+    get disposed(): boolean {
+        return this.disposer.disposed
+    }
+
     /**
-     * Replaces the discovered text track list. Emits `textTracksChange`. If
-     * the previously active track is no longer present, clears the active
-     * selection and emits `activeTextTrackChange`.
+     * Replaces the discovered track list, emits `textTracksChange`, then
+     * re-applies the current selection against the new list.
      */
-    setTextTracks(tracks: readonly TextTrackInfo[]): void {
-        if (equalDeep(this._tracks, tracks)) return
+    private setTracks(tracks: readonly TextTrackInfo[]): void {
+        if (this.disposed) return
         const previous = this._tracks
+        if (equalDeep(previous, tracks)) return
         this._tracks = tracks
         this.dispatch('textTracksChange', { previous, current: tracks })
+        this.refreshSelection()
+    }
 
-        if (this._active && !tracks.some((t) => t.id === this._active!.id)) {
-            // Clear a now-absent selection, but keep _userSelected intact.
-            this.selectById(null)
+    /**
+     * Recomputes the selection from the current options and track list,
+     * emitting `activeTextTrackChange` on change and (re)rendering when active.
+     */
+    private refreshSelection(): void {
+        const previous = this._activeTextTrack
+        const target = resolveSelectedTrack(
+            this._tracks,
+            this.deps.options.value
+        )
+        const trackChanged = target?.id !== previous?.id
+        if (trackChanged) {
+            this._activeTextTrack = target
+            this.dispatch('activeTextTrackChange', {
+                previous,
+                current: target,
+            })
         }
-
-        // A preferred language re-selects the best match as the list changes;
-        // otherwise auto-show forced captions until the app makes an explicit
-        // choice.
-        const preferred = this.deps.preferredTextLanguage?.value
-        if (preferred != null) {
-            this.applyPreferredLanguage(preferred)
-        } else if (!this._userSelected && !this._active) {
-            const forced = this.pickForcedTrack(tracks)
-            if (forced) this.selectById(forced.id)
-        }
+        if (!this._active) return
+        // Cues carry their own authored styling, so only a track change (not a
+        // same-track options change) needs a (re)load.
+        if (!target) this.hideCurrent()
+        else if (trackChanged || !this._ref) this.startLoad(target)
     }
 
-    setActiveTextTrack(id: string | null): void {
-        // An explicit app choice; stop auto-selecting forced tracks.
-        this._userSelected = true
-        this.selectById(id)
+    deactivate(): void {
+        this._active = false
+        this.hideCurrent()
     }
 
-    /**
-     * Selects the track best matching the preferred language(s), or clears the
-     * selection when the preference is null or nothing matches.
-     */
-    private applyPreferredLanguage(
-        preferred: string | readonly string[] | null
-    ): void {
-        const target = pickPreferredTextTrack(this._tracks, preferred)
-        this.setActiveTextTrack(target?.id ?? null)
-    }
-
-    /**
-     * Applies a selection by id (null clears it) without marking it as an
-     * explicit user choice. Shared by setActiveTextTrack and forced auto-select.
-     */
-    private selectById(id: string | null): void {
-        const next = id == null ? null : this._tracks.find((t) => t.id === id)
-        if (id != null && !next) return // unknown id is a no-op
-        const target = next ?? null
-        if (target?.id === this._active?.id) return
-        const previous = this._active
-        this.clearDomTrack()
-        this.loadAbort?.abort()
-        this.loadAbort = null
-        this._active = target
-        this.dispatch('activeTextTrackChange', {
-            previous,
-            current: target,
-        })
-        if (target) this.startLoad(target)
-    }
-
-    /**
-     * The forced track to auto-select, or null. Prefers the default track's
-     * language, else the first forced track.
-     */
-    private pickForcedTrack(
-        tracks: readonly TextTrackInfo[]
-    ): TextTrackInfo | null {
-        const forced = tracks.filter((t) => t.forced)
-        if (forced.length === 0) return null
-        const defaultLang = tracks.find((t) => t.default)?.language
-        if (defaultLang != null) {
-            const match = forced.find((t) => t.language === defaultLang)
-            if (match) return match
-        }
-        return forced[0]
-    }
-
-    suspend(): void {
-        this.loadAbort?.abort()
-        this.loadAbort = null
-        this.clearDomTrack()
-    }
-
-    resume(): void {
-        // Rebuild only when an active selection exists and it isn't already
-        // rendering (clearDomTrack/suspend nulls _domTrack; setActiveTextTrack
-        // sets it).
-        if (!this._active || this._domTrack) return
-        this.startLoad(this._active)
-    }
-
-    /**
-     * Cancels any in-flight load, clears the DOM TextTrack, and resets state.
-     * Called by the host when the underlying media is unloaded.
-     */
-    dispose(): void {
-        super.dispose()
-        this.preferredLanguageSub?.()
-        this.loadAbort?.abort()
-        this.loadAbort = null
-        this.clearDomTrack()
-        this._tracks = []
-        this._active = null
+    activate(): void {
+        this._active = true
+        // Rebuild only when a selection exists and it isn't already rendering.
+        if (!this._activeTextTrack || this._ref) return
+        this.startLoad(this._activeTextTrack)
     }
 
     private startLoad(track: TextTrackInfo): void {
-        const media = this.deps.media
-        // Without a media element there's nowhere to render cues and no
-        // playhead to drive segment selection, so skip fetching entirely.
-        // The active-selection state still surfaces via events.
-        if (!media) return
-        const abort = new Abort()
-        this.loadAbort = abort
-        // Create the DOM TextTrack up front so cues render incrementally as
-        // segments arrive rather than after the whole playlist loads.
-        const dom = this.ensureDomTrack(media, track)
+        // Hide the previously-rendering track (a different rendition) so its
+        // cues don't linger alongside the new one; this also aborts any prior
+        // in-flight load and arms a fresh abort for this one.
+        this.hideCurrent()
+        const abort = this.loadAbort.value
+        const ref = this.deps.textTrackProvider.getOrCreate(
+            track.kind,
+            track.label,
+            track.language ?? undefined
+        )
+        // With an injected renderer the browser must not paint (the renderer
+        // does), but the track still needs to be active for cue timing — hence
+        // 'hidden'. Without one, 'showing' uses native rendering. Set the mode
+        // before clearing: `cues` reads null while disabled.
+        const renderer = this.deps.textTrackRenderer
+        ref.track.mode = renderer ? 'hidden' : 'showing'
+        ref.clear()
+        this._ref = ref
+        renderer?.setTextTrack(ref.track)
+
         const CueCtor = getVttCueConstructor()
-        // Adjacent HLS caption segments commonly repeat the boundary cue in
-        // both segments (packagers do this so a client that only fetches one
-        // segment still renders the overlapping cue). Track seen keys per
-        // active load so we don't push the same cue twice.
+        // Adjacent HLS caption segments commonly repeat the boundary cue in both
+        // segments (so a client that only fetches one still renders the overlap).
+        // Track seen keys per active load so we don't push the same cue twice.
         const seen = new Set<string>()
+        // Accumulate authored STYLE-block CSS and forward it to the renderer as
+        // it arrives — only wired when the renderer can actually consume styles.
+        const styles = new Set<string>()
+        const setStyles = renderer?.setStyles?.bind(renderer)
         loadWebVttCues(track.uri, {
             abort,
             requestInit: this.deps.requestInit,
             variables: track.variables,
-            getCurrentTime: () => media.currentTime,
+            getCurrentTime: () => this.deps.playbackController.currentTime,
             onCues: (cues) => {
                 if (abort.aborted()) return
-                if (CueCtor) this.appendCues(dom, CueCtor, cues, seen)
+                if (CueCtor) this.appendCues(ref.track, CueCtor, cues, seen)
             },
+            onStyles: setStyles
+                ? (blocks) => {
+                      if (abort.aborted()) return
+                      for (const block of blocks) styles.add(block)
+                      setStyles([...styles])
+                  }
+                : undefined,
         }).catch((error) => {
             if (abort.aborted()) return
             this.dispatch('textTrackError', {
@@ -246,20 +274,6 @@ export class SidecarTextTrackController
                     error instanceof Error ? error : new Error(String(error)),
             })
         })
-    }
-
-    private ensureDomTrack(
-        media: HTMLMediaElement,
-        track: TextTrackInfo
-    ): TextTrack {
-        const dom = media.addTextTrack(
-            track.kind,
-            track.label,
-            track.language ?? undefined
-        )
-        dom.mode = 'showing'
-        this._domTrack = dom
-        return dom
     }
 
     private appendCues(
@@ -274,31 +288,43 @@ export class SidecarTextTrackController
             seen.add(key)
             const domCue = new CueCtor(cue.startTime, cue.endTime, cue.text)
             if (cue.id != null) domCue.id = cue.id
-            // Apply the configured cue layout style (e.g. the default `size: 90`
-            // inset so long lines don't clip in fullscreen, which `::cue` CSS
-            // cannot fix). Only VTTCues carry these properties.
-            const cueStyle = this.deps.cueStyle?.value
-            if (cueStyle && isVttCue(domCue)) {
-                applyVttCueStyle(domCue, cueStyle)
+            // Preserve the cue's own authored WebVTT settings (position, line,
+            // size, align, …). Only VTTCues carry these properties.
+            if (cue.settings && isVttCue(domCue)) {
+                applyVttCueStyle(domCue, cue.settings)
             }
             dom.addCue(domCue)
         }
     }
 
-    private clearDomTrack(): void {
-        const dom = this._domTrack
-        if (!dom) return
-        dom.mode = 'disabled'
-        // Best-effort: remove any cues we added so a future activation starts
-        // from a clean slate. Some platforms recreate the underlying TextTrack
-        // when the source changes; this is defensive.
-        if (dom.cues) {
-            const all = Array.from(
-                dom.cues as unknown as Iterable<TextTrackCue>
-            )
-            for (const cue of all) dom.removeCue(cue)
-        }
-        this._domTrack = null
+    /**
+     * Clears cues from the current DOM track and hides it, keeping the track for
+     * later reuse via the provider.
+     */
+    private hideCurrent(): void {
+        // Cancel any in-flight load: its cues are no longer wanted, and a late
+        // rejection must not surface as a textTrackError.
+        this.loadAbort.abort()
+        const ref = this._ref
+        if (!ref) return
+        this.deps.textTrackRenderer?.setTextTrack(null)
+        ref.clear()
+        ref.track.mode = 'disabled'
+        this._ref = null
+    }
+
+    /**
+     * Cancels any in-flight load, hides the DOM text track, and resets state.
+     * Called by the host when the underlying media is unloaded.
+     */
+    dispose(): void {
+        if (this.disposed) return
+        super.dispose()
+        this.loadAbort.abort()
+        this.hideCurrent()
+        this.disposer.dispose()
+        this._tracks = []
+        this._activeTextTrack = null
     }
 }
 

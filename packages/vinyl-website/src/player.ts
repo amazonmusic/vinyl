@@ -12,6 +12,7 @@ import {
     type MediaQualityMetadata,
     type SeekRange,
     type TextTrackInfo,
+    HtmlTextTrackRenderer,
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { toast, toastError } from './components/toast'
@@ -34,7 +35,12 @@ const noAds: AdEventIndex = {
 const media = document.createElement('video')
 media.playsInline = true
 
-const player = createVinylPlayer({ media })
+// HTML caption renderer, mounted over the video by the transport (see
+// TransportBar). Painting captions ourselves lets us place them in the free
+// space above the controls rather than relying on native ::cue rendering.
+export const captionRenderer = new HtmlTextTrackRenderer()
+
+const player = createVinylPlayer({ media, textTrackRenderer: captionRenderer })
 player.configure({
     abr: {
         strategy: AbrStrategy.BEST,
@@ -78,14 +84,6 @@ export const playerState = {
     preferredAudioLanguage$: data<string | null>(
         typeof player.options.preferredAudioLanguage === 'string'
             ? player.options.preferredAudioLanguage
-            : null
-    ),
-    // The preferred caption language (an RFC 5646 tag), or null for captions
-    // off. Mirrors the `preferredTextLanguage` player option; the settings menu
-    // only ever sets a single tag.
-    preferredTextLanguage$: data<string | null>(
-        typeof player.options.preferredTextLanguage === 'string'
-            ? player.options.preferredTextLanguage
             : null
     ),
     // Mirrors the `preferDescriptiveAudio` option: whether to select
@@ -276,13 +274,26 @@ export function setPreferredAudioLanguage(language: string | null) {
 }
 
 /**
- * Sets the preferred caption language (an RFC 5646 tag such as 'en' or 'ja'),
- * or null to turn captions off. The player selects the matching text track
- * automatically and carries the choice across track changes.
+ * Selects a caption track, or turns captions off with `null`. Selection is
+ * declarative via the `text` option: the filters are derived from the chosen
+ * track's own attributes (language, forced, kind), so the choice carries across
+ * track changes and re-resolves against whatever the next source exposes.
  */
-export function setPreferredTextLanguage(language: string | null) {
-    player.configure({ preferredTextLanguage: language })
-    playerState.preferredTextLanguage$.value = language
+export function selectTextTrack(track: TextTrackInfo | null) {
+    if (track == null) {
+        player.configure({ text: { ...player.options.text, enabled: 'off' } })
+        return
+    }
+    player.configure({
+        text: {
+            enabled: 'on',
+            selection: {
+                language: track.language,
+                forced: track.forced,
+                kind: track.kind,
+            },
+        },
+    })
 }
 
 /**

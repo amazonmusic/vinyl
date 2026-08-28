@@ -71,7 +71,6 @@ import type { AutoResetController } from '../track/AutoResetController'
 import type { ChangeEvent } from '../event/ChangeEvent'
 import {
     ALL_TEXT_TRACK_EVENTS,
-    type TextTrackController,
     type TextTrackEventMap,
     type TextTrackInfo,
 } from '../text/TextTrack'
@@ -250,16 +249,6 @@ export class VinylPlayer<
             if (previous === current) return
             activeTrack = current
 
-            // Clear the previous track's caption selection (it may stay cached),
-            // before tearing down subs so activeTextTrackChange flows through.
-            // Skip during an ad break: the content will resume, and its caption
-            // selection must survive for resume() (deactivation only suspends
-            // it). Tracks expose ReadonlyTrack; the controller is a full one.
-            const prevTextController =
-                previous?.textTrackController as TextTrackController | null
-            if (!this.deps.adController.currentAdBreak) {
-                prevTextController?.setActiveTextTrack(null)
-            }
             sub?.()
             sub = null
             textSub?.()
@@ -750,19 +739,6 @@ export class VinylPlayer<
         return this.activeTrack?.textTrackController?.activeTextTrack ?? null
     }
 
-    /**
-     * Selects the text track with the given id, or clears the active text
-     * track when called with null. No-op when the current track does not
-     * surface text tracks or the id is unknown.
-     */
-    setActiveTextTrack(id: string | null): void {
-        // activeTrack exposes ReadonlyTrack, but the concrete controller is a
-        // full TextTrackController.
-        const controller = this.deps.trackController.activeTrack
-            ?.textTrackController as TextTrackController | null
-        controller?.setActiveTextTrack(id)
-    }
-
     private emitTextTrackChangeEventsFor(
         previous: ReadonlyTrack | null,
         current: ReadonlyTrack | null
@@ -772,10 +748,10 @@ export class VinylPlayer<
         // activeTextTrackChange when a selection is *made*; on becoming current
         // it never re-announces an already-active selection. That gap surfaces
         // after an ad break: the content track's caption selection is preserved
-        // and re-rendered by resume() (silently), while the outgoing ad
+        // and re-rendered by activate() (silently), while the outgoing ad
         // controller emits a clearing activeTextTrackChange(null) — leaving
         // consumers that track state via events believing captions are off even
-        // though the (forced or user-selected) content caption is showing. Emit
+        // though the (forced or options-driven) content caption is showing. Emit
         // the current track's active selection so that final state is correct.
         const prevList = previous?.textTrackController?.textTracks
         const curList = current?.textTrackController?.textTracks

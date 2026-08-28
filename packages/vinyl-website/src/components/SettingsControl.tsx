@@ -7,14 +7,18 @@ import { jsx } from '@amazon/vinyl-tsx'
 import { data } from '@amazon/vinyl-observable'
 import {
     playerState,
+    selectTextTrack,
     setMaxVideoHeight,
     setPlaybackRate,
     setPreferDescriptiveAudio,
     setPreferredAudioLanguage,
-    setPreferredTextLanguage,
 } from '../player'
 import { Icon, type IconName } from './icons'
-import { isAudioDescription, type MediaQualityMetadata } from '@amazon/vinyl'
+import {
+    isAudioDescription,
+    type MediaQualityMetadata,
+    type TextTrackInfo,
+} from '@amazon/vinyl'
 
 /** Which panel of the settings menu is currently shown. */
 type View = 'main' | 'captions' | 'speed' | 'resolution' | 'audio'
@@ -34,7 +38,7 @@ export function SettingsControl() {
         qualitiesUnfiltered$,
         maxVideoHeight$,
         preferredAudioLanguage$,
-        preferredTextLanguage$,
+        activeTextTrack$,
         preferDescriptiveAudio$,
         hasVideo$,
     } = playerState
@@ -104,13 +108,14 @@ export function SettingsControl() {
 
                     const buildMainView = (): HTMLElement[] => {
                         const rows: HTMLElement[] = []
-                        if (captionLanguages().length > 0) {
+                        if (textTracks$.value.length > 0) {
                             rows.push(
                                 mainRow(
                                     'closed_caption',
                                     'Subtitles/CC',
-                                    captionLanguageLabel(
-                                        preferredTextLanguage$.value
+                                    captionTrackLabel(
+                                        activeTextTrack$.value,
+                                        hasMultipleCaptionKinds()
                                     ),
                                     () => (view$.value = 'captions')
                                 )
@@ -169,19 +174,22 @@ export function SettingsControl() {
                     }
 
                     const buildCaptionsView = (): HTMLElement[] => {
-                        const current = preferredTextLanguage$.value
+                        const active = activeTextTrack$.value
+                        const showKind = hasMultipleCaptionKinds()
                         return [
                             header('Subtitles/CC'),
-                            optionRow('Off', current == null, () => {
-                                setPreferredTextLanguage(null)
+                            optionRow('Off', active == null, () => {
+                                selectTextTrack(null)
                                 view$.value = 'main'
                             }),
-                            ...captionLanguages().map((lang) =>
+                            // One row per discovered track; selecting it derives
+                            // the language/forced/kind filters from that track.
+                            ...textTracks$.value.map((track) =>
                                 optionRow(
-                                    languageLabel(lang),
-                                    lang === current,
+                                    captionTrackLabel(track, showKind),
+                                    track.id === active?.id,
                                     () => {
-                                        setPreferredTextLanguage(lang)
+                                        selectTextTrack(track)
                                         view$.value = 'main'
                                     }
                                 )
@@ -303,21 +311,10 @@ export function SettingsControl() {
                                 isAudioDescription(q)
                         )
 
-                    // Distinct caption language tags from the discovered text
-                    // tracks (forced-only tracks are excluded — the user picks a
-                    // language and the player chooses the full track for it).
-                    const captionLanguages = (): string[] => [
-                        ...new Set(
-                            textTracks$.value
-                                .filter(
-                                    (t) =>
-                                        !t.forced &&
-                                        t.language != null &&
-                                        t.language !== ''
-                                )
-                                .map((t) => t.language as string)
-                        ),
-                    ]
+                    // Kind is only worth showing in a row label when the tracks
+                    // span more than one kind (e.g. subtitles + captions).
+                    const hasMultipleCaptionKinds = (): boolean =>
+                        new Set(textTracks$.value.map((t) => t.kind)).size > 1
 
                     const header = (title: string): HTMLElement => (
                         <button
@@ -412,7 +409,7 @@ export function SettingsControl() {
                     const subs = [
                         view$.onData(render),
                         textTracks$.onData(render),
-                        preferredTextLanguage$.onData(render),
+                        activeTextTrack$.onData(render),
                         playbackRate$.onData(render),
                         qualitiesUnfiltered$.onData(render),
                         maxVideoHeight$.onData(render),
@@ -527,8 +524,26 @@ export function SettingsControl() {
     )
 }
 
-function captionLanguageLabel(lang: string | null): string {
-    return lang == null ? 'Off' : languageLabel(lang)
+/**
+ * A row label for a caption track, derived from its attributes: language, a
+ * `(Forced)` marker, and — only when the list spans multiple kinds — the kind.
+ * `null` is the "Off" row.
+ */
+function captionTrackLabel(
+    track: TextTrackInfo | null,
+    showKind: boolean
+): string {
+    if (track == null) return 'Off'
+    const parts = [
+        track.language != null ? languageLabel(track.language) : track.label,
+    ]
+    if (showKind) parts.push(capitalize(track.kind))
+    if (track.forced) parts.push('Forced')
+    return parts.join(' · ')
+}
+
+function capitalize(value: string): string {
+    return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
 function rateLabel(rate: number): string {
