@@ -25,6 +25,21 @@ const MANIFEST_ID = 'virtual:docs-manifest'
 const RESOLVED_ID = '\0' + MANIFEST_ID
 const GITHUB_BASE = 'https://github.com/amazonmusic/vinyl/blob/main'
 
+/**
+ * Slugifies heading text for anchor IDs (e.g. "How playback works" →
+ * "how-playback-works"), matching the "auto id" convention Markdown links like
+ * `[…](#preloading)` expect. The final character-class replace keeps only
+ * `a-z`, `0-9`, whitespace and `-`, so any HTML syntax present in the input is
+ * removed as part of the same allow-list step (no separate tag-strip needed).
+ */
+function slugifyHeading(text: string): string {
+    return text
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-')
+}
+
 const md = new Marked(
     markedHighlight({
         highlight(code: string, lang: string) {
@@ -33,7 +48,20 @@ const md = new Marked(
             }
             return hljs.highlightAuto(code).value
         },
-    })
+    }),
+    {
+        // Emit id="…" on every heading so intra-doc `#…` fragment links resolve.
+        renderer: {
+            heading({ tokens, depth }): string {
+                const text = this.parser.parseInline(tokens)
+                const raw = tokens
+                    .map((t) => ('text' in t ? t.text : ''))
+                    .join('')
+                const id = slugifyHeading(raw)
+                return `<h${depth} id="${id}">${text}</h${depth}>\n`
+            },
+        },
+    }
 )
 
 function slugFor(repoPath: string): string {
