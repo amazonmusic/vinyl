@@ -151,6 +151,7 @@ export function overviewContent(): string {
 
             <h3>Basic usage</h3>
             <pre tabindex="0"><code class="hljs language-typescript">${ts(BASIC_USAGE)}</code></pre>
+            <p><a href="https://codepen.io/editor/indiepig/pen/01a0492d-ed52-7898-b7db-5f89a6a0bf55" target="_blank" rel="noopener">Edit on CodePen</a></p>
             <p>See the <a href="${withBase('/docs/vinyl-usage/')}">full usage guide</a> for HLS, DRM, preloading, queueing, and advanced configuration, or try the <a href="${withBase('/player/')}">interactive player demo</a>.</p>
         </div>
     </section>
