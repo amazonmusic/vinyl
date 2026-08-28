@@ -86,13 +86,8 @@ describe('createHlsFactories', () => {
         })
         const deps = createContainer(factories).dependencies
         const options = hlsFactoryDeps.options.value
-        expect(deps.preferredAudioLanguage.value).toBe(
-            options.preferredAudioLanguage
-        )
+        expect(deps.audio.value).toBe(options.audio)
         expect(deps.allowedContentTypes.value).toBe(options.allowedContentTypes)
-        expect(deps.preferDescriptiveAudio.value).toBe(
-            options.preferDescriptiveAudio
-        )
         expect(deps.abr.value).toBe(options.abr)
     })
 

@@ -75,14 +75,9 @@ export type MseTrackDeps = TrackBaseDeps & {
      * the initial value) is applied to this track immediately so it takes
      * effect without waiting for the buffered media to drain.
      */
-    readonly preferredAudioLanguage: ObservableValue<
-        VinylOptions['preferredAudioLanguage']
-    >
+    readonly audio: ObservableValue<VinylOptions['audio']>
     readonly allowedContentTypes: ObservableValue<
         VinylOptions['allowedContentTypes']
-    >
-    readonly preferDescriptiveAudio: ObservableValue<
-        VinylOptions['preferDescriptiveAudio']
     >
     readonly abr: ObservableValue<VinylOptions['abr']>
 }
@@ -194,17 +189,12 @@ export class MseTrack extends TrackBase {
         // Audio/stream selection options: a change (never the initial value)
         // re-filters the timeline, so rebuild this track's streams in place.
         add(
-            deps.preferredAudioLanguage.onData((_value, previous) => {
+            deps.audio.onData((_value, previous) => {
                 if (previous !== undefined) this.reloadStreams()
             })
         )
         add(
             deps.allowedContentTypes.onData((_value, previous) => {
-                if (previous !== undefined) this.reloadStreams()
-            })
-        )
-        add(
-            deps.preferDescriptiveAudio.onData((_value, previous) => {
                 if (previous !== undefined) this.reloadStreams()
             })
         )

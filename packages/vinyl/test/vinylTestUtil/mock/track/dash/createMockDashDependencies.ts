@@ -60,11 +60,10 @@ export function createMockDashDependencies() {
             createSpy<DashMediaQualityMetadataResolver>().and.callFake(() =>
                 createEmptyMediaQualityMetadata()
             ),
-        preferredAudioLanguage:
-            data<VinylOptions['preferredAudioLanguage']>(null),
+        audio: data<VinylOptions['audio']>({
+            selection: { language: null, descriptive: false },
+        }),
         allowedContentTypes: data<VinylOptions['allowedContentTypes']>(null),
-        preferDescriptiveAudio:
-            data<VinylOptions['preferDescriptiveAudio']>(false),
         abr: data<VinylOptions['abr']>(defaultQualitySelectorImplOptions),
     } as const satisfies DashTrackDeps
 }

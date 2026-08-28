@@ -56,14 +56,7 @@ import {
  */
 export interface DashFactoryDeps {
     readonly options: ObservableValue<
-        Pick<
-            VinylOptions,
-            | 'abr'
-            | 'preferredAudioLanguage'
-            | 'allowedContentTypes'
-            | 'preferDescriptiveAudio'
-            | 'text'
-        >
+        Pick<VinylOptions, 'abr' | 'audio' | 'allowedContentTypes' | 'text'>
     >
     readonly playbackController: PlaybackController
     readonly playbackSource: PlaybackSource
@@ -139,21 +132,14 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                     new QualitySelectorImpl({
                         options: deps.options.pick('abr'),
                     }),
-                preferredAudioLanguage: (deps: {
-                    options: ObservableValue<
-                        Pick<VinylOptions, 'preferredAudioLanguage'>
-                    >
-                }) => deps.options.pick('preferredAudioLanguage'),
+                audio: (deps: {
+                    options: ObservableValue<Pick<VinylOptions, 'audio'>>
+                }) => deps.options.pick('audio'),
                 allowedContentTypes: (deps: {
                     options: ObservableValue<
                         Pick<VinylOptions, 'allowedContentTypes'>
                     >
                 }) => deps.options.pick('allowedContentTypes'),
-                preferDescriptiveAudio: (deps: {
-                    options: ObservableValue<
-                        Pick<VinylOptions, 'preferDescriptiveAudio'>
-                    >
-                }) => deps.options.pick('preferDescriptiveAudio'),
                 abr: (deps: {
                     options: ObservableValue<Pick<VinylOptions, 'abr'>>
                 }) => deps.options.pick('abr'),

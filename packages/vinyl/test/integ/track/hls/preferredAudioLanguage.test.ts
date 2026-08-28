@@ -76,7 +76,9 @@ describe('preferredAudioLanguage HLS integ', () => {
         lang: string
     ): Promise<void> {
         const player = suite.player
-        player.configure({ preferredAudioLanguage })
+        player.configure({
+            audio: { selection: { language: preferredAudioLanguage } },
+        })
         player.load({ type: 'hls', uri: ASSET })
         await player.play().catch(() => undefined)
         expect(
@@ -129,7 +131,7 @@ describe('preferredAudioLanguage HLS integ', () => {
 
         // Changing the preference hard-resets the track in place (clearing
         // buffers, like other streaming-config changes) and re-filters audio.
-        player.configure({ preferredAudioLanguage: 'de' })
+        player.configure({ audio: { selection: { language: 'de' } } })
         expect(await poll(() => audioIsOnly(player, 'de'), { timeout: 30 }))
             .withContext(`content audio switched to 'de'`)
             .toBeTrue()

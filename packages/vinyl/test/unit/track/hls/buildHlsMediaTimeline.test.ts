@@ -486,9 +486,8 @@ describe('buildHlsMediaTimeline', () => {
             drmController,
             mediaTimeline: data(Promise.resolve(timeline)),
             options: data({
-                preferredAudioLanguage: null,
+                audio: { selection: { language: null, descriptive: false } },
                 codecOverrides: {},
-                preferDescriptiveAudio: false,
             }),
         }).value
 

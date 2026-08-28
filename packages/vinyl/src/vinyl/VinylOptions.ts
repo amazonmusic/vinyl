@@ -11,7 +11,6 @@ import {
 import type { ObjectSchema } from '@amazon/vinyl-validation'
 import {
     array,
-    boolean,
     isOneOf,
     object,
     record,
@@ -31,6 +30,11 @@ import {
     type TextTrackControllerOptions,
     textTrackControllerOptionsValidator,
 } from '../text/TextTrack'
+import {
+    type AudioOptions,
+    audioOptionsValidator,
+    defaultAudioOptions,
+} from '../streaming/AudioOptions'
 
 export interface VinylOptions {
     /**
@@ -41,25 +45,16 @@ export interface VinylOptions {
     readonly loudnessNormalization: LoudnessNormalizationControllerImplOptions
 
     /**
-     * Preferred language(s) for audio content, as RFC 5646 codes (e.g. `'en'`,
-     * `'ja'`, `'fr-CA'`). May be a single tag or an ordered list of tags —
-     * earlier entries are preferred, with the best relatedness match kept for
-     * each period (audio without a language tag is always kept). `null` (the
-     * default) is NOT "no preference": it orders by the platform's
-     * `navigator.languages`. To keep every language, this option is not the
-     * mechanism — omit language content or pass a tag matching all.
+     * Audio (language / audio-description) configuration. See
+     * {@link AudioOptions}.
+     *
+     * The default is `{ selection: { language: null, descriptive: false } }`:
+     * audio is ordered by the platform's `navigator.languages` and
+     * audio-description renditions are excluded. Set `selection.language` to
+     * prefer specific language(s) and `selection.descriptive` to `true` to opt
+     * into described audio.
      */
-    readonly preferredAudioLanguage: string | readonly string[] | null
-
-    /**
-     * Opt in to audio-description (a.k.a. described-video / DVS) audio: audio
-     * renditions carrying an accessibility "describes video" characteristic that
-     * narrate on-screen action. `false` (the default) keeps them out of the
-     * automatic default-audio selection — they are chosen only when this is set.
-     * When `true`, a description rendition is preferred where one exists for the
-     * selected language. Changing this reselects audio immediately.
-     */
-    readonly preferDescriptiveAudio: boolean
+    readonly audio: AudioOptions
 
     /**
      * Explicit codec allow/deny overrides that bypass browser support
@@ -101,8 +96,7 @@ export interface VinylOptions {
 export const defaultVinylOptions: VinylOptions = {
     abr: defaultQualitySelectorImplOptions,
     loudnessNormalization: defaultLoudnessNormalizationControllerImplOptions,
-    preferredAudioLanguage: null,
-    preferDescriptiveAudio: false,
+    audio: defaultAudioOptions,
     codecOverrides: {},
     allowedContentTypes: null,
     text: {
@@ -115,8 +109,7 @@ export const defaultVinylOptions: VinylOptions = {
 export const vinylOptionsValidator: ObjectSchema<VinylOptions> = object({
     abr: qualitySelectorImplOptionsValidator,
     loudnessNormalization: loudnessNormalizationControllerImplOptionsValidator,
-    preferredAudioLanguage: string().or(array(string()).readonly()).orNull(),
-    preferDescriptiveAudio: boolean(),
+    audio: audioOptionsValidator,
     codecOverrides: record(string(), isOneOf('allow', 'deny')),
     allowedContentTypes: array(isOneOf(...RESTRICTABLE_CONTENT_TYPES))
         .readonly()
