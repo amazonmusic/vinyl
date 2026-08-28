@@ -48,6 +48,7 @@
     --color-accent: #2563eb;
     --color-accent-hover: #1d4ed8;
     --color-accent-light: #eff6ff;
+    --color-accent-on: #ffffff;
 
     --color-success: #16a34a;
     --color-warning: #ca8a04;
@@ -93,6 +94,8 @@
     --color-accent: #58a6ff;
     --color-accent-hover: #79c0ff;
     --color-accent-light: #0d2240;
+    // Dark text on the bright dark-theme accent for AA contrast on buttons.
+    --color-accent-on: #05070a;
 
     --color-success: #3fb950;
     --color-warning: #d29922;

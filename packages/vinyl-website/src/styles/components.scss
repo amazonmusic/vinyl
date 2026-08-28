@@ -45,7 +45,7 @@
 
 .btnPrimary {
     background: var(--color-accent);
-    color: white;
+    color: var(--color-accent-on);
 
     &:hover {
         background: var(--color-accent-hover);
@@ -177,18 +177,29 @@
 .demoCard {
     display: flex;
     align-items: center;
-    gap: var(--space-md);
-    padding: var(--space-md);
     border-radius: var(--radius-sm);
-    cursor: pointer;
     transition: background var(--transition-fast);
 
-    &:hover {
+    &:hover,
+    &:focus-within {
         background: var(--color-surface-hover);
     }
 
-    &:focus-visible {
-        background: var(--color-surface-hover);
+    // The primary (play) action fills the card; the queue button sits beside it.
+    .demoCardMain {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: var(--space-md);
+        padding: var(--space-md);
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        border-radius: var(--radius-sm);
     }
 
     .demoCardIcon {
@@ -216,12 +227,13 @@
 
     .demoCardDesc {
         font-size: 12px;
-        color: var(--color-text-tertiary);
+        color: var(--color-text-secondary);
         margin-top: 2px;
     }
 
     .btnIcon {
         flex-shrink: 0;
+        margin-right: var(--space-sm);
     }
 }
 
