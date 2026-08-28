@@ -62,7 +62,9 @@ function titleFor(content: string, slug: string): string {
 
 /**
  * Derives a plain-text meta-description excerpt: the first prose paragraph,
- * stripped of Markdown/HTML syntax and truncated to a search-friendly length.
+ * stripped of Markdown syntax and truncated to a search-friendly length. Every
+ * angle bracket is removed (not just whole tags), so the result can never carry
+ * HTML markup; it is additionally HTML-/JSON-escaped wherever it is emitted.
  */
 function descriptionFor(content: string, title: string): string {
     const clean = (line: string): string =>
@@ -71,7 +73,8 @@ function descriptionFor(content: string, title: string): string {
             .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1') // links → text
             .replace(/`([^`]*)`/g, '$1') // inline code
             .replace(/[*_~]/g, '') // emphasis marks
-            .replace(/<[^>]+>/g, '') // stray html
+            .replace(/</g, '') // drop all angle brackets so no tag can form
+            .replace(/>/g, '')
             .replace(/\s+/g, ' ')
             .trim()
 
