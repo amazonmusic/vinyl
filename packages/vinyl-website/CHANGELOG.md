@@ -3,6 +3,43 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.0.0]() (2026-08-28)
+
+### ⚠ BREAKING CHANGES
+
+- **audio:** &#x60;VinylOptions.preferredAudioLanguage&#x60; and
+  &#x60;VinylOptions.preferDescriptiveAudio&#x60; are removed. Use
+  &#x60;audio.selection.language&#x60; and
+  &#x60;audio.selection.descriptive&#x60; instead, e.g. &#x60;player.configure({
+  audio: { selection: { language: &#x27;en&#x27;, descriptive: true } }
+  })&#x60;.
+
+### Features
+
+- **audio:** group audio prefs under audio.selection
+  ([251a087](https://github.com/amazonmusic/vinyl/commits/251a087891c2cfee7fc86003db763beb70cc5be4))
+- **text:** options-driven selection and HTML overlay caption renderer
+  ([8f3e44f](https://github.com/amazonmusic/vinyl/commits/8f3e44f49f4c1547658ee981914bca9d4cccf97e))
+- **website:** add &quot;Edit on CodePen&quot; link to the overview usage
+  example
+  ([c5301ad](https://github.com/amazonmusic/vinyl/commits/c5301ad196c2dd1b3ff6c30213e729c25729bf94))
+- **website:** generate static SEO pages instead of an SPA
+  ([2bff82e](https://github.com/amazonmusic/vinyl/commits/2bff82ecb4d6c3581025880e0cd439ad135e7d7e))
+
+### Bug Fixes
+
+- **website:** accessibility pass for screen readers and WCAG AA
+  ([cfb6762](https://github.com/amazonmusic/vinyl/commits/cfb67621455204e7cafe47533d1cd10b6cc57716))
+- **website:** hide cursor when fullscreen controls hide
+  ([56403d6](https://github.com/amazonmusic/vinyl/commits/56403d66b35bbbb64ac2465ee47e4e101da25560))
+- **website:** strip angle brackets (not tag regex) in doc excerpt
+  ([11ebbe4](https://github.com/amazonmusic/vinyl/commits/11ebbe4c2d4e83dfba94c3a92dcfdcd079b9fda8))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [2.0.4]() (2026-08-27)
 
 **Note:** Version bump only for package @amazon/vinyl-website
