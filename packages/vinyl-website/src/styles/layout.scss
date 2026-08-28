@@ -235,7 +235,7 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--color-text-tertiary);
+    color: var(--color-text-secondary);
     margin-top: var(--space-sm);
 
     &:first-child {
@@ -373,11 +373,9 @@ body {
 
     a {
         color: var(--color-accent);
-        text-decoration: none;
-
-        &:hover {
-            text-decoration: underline;
-        }
+        // Underline in-prose links so they're distinguishable without relying
+        // on color alone (WCAG 1.4.1).
+        text-decoration: underline;
     }
 
     hr {
@@ -392,7 +390,6 @@ body {
     font-size: 0.6em;
     font-weight: 400;
     color: var(--color-text-secondary);
-    opacity: 0.6;
     letter-spacing: 0;
     margin-left: var(--space-xs);
 }
@@ -522,5 +519,24 @@ body {
         max-height: 200px;
         border-right: none;
         border-bottom: 1px solid var(--color-border);
+    }
+}
+
+// Skip-to-content link: off-screen until focused (keyboard / screen-reader).
+.skipLink {
+    position: fixed;
+    top: var(--space-sm);
+    left: var(--space-sm);
+    z-index: 100;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--focus-ring);
+    transform: translateY(-200%);
+    transition: transform var(--transition-fast);
+
+    &:focus {
+        transform: translateY(0);
     }
 }

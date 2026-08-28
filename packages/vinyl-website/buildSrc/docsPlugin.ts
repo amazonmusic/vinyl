@@ -200,7 +200,11 @@ export function buildDocs(root: string): DocInfo[] {
         const category = categoryFor(file)
         const description = descriptionFor(content, title)
         const processed = rewriteLinks(content, file, knownDocs)
-        const html = md.parse(processed) as string
+        // Make scrollable code blocks keyboard-focusable for a11y.
+        const html = (md.parse(processed) as string).replace(
+            /<pre>/g,
+            '<pre tabindex="0">'
+        )
         return { slug, title, category, html, description }
     })
 }

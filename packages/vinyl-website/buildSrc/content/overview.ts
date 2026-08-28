@@ -142,15 +142,15 @@ export function overviewContent(): string {
         <div class="markdown">
             <h3>Installation</h3>
             <div class="pmTabs">
-                <div class="tabs" role="tablist" aria-label="Package manager">
-                    <button class="tab active" type="button" role="tab" aria-selected="true" data-pm="npm">npm</button>
-                    <button class="tab" type="button" role="tab" aria-selected="false" data-pm="yarn">yarn</button>
+                <div class="tabs" role="group" aria-label="Package manager">
+                    <button class="tab active" type="button" aria-pressed="true" data-pm="npm">npm</button>
+                    <button class="tab" type="button" aria-pressed="false" data-pm="yarn">yarn</button>
                 </div>
-                <pre><code class="hljs language-shell" data-pm-code="npm">${shell('npm install @amazon/vinyl')}</code><code class="hljs language-shell" data-pm-code="yarn" hidden>${shell('yarn add @amazon/vinyl')}</code></pre>
+                <pre tabindex="0"><code class="hljs language-shell" data-pm-code="npm">${shell('npm install @amazon/vinyl')}</code><code class="hljs language-shell" data-pm-code="yarn" hidden>${shell('yarn add @amazon/vinyl')}</code></pre>
             </div>
 
             <h3>Basic usage</h3>
-            <pre><code class="hljs language-typescript">${ts(BASIC_USAGE)}</code></pre>
+            <pre tabindex="0"><code class="hljs language-typescript">${ts(BASIC_USAGE)}</code></pre>
             <p>See the <a href="${withBase('/docs/vinyl-usage/')}">full usage guide</a> for HLS, DRM, preloading, queueing, and advanced configuration, or try the <a href="${withBase('/player/')}">interactive player demo</a>.</p>
         </div>
     </section>

@@ -170,6 +170,7 @@ export function PlayerPage() {
                     <input
                         className="textInput"
                         type="text"
+                        aria-label="Manifest or media source URL"
                         placeholder="Enter manifest URL (.mpd, .m3u8) or media source"
                         oninput={(e) => {
                             url$.value = (
@@ -232,42 +233,40 @@ function DemoGrid(props: { readonly tracks: readonly Track[] }) {
 
 function DemoCard(props: { readonly track: Track }) {
     const { track } = props
-    const activate = () => loadContent(track)
+    // Two sibling buttons (play + queue) rather than a button-role card
+    // wrapping a button, which would be a nested interactive control.
     return (
-        <div
-            className="demoCard"
-            role="button"
-            tabIndex={0}
-            aria-label={`Play ${track.title ?? track.url}`}
-            onclick={activate}
-            onkeydown={(e: KeyboardEvent) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    activate()
-                }
-            }}
-        >
-            <div className="demoCardIcon">
-                <Icon
-                    name={
-                        track.contentType === 'video' ? 'movie' : 'audio_file'
-                    }
-                />
-            </div>
-            <div className="demoCardContent">
-                <div className="demoCardTitle">{track.title ?? track.url}</div>
-                <div className="demoCardDesc">{track.description ?? ''}</div>
-            </div>
-            <span className="badge">{track.type}</span>
+        <div className="demoCard">
+            <button
+                className="demoCardMain"
+                type="button"
+                aria-label={`Play ${track.title ?? track.url}`}
+                onclick={() => loadContent(track)}
+            >
+                <div className="demoCardIcon">
+                    <Icon
+                        name={
+                            track.contentType === 'video'
+                                ? 'movie'
+                                : 'audio_file'
+                        }
+                    />
+                </div>
+                <div className="demoCardContent">
+                    <div className="demoCardTitle">
+                        {track.title ?? track.url}
+                    </div>
+                    <div className="demoCardDesc">
+                        {track.description ?? ''}
+                    </div>
+                </div>
+                <span className="badge">{track.type}</span>
+            </button>
             <button
                 className="btnIcon"
                 title="Add to queue"
                 aria-label={`Add ${track.title ?? track.url} to queue`}
-                onclick={(e: MouseEvent) => {
-                    // Don't also trigger the card's play-on-click.
-                    e.stopPropagation()
-                    enqueueContent(track)
-                }}
+                onclick={() => enqueueContent(track)}
             >
                 <Icon name="add" />
             </button>

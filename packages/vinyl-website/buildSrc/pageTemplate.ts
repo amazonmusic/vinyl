@@ -113,7 +113,7 @@ function navMarkup(activeNav: string): string {
         const rel = item.external ? ' target="_blank" rel="noopener"' : ''
         const current = item.key === activeNav ? ' aria-current="page"' : ''
         const href = item.href.startsWith('/') ? withBase(item.href) : item.href
-        return `<a class="navItem${active}" role="menuitem" href="${href}"${rel}${current}><span class="iconContainer" aria-hidden="true">${item.icon}</span>${item.label}</a>`
+        return `<a class="navItem${active}" href="${href}"${rel}${current}><span class="iconContainer" aria-hidden="true">${item.icon}</span>${item.label}</a>`
     }).join('\n            ')
 }
 
@@ -131,18 +131,18 @@ export function renderBody(options: {
     // so the chrome and main content must live inside that container.
     return `<div id="app">
 <header class="mobileHeader">
-    <button class="menuBtn" aria-label="Open menu"><span class="iconContainer" aria-hidden="true">${ICONS.menu}</span></button>
+    <button class="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span class="iconContainer" aria-hidden="true">${ICONS.menu}</span></button>
     <img src="${withBase('/img/logo-64.png')}" alt="Amazon Vinyl logo" width="32" height="32" />
     <span class="mobileTitle">Amazon Vinyl <span class="versionTag">v${escapeHtml(version)}</span></span>
     <a class="mobileGithub" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="Amazon Vinyl on GitHub"><span class="iconContainer" aria-hidden="true">${ICONS.github}</span></a>
 </header>
 <div class="sidebarOverlay"></div>
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
     <a class="logo" href="${withBase('/')}">
         <img src="${withBase('/img/logo-64.png')}" alt="Amazon Vinyl logo" width="40" height="40" />
         <span class="logoText"><span>Amazon Vinyl</span><span class="versionTag">v${escapeHtml(version)}</span></span>
     </a>
-    <nav role="menu" aria-label="Main navigation">
+    <nav aria-label="Main navigation">
             ${navMarkup(activeNav)}
     </nav>
     <div class="themeToggle" hidden>
@@ -153,7 +153,7 @@ export function renderBody(options: {
         </div>
     </div>
 </aside>
-<main class="stage">
+<main class="stage" id="main-content" tabindex="-1">
 ${content}
 </main>
 </div>`

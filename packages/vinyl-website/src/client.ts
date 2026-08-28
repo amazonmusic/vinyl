@@ -47,8 +47,9 @@ function setupMobileMenu(): void {
     const menuBtn = document.querySelector('.menuBtn')
     if (!sidebar || !overlay || !menuBtn) return
     const toggle = () => {
-        sidebar.classList.toggle('open')
+        const open = sidebar.classList.toggle('open')
         overlay.classList.toggle('open')
+        menuBtn.setAttribute('aria-expanded', String(open))
     }
     menuBtn.addEventListener('click', toggle)
     overlay.addEventListener('click', toggle)
@@ -65,7 +66,7 @@ function setupPackageManagerTabs(): void {
             tabs.forEach((t) => {
                 const active = t === tab
                 t.classList.toggle('active', active)
-                t.setAttribute('aria-selected', String(active))
+                t.setAttribute('aria-pressed', String(active))
             })
             blocks.forEach((b) => {
                 b.hidden = b.dataset.pmCode !== pm

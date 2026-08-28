@@ -27,14 +27,14 @@ function docsMenu(docs: readonly DocInfo[], activeSlug: string): string {
             .filter((d) => d.category === cat)
             .map((d) => {
                 const active = d.slug === activeSlug
-                return `<a class="docsMenuItem${active ? ' active' : ''}" role="menuitem" href="${withBase(`/docs/${d.slug}/`)}"${
+                return `<a class="docsMenuItem${active ? ' active' : ''}" href="${withBase(`/docs/${d.slug}/`)}"${
                     active ? ' aria-current="page"' : ''
                 }>${escapeHtml(d.title)}</a>`
             })
             .join('\n            ')
-        return `<div class="docsCategoryHeader" role="presentation">${escapeHtml(cat)}</div>\n            ${items}`
+        return `<div class="docsCategoryHeader">${escapeHtml(cat)}</div>\n            ${items}`
     })
-    return `<nav class="docsMenu" role="menu" aria-label="Documentation">
+    return `<nav class="docsMenu" aria-label="Documentation">
             ${groups.join('\n            ')}
         </nav>`
 }
