@@ -1,12 +1,19 @@
 import { jsx } from '@amazon/vinyl-tsx'
 import {
     createTrackFromUrl,
+    type DemoTrack,
     enqueueContent,
     loadContent,
-    type DemoTrack,
+    playerState,
+    removeFromQueue,
+    trackDisplay,
     type TrackType,
 } from '../player'
-import { DrmKeySystem, type DrmOptions } from '@amazon/vinyl'
+import {
+    DrmKeySystem,
+    type DrmOptions,
+    type TrackLoadOptions,
+} from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { Icon } from './icons'
 import { toastError } from './toast'
@@ -347,6 +354,31 @@ export function PlayerPage() {
                 </form>
             </div>
 
+            {/* Shown only when something is queued. The list is rebuilt
+                imperatively on each queueChange (observable children render as
+                text, so a reactive node list needs a manual update). */}
+            <div
+                className="card"
+                visible={playerState.queue$.map((q) => q.length > 0)}
+            >
+                <div className="cardHeader">
+                    <h2>Play Queue</h2>
+                </div>
+                <div
+                    className="demoGrid"
+                    onConnect={(el) => {
+                        const render = (items: readonly TrackLoadOptions[]) =>
+                            el.replaceChildren(
+                                ...items.map((item, i) =>
+                                    QueueItem({ item, index: i })
+                                )
+                            )
+                        render(playerState.queue$.value)
+                        return playerState.queue$.onData(render)
+                    }}
+                />
+            </div>
+
             <div className="card">
                 <div className="cardHeader">
                     <h2>Demo Tracks</h2>
@@ -420,6 +452,43 @@ function DemoCard(props: { readonly track: DemoTrack }) {
                 onclick={() => enqueueContent(track)}
             >
                 <Icon name="add" />
+            </button>
+        </div>
+    )
+}
+
+/** A single row in the Play Queue, with a remove button. */
+function QueueItem(props: {
+    readonly item: TrackLoadOptions
+    readonly index: number
+}) {
+    const { item, index } = props
+    const display = trackDisplay(item)
+    return (
+        <div className="demoCard">
+            <div className="demoCardMain queueItemMain">
+                <div className="demoCardIcon">
+                    <Icon
+                        name={
+                            display.contentType === 'video'
+                                ? 'movie'
+                                : 'audio_file'
+                        }
+                    />
+                </div>
+                <div className="demoCardContent">
+                    <div className="demoCardTitle">{display.title}</div>
+                    <div className="demoCardDesc">{item.uri}</div>
+                </div>
+                <span className="badge">{item.type}</span>
+            </div>
+            <button
+                className="btnIcon"
+                title="Remove from queue"
+                aria-label={`Remove ${display.title} from queue`}
+                onclick={() => removeFromQueue(index)}
+            >
+                <Icon name="close" />
             </button>
         </div>
     )

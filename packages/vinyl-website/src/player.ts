@@ -14,6 +14,7 @@ import {
     type SeekRange,
     type TextTrackInfo,
     type TrackConfigOptions,
+    type TrackLoadOptions,
     HtmlTextTrackRenderer,
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
@@ -76,6 +77,8 @@ export const playerState = {
     canSkipAd$: data(false),
     skipIn$: data<number | null>(null),
     seekRange$: data<SeekRange | null>(null),
+    // The pending play queue (excludes the currently active track).
+    queue$: data<readonly TrackLoadOptions[]>([]),
     // Unfiltered qualities (before any preferredAudioLanguage / resolution
     // filtering) so the settings menu can list every audio language and video
     // resolution regardless of the current selection.
@@ -180,6 +183,10 @@ player.on('seekRangeChange', ({ current }) => {
     playerState.seekRange$.value = current
 })
 
+player.on('queueChange', ({ current }) => {
+    playerState.queue$.value = current
+})
+
 player.on('rateChange', ({ current }) => {
     playerState.playbackRate$.value = current
 })
@@ -245,6 +252,23 @@ function toLoadOptions(track: DemoTrack): PlayerLoadOptions {
     return { type: track.type, uri: track.url, config }
 }
 
+/**
+ * Reads the display metadata stashed on a queued item's `config.extra`,
+ * falling back to the URI for the label. Used by the queue view.
+ */
+export function trackDisplay(loadOptions: TrackLoadOptions): {
+    readonly title: string
+    readonly description?: string
+    readonly contentType?: 'video' | 'audio'
+} {
+    const info = (loadOptions.config?.extra ?? {}) as TrackDisplayInfo
+    return {
+        title: info.title ?? loadOptions.uri,
+        ...(info.description != null && { description: info.description }),
+        ...(info.contentType != null && { contentType: info.contentType }),
+    }
+}
+
 export function loadContent(track: DemoTrack) {
     playerState.track$.value = track
     playerState.hasVideo$.value = track.contentType === 'video'
@@ -290,6 +314,17 @@ export function enqueueContent(track: DemoTrack) {
     }
     player.enqueue(toLoadOptions(track))
     toast(`Queued ${track.title ?? track.url}`)
+}
+
+/**
+ * Removes the queued item at the given index (indices are into
+ * {@link @amazon/vinyl!VinylPlayer.queue}). Rebuilds the queue without unloading
+ * the current track: clears it, then re-enqueues the survivors.
+ */
+export function removeFromQueue(index: number) {
+    const remaining = player.queue.filter((_, i) => i !== index)
+    player.clearQueue()
+    if (remaining.length) player.enqueue(...remaining)
 }
 
 export function togglePlayPause() {
