@@ -171,6 +171,33 @@ describe('mpd utils', () => {
                 expect(calculatePeriodStart(manifest.MPD.Period[0])).toEqual(0)
             })
         })
+
+        describe('when period.start is absent but periods have durations', () => {
+            it('derives the start from the preceding period durations', () => {
+                // language=XML
+                const manifest = parseDashManifest(`<?xml version="1.0" ?>
+<MPD minBufferTime="PT0.0S" profiles="urn:mpeg:dash:profile:isoff-on-demand:2011" type="static" xmlns="urn:mpeg:dash:schema:mpd:2011">
+  <Period duration="888.053"/>
+  <Period duration="888.053"/>
+  <Period duration="888.053"/>
+</MPD>`)
+                expect(manifest.MPD.Period.map(calculatePeriodStart)).toEqual([
+                    0, 888.053, 1776.106,
+                ])
+            })
+
+            it('inherits the previous start when the previous period has no duration', () => {
+                // language=XML
+                const manifest = parseDashManifest(`<?xml version="1.0" ?>
+<MPD minBufferTime="PT0.0S" profiles="urn:mpeg:dash:profile:isoff-on-demand:2011" type="static" xmlns="urn:mpeg:dash:schema:mpd:2011">
+  <Period/>
+  <Period/>
+</MPD>`)
+                // The first period has neither start nor duration, so the
+                // second period cannot advance and inherits start 0.
+                expect(calculatePeriodStart(manifest.MPD.Period[1])).toEqual(0)
+            })
+        })
     })
 
     describe('getPeriodAtTime', () => {
@@ -385,6 +412,19 @@ describe('mpd utils', () => {
   </Period>
 </MPD>`)
                 expect(calculateDuration(manifest)).toBe(50)
+            })
+        })
+
+        describe('when only per-period durations are present', () => {
+            it('sums the period durations across the presentation', () => {
+                // language=XML
+                const manifest = parseDashManifest(`<?xml version="1.0" ?>
+<MPD minBufferTime="PT0.0S" profiles="urn:mpeg:dash:profile:isoff-on-demand:2011" type="static" xmlns="urn:mpeg:dash:schema:mpd:2011">
+  <Period duration="888.053"/>
+  <Period duration="888.053"/>
+  <Period duration="888.053"/>
+</MPD>`)
+                expect(calculateDuration(manifest)).toBeCloseTo(2664.159, 3)
             })
         })
 
