@@ -3,13 +3,29 @@ import {
     createTrackFromUrl,
     enqueueContent,
     loadContent,
-    type Track,
+    type DemoTrack,
+    type TrackType,
 } from '../player'
+import { DrmKeySystem, type DrmOptions } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { Icon } from './icons'
 import { toastError } from './toast'
 
-const demoTracks: Track[] = [
+const TYPE_OPTIONS: readonly (TrackType | 'auto')[] = [
+    'auto',
+    'dash',
+    'hls',
+    'src',
+]
+
+const KEY_SYSTEM_OPTIONS: readonly { value: DrmKeySystem; label: string }[] = [
+    { value: DrmKeySystem.WIDEVINE, label: 'Widevine' },
+    { value: DrmKeySystem.PLAY_READY, label: 'PlayReady' },
+    { value: DrmKeySystem.FAIR_PLAY, label: 'FairPlay' },
+    { value: DrmKeySystem.CLEAR_KEY, label: 'Clear Key' },
+]
+
+const demoTracks: DemoTrack[] = [
     {
         title: 'Audio Only (DASH)',
         type: 'dash',
@@ -44,7 +60,7 @@ const demoTracks: Track[] = [
 // configuration embedded in the manifest, so they load like any other HLS
 // track — no separate ad config is passed to the player. Grouped into a
 // collapsed section below; descriptions state what each scenario exercises.
-const adBreakTracks: Track[] = [
+const adBreakTracks: DemoTrack[] = [
     {
         title: 'Apple SGAI Sample',
         type: 'hls',
@@ -142,23 +158,67 @@ const adBreakTracks: Track[] = [
 
 export function PlayerPage() {
     const url$ = data('')
+    const title$ = data('')
+    const type$ = data<TrackType | 'auto'>('auto')
+    const keySystem$ = data<DrmKeySystem>(DrmKeySystem.WIDEVINE)
+    const licenseServerUrl$ = data('')
+    const serverCertificateUrl$ = data('')
+
+    // Builds a DRM configuration from the settings fields, fetching the service
+    // certificate to bytes when a URL is given. Returns undefined when no
+    // license server is set, so unprotected content is unaffected. Keyed by the
+    // selected key system; the DemoTrack config still allows configuring every key
+    // system programmatically.
+    const buildDrmOptions = async (): Promise<
+        Partial<DrmOptions> | undefined
+    > => {
+        const url = licenseServerUrl$.value.trim()
+        if (!url) return undefined
+        const certUrl = serverCertificateUrl$.value.trim()
+        const serverCertificate = certUrl
+            ? await fetch(certUrl).then((r) => r.arrayBuffer())
+            : undefined
+        return {
+            keySystems: {
+                [keySystem$.value]: {
+                    licenseServer: {
+                        url,
+                        ...(serverCertificate && { serverCertificate }),
+                    },
+                },
+            },
+        }
+    }
+
     // Resolves the currently typed URL to a track, then hands it to `sink`
     // (play now or enqueue).
-    const withUrlTrack = (sink: (track: Track) => void) => {
+    const withUrlTrack = async (sink: (track: DemoTrack) => void) => {
         const url = url$.value.trim()
         if (!url) return
-        createTrackFromUrl(url)
-            .then((track) => {
-                if (!track) {
-                    toastError('Could not determine media type for URL')
-                    return
-                }
-                sink(track)
-            })
-            .catch(toastError)
+        const drm = await buildDrmOptions()
+        const track = await createTrackFromUrl(url, {
+            type: type$.value,
+            ...(title$.value.trim() && { title: title$.value.trim() }),
+            ...(drm && { drm }),
+        })
+        if (!track) {
+            toastError('Could not determine media type for URL')
+            return
+        }
+        sink(track)
     }
-    const loadUrl = () => withUrlTrack(loadContent)
-    const enqueueUrl = () => withUrlTrack(enqueueContent)
+    const loadUrl = () => {
+        withUrlTrack(loadContent).catch(toastError)
+    }
+    const enqueueUrl = () => {
+        withUrlTrack(enqueueContent).catch(toastError)
+    }
+
+    const bindValue = (target: { value: string }) => (e: Event) => {
+        target.value = (
+            e.currentTarget as HTMLInputElement | HTMLSelectElement
+        ).value
+    }
 
     return (
         <div className="page">
@@ -166,34 +226,125 @@ export function PlayerPage() {
                 <div className="cardHeader">
                     <h2>Add Content</h2>
                 </div>
-                <div className="urlRow">
-                    <input
-                        className="textInput"
-                        type="text"
-                        aria-label="Manifest or media source URL"
-                        placeholder="Enter manifest URL (.mpd, .m3u8) or media source"
-                        oninput={(e) => {
-                            url$.value = (
-                                e.currentTarget as HTMLInputElement
-                            ).value
-                        }}
-                        onkeydown={(e) => {
-                            if (e.key === 'Enter') loadUrl()
-                        }}
-                    />
-                    <button className="btn btnPrimary" onclick={loadUrl}>
-                        <Icon name="play_arrow" />
-                        Play
-                    </button>
-                    <button
-                        className="btnIcon"
-                        title="Add to queue"
-                        aria-label="Add to queue"
-                        onclick={enqueueUrl}
-                    >
-                        <Icon name="add" />
-                    </button>
-                </div>
+                {/* A real form so the browser records field values for native
+                    autocomplete: named inputs are remembered on submit (Enter
+                    or Play). We preventDefault to keep it a client-side load. */}
+                <form
+                    autocomplete="on"
+                    onsubmit={(e: Event) => {
+                        e.preventDefault()
+                        loadUrl()
+                    }}
+                >
+                    <div className="urlRow">
+                        <input
+                            className="textInput"
+                            type="text"
+                            name="manifestUrl"
+                            autocomplete="on"
+                            aria-label="Manifest or media source URL"
+                            placeholder="Enter manifest URL (.mpd, .m3u8) or media source"
+                            oninput={(e) => {
+                                url$.value = (
+                                    e.currentTarget as HTMLInputElement
+                                ).value
+                            }}
+                        />
+                        <button className="btn btnPrimary" type="submit">
+                            <Icon name="play_arrow" />
+                            Play
+                        </button>
+                        <button
+                            className="btnIcon"
+                            type="button"
+                            title="Add to queue"
+                            aria-label="Add to queue"
+                            onclick={enqueueUrl}
+                        >
+                            <Icon name="add" />
+                        </button>
+                    </div>
+
+                    {/* Collapsed by default: `details` with no `open` attribute. */}
+                    <details className="trackSettings">
+                        <summary className="trackSettingsSummary">
+                            <Icon name="chevron_right" />
+                            <span>Track settings (title, type, DRM)</span>
+                        </summary>
+                        <div className="settingsGrid">
+                            <label className="settingsField settingsFieldWide">
+                                <span className="settingsLabel">
+                                    Title (display only)
+                                </span>
+                                <input
+                                    className="textInput"
+                                    type="text"
+                                    name="trackTitle"
+                                    autocomplete="on"
+                                    aria-label="Track title"
+                                    placeholder="Optional display name for this track"
+                                    oninput={bindValue(title$)}
+                                />
+                            </label>
+                            <label className="settingsField">
+                                <span className="settingsLabel">Type</span>
+                                <select
+                                    className="selectInput"
+                                    aria-label="Track type"
+                                    onchange={bindValue(type$)}
+                                >
+                                    {...TYPE_OPTIONS.map((t) => (
+                                        <option value={t}>{t}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="settingsField">
+                                <span className="settingsLabel">
+                                    Key system
+                                </span>
+                                <select
+                                    className="selectInput"
+                                    aria-label="DRM key system"
+                                    onchange={bindValue(keySystem$)}
+                                >
+                                    {...KEY_SYSTEM_OPTIONS.map((k) => (
+                                        <option value={k.value}>
+                                            {k.label}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="settingsField settingsFieldWide">
+                                <span className="settingsLabel">
+                                    License server URL
+                                </span>
+                                <input
+                                    className="textInput"
+                                    type="text"
+                                    name="licenseServerUrl"
+                                    autocomplete="on"
+                                    aria-label="License server URL"
+                                    placeholder="https://…/proxy (leave blank for clear content)"
+                                    oninput={bindValue(licenseServerUrl$)}
+                                />
+                            </label>
+                            <label className="settingsField settingsFieldWide">
+                                <span className="settingsLabel">
+                                    Service certificate URL (optional)
+                                </span>
+                                <input
+                                    className="textInput"
+                                    type="text"
+                                    name="serviceCertificateUrl"
+                                    autocomplete="on"
+                                    aria-label="Service certificate URL"
+                                    placeholder="https://…/service-cert"
+                                    oninput={bindValue(serverCertificateUrl$)}
+                                />
+                            </label>
+                        </div>
+                    </details>
+                </form>
             </div>
 
             <div className="card">
@@ -223,7 +374,7 @@ export function PlayerPage() {
     )
 }
 
-function DemoGrid(props: { readonly tracks: readonly Track[] }) {
+function DemoGrid(props: { readonly tracks: readonly DemoTrack[] }) {
     return (
         <div className="demoGrid">
             {...props.tracks.map((track) => <DemoCard track={track} />)}
@@ -231,7 +382,7 @@ function DemoGrid(props: { readonly tracks: readonly Track[] }) {
     )
 }
 
-function DemoCard(props: { readonly track: Track }) {
+function DemoCard(props: { readonly track: DemoTrack }) {
     const { track } = props
     // Two sibling buttons (play + queue) rather than a button-role card
     // wrapping a button, which would be a nested interactive control.
