@@ -605,7 +605,8 @@ export class DrmControllerImpl
         const keySystem = mediaKeys.keySystem
         logDebug(this, 'message', keySystem, event.message.byteLength)
 
-        const keySystemOptions = this.options.keySystems[keySystem]
+        const keySystemOptions =
+            this.options.keySystems[keySystem] ?? this.options.keySystems['*']
         const licenseServerOptionsProvider = keySystemOptions?.licenseServer
 
         // Get the license server configuration for the current key system.
