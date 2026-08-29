@@ -1,11 +1,9 @@
 /** Auto-generated from build scripts */
 export * from './babel/compatTransform'
+export * from './browserstack/browserStackConfig'
 export * from './browserstack/browserStackLocal'
 export * from './browserstack/browserStackRestApi'
-export * from './browserstack/BrowserStackWorker'
-export * from './browserstack/BrowserStackWorkerController'
 export * from './browserstack/configureReporterApi'
-export * from './browserstack/runBrowserStack'
 export * from './esbuild/analyzeExports'
 export * from './esbuild/buildAll'
 export * from './esbuild/CompatTransformPlugin'

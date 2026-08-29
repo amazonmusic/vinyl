@@ -6,7 +6,7 @@
 import {
     type BrowserStackOptions,
     getEnvBrowserStackCredentials,
-} from '../browserstack/runBrowserStack'
+} from '../browserstack/browserStackConfig'
 import { vinylSupportedBrowsers } from './vinylSupportedBrowsers'
 
 /**
