@@ -235,6 +235,11 @@
         flex-shrink: 0;
         margin-right: var(--space-sm);
     }
+
+    // Queue rows reuse the demo-card layout but their main area is not a button.
+    .queueItemMain {
+        cursor: default;
+    }
 }
 
 // Collapsible ad-break section (native <details>/<summary>)
