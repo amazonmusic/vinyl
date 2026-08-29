@@ -844,6 +844,31 @@ describe('DrmControllerImpl', () => {
             }
         })
 
+        it('falls back to the wildcard key system license server', async () => {
+            drmController = new DrmControllerImpl(deps, {
+                keySystems: {
+                    // Only a wildcard entry — no per-key-system configuration.
+                    '*': {
+                        licenseServer: () => ({
+                            url: 'http://example.com/wildcard',
+                        }),
+                    },
+                },
+                licenseProvider,
+            })
+
+            drmController.setBufferingDrmInfo(drmInfo)
+
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            const message = new ArrayBuffer(1)
+            await emitMessage(0, message)
+            expect(licenseProvider).toHaveBeenCalledOnceWith(
+                DrmKeySystem.WIDEVINE,
+                { url: 'http://example.com/wildcard' },
+                message
+            )
+        })
+
         describe('when license takes too long to resolve', () => {
             it('emits an error event', async () => {
                 drmController = new DrmControllerImpl(deps, {
