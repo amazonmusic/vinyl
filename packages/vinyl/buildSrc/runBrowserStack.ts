@@ -3,13 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-    runBrowserStackAndExit,
-    vinylDefaultBrowserStackOptions,
-} from '@amazon/vinyl-build-utils'
+import { vinylDefaultBrowserStackOptions } from '@amazon/vinyl-build-utils'
+import { runSeleniumBrowserStackAndExit } from '@amazon/vinyl-browserstack'
 import packageJson from '../package.json' with { type: 'json' }
 
-runBrowserStackAndExit({
+runSeleniumBrowserStackAndExit({
     ...vinylDefaultBrowserStackOptions,
     workerCommon: {
         ...vinylDefaultBrowserStackOptions.workerCommon,
