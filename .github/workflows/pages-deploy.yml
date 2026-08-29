@@ -44,7 +44,9 @@ jobs:
 
             - run: npm ci
 
-            - run: npm run build:release -w @amazon/vinyl-website
+            # build:pages runs typedoc (API docs) then build:release. typedoc is
+            # kept out of build:release so the release/CI build stays fast.
+            - run: npm run build:pages -w @amazon/vinyl-website
 
             - name: Upload Pages artifact
               uses: actions/upload-pages-artifact@v3
