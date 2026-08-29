@@ -113,18 +113,6 @@ export interface WorkerOptions extends BrowserDetails {
     readonly fallbackBrowser?: BrowserDetails | null
 }
 
-export interface NewWorker {
-    /**
-     * The identifier of the new Worker. Can be used to get worker details which includes the session id.
-     */
-    readonly id: number
-
-    /**
-     * The url of the worker.
-     */
-    readonly url: string
-}
-
 /**
  * https://www.browserstack.com/docs/automate/api-reference/selenium/session#set-test-status
  */
@@ -211,21 +199,6 @@ export interface PlanDetails {
      * Maximum number of sessions that can be queued.
      */
     readonly queued_sessions_max_allowed: number
-}
-
-/**
- * Information about the worker.
- */
-export interface WorkerDetails extends BrowserDetails {
-    readonly id: number
-    readonly status: SessionStatus
-    readonly real_mobile: null | boolean
-    readonly browser_url: string
-    readonly sessionId: string
-}
-
-export interface DeleteWorkerResponse {
-    readonly time: number
 }
 
 export type SessionStatus =
@@ -356,8 +329,6 @@ export interface GetBuildsOptions {
     readonly projectId?: number
 }
 
-const API = 'https://api.browserstack.com/5'
-
 const retryableStatuses = new Set([
     400, // Bad request
     429, // Too many requests
@@ -370,33 +341,6 @@ export type RequestMethod = 'GET' | 'POST' | 'PUT' | 'DELETE'
 
 class BrowserStackClient {
     constructor(readonly credentials: BrowserStackCredentials) {}
-
-    async createWorker(options: WorkerOptions): Promise<NewWorker> {
-        return this.doRequest(`${API}/worker`, 'POST', options)
-    }
-
-    async deleteWorker(workerId: number): Promise<DeleteWorkerResponse> {
-        return this.doRequest(`${API}/worker/${workerId}`, 'DELETE')
-    }
-
-    async getWorker(workerId: number): Promise<WorkerDetails> {
-        const workerDetails = await this.doRequest(
-            `${API}/worker/${workerId}`,
-            'GET'
-        )
-        if (!('sessionId' in workerDetails)) {
-            throw new Error(`worker ${workerId} not found`)
-        }
-        return workerDetails
-    }
-
-    /**
-     * Deletes a build and all sessions contained within it. Builds once deleted cannot be recovered.
-     * @param buildId
-     */
-    async deleteBuild(buildId: number): Promise<DeleteWorkerResponse> {
-        return this.doRequest(`${API}/builds/${buildId}`, 'DELETE')
-    }
 
     protected async doRequest(
         url: string,
@@ -508,16 +452,14 @@ export class BrowserStackAutomateClient extends BrowserStackClient {
         )
     }
 
-    async getBuilds(
-        options: GetBuildsOptions
-    ): Promise<WorkerDetails | AnyRecord> {
+    async getBuilds(options: GetBuildsOptions): Promise<AnyRecord> {
         return this.doRequest(`${AUTOMATE_API}/builds.json`, 'GET', options)
     }
 
     async updateBuild(
         buildId: string,
         buildOptions: UpdateBuildOptions
-    ): Promise<WorkerDetails | AnyRecord> {
+    ): Promise<AnyRecord> {
         return this.doRequest(
             `${AUTOMATE_API}/builds/${buildId}.json`,
             'PUT',
