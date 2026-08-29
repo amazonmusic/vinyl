@@ -9,7 +9,6 @@ import fs from 'fs/promises'
 import os from 'os'
 import { exit } from 'process'
 import esbuild from 'esbuild'
-import crypto from 'node:crypto'
 
 const write = process.argv.includes('--write')
 
@@ -17,30 +16,44 @@ async function getBundleSize(
     importName: string,
     importPath: string
 ): Promise<number> {
-    const virtualEntry = path.join(
-        os.tmpdir(),
-        `analyze-exports-${importName}-${crypto.randomUUID()}.js`
-    )
-    await fs.writeFile(
-        virtualEntry,
-        `import { ${importName} } from "${importPath}";\nconsole.log(${importName});`
-    )
+    // A `stdin` entry avoids writing (and cleaning up) a temp file per export;
+    // the absolute `importPath` resolves regardless of `resolveDir`.
+    const result = await esbuild.build({
+        stdin: {
+            contents: `import { ${importName} } from ${JSON.stringify(importPath)};\nconsole.log(${importName});`,
+            resolveDir: path.dirname(importPath),
+            loader: 'js',
+        },
+        bundle: true,
+        write: false,
+        treeShaking: true,
+        minify: true,
+        format: 'esm',
+        platform: 'node',
+        logLevel: 'silent',
+    })
+    return result.outputFiles[0].text.length
+}
 
-    try {
-        const result = await esbuild.build({
-            entryPoints: [virtualEntry],
-            bundle: true,
-            write: false,
-            treeShaking: true,
-            minify: true,
-            format: 'esm',
-            platform: 'node',
-            logLevel: 'silent',
-        })
-        return result.outputFiles[0].text.length
-    } finally {
-        await fs.unlink(virtualEntry).catch(() => undefined)
-    }
+/**
+ * Runs `task` over every item with at most `concurrency` in flight. Order is
+ * not preserved; each task writes its own result.
+ */
+async function forEachConcurrent<T>(
+    items: readonly T[],
+    concurrency: number,
+    task: (item: T) => Promise<void>
+): Promise<void> {
+    let next = 0
+    const runners = Array.from(
+        { length: Math.min(concurrency, items.length) },
+        async () => {
+            while (next < items.length) {
+                await task(items[next++])
+            }
+        }
+    )
+    await Promise.all(runners)
 }
 
 export interface AnalyzeExportsOptions {
@@ -62,14 +75,23 @@ export async function analyzeExports({
     const exports = await import(importPath)
     const exportNames = Object.keys(exports)
 
-    for (const name of exportNames) {
-        try {
-            exportSizes[name] = await getBundleSize(name, importPath)
-        } catch (err: any) {
-            exportSizes[name] = -1 // Mark error
-            console.error(`Failed to bundle "${name}":`, err.message)
+    // Each export is bundled independently to measure its tree-shaken size;
+    // the builds are independent, so run them concurrently (bounded by CPUs).
+    await forEachConcurrent(
+        exportNames,
+        Math.max(1, os.cpus().length),
+        async (exportName) => {
+            try {
+                exportSizes[exportName] = await getBundleSize(
+                    exportName,
+                    importPath
+                )
+            } catch (err: any) {
+                exportSizes[exportName] = -1 // Mark error
+                console.error(`Failed to bundle "${exportName}":`, err.message)
+            }
         }
-    }
+    )
 
     const validSizes = Object.values(exportSizes).filter((size) => size > 0)
     const minBundleSize = validSizes.length > 0 ? Math.min(...validSizes) : 0

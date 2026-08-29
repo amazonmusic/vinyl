@@ -12,7 +12,8 @@
     "scripts": {
         "start": "vite",
         "build": "vite build",
-        "build:release": "npm run typecheck && npm run typedoc && vite build",
+        "build:release": "npm run typecheck && vite build",
+        "build:pages": "npm run typedoc && npm run build:release",
         "prepreview": "npm run build",
         "preview": "vite preview",
         "typecheck": "tsc --noEmit -p tsconfig.lint.json",
