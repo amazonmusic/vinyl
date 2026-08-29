@@ -8,10 +8,12 @@ import {
     type AdBreakInfo,
     type AdBreakList,
     createVinylPlayer,
+    type DrmOptions,
     inferTrackTypeFromUrl,
     type MediaQualityMetadata,
     type SeekRange,
     type TextTrackInfo,
+    type TrackConfigOptions,
     HtmlTextTrackRenderer,
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
@@ -47,11 +49,14 @@ player.configure({
     },
 })
 
+// The player's per-track load options (a union of the registered track types).
+type PlayerLoadOptions = Parameters<typeof player.load>[0]
+
 // Observables for Vinyl State to use in TSX bindings.
 export const playerState = {
     player,
     media,
-    track$: data<Track | null>(null),
+    track$: data<DemoTrack | null>(null),
     hasVideo$: data(false),
     paused$: data(true),
     currentTime$: data(0),
@@ -194,26 +199,83 @@ player.on('adTimeUpdate', ({ adTimeRemaining, canSkip, skipIn }) => {
 
 export type TrackType = 'dash' | 'hls' | 'src'
 
-export interface Track {
-    readonly url: string
-    readonly type: TrackType
+/**
+ * Display-only metadata carried on a load's `config.extra`, so the queue view
+ * can label items (which are the raw {@link @amazon/vinyl!TrackLoadOptions},
+ * not this website's `DemoTrack`).
+ */
+export interface TrackDisplayInfo {
     readonly title?: string
     readonly description?: string
     readonly contentType?: 'video' | 'audio'
 }
 
-export function loadContent(track: Track) {
+/**
+ * A track in the player demo. `config` carries the player's per-track
+ * {@link @amazon/vinyl!TrackConfigOptions} — notably `drm` (a full
+ * {@link @amazon/vinyl!DrmOptions} that can configure every key system), plus
+ * `startTime` and `extra` — set on a demo track or from the track settings UI.
+ * Named to avoid colliding with `@amazon/vinyl`'s `Track`.
+ */
+export interface DemoTrack {
+    readonly url: string
+    readonly type: TrackType
+    readonly title?: string
+    readonly description?: string
+    readonly contentType?: 'video' | 'audio'
+    readonly config?: TrackConfigOptions
+}
+
+/**
+ * Converts a website {@link DemoTrack} into the player's {@link @amazon/vinyl!TrackLoadOptions}.
+ * The per-track `config` (drm, startTime, existing extra) is forwarded, and the
+ * display fields are stashed on `config.extra` so the queue view can render
+ * them.
+ */
+function toLoadOptions(track: DemoTrack): PlayerLoadOptions {
+    const displayInfo: TrackDisplayInfo = {
+        ...(track.title != null && { title: track.title }),
+        ...(track.description != null && { description: track.description }),
+        ...(track.contentType != null && { contentType: track.contentType }),
+    }
+    const config: TrackConfigOptions = {
+        ...track.config,
+        extra: { ...track.config?.extra, ...displayInfo },
+    }
+    return { type: track.type, uri: track.url, config }
+}
+
+export function loadContent(track: DemoTrack) {
     playerState.track$.value = track
     playerState.hasVideo$.value = track.contentType === 'video'
-    player.load({ type: track.type, uri: track.url })
+    player.load(toLoadOptions(track))
     player.play().catch(handleError)
 }
 
-export async function createTrackFromUrl(url: string): Promise<Track | null> {
+export interface CreateTrackOptions {
+    /** Overrides the inferred track type. `'auto'` (or unset) infers from the URL. */
+    readonly type?: TrackType | 'auto'
+    readonly title?: string
+    /** Full DRM configuration (may target one or many key systems). */
+    readonly drm?: Partial<DrmOptions>
+}
+
+export async function createTrackFromUrl(
+    url: string,
+    options?: CreateTrackOptions
+): Promise<DemoTrack | null> {
     if (!url) return null
-    const type = await inferTrackTypeFromUrl(url)
+    const type =
+        options?.type && options.type !== 'auto'
+            ? options.type
+            : await inferTrackTypeFromUrl(url)
     if (!type) return null
-    return { url, type }
+    return {
+        url,
+        type,
+        ...(options?.title && { title: options.title }),
+        ...(options?.drm && { config: { drm: options.drm } }),
+    }
 }
 
 /**
@@ -221,12 +283,12 @@ export async function createTrackFromUrl(url: string): Promise<Track | null> {
  * to yet, so playback simply starts; otherwise the track plays after the
  * current one (and anything already queued) finishes.
  */
-export function enqueueContent(track: Track) {
+export function enqueueContent(track: DemoTrack) {
     if (playerState.track$.value == null) {
         loadContent(track)
         return
     }
-    player.enqueue({ type: track.type, uri: track.url })
+    player.enqueue(toLoadOptions(track))
     toast(`Queued ${track.title ?? track.url}`)
 }
 

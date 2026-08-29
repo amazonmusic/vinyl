@@ -282,6 +282,95 @@
     }
 }
 
+// Collapsible per-track settings (type + DRM), under the URL row.
+.trackSettings {
+    margin-top: var(--space-md);
+
+    .trackSettingsSummary {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        cursor: pointer;
+        list-style: none;
+        user-select: none;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text-secondary);
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+
+        .iconContainer {
+            display: inline-flex;
+            transition: transform var(--transition-fast);
+            flex-shrink: 0;
+        }
+    }
+
+    &[open] .trackSettingsSummary .iconContainer {
+        transform: rotate(90deg);
+    }
+
+    .settingsGrid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-md);
+        margin-top: var(--space-md);
+    }
+
+    .settingsField {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-xs);
+        min-width: 0;
+    }
+
+    // A field that should span the full width of the grid (e.g. URLs).
+    .settingsFieldWide {
+        grid-column: 1 / -1;
+    }
+
+    .settingsLabel {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--color-text-secondary);
+    }
+}
+
+// Native <select>, styled to match .textInput.
+.selectInput {
+    // Replace the native dropdown arrow with a custom caret so it can be inset
+    // from the right edge (the native arrow hugs the edge and ignores padding).
+    appearance: none;
+    -webkit-appearance: none;
+    padding: var(--space-sm) var(--space-md);
+    // Extra right padding leaves room for the caret so option text never
+    // collides with it.
+    padding-right: calc(var(--space-md) + 20px);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-input-border);
+    background-color: var(--color-input-bg);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    // Inset the caret from the right edge.
+    background-position: right var(--space-md) center;
+    background-size: 12px;
+    color: var(--color-text-primary);
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    transition:
+        border-color var(--transition-fast),
+        box-shadow var(--transition-fast);
+
+    &:focus-visible {
+        border-color: var(--color-input-focus);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+}
+
 // Toggle switch
 .themeSwitch {
     display: flex;
