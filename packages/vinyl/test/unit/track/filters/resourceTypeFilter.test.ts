@@ -36,6 +36,24 @@ describe('canPlayMimeType', () => {
         )
     })
 
+    it('returns false for WebM containers even when the browser reports support', () => {
+        capabilities.canPlayTypeMse.and.returnValue(true)
+        const metadata = createEmptyMediaQualityMetadata()
+        metadata.mimeType = 'video/webm; codecs="vp9"'
+
+        expect(canPlayMimeType({ capabilities }, metadata)).toBe(false)
+        // Rejected on container alone; the browser check is never consulted.
+        expect(capabilities.canPlayTypeMse).not.toHaveBeenCalled()
+    })
+
+    it('returns false for Matroska containers', () => {
+        capabilities.canPlayTypeMse.and.returnValue(true)
+        const metadata = createEmptyMediaQualityMetadata()
+        metadata.mimeType = 'audio/x-matroska; codecs="opus"'
+
+        expect(canPlayMimeType({ capabilities }, metadata)).toBe(false)
+    })
+
     it('returns false for null mime type', () => {
         capabilities.canPlayTypeMse.and.returnValue(true)
         const metadata = createEmptyMediaQualityMetadata()
