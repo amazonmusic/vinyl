@@ -92,6 +92,7 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
+        "@amazon/vinyl-browserstack": "^3.0.1",
         "@amazon/vinyl-build-utils": "^3.0.1",
         "commander": "^9.5.0"
     },

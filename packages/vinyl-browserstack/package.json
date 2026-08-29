@@ -1,0 +1,51 @@
+{
+    "name": "@amazon/vinyl-browserstack",
+    "version": "3.0.1",
+    "description": "Runs an in-browser Jasmine suite across BrowserStack real browsers over Selenium/WebDriver.",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/amazonmusic/vinyl.git"
+    },
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "development": "./src/index.ts",
+            "default": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "scripts": {
+        "build": "tsc -p ./src/tsconfig.json",
+        "build:release": "tsc -p ./src/tsconfig.json",
+        "build:watch": "tsc -p ./src/tsconfig.json -w",
+        "clean": "rimraf --glob dist \"**/*.tsbuildinfo\"",
+        "lint": "npm run oxlint:check && npm run prettier:check",
+        "lint:write": "npm run oxlint:write && npm run prettier:write",
+        "prettier:check": "prettier . --ignore-path ../../.prettierignore --cache --check",
+        "prettier:write": "prettier . --ignore-path ../../.prettierignore --cache --write",
+        "release": "npm run lint && npm run build:release",
+        "test": "echo \"No tests\"",
+        "test:coverage": "echo \"No tests\"",
+        "oxlint:check": "oxlint --type-aware --deny-warnings",
+        "oxlint:write": "oxlint --type-aware --fix"
+    },
+    "author": "",
+    "license": "Apache-2.0",
+    "devDependencies": {
+        "@types/express": "^5.0.1",
+        "@types/selenium-webdriver": "^4.1.28"
+    },
+    "dependencies": {
+        "@amazon/vinyl-build-utils": "^3.0.1",
+        "express": "^5.1.0",
+        "selenium-webdriver": "^4.28.1"
+    },
+    "publishConfig": {
+        "access": "public"
+    }
+}
