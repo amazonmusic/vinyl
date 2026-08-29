@@ -97,9 +97,27 @@ export function calculatePeriodTimeRange(period: PeriodType): PeriodRange {
  *
  * In a static presentation, the first period SHALL start at the zero point of the MPD timeline (with a
  * Period@start value of 0 seconds).
+ *
+ * When `Period@start` is absent, the start is derived from the sum of the
+ * preceding periods' `Period@duration` values, per the PeriodStart derivation
+ * in ISO/IEC 23009-1 §5.3.2.1. This is common in on-demand manifests that
+ * declare only per-period durations (no explicit `@start`, no
+ * `MPD@mediaPresentationDuration`).
  */
 export function calculatePeriodStart(period: PeriodType): number {
-    return period.start ?? 0
+    if (period.start != null) return period.start
+
+    const mpd = period.parent
+    const periodIndex = mpd.Period.indexOf(period)
+    if (periodIndex <= 0) return 0
+
+    const previous = mpd.Period[periodIndex - 1]
+    const previousStart = calculatePeriodStart(previous)
+    // The previous period's duration extends the timeline; without it the start
+    // cannot be advanced, so it inherits the previous period's start.
+    return previous.duration != null
+        ? previousStart + previous.duration
+        : previousStart
 }
 
 /**
@@ -113,8 +131,11 @@ export function calculatePeriodStart(period: PeriodType): number {
  * shortened by an MPD update).
  */
 export function calculatePeriodEnd(period: PeriodType): number | null {
-    if (period.start != null && period.duration != null)
-        return period.start + period.duration
+    // A period's own duration defines its end regardless of whether `@start`
+    // is explicit, since `calculatePeriodStart` derives the start from the
+    // preceding periods when `@start` is absent.
+    if (period.duration != null)
+        return calculatePeriodStart(period) + period.duration
 
     const mpd = period.parent
     const periodIndex = mpd.Period.indexOf(period)
