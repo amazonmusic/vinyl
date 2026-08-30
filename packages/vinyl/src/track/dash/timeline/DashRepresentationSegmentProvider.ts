@@ -8,6 +8,8 @@ import {
     ErrorOrigin,
     getSidxSampleTimes,
     parseSidxBox,
+    parseWebmCues,
+    parseWebmInit,
     ValidationError,
 } from '@amazon/vinyl-util'
 import type {
@@ -36,6 +38,7 @@ import {
     createSegmentDataProvider,
     type CreateSegmentDataProviderDeps,
 } from '../../createSegmentDataProvider'
+import { getRepresentationMimeInfo } from '../util/mimeType'
 import { getSegmentAtTime } from '../../../streaming/util/segment'
 import type {
     MediaSegmentReference,
@@ -168,10 +171,14 @@ export function createDashRepresentationSegmentProvider(
             })
     } else if (segmentBase) {
         getSegmentReferences = () =>
-            createSegmentsFromSegmentBase(deps, {
-                ...options,
-                segmentBase,
-            })
+            createSegmentsFromSegmentBase(
+                deps,
+                {
+                    ...options,
+                    segmentBase,
+                },
+                initData
+            )
     }
 
     return {
@@ -320,10 +327,17 @@ async function createSegmentsFromSegmentBase(
     deps: DashSegmentProviderDeps,
     options: GetTimelineOptions & {
         readonly segmentBase: SegmentBaseType
-    }
+    },
+    initData: SegmentDataProvider
 ): Promise<readonly DataSegmentRef[]> {
     const { baseUrl, periodTimeRange, representation, segmentBase } = options
     if (segmentBase.indexRange) {
+        // WebM indexes segments with an EBML `Cues` element, not an ISO-BMFF
+        // `sidx` box, so it needs a different reader.
+        const { mimeType } = getRepresentationMimeInfo(representation)
+        if (mimeType?.includes('webm')) {
+            return createSegmentsFromWebmCues(deps, options, initData)
+        }
         // Load the sidx box from the mp4.
         const indexRange = segmentBase.indexRange
         const { url: indexUrl, serviceLocation: indexServiceLocation } =
@@ -362,6 +376,86 @@ async function createSegmentsFromSegmentBase(
     } else {
         throw new ValidationError('Manifest missing segments')
     }
+}
+
+/**
+ * When SegmentBase is provided for a WebM stream, build the timeline from the
+ * EBML `Cues` element (the WebM analog of a `sidx`). Cue times are in the
+ * container's `TimecodeScale` ticks (from the init segment), and each cue's
+ * `CueClusterPosition` is a byte offset relative to the `Segment` data start.
+ */
+async function createSegmentsFromWebmCues(
+    deps: DashSegmentProviderDeps,
+    options: GetTimelineOptions & {
+        readonly segmentBase: SegmentBaseType
+    },
+    initData: SegmentDataProvider
+): Promise<readonly DataSegmentRef[]> {
+    const { baseUrl, periodTimeRange, representation, segmentBase } = options
+    const indexRange = segmentBase.indexRange!
+    const { url, serviceLocation } = resolveDashUri(deps, {
+        baseUrl,
+        representation,
+    })
+
+    // The init segment (fetched via `initData`, whether by range or sourceURL)
+    // carries the Segment data offset and TimecodeScale; the index range holds
+    // the Cues.
+    const [{ segmentDataStart, timecodeScale }, cues] = await Promise.all([
+        Promise.resolve(initData()).then(parseWebmInit),
+        createSegmentDataProvider(deps, {
+            url,
+            mediaRange: indexRange,
+            serviceId: serviceLocation,
+            reportDownlinkMetrics: false,
+        })().then(parseWebmCues),
+    ])
+    if (!cues.length) {
+        throw new ValidationError('WebM Cues contained no cue points')
+    }
+
+    // Cue times are in TimecodeScale ticks (ns per tick); express the timeline
+    // in ticks-per-second so sampleToMpdTime yields seconds.
+    const ticksPerSecond = Math.round(1e9 / timecodeScale)
+    const manifestTimescale = segmentBase.timescale ?? ticksPerSecond
+    const presentationTimeOffset =
+        ((segmentBase.presentationTimeOffset ?? 0) * ticksPerSecond) /
+        manifestTimescale
+
+    // The final sample time is the last segment's end. WebM Cues don't carry
+    // it, so it comes from the period end (which VOD always defines).
+    const [, periodEnd] = periodTimeRange
+    if (periodEnd == null)
+        throw new ValidationError(
+            'MPD.mediaPresentationDuration or Period.duration required',
+            ErrorOrigin.MEDIA
+        )
+    const sampleTimes = cues.map((cue) => cue.time)
+    sampleTimes.push(periodEnd * ticksPerSecond)
+
+    return createTimeline(
+        {
+            sampleTimes,
+            periodTimeRange,
+            presentationTimeOffset,
+            timescale: ticksPerSecond,
+        },
+        (i) => {
+            const start = segmentDataStart + cues[i].clusterPosition
+            // Each cluster runs to the byte before the next cue's cluster; the
+            // last runs to the end of the file (open-ended range).
+            const end =
+                i < cues.length - 1
+                    ? segmentDataStart + cues[i + 1].clusterPosition - 1
+                    : null
+            return createSegmentDataProvider(deps, {
+                url,
+                mediaRange: [start, end],
+                serviceId: serviceLocation,
+                reportDownlinkMetrics: true,
+            })
+        }
+    )
 }
 
 /**

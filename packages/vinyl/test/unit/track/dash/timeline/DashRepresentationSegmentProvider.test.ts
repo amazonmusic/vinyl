@@ -366,6 +366,162 @@ describe('createDashRepresentationSegmentProvider', () => {
         })
     })
 
+    describe('when SegmentBase is a WebM stream', () => {
+        // Minimal EBML builders for a synthetic WebM init + Cues.
+        const vintSize = (n: number): number[] =>
+            n < 0x80 ? [0x80 | n] : [0x40 | (n >> 8), n & 0xff]
+        const el = (id: readonly number[], content: readonly number[]) => [
+            ...id,
+            ...vintSize(content.length),
+            ...content,
+        ]
+        const bytesToArrayBuffer = (bytes: number[]) =>
+            new Uint8Array(bytes).buffer
+
+        // EBML header (5 bytes) then Segment(Info > TimecodeScale=1_000_000);
+        // the Segment data starts at offset 10, so cue positions are + 10.
+        const initBuffer = bytesToArrayBuffer([
+            ...el([0x1a, 0x45, 0xdf, 0xa3], []),
+            ...el(
+                [0x18, 0x53, 0x80, 0x67],
+                el(
+                    [0x15, 0x49, 0xa9, 0x66],
+                    el([0x2a, 0xd7, 0xb1], [0x0f, 0x42, 0x40])
+                )
+            ),
+        ])
+        const cuePoint = (time: number[], pos: number[]) =>
+            el(
+                [0xbb],
+                [
+                    ...el([0xb3], time),
+                    ...el([0xb7], [...el([0xf7], [0x01]), ...el([0xf1], pos)]),
+                ]
+            )
+        // Cue 0 @ t=0 → cluster pos 100; cue 1 @ t=2000ms → cluster pos 200.
+        const cuesBuffer = bytesToArrayBuffer(
+            el(
+                [0x1c, 0x53, 0xbb, 0x6b],
+                [
+                    ...cuePoint([0x00], [0x00, 0x64]),
+                    ...cuePoint([0x07, 0xd0], [0x00, 0xc8]),
+                ]
+            )
+        )
+
+        beforeEach(() => {
+            // WebM Cues don't carry the last segment's end, so a period end is
+            // required (VOD defines one).
+            manifest.MPD.mediaPresentationDuration = 60
+            representation.BaseURL = [
+                { _content: 'https://example.com/v.webm' },
+            ]
+            representation.mimeType = 'video/webm'
+            representation.codecs = 'vp9'
+            representation.SegmentBase = {
+                indexRangeExact: false,
+                indexRange: [100, 199],
+                timescale: 1000000,
+                Initialization: { range: [0, 99] },
+            }
+            // The provider fetches the init and Cues ranges in parallel; return
+            // the matching buffer per Range header.
+            mockRequesterRef.value.request.and.callFake(((
+                _input: unknown,
+                init?: { headers?: Record<string, string> }
+            ) => {
+                const range = init?.headers?.['Range']
+                const body =
+                    range === 'bytes=0-99'
+                        ? initBuffer
+                        : range === 'bytes=100-199'
+                          ? cuesBuffer
+                          : new ArrayBuffer(0)
+                return Promise.resolve(new Response(body))
+            }) as any)
+        })
+
+        it('creates a timeline from the WebM Cues', async () => {
+            const timeline = createTimeline()
+            // Prime the timeline (fetch init + Cues), then assert the segments.
+            await timeline.getSegment(0)
+            clearRequestCalls()
+
+            const info = await getSegmentRequestData(timeline)
+            expect(info).toEqual({
+                init: {
+                    qualityId: any(String),
+                    decoderId: any(String),
+                    mimeType: 'video/webm; codecs="vp9"',
+                    href: 'https://example.com/v.webm',
+                    serviceId: 'example.com',
+                    range: 'bytes=0-99',
+                },
+                segments: [
+                    {
+                        startTime: 0,
+                        endTime: 2,
+                        timestampOffset: 0,
+                        href: 'https://example.com/v.webm',
+                        serviceId: 'example.com',
+                        // segmentDataStart(10) + cue positions 100..200.
+                        range: 'bytes=110-209',
+                    },
+                    {
+                        startTime: 2,
+                        endTime: 60,
+                        timestampOffset: 2,
+                        href: 'https://example.com/v.webm',
+                        serviceId: 'example.com',
+                        // Last cluster runs open-ended to end of file.
+                        range: 'bytes=210-',
+                    },
+                ],
+            })
+        })
+
+        it('indexes WebM without an explicit SegmentBase timescale', async () => {
+            delete (representation.SegmentBase as { timescale?: number })
+                .timescale
+            const timeline = createTimeline()
+            const segment = await timeline.getSegment(0)
+            expect(segment).not.toBeNull()
+            // Cue 0 at ticks 0 → 0s (TimecodeScale-derived ticks-per-second).
+            expect(segment!.startTime).toBe(0)
+        })
+
+        it('throws when the period has no determinable end', () => {
+            delete (manifest.MPD as { mediaPresentationDuration?: number })
+                .mediaPresentationDuration
+            const timeline = createTimeline()
+            return expectAsync(timeline.getSegment(0)).toBeRejectedWithError(
+                /mediaPresentationDuration or Period\.duration required/
+            )
+        })
+
+        it('throws when the Cues contain no cue points', () => {
+            // A Cues element whose only CuePoint lacks a cluster position.
+            const emptyCues = bytesToArrayBuffer(
+                el([0x1c, 0x53, 0xbb, 0x6b], el([0xbb], el([0xb3], [0x00])))
+            )
+            mockRequesterRef.value.request.and.callFake(((
+                _input: unknown,
+                init?: { headers?: Record<string, string> }
+            ) => {
+                const range = init?.headers?.['Range']
+                return Promise.resolve(
+                    new Response(
+                        range === 'bytes=0-99' ? initBuffer : emptyCues
+                    )
+                )
+            }) as any)
+            const timeline = createTimeline()
+            return expectAsync(timeline.getSegment(0)).toBeRejectedWithError(
+                /Cues contained no cue points/
+            )
+        })
+    })
+
     describe('when SegmentList is defined', () => {
         let segmentList: MutableDeep<SegmentListType>
         beforeEach(() => {
