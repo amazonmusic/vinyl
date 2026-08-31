@@ -62,8 +62,10 @@ browsers, or Safari macOS), and PlayReady (Edge).
 | Microsoft Edge          | v18+                |
 | Chromium (Opera, Brave) | v52+                |
 
-Amazon Vinyl supports Dash and HLS (fMP4) streaming via MSE on all browsers
-listed above. Native HLS via FairPlay is supported on Safari and iOS.
+Amazon Vinyl supports Dash and HLS streaming via MSE on all browsers listed
+above. DASH plays the ISO-BMFF (MP4/fMP4) and WebM containers. HLS plays fMP4
+and MPEG-TS (transmuxed to fMP4 on the fly). Native HLS with FairPlay DRM is
+supported on Safari and iOS.
 
 # Extensibility
 

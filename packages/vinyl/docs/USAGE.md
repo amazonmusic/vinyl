@@ -113,6 +113,12 @@ Dash track default behavior is to treat the `uri` as the Dash MPD location. This
 can be overridden with a custom manifest provider, which is returns a parsed
 dash manifest.
 
+DASH streams may use ISO-BMFF (MP4/fMP4) or WebM containers, with
+`SegmentTemplate`, `SegmentList`, or `SegmentBase` addressing. `SegmentBase`
+streams are indexed from their ISO-BMFF `sidx` box or WebM `Cues` element as
+appropriate. Codec support (e.g. AVC/HEVC/VP9 video, AAC/Opus/FLAC audio) is
+gated by the browser's Media Source Extensions support.
+
 ```typescript
 player.load({
     type: 'dash',
