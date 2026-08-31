@@ -34,6 +34,7 @@ export const vinylTestAssets = {
     dash: {
         live_static_aac_opus_flac_60s_segmentTemplate: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentTemplate/manifest.mpd`,
         live_static_aac_opus_flac_60s_segmentBase: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase/manifest.mpd`,
+        live_static_webm_vp9_opus_60s_segmentBase: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_webm_vp9_opus_60s_segmentBase/manifest.mpd`,
         live_static_video_audio_60s_2s_segmentTemplate: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate/manifest.mpd`,
         live_static_video_audio_60s_4s_segmentTemplate: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_4s_segmentTemplate/manifest.mpd`,
         live_static_video_audio_60s_2s_segmentTemplate_widevine_cl10: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_video_audio_60s_2s_segmentTemplate_widevine_cl10/manifest.mpd`,
