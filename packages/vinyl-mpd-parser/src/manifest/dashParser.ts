@@ -38,7 +38,7 @@ export type DashDrmManifest = Merged<
 export interface ContentProtection
     extends DescriptorType, CencContentProtection, PlayreadyContentProtection {}
 
-const dashDrmRules = mergeXmlRules(
+export const dashDrmRules = mergeXmlRules(
     dashManifestXmlRules(),
     createDashProtectionXmlRules(cencXmlRules),
     createDashProtectionXmlRules(playreadyXmlRules)

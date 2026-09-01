@@ -40,8 +40,8 @@ player.load({
   PlayReady setup.
 - [DRM Controller](./docs/DRM_CONTROLLER.md) — implementing custom license
   acquisition.
-- [DASH Manifest Transforms](./docs/DASH_MANIFEST_TRANSFORM_GUIDE.md) —
-  rewriting manifests before parsing.
+- [Customization Guide](./docs/CUSTOMIZATION_GUIDE.md) — timeline / DASH / HLS
+  transforms and parser rule extensions.
 - [Auto Reset](./docs/AUTO_RESET.md) — recovering from terminal playback errors.
 
 Browse the full docs and TypeDoc API reference at
