@@ -10,13 +10,23 @@ import type { MaybePromise } from '@amazon/vinyl-util'
 
 describe('AdControllerImpl', () => {
     let playbackController: MockPlaybackController
+    let controllers: AdControllerImpl[]
 
     beforeEach(() => {
         playbackController = new MockPlaybackController()
+        controllers = []
+    })
+
+    // Dispose every controller a spec created. An activated-but-unstarted ad
+    // arms a `sleep(adLoadTimeout)` timer.
+    afterEach(() => {
+        for (const c of controllers) if (!c.disposed) c.dispose()
     })
 
     function createController() {
-        return new AdControllerImpl({ playbackController })
+        const c = new AdControllerImpl({ playbackController })
+        controllers.push(c)
+        return c
     }
 
     function updateTime(time: number) {
