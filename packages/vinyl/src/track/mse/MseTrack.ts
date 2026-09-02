@@ -197,11 +197,6 @@ export class MseTrack extends TrackBase {
                 if (previous !== undefined) this.reloadStreams()
             })
         )
-        add(
-            deps.allowedContentTypes.onData((_value, previous) => {
-                if (previous !== undefined) this.reloadStreams()
-            })
-        )
         // A resolution-restriction change re-selects a quality from the same
         // streams, so clearing the buffer is enough — no rebuild is needed.
         add(

@@ -1274,10 +1274,6 @@ describe('MseTrack', () => {
                 apply: () => (deps.audio.value = jaAudio),
             },
             {
-                name: 'allowedContentTypes',
-                apply: () => (deps.allowedContentTypes.value = allowed),
-            },
-            {
                 name: 'audio descriptive',
                 apply: () => (deps.audio.value = descriptiveAudio),
             },
@@ -1302,6 +1298,19 @@ describe('MseTrack', () => {
                 })
             })
         }
+
+        describe('when allowedContentTypes changes', () => {
+            // It only affects the content-type set, which flows through
+            // contentTypesValue -> setContentTypes. Reloading directly here too
+            // would double hard-reset and seek to 0.
+            it('does not reload directly', () => {
+                const clearSpy = spyOn(track!, 'clearPrefetch')
+                const resetSpy = spyOn(track!, 'reset')
+                deps.allowedContentTypes.value = allowed
+                expect(clearSpy).not.toHaveBeenCalled()
+                expect(resetSpy).not.toHaveBeenCalled()
+            })
+        })
 
         describe('when abr resolution restrictions change', () => {
             it('clears prefetch (without a rebuild) when maxHeight changes', () => {
