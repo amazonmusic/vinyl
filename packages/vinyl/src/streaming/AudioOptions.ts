@@ -67,6 +67,17 @@ export interface AudioOptions {
      * timeline immediately. `null`/`undefined` falls back to the reported rate.
      */
     readonly maxSampleRate?: Maybe<number>
+
+    /**
+     * The minimum audio sampling rate (Hz) the sampling-rate filter treats as
+     * supported. When set, renditions below it are filtered out as a soft floor
+     * (if every audio rendition is below it, the highest is kept so playback is
+     * never stranded). Applied alongside the max cap whenever the filter runs,
+     * regardless of how the max was determined; ignored when
+     * {@link disableSampleRateFilter} is `true`. Changing this re-filters the
+     * timeline immediately.
+     */
+    readonly minSampleRate?: Maybe<number>
 }
 
 export const defaultAudioOptions: AudioOptions = {
@@ -83,4 +94,5 @@ export const audioOptionsValidator: ObjectSchema<AudioOptions> = object({
     selection: audioSelectionValidator.optional(),
     disableSampleRateFilter: boolean().optional(),
     maxSampleRate: number().maybe().optional(),
+    minSampleRate: number().maybe().optional(),
 })

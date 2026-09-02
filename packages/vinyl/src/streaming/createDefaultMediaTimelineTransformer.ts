@@ -26,8 +26,8 @@ import {
     throwKeySystemsUnsupported,
 } from '../track/filters/keySystemFilter'
 import {
-    supportsAudioSamplingRate,
     throwSamplingRatesUnsupported,
+    withinAudioSampleRateRange,
 } from '../track/filters/sampleRateFilter'
 import { throwLanguagesUnsupported } from '../track/filters/languageFilter'
 import type { CodecOverrides } from '../util/media/codecOverrides'
@@ -88,14 +88,15 @@ export function createDefaultMediaTimelineTransformer(
         // The sampling-rate filter can be turned off via audio options, keeping
         // renditions the platform reports as unsupported.
         if (!audio.disableSampleRateFilter) {
-            const sampleRateDeps = {
+            const sampleRateOptions = {
                 capabilities: deps.capabilities,
                 maxSampleRate: audio.maxSampleRate ?? null,
+                minSampleRate: audio.minSampleRate ?? null,
             }
             t = filterTimelineQualities(
                 (quality, index, array) =>
-                    supportsAudioSamplingRate(
-                        sampleRateDeps,
+                    withinAudioSampleRateRange(
+                        sampleRateOptions,
                         quality,
                         index,
                         array

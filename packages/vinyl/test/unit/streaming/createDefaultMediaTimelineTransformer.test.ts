@@ -499,6 +499,52 @@ describe('createDefaultMediaTimelineTransformer', () => {
         unsub()
     })
 
+    it('applies audio.minSampleRate as a soft floor at runtime', async () => {
+        capabilities.sampleRate = 192_000 // max cap drops nothing
+        const timeline: MediaTimeline = {
+            periods: [
+                {
+                    startTime: 0,
+                    endTime: 100,
+                    qualities: [
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'a48',
+                            audioSamplingRate: [48_000],
+                        }),
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'a24',
+                            audioSamplingRate: [24_000],
+                        }),
+                    ],
+                },
+            ],
+            minBufferTime: 2,
+            getAdBreaks: () => Promise.resolve([]),
+            getDuration: () => Promise.resolve(Infinity),
+        }
+        const options = data({ audio: {} })
+        const transformed = createDefaultMediaTimelineTransformer({
+            capabilities,
+            drmController,
+            mediaTimeline: data(Promise.resolve(timeline)),
+            options,
+        })
+        const unsub = transformed.onData(() => {})
+        const ids = (t: MediaTimeline) =>
+            t.periods[0].qualities.map((q) => q.metadata.qualityId)
+
+        expect(ids(await transformed.value)).toEqual(['a48', 'a24'])
+
+        // Floor at 48kHz: the 24kHz rendition is dropped.
+        options.value = { audio: { minSampleRate: 48_000 } }
+        expect(ids(await transformed.value)).toEqual(['a48'])
+        unsub()
+    })
+
     it('preserves minBufferTime', async () => {
         const timeline: MediaTimeline = {
             periods: [

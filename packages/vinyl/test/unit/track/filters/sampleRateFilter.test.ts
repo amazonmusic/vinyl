@@ -4,14 +4,14 @@
  */
 
 import {
-    supportsAudioSamplingRate,
+    withinAudioSampleRateRange,
     createEmptyMediaQualityMetadata,
     throwSamplingRatesUnsupported,
 } from '@amazon/vinyl'
 import { MockCapabilities } from '@amazon/vinyl/vinylTestUtil'
 import { setUserAgent } from '@amazon/vinyl-util'
 
-describe('supportsAudioSamplingRate', () => {
+describe('withinAudioSampleRateRange', () => {
     let capabilities: MockCapabilities
 
     beforeEach(() => {
@@ -37,7 +37,7 @@ describe('supportsAudioSamplingRate', () => {
             const metadata = audioQuality([96_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, metadata, 0, [
+                withinAudioSampleRateRange({ capabilities }, metadata, 0, [
                     metadata,
                 ])
             ).toBe(false)
@@ -48,7 +48,7 @@ describe('supportsAudioSamplingRate', () => {
             const metadata = audioQuality([96_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, metadata, 0, [
+                withinAudioSampleRateRange({ capabilities }, metadata, 0, [
                     metadata,
                 ])
             ).toBe(false)
@@ -59,11 +59,14 @@ describe('supportsAudioSamplingRate', () => {
             const high = audioQuality([96_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, low, 0, [low, high])
+                withinAudioSampleRateRange({ capabilities }, low, 0, [
+                    low,
+                    high,
+                ])
             ).toBe(false)
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, high, 1, [
+                withinAudioSampleRateRange({ capabilities }, high, 1, [
                     low,
                     high,
                 ])
@@ -74,7 +77,7 @@ describe('supportsAudioSamplingRate', () => {
             const metadata = audioQuality([48_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, metadata, 0, [
+                withinAudioSampleRateRange({ capabilities }, metadata, 0, [
                     metadata,
                 ])
             ).toBe(true)
@@ -84,7 +87,7 @@ describe('supportsAudioSamplingRate', () => {
             const metadata = audioQuality(null)
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, metadata, 0, [
+                withinAudioSampleRateRange({ capabilities }, metadata, 0, [
                     metadata,
                 ])
             ).toBe(true)
@@ -100,7 +103,18 @@ describe('supportsAudioSamplingRate', () => {
             const metadata = audioQuality([48_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, metadata, 0, [
+                withinAudioSampleRateRange({ capabilities }, metadata, 0, [
+                    metadata,
+                ])
+            ).toBe(true)
+        })
+
+        it('keeps everything when there is no platform max to gauge support', () => {
+            capabilities.sampleRate = null
+            const metadata = audioQuality([96_000])
+
+            expect(
+                withinAudioSampleRateRange({ capabilities }, metadata, 0, [
                     metadata,
                 ])
             ).toBe(true)
@@ -111,7 +125,7 @@ describe('supportsAudioSamplingRate', () => {
             const high = audioQuality([96_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, high, 1, [
+                withinAudioSampleRateRange({ capabilities }, high, 1, [
                     low,
                     high,
                 ])
@@ -123,11 +137,14 @@ describe('supportsAudioSamplingRate', () => {
             const high = audioQuality([96_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, low, 0, [low, high])
+                withinAudioSampleRateRange({ capabilities }, low, 0, [
+                    low,
+                    high,
+                ])
             ).toBe(true)
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, high, 1, [
+                withinAudioSampleRateRange({ capabilities }, high, 1, [
                     low,
                     high,
                 ])
@@ -142,7 +159,7 @@ describe('supportsAudioSamplingRate', () => {
 
             // Without an override, 96kHz is dropped (a 48kHz alternative exists).
             expect(
-                supportsAudioSamplingRate({ capabilities }, high, 1, [
+                withinAudioSampleRateRange({ capabilities }, high, 1, [
                     low,
                     high,
                 ])
@@ -150,7 +167,7 @@ describe('supportsAudioSamplingRate', () => {
 
             // With maxSampleRate = 96kHz, it is kept.
             expect(
-                supportsAudioSamplingRate(
+                withinAudioSampleRateRange(
                     { capabilities, maxSampleRate: 96_000 },
                     high,
                     1,
@@ -166,7 +183,7 @@ describe('supportsAudioSamplingRate', () => {
             const high = audioQuality([96_000])
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, high, 1, [
+                withinAudioSampleRateRange({ capabilities }, high, 1, [
                     low,
                     high,
                 ])
@@ -174,7 +191,7 @@ describe('supportsAudioSamplingRate', () => {
 
             // Capping at 48kHz drops the 96kHz rendition and keeps the 48kHz one.
             expect(
-                supportsAudioSamplingRate(
+                withinAudioSampleRateRange(
                     { capabilities, maxSampleRate: 48_000 },
                     high,
                     1,
@@ -182,7 +199,7 @@ describe('supportsAudioSamplingRate', () => {
                 )
             ).toBe(false)
             expect(
-                supportsAudioSamplingRate(
+                withinAudioSampleRateRange(
                     { capabilities, maxSampleRate: 48_000 },
                     low,
                     0,
@@ -202,13 +219,13 @@ describe('supportsAudioSamplingRate', () => {
             video.audioSamplingRate = null
 
             expect(
-                supportsAudioSamplingRate({ capabilities }, audio, 0, [
+                withinAudioSampleRateRange({ capabilities }, audio, 0, [
                     audio,
                     video,
                 ])
             ).toBe(true)
             expect(
-                supportsAudioSamplingRate({ capabilities }, video, 1, [
+                withinAudioSampleRateRange({ capabilities }, video, 1, [
                     audio,
                     video,
                 ])
@@ -224,5 +241,71 @@ describe('supportsAudioSamplingRate', () => {
             expect(error).toEqual(jasmine.any(Error))
             expect((error as Error).message).toBe('No supported sample rate')
         }
+    })
+})
+
+describe('withinAudioSampleRateRange minSampleRate floor', () => {
+    let capabilities: MockCapabilities
+
+    beforeEach(() => {
+        capabilities = new MockCapabilities()
+        // High enough that the upper bound never interferes with these tests.
+        capabilities.sampleRate = 192_000
+    })
+
+    function audioQuality(rate: number[] | null) {
+        const quality = createEmptyMediaQualityMetadata()
+        quality.contentType = 'audio'
+        quality.audioSamplingRate = rate
+        return quality
+    }
+
+    // minSampleRate is passed via the options arg alongside capabilities.
+    function withinMin(
+        metadata: ReturnType<typeof audioQuality>,
+        index: number,
+        array: readonly ReturnType<typeof audioQuality>[]
+    ): boolean {
+        return withinAudioSampleRateRange(
+            { capabilities, minSampleRate: 48_000 },
+            metadata,
+            index,
+            array
+        )
+    }
+
+    it('passes through non-audio qualities', () => {
+        const video = createEmptyMediaQualityMetadata()
+        video.contentType = 'video'
+        expect(withinMin(video, 0, [video])).toBe(true)
+    })
+
+    it('keeps qualities with no sampling rate', () => {
+        const quality = audioQuality(null)
+        expect(withinMin(quality, 0, [quality])).toBe(true)
+    })
+
+    it('drops rates below the floor when a rate at or above it exists', () => {
+        const low = audioQuality([24_000])
+        const high = audioQuality([48_000])
+        expect(withinMin(high, 1, [low, high])).toBe(true)
+        expect(withinMin(low, 0, [low, high])).toBe(false)
+    })
+
+    it('keeps the highest when every rate is below the floor', () => {
+        const low = audioQuality([16_000])
+        const mid = audioQuality([24_000])
+        expect(withinMin(mid, 1, [low, mid])).toBe(true)
+        expect(withinMin(low, 0, [low, mid])).toBe(false)
+    })
+
+    it('ignores non-audio qualities in the floor fallback', () => {
+        const audio = audioQuality([24_000]) // below the floor
+        const video = createEmptyMediaQualityMetadata()
+        video.contentType = 'video'
+        video.audioSamplingRate = null
+        // Below the 48kHz floor but the only audio → kept; video is ignored.
+        expect(withinMin(audio, 0, [audio, video])).toBe(true)
+        expect(withinMin(video, 1, [audio, video])).toBe(true)
     })
 })
