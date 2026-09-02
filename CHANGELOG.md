@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [1.2.1]() (2026-09-02)
+
+### Bug Fixes
+
+- **drm:** enable ChromeOS verified media path for audio-only content
+  ([11b27c6](https://github.com/amazonmusic/vinyl/commits/11b27c6974baa7ef63d63641ac0e6251e766c26f))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [1.2.0]() (2026-07-02)
 
 ### Features
