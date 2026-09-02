@@ -27,7 +27,14 @@ export function throwSamplingRatesUnsupported(): never {
  * and then do not filter the lowest sampling rate.
  */
 export function supportsAudioSamplingRate(
-    deps: { readonly capabilities: Capabilities },
+    deps: {
+        readonly capabilities: Capabilities
+        /**
+         * An explicit maximum sampling rate that takes precedence over the
+         * platform's `AudioContext`-reported output rate when set.
+         */
+        readonly maxSampleRate?: number | null
+    },
     metadata: MediaQualityMetadata,
     _index: number,
     array: ArrayLike<MediaQualityMetadata>
@@ -38,7 +45,9 @@ export function supportsAudioSamplingRate(
     if (metadata.contentType !== 'audio') return true
 
     const isFirefox = hasBrowser(Browser.FIREFOX)
-    const maxSampleRate = deps.capabilities.sampleRate
+    // An explicit maxSampleRate takes precedence over the AudioContext-reported
+    // output rate.
+    const maxSampleRate = deps.maxSampleRate ?? deps.capabilities.sampleRate
     const samplingRate = last(metadata.audioSamplingRate)
 
     // Unknown rate, or no AudioContext to gauge platform support: keep. This

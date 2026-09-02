@@ -74,7 +74,7 @@ export function createDefaultMediaTimelineTransformer(
     async function transformTimeline(
         timeline: MediaTimeline
     ): Promise<MediaTimeline> {
-        const codecOverrides = deps.options.value.codecOverrides
+        const { audio, codecOverrides } = deps.options.value
         let t = filterTimelineQualities(
             (quality) => canPlayWithOverrides(quality, codecOverrides),
             throwMimeTypesUnsupported,
@@ -85,12 +85,25 @@ export function createDefaultMediaTimelineTransformer(
             throwKeySystemsUnsupported,
             t
         )
-        t = filterTimelineQualities(
-            (quality, index, array) =>
-                supportsAudioSamplingRate(deps, quality, index, array),
-            throwSamplingRatesUnsupported,
-            t
-        )
+        // The sampling-rate filter can be turned off via audio options, keeping
+        // renditions the platform reports as unsupported.
+        if (!audio.disableSampleRateFilter) {
+            const sampleRateDeps = {
+                capabilities: deps.capabilities,
+                maxSampleRate: audio.maxSampleRate ?? null,
+            }
+            t = filterTimelineQualities(
+                (quality, index, array) =>
+                    supportsAudioSamplingRate(
+                        sampleRateDeps,
+                        quality,
+                        index,
+                        array
+                    ),
+                throwSamplingRatesUnsupported,
+                t
+            )
+        }
         // Resolve audio-description eligibility BEFORE the language filter.
         // Description renditions are an accessibility opt-in, not general audio,
         // so they must be gated out (unless opted in via audio.selection.descriptive)
@@ -101,7 +114,7 @@ export function createDefaultMediaTimelineTransformer(
         // described audio they never opted into. With this gate first, the
         // language filter only ever picks among eligible (main, or opted-in
         // description) renditions.
-        const selection = deps.options.value.audio.selection
+        const selection = audio.selection
         t = filterTimelineQualities(
             createAudioDescriptionFilter(selection?.descriptive ?? false),
             throwNoPlayableAudio,
