@@ -114,13 +114,13 @@ interface MaybeCreateSessionOptions {
  * Options for {@link DrmControllerImpl.createNewSession}.
  */
 interface CreateNewSessionOptions {
-    readonly serverCertificate: Maybe<ServerCertificate>
     readonly mediaKeys: CommonMediaKeys
+    // Already transformed (see maybeCreateSession): handed to the CDM as-is and
+    // stored as the session's reuse key.
     readonly initData: EncryptedInitData
     readonly initDataType: DrmInitDataType
     readonly drmInfo: MediaFormatMetadata & { readonly mimeType: string }
     readonly trackUri: TrackUri | null
-    readonly initDataTransformer?: InitDataTransformer | undefined
 }
 
 export class DrmControllerImpl
@@ -323,33 +323,50 @@ export class DrmControllerImpl
             licenseServerOptionsProvider ?? {}
         )
         this.abortIfDisposed()
-        const existingSession = this.getSessionByInitData(initData)
+
+        const certBytes = toCertBytes(licenseServerOptions.serverCertificate)
+        if (certBytes) {
+            await mediaKeys.setServerCertificate(certBytes)
+            this.abortIfDisposed()
+        }
+
+        // Transform the init data before matching OR creating a session, so the
+        // CDM receives — and the session stores — the transformed bytes, and the
+        // reuse check compares like-for-like. Identity for everything but
+        // FairPlay (which repacks the skd with the content ID and certificate).
+        const transform =
+            keySystemOptions?.initDataTransformer ??
+            defaultInitDataTransformer(mediaKeys.keySystem, certBytes)
+        const transformedInitData = transform(
+            bufferToByteArray(initData),
+            initDataType,
+            drmInfo
+        )
+
+        const existingSession = this.getSessionByInitData(transformedInitData)
         if (existingSession) {
             logDebug(this, 'reusing session')
             return existingSession
-        } else {
-            const newSession = await this.createNewSession({
-                serverCertificate: licenseServerOptions.serverCertificate,
-                mediaKeys,
-                initData,
-                initDataType,
-                drmInfo,
-                trackUri,
-                initDataTransformer: keySystemOptions?.initDataTransformer,
-            })
-            this.sessions.push(newSession)
-            this.dispatch('sessionCreate', {
-                initDataType: newSession.initDataType,
-                mimeType: newSession.mimeType,
-            })
-            newSession.on('closed', () => this.closeSession(newSession))
-            abort?.onAborted(() => {
-                if (this.disposed) return
-                logDebug(this, 'abort session')
-                this.closeSession(newSession)
-            })
-            return newSession
         }
+        const newSession = this.createNewSession({
+            mediaKeys,
+            initData: transformedInitData,
+            initDataType,
+            drmInfo,
+            trackUri,
+        })
+        this.sessions.push(newSession)
+        this.dispatch('sessionCreate', {
+            initDataType: newSession.initDataType,
+            mimeType: newSession.mimeType,
+        })
+        newSession.on('closed', () => this.closeSession(newSession))
+        abort?.onAborted(() => {
+            if (this.disposed) return
+            logDebug(this, 'abort session')
+            this.closeSession(newSession)
+        })
+        return newSession
     }
 
     initializeForPlayback(
@@ -533,39 +550,13 @@ export class DrmControllerImpl
     /**
      * Creates a new key session and adds a message handler.
      */
-    private async createNewSession(
+    private createNewSession(
         options: CreateNewSessionOptions
-    ): Promise<CommonMediaKeySession> {
-        const {
-            serverCertificate,
-            mediaKeys,
-            initDataType,
-            drmInfo,
-            trackUri,
-            initDataTransformer,
-        } = options
-        let initData = options.initData
-        const certBytes = serverCertificate
-            ? typeof serverCertificate === 'string'
-                ? base64ToByteArray(serverCertificate)
-                : bufferToByteArray(serverCertificate)
-            : null
-
-        if (certBytes) {
-            await mediaKeys.setServerCertificate(certBytes)
-        }
-
-        // Default initDataTransformer handles FAIR_PLAY_1_0 by packing the
-        // skd init data with the content ID and server certificate.
-        // FAIR_PLAY_1_0 always uses initDataType 'skd', so the default
-        // does not need to explicitly check initDataType.
-        const transform =
-            initDataTransformer ??
-            defaultInitDataTransformer(mediaKeys.keySystem, certBytes)
-        initData = transform(bufferToByteArray(initData), initDataType, drmInfo)
+    ): CommonMediaKeySession {
+        const { mediaKeys, initData, initDataType, drmInfo, trackUri } = options
 
         this.abortIfDisposed()
-        logDebug(this, 'createSession', drmInfo.mimeType, initDataType)
+        logDebug(this, 'createSession', drmInfo.mimeType, initDataType, drmInfo)
         const session = mediaKeys.createSession(
             drmInfo.mimeType,
             initDataType,
@@ -756,9 +747,9 @@ export class DrmControllerImpl
         initData: EncryptedInitData
     ): CommonMediaKeySession | null {
         return (
-            this.sessions.find((session) => {
-                return buffersEqual(session.initData, initData)
-            }) ?? null
+            this.sessions.find((session) =>
+                buffersEqual(session.initData, initData)
+            ) ?? null
         )
     }
 
@@ -791,6 +782,15 @@ function hasMimeType(
     drmInfo: MediaFormatMetadata
 ): drmInfo is MediaFormatMetadata & { readonly mimeType: string } {
     return drmInfo.mimeType != null
+}
+
+function toCertBytes(
+    serverCertificate: Maybe<ServerCertificate>
+): Uint8Array<ArrayBuffer> | null {
+    if (!serverCertificate) return null
+    return typeof serverCertificate === 'string'
+        ? base64ToByteArray(serverCertificate)
+        : bufferToByteArray(serverCertificate)
 }
 
 /**
