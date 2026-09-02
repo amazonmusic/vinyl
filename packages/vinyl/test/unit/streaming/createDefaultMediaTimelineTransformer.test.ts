@@ -403,6 +403,102 @@ describe('createDefaultMediaTimelineTransformer', () => {
         unsub()
     })
 
+    it('disables the sampling-rate filter via audio options at runtime', async () => {
+        // Output device at 44.1kHz: the 96kHz rendition is normally dropped
+        // (a 44.1kHz alternative exists, so the keep-lowest fallback declines).
+        capabilities.sampleRate = 44_100
+        const timeline: MediaTimeline = {
+            periods: [
+                {
+                    startTime: 0,
+                    endTime: 100,
+                    qualities: [
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'a44',
+                            audioSamplingRate: [44_100],
+                        }),
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'a96',
+                            audioSamplingRate: [96_000],
+                        }),
+                    ],
+                },
+            ],
+            minBufferTime: 2,
+            getAdBreaks: () => Promise.resolve([]),
+            getDuration: () => Promise.resolve(Infinity),
+        }
+        const options = data({ audio: { disableSampleRateFilter: false } })
+        const transformed = createDefaultMediaTimelineTransformer({
+            capabilities,
+            drmController,
+            mediaTimeline: data(Promise.resolve(timeline)),
+            options,
+        })
+        const unsub = transformed.onData(() => {})
+        const ids = (t: MediaTimeline) =>
+            t.periods[0].qualities.map((q) => q.metadata.qualityId)
+
+        // Filter on: the 96kHz rendition is dropped.
+        expect(ids(await transformed.value)).toEqual(['a44'])
+
+        // Filter off: both renditions are kept.
+        options.value = { audio: { disableSampleRateFilter: true } }
+        expect(ids(await transformed.value)).toEqual(['a44', 'a96'])
+        unsub()
+    })
+
+    it('honors audio.maxSampleRate over the reported rate at runtime', async () => {
+        // AudioContext reports 48kHz, so the 96kHz rendition is dropped.
+        capabilities.sampleRate = 48_000
+        const timeline: MediaTimeline = {
+            periods: [
+                {
+                    startTime: 0,
+                    endTime: 100,
+                    qualities: [
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'a48',
+                            audioSamplingRate: [48_000],
+                        }),
+                        createQuality({
+                            contentType: 'audio',
+                            mimeType: 'audio/mp4',
+                            qualityId: 'a96',
+                            audioSamplingRate: [96_000],
+                        }),
+                    ],
+                },
+            ],
+            minBufferTime: 2,
+            getAdBreaks: () => Promise.resolve([]),
+            getDuration: () => Promise.resolve(Infinity),
+        }
+        const options = data({ audio: {} })
+        const transformed = createDefaultMediaTimelineTransformer({
+            capabilities,
+            drmController,
+            mediaTimeline: data(Promise.resolve(timeline)),
+            options,
+        })
+        const unsub = transformed.onData(() => {})
+        const ids = (t: MediaTimeline) =>
+            t.periods[0].qualities.map((q) => q.metadata.qualityId)
+
+        expect(ids(await transformed.value)).toEqual(['a48'])
+
+        // Raise the cap to 96kHz: the 96kHz rendition is now kept.
+        options.value = { audio: { maxSampleRate: 96_000 } }
+        expect(ids(await transformed.value)).toEqual(['a48', 'a96'])
+        unsub()
+    })
+
     it('preserves minBufferTime', async () => {
         const timeline: MediaTimeline = {
             periods: [

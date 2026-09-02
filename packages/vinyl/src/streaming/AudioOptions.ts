@@ -4,7 +4,14 @@
  */
 
 import type { ObjectSchema } from '@amazon/vinyl-validation'
-import { array, boolean, object, string } from '@amazon/vinyl-validation'
+import {
+    array,
+    boolean,
+    number,
+    object,
+    string,
+} from '@amazon/vinyl-validation'
+import type { Maybe } from '@amazon/vinyl-util'
 
 /**
  * Criteria used to pick which audio rendition to play.
@@ -42,10 +49,29 @@ export interface AudioOptions {
      * The audio selection criteria (language / descriptive).
      */
     readonly selection?: AudioSelection
+
+    /**
+     * When `true`, disables the audio sampling-rate support filter, so audio
+     * renditions whose sampling rate exceeds what the platform reports (via the
+     * `AudioContext` output rate) are kept and offered to playback anyway.
+     * `false` (the default) applies the filter. Changing this re-filters the
+     * timeline immediately.
+     */
+    readonly disableSampleRateFilter?: boolean
+
+    /**
+     * The maximum audio sampling rate (Hz) the sampling-rate filter treats as
+     * supported. When set, it takes precedence over the platform's
+     * `AudioContext`-reported output rate. Ignored when
+     * {@link disableSampleRateFilter} is `true`. Changing this re-filters the
+     * timeline immediately. `null`/`undefined` falls back to the reported rate.
+     */
+    readonly maxSampleRate?: Maybe<number>
 }
 
 export const defaultAudioOptions: AudioOptions = {
     selection: { language: null, descriptive: false },
+    disableSampleRateFilter: false,
 }
 
 const audioSelectionValidator: ObjectSchema<AudioSelection> = object({
@@ -55,4 +81,6 @@ const audioSelectionValidator: ObjectSchema<AudioSelection> = object({
 
 export const audioOptionsValidator: ObjectSchema<AudioOptions> = object({
     selection: audioSelectionValidator.optional(),
+    disableSampleRateFilter: boolean().optional(),
+    maxSampleRate: number().maybe().optional(),
 })

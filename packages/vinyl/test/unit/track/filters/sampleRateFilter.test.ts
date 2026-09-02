@@ -134,6 +134,63 @@ describe('supportsAudioSamplingRate', () => {
             ).toBe(false)
         })
 
+        it('an explicit maxSampleRate takes precedence — raising it keeps a higher rate', () => {
+            // AudioContext reports 48kHz, which would drop the 96kHz rendition.
+            capabilities.sampleRate = 48_000
+            const low = audioQuality([48_000])
+            const high = audioQuality([96_000])
+
+            // Without an override, 96kHz is dropped (a 48kHz alternative exists).
+            expect(
+                supportsAudioSamplingRate({ capabilities }, high, 1, [
+                    low,
+                    high,
+                ])
+            ).toBe(false)
+
+            // With maxSampleRate = 96kHz, it is kept.
+            expect(
+                supportsAudioSamplingRate(
+                    { capabilities, maxSampleRate: 96_000 },
+                    high,
+                    1,
+                    [low, high]
+                )
+            ).toBe(true)
+        })
+
+        it('an explicit maxSampleRate takes precedence — lowering it drops a rate the platform allows', () => {
+            // AudioContext reports 192kHz, which would keep the 96kHz rendition.
+            capabilities.sampleRate = 192_000
+            const low = audioQuality([48_000])
+            const high = audioQuality([96_000])
+
+            expect(
+                supportsAudioSamplingRate({ capabilities }, high, 1, [
+                    low,
+                    high,
+                ])
+            ).toBe(true)
+
+            // Capping at 48kHz drops the 96kHz rendition and keeps the 48kHz one.
+            expect(
+                supportsAudioSamplingRate(
+                    { capabilities, maxSampleRate: 48_000 },
+                    high,
+                    1,
+                    [low, high]
+                )
+            ).toBe(false)
+            expect(
+                supportsAudioSamplingRate(
+                    { capabilities, maxSampleRate: 48_000 },
+                    low,
+                    0,
+                    [low, high]
+                )
+            ).toBe(true)
+        })
+
         it('ignores non-audio qualities and keeps audio above the device rate', () => {
             // Output device runs at 44.1kHz while the audio is standard 48kHz.
             capabilities.sampleRate = 44_100
