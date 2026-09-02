@@ -557,6 +557,23 @@ describe('DrmControllerImpl', () => {
             controller.dispose()
         })
 
+        it('ignores encrypted events when the manifest supplies pssh', async () => {
+            // The proactive manifest-pssh path owns session creation, so in-band
+            // `encrypted` events (e.g. a re-appended init segment on an ABR
+            // switch) must not spawn a duplicate session.
+            const drmInfoWithPssh = {
+                ...drmInfo,
+                contentProtections: [
+                    { keySystem: DrmKeySystem.WIDEVINE, pssh: 'AAAA' },
+                ],
+            } as const satisfies MediaFormatMetadata
+            drmController.setBufferingDrmInfo(drmInfoWithPssh)
+
+            await emitEncrypted(new Uint8Array([1, 2, 3]))
+            expect(errorSpy).not.toHaveBeenCalled()
+            expect(mediaKeys.createSession).not.toHaveBeenCalled()
+        })
+
         describe('and the drm controller is disposed', () => {
             it('does nothing', async () => {
                 drmController.dispose()
