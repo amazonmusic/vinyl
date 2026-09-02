@@ -182,13 +182,17 @@ export function createMediaQualityMetadataFromDashRepresentation(
 }
 
 /**
- * Estimates the total bandwidth a representation would use when paired with
- * proportionally matched qualities from sibling content types.
+ * Estimates the total bandwidth a representation uses alongside sibling content
+ * types, pairing it with the cheapest sibling rendition in its proportional
+ * bucket.
  *
- * For each sibling content type, the representation's relative position within its own
- * content type's sorted bandwidth list is mapped to the corresponding position in the
- * sibling's list. This produces realistic pairings — e.g. with video [v1,v2,v3,v4] and
- * audio [a1,a2], v1 pairs with a1, v2 with a1, v3 with a2, v4 with a2.
+ * Each content type's sorted list is split into as many buckets as this
+ * representation's own list has tiers; the representation is paired with the
+ * cheapest sibling rendition in the matching bucket. A stream with few tiers
+ * therefore stays selected across the span of a finer sibling's tiers (e.g. the
+ * top audio across the top half of video tiers) rather than being pinned to a
+ * single endpoint — with video [v1..v4] and audio [a1,a2], a1's bucket is
+ * v1..v2 so a1 pairs with v2, and a2's bucket is v3..v4 so a2 pairs with v4.
  */
 export function estimatePeakBandwidth(
     representation: RepresentationType,
@@ -203,13 +207,14 @@ export function estimatePeakBandwidth(
         0,
         sortedInsertionIndex(own, representation.bandwidth, (a, b) => b - a) - 1
     )
-    const position = own.length <= 1 ? 0 : ownIndex / (own.length - 1)
     let total = representation.bandwidth
     for (const [ct, bandwidths] of sortedByType) {
         if (ct === contentType) continue
+        // The cheapest peer in this tier's bucket: bucket j spans peer indices
+        // up to ceil((j+1)/ownLen * peerLen) - 1.
         const peerIndex = Math.min(
-            Math.round(position * (bandwidths.length - 1)),
-            bandwidths.length - 1
+            bandwidths.length - 1,
+            Math.ceil(((ownIndex + 1) / own.length) * bandwidths.length) - 1
         )
         total += bandwidths[peerIndex]
     }
