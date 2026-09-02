@@ -115,8 +115,7 @@ interface MaybeCreateSessionOptions {
  */
 interface CreateNewSessionOptions {
     readonly mediaKeys: CommonMediaKeys
-    // Already transformed (see maybeCreateSession): handed to the CDM as-is and
-    // stored as the session's reuse key.
+    // Already transformed (see maybeCreateSession).
     readonly initData: EncryptedInitData
     readonly initDataType: DrmInitDataType
     readonly drmInfo: MediaFormatMetadata & { readonly mimeType: string }
@@ -236,6 +235,11 @@ export class DrmControllerImpl
         event: CommonMediaEncryptedEvent
     ) => {
         if (this.disposed) return
+        // Manifest pssh drives sessions; ignore redundant in-band events.
+        if (this.manifestProvidesInitData()) {
+            logDebug(this, 'ignoring encrypted event; manifest provides pssh')
+            return
+        }
         ;(async () => {
             const { initData, initDataType } = event
             if (!initData) {
@@ -330,10 +334,8 @@ export class DrmControllerImpl
             this.abortIfDisposed()
         }
 
-        // Transform the init data before matching OR creating a session, so the
-        // CDM receives — and the session stores — the transformed bytes, and the
-        // reuse check compares like-for-like. Identity for everything but
-        // FairPlay (which repacks the skd with the content ID and certificate).
+        // Transform before matching/creating so the reuse check compares the
+        // same (transformed) bytes the CDM gets. Identity except FairPlay.
         const transform =
             keySystemOptions?.initDataTransformer ??
             defaultInitDataTransformer(mediaKeys.keySystem, certBytes)
@@ -381,6 +383,14 @@ export class DrmControllerImpl
                 options?.abort
             ).catch(this.handleError)
         }
+    }
+
+    /** True when the manifest carried pssh (sessions come from it, not events). */
+    private manifestProvidesInitData(): boolean {
+        return (
+            this.drmInfo?.contentProtections.some((cP) => cP.pssh != null) ??
+            false
+        )
     }
 
     setBufferingDrmInfo(
