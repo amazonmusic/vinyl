@@ -11,6 +11,7 @@ import {
     type MediaTimeline,
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
+import { setUserAgent } from '@amazon/vinyl-util'
 import {
     MockCapabilities,
     MockDrmController,
@@ -453,6 +454,8 @@ describe('createDefaultMediaTimelineTransformer', () => {
     })
 
     it('honors audio.maxSampleRate over the reported rate at runtime', async () => {
+        // Non-Firefox: Firefox hard-caps at 48kHz regardless of maxSampleRate.
+        setUserAgent('Chrome')
         // AudioContext reports 48kHz, so the 96kHz rendition is dropped.
         capabilities.sampleRate = 48_000
         const timeline: MediaTimeline = {
