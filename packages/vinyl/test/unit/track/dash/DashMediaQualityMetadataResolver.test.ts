@@ -539,7 +539,7 @@ describe('getPeriodSortedBandwidths', () => {
 })
 
 describe('estimatePeakBandwidth', () => {
-    it('pairs proportionally when video has more qualities than audio', () => {
+    it('pairs each tier with the cheapest peer in its bucket', () => {
         // language=XML
         const m = parseDashManifest(`<?xml version="1.0" ?>
             <MPD minBufferTime="PT0S" profiles="" xmlns="urn:mpeg:dash:schema:mpd:2011">
@@ -558,29 +558,65 @@ describe('estimatePeakBandwidth', () => {
             </MPD>`)
         const as0 = m.MPD.Period[0].AdaptationSet![0]
         const as1 = m.MPD.Period[0].AdaptationSet![1]
-        // video sorted: [4000, 3000, 2000, 1000], audio sorted: [200, 100]
-        // v1 pos=0/3=0.00 → audio index round(0.00*1)=0 → 200. total=4200
+        // video sorted: [4000, 3000, 2000, 1000], audio sorted: [200, 100].
+        // Video's two audio buckets: v1,v2 → a1(200); v3,v4 → a2(100).
         expect(estimatePeakBandwidth(as0.Representation![0], 'video')).toBe(
             4200
         )
-        // v2 pos=1/3=0.33 → audio index round(0.33*1)=0 → 200. total=3200
         expect(estimatePeakBandwidth(as0.Representation![1], 'video')).toBe(
             3200
         )
-        // v3 pos=2/3=0.67 → audio index round(0.67*1)=1 → 100. total=2100
         expect(estimatePeakBandwidth(as0.Representation![2], 'video')).toBe(
             2100
         )
-        // v4 pos=3/3=1.00 → audio index round(1.00*1)=1 → 100. total=1100
         expect(estimatePeakBandwidth(as0.Representation![3], 'video')).toBe(
             1100
         )
-        // a1 pos=0/1=0 → video index round(0*3)=0 → 4000. total=4200
+        // Audio's two video buckets: a1's bucket is v1,v2 so it pairs with the
+        // cheapest of those (v2=3000); a2's bucket is v3,v4 (cheapest v4=1000).
         expect(estimatePeakBandwidth(as1.Representation![0], 'audio')).toBe(
-            4200
+            3200
         )
-        // a2 pos=1/1=1 → video index round(1*3)=3 → 1000. total=1100
         expect(estimatePeakBandwidth(as1.Representation![1], 'audio')).toBe(
+            1100
+        )
+    })
+
+    it('does not pin a small stream to its lowest tier across a finer peer', () => {
+        // 2 audio tiers alongside 10 video tiers: the top audio must stay
+        // affordable across the whole top half of video, not only at the very
+        // top. (Regression: it was priced with the single top video.)
+        // language=XML
+        const m = parseDashManifest(`<?xml version="1.0" ?>
+            <MPD minBufferTime="PT0S" profiles="" xmlns="urn:mpeg:dash:schema:mpd:2011">
+                <Period>
+                    <AdaptationSet mimeType="video/mp4" codecs="avc1.640015">
+                        <Representation bandwidth="10000" id="v1"/>
+                        <Representation bandwidth="9000" id="v2"/>
+                        <Representation bandwidth="8000" id="v3"/>
+                        <Representation bandwidth="7000" id="v4"/>
+                        <Representation bandwidth="6000" id="v5"/>
+                        <Representation bandwidth="5000" id="v6"/>
+                        <Representation bandwidth="4000" id="v7"/>
+                        <Representation bandwidth="3000" id="v8"/>
+                        <Representation bandwidth="2000" id="v9"/>
+                        <Representation bandwidth="1000" id="v10"/>
+                    </AdaptationSet>
+                    <AdaptationSet mimeType="audio/mp4" codecs="mp4a.40.2">
+                        <Representation bandwidth="200" id="a1"/>
+                        <Representation bandwidth="100" id="a2"/>
+                    </AdaptationSet>
+                </Period>
+            </MPD>`)
+        const audio = m.MPD.Period[0].AdaptationSet![1]
+        // Top audio's bucket is video[0..4]; it pairs with the cheapest of those
+        // (video[4]=6000), NOT video[0]=10000. So its total is 6200, keeping it
+        // affordable for the top half of video tiers.
+        expect(estimatePeakBandwidth(audio.Representation![0], 'audio')).toBe(
+            6200
+        )
+        // Bottom audio's bucket is video[5..9]; cheapest video[9]=1000 → 1100.
+        expect(estimatePeakBandwidth(audio.Representation![1], 'audio')).toBe(
             1100
         )
     })
@@ -629,7 +665,7 @@ describe('estimatePeakBandwidth', () => {
         ).toBe(50000)
     })
 
-    it('pairs proportionally with three content types', () => {
+    it('pairs with the cheapest peer bucket across three content types', () => {
         // language=XML
         const m = parseDashManifest(`<?xml version="1.0" ?>
             <MPD minBufferTime="PT0S" profiles="" xmlns="urn:mpeg:dash:schema:mpd:2011">
@@ -647,27 +683,28 @@ describe('estimatePeakBandwidth', () => {
                     </AdaptationSet>
                 </Period>
             </MPD>`)
-        // v1 pos=0 → audio[0]=200, text[0]=10. total=2210
+        // v1 → cheapest audio in its bucket (200) + cheapest text (10). total=2210
         expect(
             estimatePeakBandwidth(
                 m.MPD.Period[0].AdaptationSet![0].Representation![0],
                 'video'
             )
         ).toBe(2210)
-        // v2 pos=1 → audio[1]=100, text[0]=10. total=1110
+        // v2 → audio bucket cheapest (100) + text (10). total=1110
         expect(
             estimatePeakBandwidth(
                 m.MPD.Period[0].AdaptationSet![0].Representation![1],
                 'video'
             )
         ).toBe(1110)
-        // t1 pos=0 (only 1 text) → video[0]=2000, audio[0]=200. total=2210
+        // t1 is the only text tier, so its bucket spans every peer — it pairs
+        // with the cheapest video (1000) and cheapest audio (100). total=1110
         expect(
             estimatePeakBandwidth(
                 m.MPD.Period[0].AdaptationSet![2].Representation![0],
                 'text'
             )
-        ).toBe(2210)
+        ).toBe(1110)
     })
 
     it('handles single quality per content type', () => {
