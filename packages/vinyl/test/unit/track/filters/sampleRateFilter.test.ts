@@ -19,14 +19,22 @@ describe('supportsAudioSamplingRate', () => {
         capabilities.sampleRate = 48_000
     })
 
+    // The filter only gates audio content types, so gated fixtures must declare
+    // contentType 'audio' (the empty metadata defaults it to null).
+    function audioQuality(rate: number[] | null) {
+        const quality = createEmptyMediaQualityMetadata()
+        quality.contentType = 'audio'
+        quality.audioSamplingRate = rate
+        return quality
+    }
+
     describe('when browser is Firefox', () => {
         beforeEach(() => {
             setUserAgent('Firefox')
         })
 
         it('returns false when sample rate is above supported', () => {
-            const metadata = createEmptyMediaQualityMetadata()
-            metadata.audioSamplingRate = [96_000]
+            const metadata = audioQuality([96_000])
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, metadata, 0, [
@@ -37,8 +45,7 @@ describe('supportsAudioSamplingRate', () => {
 
         it('returns false when sample rate is above 48kHz even if capabilities allows it', () => {
             capabilities.sampleRate = 96_000
-            const metadata = createEmptyMediaQualityMetadata()
-            metadata.audioSamplingRate = [96_000]
+            const metadata = audioQuality([96_000])
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, metadata, 0, [
@@ -48,10 +55,8 @@ describe('supportsAudioSamplingRate', () => {
         })
 
         it('returns false even when all rates are above 48kHz (no fallback to lowest)', () => {
-            const low = createEmptyMediaQualityMetadata()
-            low.audioSamplingRate = [88_200]
-            const high = createEmptyMediaQualityMetadata()
-            high.audioSamplingRate = [96_000]
+            const low = audioQuality([88_200])
+            const high = audioQuality([96_000])
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, low, 0, [low, high])
@@ -66,8 +71,7 @@ describe('supportsAudioSamplingRate', () => {
         })
 
         it('returns true when sample rate is at or below supported', () => {
-            const metadata = createEmptyMediaQualityMetadata()
-            metadata.audioSamplingRate = [48_000]
+            const metadata = audioQuality([48_000])
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, metadata, 0, [
@@ -77,8 +81,7 @@ describe('supportsAudioSamplingRate', () => {
         })
 
         it('returns true when sample rate is not set', () => {
-            const metadata = createEmptyMediaQualityMetadata()
-            metadata.audioSamplingRate = null
+            const metadata = audioQuality(null)
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, metadata, 0, [
@@ -94,8 +97,7 @@ describe('supportsAudioSamplingRate', () => {
         })
 
         it('returns true when sample rate is at or below supported', () => {
-            const metadata = createEmptyMediaQualityMetadata()
-            metadata.audioSamplingRate = [48_000]
+            const metadata = audioQuality([48_000])
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, metadata, 0, [
@@ -105,10 +107,8 @@ describe('supportsAudioSamplingRate', () => {
         })
 
         it('returns false when sample rate is above supported and others are below', () => {
-            const low = createEmptyMediaQualityMetadata()
-            low.audioSamplingRate = [44_100]
-            const high = createEmptyMediaQualityMetadata()
-            high.audioSamplingRate = [96_000]
+            const low = audioQuality([44_100])
+            const high = audioQuality([96_000])
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, high, 1, [
@@ -119,10 +119,8 @@ describe('supportsAudioSamplingRate', () => {
         })
 
         it('keeps lowest sample rate when all are above supported', () => {
-            const low = createEmptyMediaQualityMetadata()
-            low.audioSamplingRate = [88_200]
-            const high = createEmptyMediaQualityMetadata()
-            high.audioSamplingRate = [96_000]
+            const low = audioQuality([88_200])
+            const high = audioQuality([96_000])
 
             expect(
                 supportsAudioSamplingRate({ capabilities }, low, 0, [low, high])
@@ -134,6 +132,30 @@ describe('supportsAudioSamplingRate', () => {
                     high,
                 ])
             ).toBe(false)
+        })
+
+        it('ignores non-audio qualities and keeps audio above the device rate', () => {
+            // Output device runs at 44.1kHz while the audio is standard 48kHz.
+            capabilities.sampleRate = 44_100
+            const audio = audioQuality([48_000])
+            // A co-present video quality is never gated and must not influence
+            // the audio keep-lowest fallback.
+            const video = createEmptyMediaQualityMetadata()
+            video.contentType = 'video'
+            video.audioSamplingRate = null
+
+            expect(
+                supportsAudioSamplingRate({ capabilities }, audio, 0, [
+                    audio,
+                    video,
+                ])
+            ).toBe(true)
+            expect(
+                supportsAudioSamplingRate({ capabilities }, video, 1, [
+                    audio,
+                    video,
+                ])
+            ).toBe(true)
         })
     })
 
