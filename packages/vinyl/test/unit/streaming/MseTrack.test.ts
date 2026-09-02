@@ -24,7 +24,7 @@ import {
 import { createEventSpy, useMockLogger } from '@amazon/vinyl-util/testUtil'
 import { flushPromises, useMockTime } from '@amazon/vinyl-util/browserTestUtil'
 import { externalDependencies } from '@amazon/vinyl-di'
-import { Abort } from '@amazon/vinyl-util'
+import { Abort, MediaUnsupportedError } from '@amazon/vinyl-util'
 import any = jasmine.any
 
 describe('MseTrack', () => {
@@ -811,6 +811,41 @@ describe('MseTrack', () => {
             await flushPromises()
             expect(track.qualities).toEqual([qualityMetadata])
             expect(track.qualitiesUnfiltered).toEqual([qualityMetadata])
+        })
+
+        it('fails fast when a required content type is entirely filtered out', async () => {
+            // contentTypes (from the manifest) is {audio, video}, but the
+            // transformed timeline has only a video quality — audio was fully
+            // filtered. The audio stream could never create a source buffer, so
+            // the track must fail rather than stall on the readyToAppend wait.
+            const videoQuality = {
+                ...createEmptyMediaQualityMetadata(),
+                contentType: 'video' as const,
+                qualityId: 'v1',
+            }
+            setTimeline({
+                periods: [
+                    {
+                        startTime: 0,
+                        endTime: 100,
+                        qualities: [
+                            {
+                                metadata: videoQuality,
+                                getSegment: () => Promise.resolve(null),
+                            },
+                        ],
+                    },
+                ],
+                minBufferTime: 2,
+                getAdBreaks: () => Promise.resolve([]),
+                getDuration: () => Promise.resolve(Infinity),
+            })
+            track = createTrack()
+            await flushPromises()
+            expect(track.error).toEqual(any(MediaUnsupportedError))
+            expect((track.error as { code?: string }).code).toBe(
+                'no-playable-audio'
+            )
         })
 
         it('reads qualities from the filtered timeline but qualitiesUnfiltered from the raw one', async () => {
