@@ -515,6 +515,48 @@ describe('DrmControllerImpl', () => {
             expect(mediaKeys.createSession).toHaveBeenCalledTimes(1) // reused
         })
 
+        it('reuses the session when a transformer alters the CDM init data', async () => {
+            // A non-identity initDataTransformer changes the bytes handed to the
+            // CDM (always the case for FairPlay, or any custom transformer). The
+            // reuse check must compare the ORIGINAL init data, not the
+            // transformed bytes — otherwise every re-appended init segment fires
+            // `encrypted` and spins up a brand-new session instead of recycling.
+            const transformed = new Uint8Array([9, 9, 9])
+            const controller = new DrmControllerImpl(deps, {
+                licenseProvider,
+                keySystems: {
+                    [DrmKeySystem.WIDEVINE]: {
+                        initDataTransformer: () => transformed,
+                    },
+                },
+            })
+            const localErrors = createEventSpy(controller, 'error')
+            const encryptedCb =
+                commonEme.addEncryptedListener.calls.mostRecent().args[1]
+            controller.setBufferingDrmInfo(drmInfo)
+
+            encryptedCb({
+                initData: new Uint8Array([1, 2, 3]),
+                initDataType: 'cenc',
+            })
+            await flushPromises()
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(1)
+            // The session stored the transformed bytes handed to the CDM.
+            expect(getSession(0).initData).toEqual(transformed)
+
+            // The same raw init data fires again (e.g. a quality switch
+            // re-appends the init segment) — the session must be reused.
+            encryptedCb({
+                initData: new Uint8Array([1, 2, 3]),
+                initDataType: 'cenc',
+            })
+            await flushPromises()
+            expect(localErrors).not.toHaveBeenCalled()
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(1) // reused
+
+            controller.dispose()
+        })
+
         describe('and the drm controller is disposed', () => {
             it('does nothing', async () => {
                 drmController.dispose()
