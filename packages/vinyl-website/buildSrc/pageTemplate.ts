@@ -73,6 +73,10 @@ export interface PageMeta {
     readonly jsonLd?: object | readonly object[]
 }
 
+/** GoatCounter analytics; loaded async on every page. */
+const ANALYTICS_SCRIPT =
+    '<script data-goatcounter="https://vinyl.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>'
+
 /** Renders the per-page `<head>` SEO block that fills the `ssg:head` marker. */
 export function renderHeadMeta(meta: PageMeta): string {
     const canonical = absoluteUrl(meta.canonicalPath ?? meta.path)
@@ -102,6 +106,7 @@ export function renderHeadMeta(meta: PageMeta): string {
         `<meta name="twitter:description" content="${escapeHtml(meta.description)}" />`,
         `<meta name="twitter:image" content="${escapeHtml(image)}" />`,
         jsonLd,
+        ANALYTICS_SCRIPT,
     ]
         .filter(Boolean)
         .join('\n        ')
