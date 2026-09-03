@@ -835,6 +835,32 @@ describe('DrmControllerImpl', () => {
     })
 
     describe('when a session message event is observed', () => {
+        it('does not update the session when disposed before the license resolves', async () => {
+            let resolveLicense: (key: ArrayBuffer) => void = () => {}
+            licenseProvider.and.returnValue(
+                new Promise<ArrayBuffer>((res) => {
+                    resolveLicense = res
+                })
+            )
+            drmController = new DrmControllerImpl(deps, {
+                keySystems: {
+                    [DrmKeySystem.WIDEVINE]: {
+                        licenseServer: { url: 'http://example.com/widevine' },
+                    },
+                },
+                licenseProvider,
+            })
+            drmController.setBufferingDrmInfo(drmInfo)
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            getSession(0).dispatch('message', { message: new ArrayBuffer(1) })
+            await flushPromises()
+            // License in flight — dispose, then let it resolve.
+            drmController.dispose()
+            resolveLicense(new ArrayBuffer(2))
+            await flushPromises()
+            expect(getSession(0).update).not.toHaveBeenCalled()
+        })
+
         it('calls the licenseProvider with resolved licenseServer options', async () => {
             drmController = new DrmControllerImpl(deps, {
                 keySystems: {
