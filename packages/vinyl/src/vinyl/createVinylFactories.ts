@@ -5,9 +5,8 @@
 
 import type { CapabilitiesImplDeps } from '../client/CapabilitiesImpl'
 import { CapabilitiesImpl } from '../client/CapabilitiesImpl'
-import type { Merge, PartialDeep, PatchedRef } from '@amazon/vinyl-util'
-import { mergeDeep, noop } from '@amazon/vinyl-util'
-import { patchMediaElement } from '../patch/media/patchMediaElement'
+import type { Merge, PartialDeep } from '@amazon/vinyl-util'
+import { noop } from '@amazon/vinyl-util'
 import type {
     PlaybackControllerImplDeps,
     PlaybackControllerImplOptions,
@@ -26,8 +25,6 @@ import type {
 import { TrackControllerImpl } from '../track/TrackController'
 import { createTrackFactory } from '../track/TrackFactory'
 import type { VinylDeps } from './VinylDeps'
-import type { VinylPatchOptions } from './VinylPatchOptions'
-import { defaultPatchOptions } from './VinylPatchOptions'
 import { type QualitySelectorImplOptions } from '../streaming/abr/QualitySelectorImpl'
 import {
     AdControllerImpl,
@@ -86,12 +83,6 @@ export interface VinylDependencyOptions {
     readonly textTrackRenderer?: TextTrackRenderer
 
     /**
-     * Flags for patches that should be applied browser-specifically.
-     * These will be defaulted based on the user-agent.
-     */
-    readonly patches?: PartialDeep<VinylPatchOptions>
-
-    /**
      * Configuration for the track controller.
      */
     readonly trackController?: Partial<TrackControllerImplOptions>
@@ -133,24 +124,12 @@ export interface VinylDependencyOptions {
  * @param options
  */
 export function createVinylFactories(options: VinylDependencyOptions) {
-    const patches = mergeDeep([
-        defaultPatchOptions.value,
-        options.patches ?? {},
-    ])
     return validateFactories({
         options: playerConfigFactory<VinylOptions>(
             defaultVinylOptions,
             vinylOptionsValidator
         ),
-        patchedMedia: (): PatchedRef<HTMLMediaElement> => {
-            // Patches the media element if necessary.
-            return patchMediaElement(options.media, patches.media)
-        },
-        media: (deps: {
-            readonly patchedMedia: {
-                readonly patched: HTMLMediaElement
-            }
-        }): HTMLMediaElement => deps.patchedMedia.patched,
+        media: (): HTMLMediaElement => options.media,
         // One provider per media element (the player container creates each
         // dependency once), so text tracks are reused rather than accumulated.
         textTrackProvider: (deps: {

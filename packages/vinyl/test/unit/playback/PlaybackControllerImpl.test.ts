@@ -258,6 +258,147 @@ describe('PlaybackController', () => {
                     })
                 }
 
+                /**
+                 * Simulates WebKit reverting a seek: the first `revertCount`
+                 * seeks land at `revertTo` instead of the requested time; later
+                 * seeks land on the requested time.
+                 */
+                function enableSeekWithReverts(
+                    revertTo: number,
+                    revertCount: number
+                ) {
+                    let currentTime = 0
+                    let reverts = revertCount
+                    Object.defineProperty(media, 'currentTime', {
+                        get() {
+                            return currentTime
+                        },
+                        set(value) {
+                            currentTime = reverts-- > 0 ? revertTo : value
+                            media.dispatchEvent(mockEvent('seeking'))
+                            void (async () => {
+                                await flushPromises()
+                                media.dispatchEvent(mockEvent('seeked'))
+                            })()
+                        },
+                    })
+                }
+
+                /**
+                 * Simulates a WebKit cold-seek stall: `seeking` fires but
+                 * `seeked` does not for the first `stuckAttempts` attempts, then
+                 * completes.
+                 */
+                function enableStuckSeek(stuckAttempts: number) {
+                    let currentTime = 0
+                    let attempt = 0
+                    Object.defineProperty(media, 'currentTime', {
+                        get() {
+                            return currentTime
+                        },
+                        set(value) {
+                            currentTime = value
+                            media.dispatchEvent(mockEvent('seeking'))
+                            if (attempt++ >= stuckAttempts) {
+                                void (async () => {
+                                    await flushPromises()
+                                    media.dispatchEvent(mockEvent('seeked'))
+                                })()
+                            }
+                        },
+                    })
+                }
+
+                it('warms the decoder and retries when a seek stalls', async () => {
+                    enableStuckSeek(1) // first attempt hangs, retry completes
+                    setSeekable([[0, 30]])
+                    media.paused = false
+                    const seek = controller.seekTo(5)
+                    // Flush to arm the first attempt's seeked timeout, then
+                    // advance to fire it; the retry lands via its seeked event.
+                    await clock.tick(0, 4)
+                    await seek
+                    // Warmed the decoder with play(), then landed on retry.
+                    expect(media.play).toHaveBeenCalled()
+                    expect(media.currentTime).toBe(5)
+                })
+
+                it('gives up after the retry limit when a seek never completes', async () => {
+                    enableStuckSeek(99) // never completes
+                    setSeekable([[0, 30]])
+                    media.paused = false
+                    const seek = controller.seekTo(5)
+                    // Leading flush arms the initial attempt's seeked timeout;
+                    // each subsequent tick fires one and arms the next retry
+                    // (initial + SEEK_RETRY_LIMIT attempts all time out).
+                    await clock.tick(0, 4, 4, 4)
+                    await seek
+                    expect(media.play).toHaveBeenCalled()
+                })
+
+                it('stops retrying when a re-seek never re-enters seeking', async () => {
+                    let sets = 0
+                    let currentTime = 0
+                    Object.defineProperty(media, 'currentTime', {
+                        get() {
+                            return currentTime
+                        },
+                        set(value) {
+                            currentTime = value
+                            // Only the first attempt emits `seeking`; re-seeks to
+                            // the same position stay silent (WebKit), so their
+                            // seeking wait times out and returns null.
+                            if (sets++ === 0) {
+                                media.dispatchEvent(mockEvent('seeking'))
+                            }
+                        },
+                    })
+                    setSeekable([[0, 30]])
+                    media.paused = false
+                    const seek = controller.seekTo(5)
+                    await clock.tick(0, 4, 4, 4)
+                    await seek
+                    expect(media.currentTime).toBe(5)
+                })
+
+                it('rejects a seek disposed while awaiting seeked', async () => {
+                    setSeekable([[0, 30]])
+                    media.paused = false
+                    const seek = controller.seekTo(5)
+                    media.dispatchEvent(mockEvent('seeking'))
+                    await flushPromises()
+                    controller.dispose()
+                    await expectAsync(seek).toBeRejectedWithError(AbortError)
+                })
+
+                it('re-seeks when WebKit lands the play head off target', async () => {
+                    enableSeekWithReverts(20, 1)
+                    setSeekable([[0, 30]])
+                    media.paused = true
+                    await controller.seekTo(5)
+                    expect(media.currentTime).toBeCloseTo(5)
+                })
+
+                it('gives up re-seeking after the retry limit', async () => {
+                    enableSeekWithReverts(20, 99)
+                    setSeekable([[0, 30]])
+                    media.paused = true
+                    await controller.seekTo(5)
+                    expect(media.currentTime).toBe(20)
+                })
+
+                it('stops re-seeking when a newer seek supersedes', async () => {
+                    enableSeekWithReverts(20, 99)
+                    setSeekable([[0, 30]])
+                    media.paused = true
+                    const first = controller.seekTo(5)
+                    const second = controller.seekTo(9)
+                    await Promise.allSettled([first, second])
+                    // Both landed at the reverted position; the first stopped
+                    // re-seeking once superseded rather than fighting the newer.
+                    expect(media.currentTime).toBe(20)
+                })
+
                 it('waits for metadata before initiating seek', async () => {
                     enableSeekAutoComplete()
                     const seeked = controller.seekTo(3)
@@ -265,6 +406,20 @@ describe('PlaybackController', () => {
                     expect(media.currentTime).toBe(0)
                     await seeked
                     expect(media.currentTime).toBe(3)
+                })
+
+                it('fabricates a playing event if playback resumes after a seek without one', async () => {
+                    enableSeekAutoComplete()
+                    setSeekable([[0, 10]])
+                    media.paused = false
+                    const playingSpy = createSpy('playing')
+                    controller.on('playing', playingSpy)
+                    await controller.seekTo(3)
+                    // The play head advances but no 'playing' event fires; the
+                    // post-seek stall detector fabricates one.
+                    media.currentTime = 3.5
+                    await clock.tick(0.25)
+                    expect(playingSpy).toHaveBeenCalled()
                 })
 
                 it('does not let a metadata-deferred seek clobber a newer seek', async () => {

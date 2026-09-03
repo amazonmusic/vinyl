@@ -47,11 +47,6 @@ export interface StreamingEventMap {
     readonly bufferingEnded: AnyRecord
 
     /**
-     * The buffer went from empty to holding data, or back to empty.
-     */
-    readonly hasDataChange: ChangeEvent<boolean>
-
-    /**
      * Dispatched when a streaming error occurs.
      */
     readonly error: BasicErrorEvent
@@ -121,7 +116,6 @@ export const ALL_STREAMING_EVENTS = [
     'bufferingQualityChange',
     'playbackQualityChange',
     'bufferingEnded',
-    'hasDataChange',
     'error',
     'reset',
     'qualitiesChange',
