@@ -22,7 +22,7 @@ export const vinylDefaultBrowserStackOptions = {
     },
     stopOnFirstFailure: true,
     workerCommon: {
-        video: true,
+        video: false,
         timeout: 30 * 60, // 30 minutes (BrowserStack maximum)
     },
     worker: {
