@@ -15,31 +15,6 @@ import { memoize } from '@amazon/vinyl-util'
  */
 export const pendingIfWidevineNotSupported = memoize(
     async (player: VinylPlayer): Promise<boolean> => {
-        try {
-            const response = await fetch(
-                'https://cwip-shaka-proxy.appspot.com/no_auth',
-                {
-                    method: 'OPTIONS',
-                    mode: 'cors',
-                }
-            )
-            if (!response.ok) {
-                pending('shaka proxy rejected CORS')
-                return true
-            }
-        } catch (_error) {
-            pending('shaka proxy could not be reached')
-            return true
-        }
-
-        if (location.hostname !== 'localhost') {
-            pending('shaka-proxy requires localhost')
-            return true
-        }
-        if (!window.isSecureContext) {
-            pending('requires a secure context')
-            return true
-        }
         if (
             !(
                 await player.client.capabilities.supportsKeySystem(
@@ -48,6 +23,7 @@ export const pendingIfWidevineNotSupported = memoize(
             ).supported
         ) {
             pending('requires Widevine')
+            return true
         }
         return false
     },
