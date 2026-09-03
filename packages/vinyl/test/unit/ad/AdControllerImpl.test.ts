@@ -389,6 +389,23 @@ describe('AdControllerImpl', () => {
             await flush()
             expect(c.currentAdBreak).toBeNull()
         })
+
+        it('ignores a late provider ad-discovery resolution after dispose', async () => {
+            const c = createController()
+            let resolveAds: (a: TrackAds) => void = () => {}
+            const track = new MockTrack()
+            track.uri = 't1'
+            track.active = true
+            track.getAds = () =>
+                new Promise<TrackAds>((res) => {
+                    resolveAds = res
+                })
+            c.setAdsProvider(track) // refreshAds() runs; getAds() stays pending
+            c.dispose()
+            resolveAds(trackAds(makeBreak())) // refreshAds .then: interrupted (disposed)
+            await flush()
+            expect(c.currentTrackAds).toBeNull()
+        })
     })
 
     it('emits currentTrackAdsChange with the TrackAds when a parent track is set', async () => {

@@ -305,7 +305,7 @@ export class AdControllerImpl
      */
     private providerInterrupted(): () => boolean {
         const provider = this.adsProvider
-        return () => provider !== this.adsProvider
+        return () => this.disposed || provider !== this.adsProvider
     }
 
     setAdsProvider(provider: AdsProvider | null): void {
@@ -831,6 +831,9 @@ export class AdControllerImpl
      */
     dispose(): void {
         super.dispose()
+        // Tear down the ads-provider subscription so a late adsChange can't
+        // re-run ad discovery (and log) after dispose.
+        this.adsProviderSub?.()
         this.disposer.dispose()
         // Detach any active break so currentAd/currentAdBreak read null after
         // dispose, even if a break's ad list resolves late (startAd is already
