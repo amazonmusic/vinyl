@@ -82,11 +82,6 @@ export interface BufferingControllerEventMap {
     readonly bufferingEnded: AnyRecord
 
     /**
-     * The buffer went from empty to holding data, or back to empty.
-     */
-    readonly hasDataChange: ChangeEvent<boolean>
-
-    /**
      * A codec the browser reported as supported failed to decode on append and
      * has been denylisted. Dispatched instead of `error` so the media can be
      * reloaded and fall back to a codec that decodes.
@@ -130,11 +125,6 @@ export interface BufferingController
      * True if the stream has buffered the last segment.
      */
     readonly bufferingEnded: boolean
-
-    /**
-     * True while the buffer holds any data (false when empty or cleared).
-     */
-    readonly hasData: boolean
 
     /**
      * Begins buffering.
@@ -247,7 +237,6 @@ export class BufferingControllerImpl
     private reopen = false
     private _error: Error | null = null
     private _bufferingEnded = false
-    private _hasData = false
 
     private readonly queue = createTaskQueue()
 
@@ -499,7 +488,6 @@ export class BufferingControllerImpl
             this.buffered.push(streamingSegment)
         }
         if (!tail) this.refreshHead() // Update quality immediately if buffer was empty
-        this.setHasData(true)
     }
 
     private abortCurrentSegment() {
@@ -597,17 +585,6 @@ export class BufferingControllerImpl
      */
     get bufferingEnded(): boolean {
         return this._bufferingEnded
-    }
-
-    get hasData(): boolean {
-        return this._hasData
-    }
-
-    private setHasData(value: boolean): void {
-        if (this._hasData === value) return
-        const previous = this._hasData
-        this._hasData = value
-        this.dispatch('hasDataChange', { previous, current: value })
     }
 
     private readonly handleError = (error: Error) => {
@@ -737,7 +714,6 @@ export class BufferingControllerImpl
         this._bufferingEnded = false
         this.bufferingQuality = null
         this.playbackQuality = null
-        this.setHasData(false)
     }
 
     /**

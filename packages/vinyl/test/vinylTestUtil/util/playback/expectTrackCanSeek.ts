@@ -24,6 +24,13 @@ export async function expectTrackCanSeekTo(player: VinylPlayer, time: number) {
     const playedSpy = add(createEventSpy(player, 'played'))
     const seekingSpy = add(createEventSpy(player, 'seeking'))
     const seekedSpy = add(createEventSpy(player, 'seeked'))
+    // A seek can be re-issued (WebKit sometimes lands the play head off
+    // target), producing several seeking/seeked pairs. Track order so we can
+    // assert a seeking preceded the first seeked without requiring a single,
+    // non-interleaved pair.
+    const eventOrder: string[] = []
+    add(player.on('seeking', () => eventOrder.push('seeking')))
+    add(player.on('seeked', () => eventOrder.push('seeked')))
     const wasPaused = player.paused
     if (player.playing) {
         seekingSpy
@@ -65,7 +72,8 @@ export async function expectTrackCanSeekTo(player: VinylPlayer, time: number) {
         // Event expectations:
         // If playing before seekTo: played, seeking, seeked
         // If paused: seeking, seeked.
-        expect(seekingSpy).toHaveBeenCalledBefore(seekedSpy)
+        // A seeking must precede the first seeked (re-issued seeks allowed).
+        expect(eventOrder[0]).withContext('first seek event').toBe('seeking')
 
         expect(player.paused).withContext('paused').toBe(wasPaused)
         if (wasPaused) {

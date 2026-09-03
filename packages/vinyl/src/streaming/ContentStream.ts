@@ -64,11 +64,6 @@ export interface ContentStream
     readonly bufferingEnded: boolean
 
     /**
-     * True while this stream's buffer holds any data.
-     */
-    readonly hasData: boolean
-
-    /**
      * Starts prefetching with the given priority and prefetch start time.
      * @param options
      */
@@ -157,7 +152,6 @@ export class ContentStreamImpl
             'bufferingQualityChange',
             'playbackQualityChange',
             'bufferingEnded',
-            'hasDataChange',
             'error',
             'codecUnsupported',
         ])
@@ -184,10 +178,6 @@ export class ContentStreamImpl
 
     get playbackQuality(): MediaQualityMetadata | null {
         return this.bufferingController.playbackQuality ?? null
-    }
-
-    get hasData(): boolean {
-        return this.bufferingController.hasData
     }
 
     get bufferingEnded(): boolean {

@@ -5,17 +5,16 @@
 
 import {
     createShortUid,
-    emptySignal,
     type Fetch,
     patchFetch,
     requiresPreventCacheRangeRequestsPatch,
 } from '@amazon/vinyl-util'
 import { vinylTestAssets } from '@amazon/vinyl/vinylTestUtil'
-
-import { addPatchTests } from '@amazon/vinyl-util/testUtil'
+import { expectNothing } from '@amazon/vinyl-util/browserTestUtil'
 
 describe('requiresPreventCacheRangeRequestsPatch integ', () => {
-    async function canReproduce(fetch: Fetch) {
+    /** Attempts to trigger the cache range-request TypeError on this browser. */
+    async function canReproduce(fetch: Fetch): Promise<boolean> {
         const cacheBust = createShortUid()
         for (let i = 0; i < 2; i++) {
             for (const range of ['826-929', '0-825', '930-50160']) {
@@ -40,20 +39,27 @@ describe('requiresPreventCacheRangeRequestsPatch integ', () => {
         return false
     }
 
-    addPatchTests(
-        'requiresPreventCacheRangeRequestsPatch',
-        'ensures range requests are reliable',
-        () => ({
-            target: window.fetch,
-            canReproduce,
-            actualFlag: requiresPreventCacheRangeRequestsPatch(),
-            patchedRef: {
-                patched: patchFetch(window.fetch),
-                eventFabricated: emptySignal,
-                eventSquelched: emptySignal,
-                dispose() {},
-            },
-            allowFalseNegative: true,
+    it('sets the default flag to true only if the issue can be reproduced', async () => {
+        const flag = requiresPreventCacheRangeRequestsPatch()
+        const reproduced = await canReproduce(window.fetch)
+        if (reproduced && !flag) {
+            fail(`expected the patch flag to be true`)
+        } else if (!reproduced && flag) {
+            // The issue rarely reproduces reliably, so a miss is only a warning.
+            console.warn(`patch flag was true but the issue was not reproduced`)
+        }
+        expectNothing()
+    })
+
+    describe('when the patch is applied', () => {
+        it('ensures range requests are reliable', async () => {
+            if (
+                requiresPreventCacheRangeRequestsPatch() &&
+                (await canReproduce(patchFetch(window.fetch)))
+            ) {
+                fail('patch did not resolve issue')
+            }
+            expectNothing()
         })
-    )
+    })
 })

@@ -6,8 +6,6 @@
 import {
     CapabilitiesImpl,
     createVinylFactories,
-    defaultMediaElementPatchOptions,
-    defaultPatchOptions,
     type DefaultVinylFactories,
     DrmKeySystem,
     type InferVinylOverrideDependencyType,
@@ -29,19 +27,12 @@ import {
     expectTypeExtends,
     expectTypeStrictlyEquals,
     MockHTMLAudioElement,
-    polyfillCustomEvent,
 } from '@amazon/vinyl-util/browserTestUtil'
-import { useMockLogger } from '@amazon/vinyl-util/testUtil'
 import type { AnyRecord } from '@amazon/vinyl-util'
 import any = jasmine.any
 import objectContaining = jasmine.objectContaining
 
 describe('createVinylFactories', () => {
-    const loggerRef = useMockLogger()
-    afterEach(() => {
-        defaultMediaElementPatchOptions.clear()
-    })
-
     it('delivers all essential dependency providers', () => {
         const playerDependencies = createVinylFactories({
             media: new MockHTMLAudioElement(),
@@ -77,44 +68,6 @@ describe('createVinylFactories', () => {
         container.dispose()
     })
 
-    describe('when patch override flags are provided', () => {
-        polyfillCustomEvent()
-        beforeEach(() => {
-            defaultPatchOptions.value = {
-                media: {
-                    unreliablePlaybackEvents: true,
-                    preventStalls: false,
-                },
-            }
-        })
-
-        afterEach(() => {
-            defaultPatchOptions.clear()
-        })
-
-        it('merges those flags with the defaults', () => {
-            const playerDependencies: DefaultVinylFactories =
-                createVinylFactories({
-                    media: new MockHTMLAudioElement(),
-                    patches: {
-                        media: {
-                            preventStalls: true,
-                        },
-                    },
-                })
-            const patched = playerDependencies.patchedMedia()
-            expect(loggerRef.value.debug).toHaveBeenCalledWith(
-                any(Object),
-                `Applying 'preventStalls' patch`
-            )
-            expect(loggerRef.value.debug).toHaveBeenCalledWith(
-                any(Object),
-                `Applying 'unreliablePlaybackEvents' patch`
-            )
-            patched.dispose()
-        })
-    })
-
     it('can be used in a dependency container', () => {
         const container = createContainer(
             createVinylFactories({
@@ -129,7 +82,6 @@ describe('createVinylFactories', () => {
         )
         expect(container.dependencies).toEqual(
             objectContaining<Dependencies<DefaultVinylFactories>>({
-                patchedMedia: any(Object),
                 media: any(Object),
                 textTrackProvider: any(Object),
                 textTrackRenderer: null,

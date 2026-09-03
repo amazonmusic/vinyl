@@ -314,31 +314,6 @@ describe('BufferingControllerImpl', () => {
         })
     })
 
-    describe('hasData', () => {
-        beforeEach(() => {
-            bufferingController = createBufferingController()
-            bufferingController.activate()
-        })
-
-        it('flips true when the buffer fills and false when cleared', async () => {
-            const spy = createEventSpy(bufferingController, 'hasDataChange')
-            expect(bufferingController.hasData).toBeFalse()
-
-            setSegmentList([1])
-            await open()
-            expect(bufferingController.hasData).toBeTrue()
-            expect(spy).toHaveBeenCalledWith({ previous: false, current: true })
-
-            // Stop the segment provider so the post-clear re-poll can't re-fill.
-            segmentController.getSegment.and.returnValue(Promise.resolve(null))
-            spy.calls.reset()
-            bufferingController.clear()
-            await nextPollImmediate()
-            expect(bufferingController.hasData).toBeFalse()
-            expect(spy).toHaveBeenCalledWith({ previous: true, current: false })
-        })
-    })
-
     describe('when segments exceed max append size', () => {
         beforeEach(() => {
             bufferingController = createBufferingController({

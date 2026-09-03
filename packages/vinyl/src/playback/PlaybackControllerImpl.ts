@@ -15,12 +15,12 @@ import {
     ErrorLevel,
     ErrorOrigin,
     EventHostImpl,
-    getUserAgentInfo,
     hasBrowser,
     logDebug,
     logInfo,
     logWarn,
     nextEventAsPromise,
+    noop,
     onAny,
     ownKeys,
     type ReadonlyEventHost,
@@ -37,6 +37,7 @@ import {
     playedReasons,
     waitedReasons,
 } from './ReadonlyPlaybackController'
+import { createStallDetector } from './createStallDetector'
 import { InvalidSeekError } from './error/InvalidSeekError'
 import { playbackStateLoggingHandler } from './logging/playbackStateLoggingHandler'
 import { createChangeEventTrigger } from '../event/ChangeEvent'
@@ -92,6 +93,21 @@ export function getMinSeekableBufferDefault() {
     return !hasBrowser(Browser.CHROMIUM) ? 5 : 2
 }
 
+/**
+ * Re-issue a seek up to this many times when it lands outside tolerance of the target (some WebKit
+ * versions report `seeked` at the pre-seek position) or when it never completes (see
+ * {@link SEEK_ATTEMPT_TIMEOUT}).
+ */
+const SEEK_RETRY_LIMIT = 2
+
+/**
+ * Seconds to wait for `seeked` before treating a seek attempt as stuck. WebKit can leave a seek on
+ * a freshly-attached, never-decoded source pending forever (observed on iOS Safari); on a stuck
+ * attempt the decoder is warmed with play() and the seek re-issued. Comfortably above a normal
+ * seek's completion time so a slow-but-valid seek isn't cut short.
+ */
+const SEEK_ATTEMPT_TIMEOUT = 4
+
 export interface PlaybackControllerImplDeps {
     readonly media: HTMLMediaElement
     readonly loudnessNormalizationController: LoudnessNormalizationController
@@ -116,6 +132,9 @@ export class PlaybackControllerImpl
 
     // Monotonic counter identifying the most recent seekTo call.
     private _seekId = 0
+
+    // Stops the stall detector started after the last seek, if any.
+    private stopStallDetection: (() => void) | null = null
 
     // default user volume (0.0 to 1.0 scale)
     private userVolume: number = 1.0
@@ -144,6 +163,7 @@ export class PlaybackControllerImpl
         add(() => {
             this.disposeAbort.abort()
             this.disposeAbort.dispose()
+            this.stopStallDetection?.()
         })
 
         this.domEvents = add(
@@ -419,7 +439,7 @@ export class PlaybackControllerImpl
                 this.currentTime <= this.options.loopTimeAffordance &&
                 lastTime >= this.duration - this.options.loopTimeAffordance
             ) {
-                if (getUserAgentInfo().browserLike?.name === Browser.FIREFOX) {
+                if (hasBrowser(Browser.FIREFOX)) {
                     // Firefox does not emit a 'playing' event after a loop, fabricate one.
                     logDebug(this, 'fabricating Firefox playing event on loop')
                     this.dispatch('playing', {})
@@ -562,8 +582,28 @@ export class PlaybackControllerImpl
         })
     }
 
+    /**
+     * Starts (or restarts) the stall detector: recovers a play head that stays frozen when it
+     * should be advancing — some WebKit versions never resume after a seek or a play, e.g. after a
+     * buffer-flushing seek. Superseded by the next seek/play and stopped on dispose.
+     * @private
+     */
+    private startStallDetection() {
+        this.stopStallDetection?.()
+        this.stopStallDetection = createStallDetector(this.media, {
+            fabricatePlaying: () => this.dispatch('playing', {}),
+            // Safari/iOS can leave a seek on a freshly-attached source pending
+            // with a stale empty `buffered`; re-issue the seek to un-stick it.
+            nudgeUnbuffered: hasBrowser(Browser.WEBKIT),
+        })
+    }
+
     play(): Promise<void> {
         logDebug(this, 'play')
+        // Recover a play that never starts progressing (stuck WebKit) — start
+        // even when a prior play() is still pending, e.g. a resume that stalled
+        // after a buffer-flushing seek, whose play() promise this call returns.
+        this.startStallDetection()
         if (!this.pendingPlay) {
             const playAbort = new Abort()
             this.playAbort = playAbort
@@ -616,16 +656,20 @@ export class PlaybackControllerImpl
         // Claim this seek as the newest. A seek that parks on an await (e.g. waiting for loadedMetadata) can resume
         // AFTER a later-issued seek has already applied its target.
         const seekId = ++this._seekId
+        // A new seek supersedes any stall watch from the previous one.
+        this.stopStallDetection?.()
+        this.stopStallDetection = null
         const superseded = (): boolean => {
             if (this._seekId === seekId) return false
             logDebug(this, `seekTo: ${time} superseded by a newer seek`)
             return true
         }
         const nextEvent = <K extends keyof PlaybackControllerEventMap>(
-            type: K
+            type: K,
+            options?: { timeout?: number }
         ): Promise<PlaybackControllerEventMap[K]> => {
             return nextEventAsPromise(this, type, {
-                timeout: this.options.seekTimeout,
+                timeout: options?.timeout ?? this.options.seekTimeout,
                 timeoutMessage: `seek timed out on ${type} event after {time}s`,
                 timeoutOrigin: ErrorOrigin.INTERNAL,
                 timeoutLevel: ErrorLevel.WARN,
@@ -677,14 +721,58 @@ export class PlaybackControllerImpl
                 `seekTo: requested: ${time}, actual: ${clampedTime} no-op`
             )
         } else {
-            const seeking = nextEvent('seeking')
-            this.media.currentTime = clampedTime
-            await seeking
-            const seekedEvent = await nextEvent('seeked')
-            if (seekedEvent.reason === 'emptied') {
+            // A dispose rejects the seek; a timeout means the attempt is stuck.
+            const nullIfStuck = (error: unknown) => {
+                if (this.disposeAbort.aborted()) throw error
+                return null
+            }
+            // Issues one seek attempt. Returns the seeked event, or null if it
+            // didn't complete within SEEK_ATTEMPT_TIMEOUT. Observed on WebKit/iOS
+            // Safari: seeking a freshly-attached source that has never decoded a
+            // frame hangs — the seek never completes and playback stalls in
+            // `waiting`. The initial attempt keeps the full seekTimeout on
+            // `seeking` (a media that never starts seeking is a real timeout); a
+            // re-seek to the current position emits no fresh `seeking` on WebKit,
+            // so bound that wait and fall through to the stall detector.
+            const seekOnce = async (reSeeking: boolean) => {
+                const seeking = reSeeking
+                    ? nextEvent('seeking', {
+                          timeout: SEEK_ATTEMPT_TIMEOUT,
+                      }).catch(nullIfStuck)
+                    : nextEvent('seeking')
+                this.media.currentTime = clampedTime
+                if ((await seeking) === null) return null
+                return nextEvent('seeked', {
+                    timeout: SEEK_ATTEMPT_TIMEOUT,
+                }).catch(nullIfStuck)
+            }
+            let seekedEvent = await seekOnce(false)
+            // Re-issue the seek when it never completed (kick the decoder with
+            // play() first — decoding a frame unsticks WebKit) or when it landed
+            // outside tolerance of the target. Bounded, and not fighting a newer
+            // seek. The play() kick is fire-and-forget: a wedged seek can leave
+            // its promise unsettled forever, which would stall the retry loop.
+            for (
+                let attempt = 0;
+                !superseded() &&
+                attempt < SEEK_RETRY_LIMIT &&
+                (seekedEvent === null ||
+                    (seekedEvent.reason === 'seeked' &&
+                        !closeTo(clampedTime, this.currentTime, tolerance)));
+                attempt++
+            ) {
+                if (seekedEvent === null) void this.media.play().catch(noop)
+                logDebug(this, `seekTo: re-seeking to ${clampedTime}`)
+                seekedEvent = await seekOnce(true)
+            }
+            if (seekedEvent?.reason === 'emptied') {
                 // Seek finished due to track unloading. Abort any pending seek.
                 throw new AbortError()
             }
+            // Some WebKit versions don't resume after seeking. Watch for that:
+            // nudge/kick playback back to life, and fabricate a playing event
+            // if it resumes without emitting one.
+            if (!this.paused) this.startStallDetection()
         }
     }
 
