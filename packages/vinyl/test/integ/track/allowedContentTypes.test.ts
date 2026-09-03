@@ -7,7 +7,11 @@ import { createVinylSuite, vinylTestAssets } from '@amazon/vinyl/vinylTestUtil'
 import { supportsMse, type VinylTrackLoadOptions } from '@amazon/vinyl'
 import { poll } from '@amazon/vinyl-util'
 import { expectTrackPlaysUntil } from '../../vinylTestUtil/util/playback/expectTrackPlaysUntil'
-import { onDuration } from '../../vinylTestUtil/util/playback/eventPromises'
+import {
+    onDuration,
+    onPlaying,
+    onTimeUpdate,
+} from '../../vinylTestUtil/util/playback/eventPromises'
 
 /**
  * Integration tests for switching `allowedContentTypes` during playback.
@@ -107,12 +111,65 @@ describe('allowedContentTypes switching integ', () => {
             .toBeTrue()
     }
 
+    /**
+     * Plays well into the track, switches content types, and asserts the
+     * playhead recovers to (roughly) where it was when the switch happened —
+     * a reload that restarted from the beginning, or lost the playhead, would
+     * fail. Uses a large switch offset so the recovery target is meaningfully
+     * non-zero.
+     */
+    async function expectPlayheadRecoversAfterSwitch(
+        playlist: VinylTrackLoadOptions[]
+    ): Promise<void> {
+        const player = suite.player
+        // Where we switch content types. Large enough that a reset-to-0
+        // regression is unambiguous, but kept small to keep the test fast.
+        const switchTime = 5
+        // Playback can advance while the reload fetches fresh segments and
+        // resumes (slower on BrowserStack), so allow the recovered playhead to
+        // sit a little ahead of the switch point.
+        const reloadAffordance = 10
+
+        player.load(...playlist)
+        await player.play()
+        await onDuration(player)
+        await expectTrackPlaysUntil(player, switchTime)
+
+        const before = player.currentTime
+        expect(before)
+            .withContext('reached the switch point before reconfiguring')
+            .toBeGreaterThanOrEqual(switchTime - 1)
+
+        // Switch to audio-only; the track hard-resets in place, seeking back
+        // to the prior playhead before resuming.
+        await reconfigureAllowed(['audio'])
+
+        // Once the reloaded track resumes, the playhead must recover near the
+        // switch point rather than restart.
+        await onPlaying(player)
+        await onTimeUpdate(player)
+        expect(player.currentTime)
+            .withContext('playhead recovered near the switch point')
+            .toBeGreaterThanOrEqual(before - 1)
+        expect(player.currentTime)
+            .withContext('playhead did not skip far ahead during the reload')
+            .toBeLessThan(before + reloadAffordance)
+    }
+
     it('DASH reloads the track when switching content types', async () => {
         await playThenSwitch(dashPlaylist)
     })
 
     it('HLS reloads the track when switching content types', async () => {
         await playThenSwitch(hlsPlaylist)
+    })
+
+    it('DASH recovers the playhead after switching content types mid-playback', async () => {
+        await expectPlayheadRecoversAfterSwitch(dashPlaylist)
+    })
+
+    it('HLS recovers the playhead after switching content types mid-playback', async () => {
+        await expectPlayheadRecoversAfterSwitch(hlsPlaylist)
     })
 
     it('DASH applies allowedContentTypes set before load', async () => {
