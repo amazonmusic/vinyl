@@ -650,6 +650,76 @@ describe('TrackControllerImpl', () => {
         })
     })
 
+    describe('guards async ad continuations after dispose', () => {
+        it('does not dispatch trackEnded when disposed before the postroll resolves', async () => {
+            let resolvePostroll: (v: AdBreakInfo | null) => void = () => {}
+            deps.adController.enterPostroll.and.returnValue(
+                new Promise<AdBreakInfo | null>((res) => {
+                    resolvePostroll = res
+                })
+            )
+            trackController.load(...createLoadOptionsList(2))
+            await clock.tick() // activate the first track
+            const endedSpy = jasmine.createSpy('trackEnded')
+            trackController.on('trackEnded', endedSpy)
+            deps.playbackController.dispatch('ended', {}) // onEnded → enterPostroll pending
+            trackController.dispose()
+            disposed = true
+            resolvePostroll(null) // .then guarded by interrupted()
+            await clock.tick()
+            expect(endedSpy).not.toHaveBeenCalled()
+        })
+
+        it('does not advance the queue when disposed within the trackEnded handler', async () => {
+            trackController.load(...createLoadOptionsList(2))
+            await clock.tick() // activate the first track
+            trackController.on('trackEnded', () => {
+                trackController.dispose() // interrupt before the queued next()
+                disposed = true
+            })
+            const activatedSpy = jasmine.createSpy('trackActivated')
+            trackController.on('trackActivated', activatedSpy)
+            deps.playbackController.dispatch('ended', {})
+            await clock.tick()
+            // The queued next() is skipped: interrupted() is true in the microtask.
+            expect(activatedSpy).not.toHaveBeenCalled()
+        })
+
+        it('swallows a postroll rejection after dispose', async () => {
+            let rejectPostroll: (e: Error) => void = () => {}
+            deps.adController.enterPostroll.and.returnValue(
+                new Promise<AdBreakInfo | null>((_res, rej) => {
+                    rejectPostroll = rej
+                })
+            )
+            trackController.load(...createLoadOptionsList(1))
+            await clock.tick()
+            deps.playbackController.dispatch('ended', {})
+            trackController.dispose()
+            disposed = true
+            rejectPostroll(new Error('late')) // .catch guarded by interrupted()
+            await clock.tick()
+            expect(trackController.disposed).toBeTrue()
+        })
+
+        it('does not activate when disposed before the preroll rejects', async () => {
+            let rejectPreroll: (e: Error) => void = () => {}
+            deps.adController.enterPreroll.and.returnValue(
+                new Promise<AdBreakInfo | null>((_res, rej) => {
+                    rejectPreroll = rej
+                })
+            )
+            const activatedSpy = jasmine.createSpy('trackActivated')
+            trackController.on('trackActivated', activatedSpy)
+            trackController.load(...createLoadOptionsList(1)) // activation deferred behind enterPreroll
+            trackController.dispose()
+            disposed = true
+            rejectPreroll(new Error('late')) // .catch guarded by interrupted()
+            await clock.tick()
+            expect(activatedSpy).not.toHaveBeenCalled()
+        })
+    })
+
     describe('unload', () => {
         it('unloads the active track and clears the queue', () => {
             trackController.load(...createLoadOptionsList(3))
