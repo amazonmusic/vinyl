@@ -85,7 +85,10 @@ export function createSegmentDataProvider(
             }
         }
 
-        if (options.reportDownlinkMetrics) {
+        // Skip the metrics read when aborted: a prefetch that resolves after
+        // teardown must not touch the global networkMetricsController ref (it
+        // would re-initialize it and break integ spec isolation).
+        if (options.reportDownlinkMetrics && !abort?.aborted()) {
             networkMetricsController.value.addDownlinkTransferEntry({
                 bytes: arrayBuffer.byteLength,
                 serviceId,
