@@ -635,6 +635,7 @@ export class DrmControllerImpl
             licenseServerOptions,
             challenge
         )
+        if (this.disposed) return
         this.dispatch('loadSpanMeasured', {
             kind: 'license',
             startTime: licenseSpanStart,
