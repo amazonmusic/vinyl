@@ -267,6 +267,27 @@ describe('createSegmentDataProvider', () => {
                 })
             )
         })
+
+        it('does not report transfer entry when aborted before the metrics read', async () => {
+            const abort = new Abort()
+            const response = new Response(new ArrayBuffer(10))
+            spyOn(response, 'arrayBuffer').and.callFake(() => {
+                // Abort after the fetch resolves, before the metrics read.
+                abort.abort()
+                return Promise.resolve(new ArrayBuffer(10))
+            })
+            mockRequester.request.and.resolveTo(response)
+            const provider = createSegmentDataProvider(deps, {
+                url: 'https://example.com/seg0.mp4',
+                reportDownlinkMetrics: true,
+            })
+            const promise = provider(abort)
+            await clock.tick(2)
+            await promise
+            expect(
+                networkMetricsControllerRef.value.addDownlinkTransferEntry
+            ).not.toHaveBeenCalled()
+        })
     })
 
     describe('when reportDownlinkMetrics is false', () => {
