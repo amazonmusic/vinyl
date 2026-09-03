@@ -37,5 +37,7 @@ describe('createSegmentControllerFactory', () => {
         expect(controller.options).toEqual(
             objectContaining({ prefetchActive: 100 })
         )
+
+        controller.dispose()
     })
 })
