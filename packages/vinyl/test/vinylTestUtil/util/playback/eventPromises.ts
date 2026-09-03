@@ -18,7 +18,7 @@ import { nextEventAsPromise } from '@amazon/vinyl-util'
  */
 export async function onPlaying(
     playbackController: ReadonlyPlaybackController,
-    timeout = 10
+    timeout = 30
 ): Promise<void> {
     if (playbackController.playing) return Promise.resolve()
     return nextEventAsPromise(playbackController, 'playing', {
