@@ -464,6 +464,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         adController
             .enterPostroll()
             .then((postroll) => {
+                if (interrupted()) return
                 if (postroll) {
                     // There is a pending postroll, do not advance the queue,
                     // a new adEntered event will fire.
@@ -486,6 +487,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                 }
             })
             .catch((error) => {
+                if (interrupted()) return
                 logError(this, 'enterPostroll failed', error)
             })
     }
@@ -683,7 +685,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
     }) {
         const { adTrackLoadOptionsProvider } = this.deps
         const loadOptions = await adTrackLoadOptionsProvider(ad)
-        if (parentTrack.disposed) return
+        if (parentTrack.disposed || this.disposed) return
         logVerbose(
             this,
             `preloading ad id=${ad.id} uri=${ad.uri} priority=${prefetchPriority}`
@@ -874,7 +876,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         const previousTrack = this._currentTrack
         const previousWasActive = previousTrack?.active ?? false
         this._currentTrack = newTrack
-        const interrupted = () => this._currentTrack !== newTrack
+        const interrupted = () =>
+            this.disposed || this._currentTrack !== newTrack
         previousTrack?.deactivate()
         if (previousTrack && previousWasActive) {
             this.dispatch('trackDeactivated', { track: previousTrack })
@@ -911,6 +914,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
                         activate()
                     })
                     .catch((error) => {
+                        if (interrupted()) return
                         logError(this, 'enterPreroll failed', error)
                         activate()
                     })
