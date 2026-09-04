@@ -50,6 +50,62 @@ GitHub provides additional document on
 [forking a repository](https://help.github.com/articles/fork-a-repo/) and
 [creating a pull request](https://help.github.com/articles/creating-a-pull-request/).
 
+## Releasing and publishing packages
+
+Releases are published to npm automatically by
+[`.github/workflows/release-publish.yml`](.github/workflows/release-publish.yml).
+When a `release/v*` pull request is merged into `main`, that workflow tags the
+version, creates a GitHub release, strips dev-only exports
+(`npm run prepare:publish`), and runs `npm publish --workspaces`. It
+authenticates to npm with
+[trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) — note
+`permissions: id-token: write` and the absence of any npm token — so npm
+verifies the publish came from this repo's workflow rather than a stored
+credential.
+
+### Publishing a brand-new package for the first time
+
+Trusted publishing can only be configured for a package that **already exists**
+on npm — the trusted-publisher settings live on the package's npm page. A new
+workspace therefore fails its first automated publish (npm has nothing to match
+the OIDC claim against). Bootstrap it once, by hand, then hand ongoing publishes
+back to the workflow.
+
+Using `@amazon/vinyl-example` as the illustration:
+
+1. **Confirm it is meant to be public.** The package's `package.json` must have
+   `"publishConfig": { "access": "public" }` and must not be `"private": true`
+   (private workspaces like `vinyl-website` are skipped by
+   `npm publish --workspaces`).
+2. **Build and strip dev-only exports**, exactly as the workflow does, so the
+   tarball matches what CI will later publish:
+    ```bash
+    npm ci
+    npm run release
+    npm run prepare:publish   # strips the ./src development export condition; dirties the tree
+    ```
+3. **Publish once, manually, with a personal npm token** (a member of the
+   `@amazon` scope with publish rights):
+    ```bash
+    npm login   # or set NODE_AUTH_TOKEN / ~/.npmrc
+    npm publish -w @amazon/vinyl-example --access public
+    ```
+    This creates the package on npm so a trusted publisher can be attached to
+    it. Discard the `prepare:publish` tree changes afterward (`git checkout .`).
+4. **Add the trusted publisher on npm.** On
+   `https://www.npmjs.com/package/@amazon/vinyl-example` → **Settings** →
+   **Trusted Publisher**, add a GitHub Actions publisher:
+    - Organization / repository: `amazonmusic/vinyl`
+    - Workflow filename: `release-publish.yml`
+    - Leave the environment blank (the workflow does not use a GitHub
+      Environment).
+5. **Verify.** The next `release/v*` merge should publish
+   `@amazon/vinyl-example` automatically via OIDC, with no manual step and no
+   stored token.
+
+Repeat steps 1–4 for each new public workspace. Existing packages need no
+action.
+
 ## Finding contributions to work on
 
 Looking at the existing issues is a great way to find something to contribute
