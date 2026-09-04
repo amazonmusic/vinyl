@@ -17,6 +17,7 @@ import {
     last,
     networkMetricsController,
     normalizeHeadersInit,
+    readResponseBody,
     requestWithRetry,
 } from '@amazon/vinyl-util'
 import { type ByteRange, stringifyByteRange } from '@amazon/vinyl-mpd-parser'
@@ -66,7 +67,7 @@ export function createSegmentDataProvider(
         })
         const responseEnd = Date.now()
 
-        const arrayBuffer = await response.arrayBuffer()
+        const arrayBuffer = await readResponseBody(response, 'arrayBuffer')
         const contentEnd = Date.now()
 
         let responseStart: Timestamp | null = null

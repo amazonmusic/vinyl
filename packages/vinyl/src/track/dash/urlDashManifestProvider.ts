@@ -11,7 +11,7 @@ import type {
 } from '@amazon/vinyl-util'
 import { noop } from '@amazon/vinyl-util'
 import { clone, getLocation, resolveUrl } from '@amazon/vinyl-util'
-import { requestWithRetry } from '@amazon/vinyl-util'
+import { readResponseBody, requestWithRetry } from '@amazon/vinyl-util'
 import { parseDashManifest } from '@amazon/vinyl-mpd-parser'
 import type { DashManifestProvider } from './DashManifestProvider'
 
@@ -40,7 +40,7 @@ export function urlDashManifestProvider(
         const response = await requestWithRetry(params.input, params.init, {
             abort,
         })
-        const xml = await response.text()
+        const xml = await readResponseBody(response, 'text')
         const manifest = parseDashManifest(xml)
         const baseInput = response.url || params.input
         return {

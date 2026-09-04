@@ -8,7 +8,12 @@ import type {
     ReadonlyAbort,
     RequestInitOptions,
 } from '@amazon/vinyl-util'
-import { requestWithRetry, resolveUrl, sleep } from '@amazon/vinyl-util'
+import {
+    readResponseBody,
+    requestWithRetry,
+    resolveUrl,
+    sleep,
+} from '@amazon/vinyl-util'
 import { parseMediaPlaylist } from '@amazon/vinyl-hls-parser'
 import { parseWebVtt, type WebVttCue } from './parseWebVtt'
 
@@ -115,7 +120,7 @@ export async function loadWebVttCues(
     const contentType = (
         response.headers.get('content-type') ?? ''
     ).toLowerCase()
-    const body = await response.text()
+    const body = await readResponseBody(response, 'text')
     if (contentType.includes('mpegurl') || body.startsWith('#EXTM3U')) {
         return streamMediaPlaylistText({
             text: body,
@@ -158,7 +163,7 @@ async function streamMediaPlaylist(ctx: StreamCtx): Promise<void> {
     const response = await requestWithRetry(ctx.uri!, ctx.init, {
         abort: ctx.abort,
     })
-    const text = await response.text()
+    const text = await readResponseBody(response, 'text')
     return streamMediaPlaylistText({
         ...ctx,
         text,
@@ -189,7 +194,7 @@ async function streamMediaPlaylistText(ctx: StreamCtx): Promise<void> {
         const res = await requestWithRetry(segUri, ctx.init, {
             abort: ctx.abort,
         })
-        const body = await res.text()
+        const body = await readResponseBody(res, 'text')
         const doc = parseWebVtt(body)
         if (doc.cues.length > 0) ctx.onCues(doc.cues)
         if (ctx.onStyles && doc.styles.length > 0) ctx.onStyles(doc.styles)
