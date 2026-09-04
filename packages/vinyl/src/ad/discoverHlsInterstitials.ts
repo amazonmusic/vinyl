@@ -9,6 +9,7 @@ import {
     type Maybe,
     type MaybePromise,
     memoize,
+    readResponseBody,
     requestWithRetry,
     resolveUrl,
 } from '@amazon/vinyl-util'
@@ -314,7 +315,7 @@ async function resolveHlsAssetList({
 }): Promise<AssetContent> {
     const url = resolveUrl(assetListUrl, baseUrl)
     const response = await requestWithRetry(url)
-    const json: AssetListDocument = await response.json()
+    const json: AssetListDocument = await readResponseBody(response, 'json')
     const assets = json.ASSETS ?? []
     const ads = assets.map((asset, i): AdInfo => {
         return {

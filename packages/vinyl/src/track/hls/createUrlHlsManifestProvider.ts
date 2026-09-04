@@ -13,7 +13,12 @@ import type {
     ReadonlyAbort,
     RequestInitOptions,
 } from '@amazon/vinyl-util'
-import { memoize, requestWithRetry, resolveUrl } from '@amazon/vinyl-util'
+import {
+    memoize,
+    readResponseBody,
+    requestWithRetry,
+    resolveUrl,
+} from '@amazon/vinyl-util'
 import type { HlsManifestData } from './HlsManifestData'
 import type { HlsManifestProvider } from './createHlsManifestProvider'
 
@@ -25,7 +30,7 @@ export function createUrlHlsManifestProvider(
         const mainResponse = await requestWithRetry(url, requestInit, {
             abort,
         })
-        const mainText = await mainResponse.text()
+        const mainText = await readResponseBody(mainResponse, 'text')
 
         // Use the response URL (after redirects) as the base for resolving
         // relative URIs and for resolving #EXT-X-DEFINE:QUERYPARAM tokens.
@@ -77,7 +82,7 @@ export async function fetchMediaPlaylist(
     const { uri, baseUrl, defines, requestInit, abort } = options
     const variantUrl = resolveUrl(uri, baseUrl)
     const response = await requestWithRetry(variantUrl, requestInit, { abort })
-    const text = await response.text()
+    const text = await readResponseBody(response, 'text')
     // The resolved URL (after redirects) carries the query parameters that
     // #EXT-X-DEFINE:QUERYPARAM entries resolve against (e.g. MediaTailor ad
     // manifests). Fall back to the requested URL if the response omits it.

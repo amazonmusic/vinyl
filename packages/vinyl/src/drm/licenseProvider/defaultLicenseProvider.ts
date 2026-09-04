@@ -4,7 +4,11 @@
  */
 
 import type { ReadonlyAbort } from '@amazon/vinyl-util'
-import { requestWithRetry, ValidationError } from '@amazon/vinyl-util'
+import {
+    readResponseBody,
+    requestWithRetry,
+    ValidationError,
+} from '@amazon/vinyl-util'
 import type { DrmKeySystem } from '../DrmKeySystem'
 import type { LicenseProvider, LicenseServerOptions } from './LicenseProvider'
 
@@ -40,5 +44,5 @@ export const defaultLicenseProvider: LicenseProvider = async (
         },
         { abort }
     )
-    return await res.arrayBuffer()
+    return await readResponseBody(res, 'arrayBuffer')
 }
