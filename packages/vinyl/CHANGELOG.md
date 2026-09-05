@@ -3,6 +3,61 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.0](https://github.com/amazonmusic/vinyl/compare/v3.0.1...v3.1.0) (2026-09-05)
+
+### Features
+
+- **audio:** add disableSampleRateFilter and maxSampleRate options
+  ([b48d9bd](https://github.com/amazonmusic/vinyl/commit/b48d9bd5e0e8e6fe5952a5b524b53d07d2a47867))
+- **audio:** add minSampleRate floor, unify the sample-rate filter
+  ([c616a7c](https://github.com/amazonmusic/vinyl/commit/c616a7cc059ada0007d98c9545bfee2c96e58214))
+- **browserstack:** new Selenium/WebDriver runner in @amazon/vinyl-browserstack
+  ([41d0495](https://github.com/amazonmusic/vinyl/commit/41d04959c0d4d5798e305f95a4325ddce0daec8b))
+- **dash:** support WebM (VP9/Opus) via SegmentBase EBML Cues indexing
+  ([a4e35fa](https://github.com/amazonmusic/vinyl/commit/a4e35fa5a02788db56255dd459947106f84ba34d))
+- **playback:** add stallEntered/stallEnded events
+  ([4eb5bc3](https://github.com/amazonmusic/vinyl/commit/4eb5bc3838e68bd9e19d6f6c5b3f654a7e3cada6))
+- **playback:** post-seek stall detector; remove the media-patching system
+  ([8857ace](https://github.com/amazonmusic/vinyl/commit/8857acebf222ef5fce3148b16f317e5321908275))
+
+### Bug Fixes
+
+- **abr:** pair each tier with the cheapest peer in its bucket
+  ([7aa857d](https://github.com/amazonmusic/vinyl/commit/7aa857d9d3f84cfde292726fdf3552870209ad55))
+- **ad:** stop ad discovery from running after dispose
+  ([76277d2](https://github.com/amazonmusic/vinyl/commit/76277d2f762693f1ea1dbdad575d6d91e03fc4c1))
+- **dash:** derive period start and duration from Period@duration
+  ([81722f5](https://github.com/amazonmusic/vinyl/commit/81722f5d99ebf120a9ef3eb10874e68464b34dd7))
+- **dash:** exclude unsupported WebM/Matroska containers from selection
+  ([0cc06f3](https://github.com/amazonmusic/vinyl/commit/0cc06f326d0d38c8469bead070b64790c656c3d6))
+- **drm:** dedupe key sessions on transformed init data
+  ([624e425](https://github.com/amazonmusic/vinyl/commit/624e4254b234bc4149a00971efc1d1773c68d4fc))
+- **drm:** don&#x27;t update the key session after dispose
+  ([009c230](https://github.com/amazonmusic/vinyl/commit/009c2309f203c433f84bb7d95680310c0b50a3eb))
+- **drm:** fall back to wildcard key system when resolving license server
+  ([7c3c48c](https://github.com/amazonmusic/vinyl/commit/7c3c48c8c44edd2daf5119ce98dd3d50e616524a))
+- **drm:** ignore encrypted events when the manifest supplies pssh
+  ([4a85b85](https://github.com/amazonmusic/vinyl/commit/4a85b85c6123b13d796021905f4036955dfdbb9b))
+- **mse:** don&#x27;t double hard-reset on allowedContentTypes change
+  ([3c0e8fd](https://github.com/amazonmusic/vinyl/commit/3c0e8fda5a27175b3ff566b7ac64e19291c3dff8))
+- **mse:** fail fast when a required content type is fully filtered out
+  ([314976e](https://github.com/amazonmusic/vinyl/commit/314976e58e0ac7e814ddd36e3a521226f9f6ab8a))
+- **network:** classify response body-read failures with a service origin
+  ([5356030](https://github.com/amazonmusic/vinyl/commit/5356030d0e7581ba3c69fcb28e617aefdfa35070))
+- **playback:** drive stuck end-of-track to ended on progressive tracks
+  ([9f6536e](https://github.com/amazonmusic/vinyl/commit/9f6536e20dfdd31a7405d993392213e08fcf2df4))
+- **sample-rate:** only gate audio content types
+  ([b6a5cc9](https://github.com/amazonmusic/vinyl/commit/b6a5cc96fe18798dca494c75494de1cf51cde483))
+- **streaming:** don&#x27;t read the network-metrics global ref after abort
+  ([a090ac4](https://github.com/amazonmusic/vinyl/commit/a090ac413407708c47ce3ed16f4be0c77624146c))
+- **track:** guard ad continuations against post-dispose logging
+  ([d3a9a0c](https://github.com/amazonmusic/vinyl/commit/d3a9a0cc7532de9833aea0addc73fe7205e764fd))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.0.1](<>) (2026-08-28)
 
 ### Bug Fixes
