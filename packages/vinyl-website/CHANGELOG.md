@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.0](https://github.com/amazonmusic/vinyl/compare/v3.0.1...v3.1.0) (2026-09-05)
+
+### Features
+
+- **website:** add a play queue view with remove
+  ([8ada92a](https://github.com/amazonmusic/vinyl/commit/8ada92a231f62b817432b05971e46f69242e2e92))
+- **website:** add GoatCounter analytics
+  ([738983c](https://github.com/amazonmusic/vinyl/commit/738983c51db7e396a362ed90e0106cce923b1b14))
+- **website:** configurable track settings (title, type, DRM)
+  ([d072e86](https://github.com/amazonmusic/vinyl/commit/d072e86c9fb7f11f138290143abbee497a305af2))
+
+### Performance Improvements
+
+- **build:** parallelize analyzeExports and move typedoc off the release build
+  ([5e67668](https://github.com/amazonmusic/vinyl/commit/5e67668470a8f9ad47325412d68b4fee23df94fd))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.0.1](<>) (2026-08-28)
 
 **Note:** Version bump only for package @amazon/vinyl-website

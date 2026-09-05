@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.0](https://github.com/amazonmusic/vinyl/compare/v3.0.1...v3.1.0) (2026-09-05)
+
+### Performance Improvements
+
+- **build:** parallelize analyzeExports and move typedoc off the release build
+  ([5e67668](https://github.com/amazonmusic/vinyl/commit/5e67668470a8f9ad47325412d68b4fee23df94fd))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.0.1](<>) (2026-08-28)
 
 **Note:** Version bump only for package @amazon/vinyl-build-utils

@@ -3,6 +3,25 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.1.0](https://github.com/amazonmusic/vinyl/compare/v3.0.1...v3.1.0) (2026-09-05)
+
+### Features
+
+- **dash:** support WebM (VP9/Opus) via SegmentBase EBML Cues indexing
+  ([a4e35fa](https://github.com/amazonmusic/vinyl/commit/a4e35fa5a02788db56255dd459947106f84ba34d))
+- **playback:** post-seek stall detector; remove the media-patching system
+  ([8857ace](https://github.com/amazonmusic/vinyl/commit/8857acebf222ef5fce3148b16f317e5321908275))
+
+### Bug Fixes
+
+- **network:** classify response body-read failures with a service origin
+  ([5356030](https://github.com/amazonmusic/vinyl/commit/5356030d0e7581ba3c69fcb28e617aefdfa35070))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.0.1](<>) (2026-08-28)
 
 **Note:** Version bump only for package @amazon/vinyl-util

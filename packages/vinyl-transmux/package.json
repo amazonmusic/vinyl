@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-transmux",
-    "version": "3.0.1",
+    "version": "3.1.0",
     "description": "MPEG-TS to fMP4 transmuxer for browser and Node.",
     "repository": {
         "type": "git",
@@ -70,11 +70,11 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^3.0.1",
-        "@amazon/vinyl-jasmine-wrapper": "^3.0.1"
+        "@amazon/vinyl-build-utils": "^3.1.0",
+        "@amazon/vinyl-jasmine-wrapper": "^3.1.0"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^3.0.1"
+        "@amazon/vinyl-util": "^3.1.0"
     },
     "publishConfig": {
         "access": "public"
