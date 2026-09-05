@@ -726,7 +726,7 @@ describe('ParseXmlHandlerImpl', () => {
             ).toThrowMatching((e) => e instanceof StringParseError)
         })
 
-        it('throws an error if the number of elements is less than minOccurs', () => {
+        it('throws an error if the number of elements is less than minOccurs (inline element type)', () => {
             const rules: XmlRules<DocType> = {
                 doc: element(
                     {

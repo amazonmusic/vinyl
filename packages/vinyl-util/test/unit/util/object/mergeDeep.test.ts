@@ -186,7 +186,7 @@ describe('mergeDeep', () => {
             })
         })
 
-        describe('and second source is an array', () => {
+        describe('and second source is an array over a primitive', () => {
             it('clones the second source', () => {
                 const source = [4, 5, { b: 6 }] as const
                 const merged = mergeDeep<any, any>(['test', source])

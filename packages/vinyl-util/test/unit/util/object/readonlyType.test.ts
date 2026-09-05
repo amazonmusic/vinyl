@@ -57,7 +57,7 @@ describe('ReadonlyDeep', () => {
         >(true)
     })
 
-    it('translates Map to ReadonlyMapDeep', () => {
+    it('translates Set to ReadonlySetDeep', () => {
         expectTypeStrictlyEquals<
             ReadonlyDeep<Set<{ a: number }>>,
             ReadonlySet<{ readonly a: number }>

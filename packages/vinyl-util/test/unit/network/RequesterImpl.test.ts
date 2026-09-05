@@ -829,7 +829,7 @@ describe('RequesterImpl module', () => {
                 })
             })
 
-            describe('when options.readErrorBody is TEXT', () => {
+            describe('when options.readErrorBody is TEXT and the body read throws', () => {
                 it('sets reason to error message when response.text() throws', async () => {
                     mock503Response = new Response(null, { status: 503 })
                     spyOn(mock503Response, 'text').and.rejectWith(

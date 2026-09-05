@@ -452,7 +452,7 @@ describe('QualitySelectorImpl', () => {
         })
     })
 
-    describe('when options change', () => {
+    describe('when options change after construction', () => {
         it('merges set options with defaults', () => {
             options.value = {
                 highBufferThreshold: 32,

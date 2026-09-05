@@ -220,7 +220,7 @@ describe('PersistentItem', () => {
     })
 })
 
-describe('PersistentItem', () => {
+describe('PersistentItem lazy initialization', () => {
     overrideGlobalInit(persistenceRef, () => {
         throw new Error('should not be called')
     })
