@@ -158,7 +158,7 @@ describe('NetworkState', () => {
         })
     })
 
-    describe('onLine', () => {
+    describe('onLine (global network state)', () => {
         const mockNetworkStateRef = overrideGlobalInit(
             networkState,
             () => new MockNetworkState()

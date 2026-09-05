@@ -94,7 +94,7 @@ describe('SourceObjectTrack', () => {
     })
 })
 
-describe('createSourceTrackFactory', () => {
+describe('createSourceTrackFactory (object)', () => {
     let trackFactory: TrackFactory<SourceObjectTrackLoadOptions>
 
     beforeEach(() => {

@@ -1144,7 +1144,7 @@ describe('TrackControllerImpl', () => {
         })
     })
 
-    describe('reset', () => {
+    describe('reset (hard)', () => {
         it('delegates a hard reset to the current track', async () => {
             trackController.load(...createLoadOptionsList(1))
             await clock.tick()

@@ -94,7 +94,7 @@
     "devDependencies": {
         "@amazon/vinyl-browserstack": "^3.0.1",
         "@amazon/vinyl-build-utils": "^3.0.1",
-        "commander": "^9.5.0"
+        "commander": "^15.0.0"
     },
     "dependencies": {
         "@amazon/vinyl-di": "^3.0.1",
