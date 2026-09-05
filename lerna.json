@@ -11,8 +11,8 @@
             "push": false,
             "changelogPreset": {
                 "name": "conventionalcommits",
-                "compareUrlFormat": "",
-                "commitUrlFormat": "{{host}}/{{owner}}/{{repository}}/commits/{{hash}}"
+                "compareUrlFormat": "{{host}}/{{owner}}/{{repository}}/compare/{{previousTag}}...{{currentTag}}",
+                "commitUrlFormat": "{{host}}/{{owner}}/{{repository}}/commit/{{hash}}"
             }
         }
     }
