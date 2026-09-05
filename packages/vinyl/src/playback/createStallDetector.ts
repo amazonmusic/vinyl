@@ -114,15 +114,28 @@ export function createStallDetector(
     return stop
 }
 
-/** True when the play head sits inside a buffered range, clear of its end by {@link endMargin}. */
+/**
+ * True when the play head sits inside a buffered range, clear of its end by
+ * {@link endMargin} — i.e. there is data to keep playing.
+ *
+ * A range that ends at the end of the media is treated as nudgeable up to its
+ * end: no more data is coming, so a freeze there is a stuck end-of-track (seen
+ * on progressive `src` tracks), and a nudge pushes the element to `ended`.
+ */
 function withinBufferedData(
     media: HTMLMediaElement,
     endMargin: number
 ): boolean {
     const t = media.currentTime
+    const duration = media.duration
     const buffered = media.buffered
     for (let i = 0; i < buffered.length; i++) {
-        if (t >= buffered.start(i) && t < buffered.end(i) - endMargin)
+        const end = buffered.end(i)
+        const isEndOfMedia =
+            Number.isFinite(duration) &&
+            duration > 0 &&
+            end >= duration - endMargin
+        if (t >= buffered.start(i) && (t < end - endMargin || isEndOfMedia))
             return true
     }
     return false

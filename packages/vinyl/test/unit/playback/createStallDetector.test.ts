@@ -97,6 +97,16 @@ describe('createStallDetector', () => {
             expect(media.currentTime).toBe(10)
         })
 
+        it('nudges at the end of the media (stuck end-of-track on src)', async () => {
+            // Buffer ends at the media duration: no more data is coming, so a
+            // freeze here is a stuck end-of-track and a nudge drives it to end.
+            media.buffered = new MockTimeRanges([[0, 10.3]])
+            media.duration = 10.3
+            detect()
+            await poll(3)
+            expect(media.currentTime).toBeCloseTo(10.1)
+        })
+
         it('nudges outside buffered ranges when nudgeUnbuffered is set', async () => {
             // WebKit path: re-issue the seek even though buffered looks empty.
             media.buffered = new MockTimeRanges([[50, 100]])
