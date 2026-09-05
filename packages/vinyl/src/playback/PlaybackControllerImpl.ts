@@ -38,6 +38,7 @@ import {
     waitedReasons,
 } from './ReadonlyPlaybackController'
 import { createStallDetector } from './createStallDetector'
+import { createStallMonitor } from './createStallMonitor'
 import { InvalidSeekError } from './error/InvalidSeekError'
 import { playbackStateLoggingHandler } from './logging/playbackStateLoggingHandler'
 import { createChangeEventTrigger } from '../event/ChangeEvent'
@@ -75,6 +76,13 @@ export interface PlaybackControllerImplOptions {
      * Default: 30
      */
     readonly seekTimeout: number
+
+    /**
+     * The number of seconds the play head must be frozen while playing before a stall is reported
+     * via the `stallEntered`/`stallEnded` events.
+     * Default: 1
+     */
+    readonly stallThreshold: number
 }
 
 export const defaultPlaybackControllerImplOptions = {
@@ -82,6 +90,7 @@ export const defaultPlaybackControllerImplOptions = {
     minSeekableBuffer: -1, // Default comes from getMinSeekableBufferDefault()
     playTimeout: 30,
     seekTimeout: 30,
+    stallThreshold: 1,
 } as const satisfies PlaybackControllerImplOptions
 
 /**
@@ -189,6 +198,19 @@ export class PlaybackControllerImpl
         })
 
         this.initializeEvents()
+
+        // Detect and report play-head stalls (frozen while playing) via
+        // stallEntered/stallEnded, independent of the recovery stall detector.
+        add(
+            createStallMonitor(
+                this,
+                {
+                    onStallEntered: () => this.dispatch('stallEntered', {}),
+                    onStallEnded: (info) => this.dispatch('stallEnded', info),
+                },
+                { stallThreshold: this.options.stallThreshold }
+            )
+        )
 
         // Listen for loudness normalization changes
         add(

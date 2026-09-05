@@ -239,6 +239,21 @@ export interface PlaybackControllerEventMap {
     readonly seeking: AnyRecord
 
     /**
+     * Fired when the play head has been detected as frozen while playing — i.e. no `timeUpdate`
+     * was observed for longer than the stall threshold. Only emitted once playback has actually
+     * been observed (a `playing` event), so it is not emitted during initial loading or while
+     * awaiting a seek. Each stall is bracketed by a `stallEntered`/{@link stallEnded} pair.
+     */
+    readonly stallEntered: AnyRecord
+
+    /**
+     * Fired when a stall (see {@link stallEntered}) has ended, for any reason. `started` is the
+     * time of the last `timeUpdate` observed before the play head froze, and `duration` is the
+     * total number of seconds the play head was frozen.
+     */
+    readonly stallEnded: OperationCompletedEvent<StallEndedReason>
+
+    /**
      * Fired when the time indicated by the currentTime attribute has been updated.
      */
     readonly timeUpdate: ChangeEvent<number>
@@ -293,6 +308,20 @@ export const waitedReasons = [
     WaitedReason.SEEKING,
 ] as const satisfies readonly WaitedReason[]
 
+/**
+ * Reasons a stall (see {@link PlaybackControllerEventMap.stallEntered}) has ended.
+ */
+export enum StallEndedReason {
+    /** The play head advanced again — playback resumed. */
+    PLAYING = 'playing',
+    /** Playback was paused. */
+    PAUSE = 'pause',
+    /** A seek started. */
+    SEEKING = 'seeking',
+    /** The media was emptied (e.g. unloaded/reloaded). */
+    EMPTIED = 'emptied',
+}
+
 export const ALL_PLAYBACK_STATE_EVENTS = [
     'abort',
     'canPlay',
@@ -319,6 +348,8 @@ export const ALL_PLAYBACK_STATE_EVENTS = [
     'resize',
     'seeked',
     'seeking',
+    'stallEntered',
+    'stallEnded',
     'timeUpdate',
     'volumeChange',
     'waited',

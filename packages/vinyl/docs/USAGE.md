@@ -328,6 +328,29 @@ Read the API Docs on `PlaybackControllerEventMap` for the full list of playback
 events. Most events are directly from the media element, but there are
 additional second-order events such as 'played', 'waited', or 'mutedChange'.
 
+### Stall Detection
+
+Vinyl detects when the play head freezes during playback (no `timeUpdate` for
+longer than a threshold) and reports it as a `stallEntered`/`stallEnded` pair.
+Unlike the media's `waiting`/`waited` events, a stall is only reported once
+playback has actually been observed — never during initial loading or while
+awaiting a seek — and `stallEnded` carries the full frozen duration.
+
+```typescript
+player.on('stallEntered', () => {
+    // The play head has frozen mid-playback; e.g. show a buffering spinner.
+})
+player.on('stallEnded', (event) => {
+    // event.reason is one of 'playing' (resumed), 'pause', 'seeking', 'emptied'.
+    // event.duration is the number of seconds the play head was frozen,
+    // measured from the last timeUpdate before the freeze.
+    console.log(`stalled for ${event.duration}s, ended by ${event.reason}`)
+})
+```
+
+The freeze threshold defaults to 1 second and is configurable via the
+`stallThreshold` playback option.
+
 ### Buffer Status
 
 There are two concepts to understand when talking about how much data is
