@@ -130,6 +130,42 @@ describe('PlaybackController', () => {
                 if (!controller.disposed) controller.dispose()
             })
 
+            describe('stall detection', () => {
+                it('does not emit stallEntered before playback is observed', async () => {
+                    const enteredSpy = createEventSpy(
+                        controller,
+                        'stallEntered'
+                    )
+                    await clock.tick(2)
+                    expect(enteredSpy).not.toHaveBeenCalled()
+                })
+
+                it('emits stallEntered when the play head freezes while playing and stallEnded on resume', async () => {
+                    const enteredSpy = createEventSpy(
+                        controller,
+                        'stallEntered'
+                    )
+                    const endedSpy = createEventSpy(controller, 'stallEnded')
+
+                    media.dispatchEvent(mockEvent('playing'))
+                    media.currentTime = 1
+                    media.dispatchEvent(mockEvent('timeupdate'))
+
+                    // Frozen for the 1s default threshold.
+                    await clock.tick(1)
+                    expect(enteredSpy).toHaveBeenCalledTimes(1)
+                    expect(endedSpy).not.toHaveBeenCalled()
+
+                    // Play head advances -> stall ends with reason 'playing'.
+                    media.currentTime = 2
+                    media.dispatchEvent(mockEvent('timeupdate'))
+                    expect(endedSpy).toHaveBeenCalledTimes(1)
+                    expect(endedSpy.calls.mostRecent().args[0].reason).toBe(
+                        'playing'
+                    )
+                })
+            })
+
             it('assigns properties, methods, and events directly to a media object', () => {
                 expect(controller.buffered).toBeInstanceOf(ReadonlyRangesImpl)
                 testDelegate(controller, 'currentTime', 2)
