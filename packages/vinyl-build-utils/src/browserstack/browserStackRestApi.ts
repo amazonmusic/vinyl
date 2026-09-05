@@ -202,11 +202,7 @@ export interface PlanDetails {
 }
 
 export type SessionStatus =
-    | 'passed'
-    | 'failed'
-    | 'timeout'
-    | 'running'
-    | 'queued'
+    'passed' | 'failed' | 'timeout' | 'running' | 'queued'
 
 export type ExecutionStatus = 'running' | 'done' | 'timeout' | 'queued'
 

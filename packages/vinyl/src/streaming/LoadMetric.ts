@@ -15,10 +15,7 @@ import type { TrackUri } from '../track/Track'
  * - `firstSegment`: fetching the first media segment.
  */
 export type LoadSpanKind =
-    | 'manifest'
-    | 'license'
-    | 'initSegment'
-    | 'firstSegment'
+    'manifest' | 'license' | 'initSegment' | 'firstSegment'
 
 /**
  * A timed span for one stage of a track load.

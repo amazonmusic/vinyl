@@ -36,17 +36,7 @@ export interface FrequencyAnalyzerOptions {
      * A higher value will result in more details in the frequency domain but fewer details in the amplitude domain.
      */
     readonly fftSize:
-        | 32
-        | 64
-        | 128
-        | 256
-        | 512
-        | 1024
-        | 2048
-        | 4096
-        | 8192
-        | 16384
-        | 32768
+        32 | 64 | 128 | 256 | 512 | 1024 | 2048 | 4096 | 8192 | 16384 | 32768
 }
 
 const defaultFrequencyAnalyzerOptions = {

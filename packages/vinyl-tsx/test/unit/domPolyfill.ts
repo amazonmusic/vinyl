@@ -29,8 +29,7 @@ function implementDomTree(node: AnyNode) {
 
     function doInsertBefore(newNode: AnyNode, ref: AnyNode | null): AnyNode {
         const parentChildren = (newNode.parentNode as any)?._children as
-            | AnyNode[]
-            | undefined
+            AnyNode[] | undefined
         if (parentChildren) {
             const idx = parentChildren.indexOf(newNode)
             if (idx >= 0) parentChildren.splice(idx, 1)

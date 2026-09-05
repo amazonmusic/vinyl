@@ -91,8 +91,7 @@ export interface BrowserStackOptions extends BrowserStackWorkerControllerOptions
      * is honored).
      */
     readonly credentials?:
-        | BrowserStackCredentials
-        | Promise<BrowserStackCredentials>
+        BrowserStackCredentials | Promise<BrowserStackCredentials>
 
     /**
      * The list of browsers to test against.

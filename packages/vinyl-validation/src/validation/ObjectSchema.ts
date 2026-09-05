@@ -184,19 +184,23 @@ export type ExtendedPropertyValidators<T extends object, U extends object> = {
     // REQUIRED:
     // - Keys in U but not in T
     // - Keys in both where U[K] !== T[K]
-    [K in keyof U as K extends keyof T
-        ? Equal<U[K], T[K]> extends true
-            ? never
+    [
+        K in keyof U as K extends keyof T
+            ? Equal<U[K], T[K]> extends true
+                ? never
+                : K
             : K
-        : K]-?: ExtendedPropertyValidator<U & T, K>
+    ]-?: ExtendedPropertyValidator<U & T, K>
 } & {
     // OPTIONAL:
     // - Keys where U[K] === T[K] (and therefore K ∈ keyof T)
-    [K in keyof U as K extends keyof T
-        ? Equal<U[K], T[K]> extends true
-            ? K
+    [
+        K in keyof U as K extends keyof T
+            ? Equal<U[K], T[K]> extends true
+                ? K
+                : never
             : never
-        : never]?: ExtendedPropertyValidator<U & T, K>
+    ]?: ExtendedPropertyValidator<U & T, K>
 }
 
 export type ExtendedPropertyValidator<

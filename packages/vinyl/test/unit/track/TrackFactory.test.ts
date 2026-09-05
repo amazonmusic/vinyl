@@ -91,8 +91,7 @@ describe('createTrackFactory', () => {
 describe('InferLoadOptionsFromFactory', () => {
     it('provides the type of load options for the given factory type', () => {
         type LoadOptions =
-            | { type: 'a'; uri: string }
-            | { type: 'b'; uri: string }
+            { type: 'a'; uri: string } | { type: 'b'; uri: string }
         expectTypeStrictlyEquals<
             InferLoadOptionsFromFactory<{
                 validate(options: LoadOptions): void

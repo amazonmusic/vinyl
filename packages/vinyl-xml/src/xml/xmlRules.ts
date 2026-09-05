@@ -44,8 +44,7 @@ export type ReservedXmlRuleKeys = 'parent' | 'clone' | 'toJSON'
  */
 export type XmlRules<T extends object> = {
     readonly [P in Exclude<keyof T, ReservedXmlRuleKeys>]-?:
-        | XmlRule<T[P]>
-        | LazyXmlRule<T[P]>
+        XmlRule<T[P]> | LazyXmlRule<T[P]>
 }
 
 /**

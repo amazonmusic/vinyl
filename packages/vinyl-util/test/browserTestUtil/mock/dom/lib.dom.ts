@@ -251,25 +251,20 @@ export class MockDocument implements Document {
     fonts: FontFaceSet = undefined as any
     onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
     onanimationcancel:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationend:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationiteration:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationstart:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onauxclick: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
         null
     onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
         null
     onbeforematch: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onbeforetoggle:
-        | ((this: GlobalEventHandlers, ev: ToggleEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null = null
     onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
     oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
@@ -281,8 +276,7 @@ export class MockDocument implements Document {
     onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextmenu:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
@@ -312,8 +306,7 @@ export class MockDocument implements Document {
     onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
         null
     ongotpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
@@ -328,8 +321,7 @@ export class MockDocument implements Document {
         null
     onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onlostpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
         null
     onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
@@ -350,26 +342,19 @@ export class MockDocument implements Document {
     onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onpointercancel:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerdown:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerenter:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerleave:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointermove:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerout:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerover:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerrawupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
@@ -399,32 +384,24 @@ export class MockDocument implements Document {
     ontoggle: ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null =
         null
     ontransitioncancel:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionend:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionrun:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionstart:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationiteration:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationstart:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkittransitionend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
     childElementCount: number = 0
     children: HTMLCollection = undefined as any
@@ -640,8 +617,7 @@ export class MockHTMLAudioElement implements HTMLAudioElement {
     muted: boolean = false
     networkState: number = 0
     onencrypted:
-        | ((this: HTMLMediaElement, ev: MediaEncryptedEvent) => any)
-        | null = null
+        ((this: HTMLMediaElement, ev: MediaEncryptedEvent) => any) | null = null
     onwaitingforkey: ((this: HTMLMediaElement, ev: Event) => any) | null = null
     paused: boolean = false
     playbackRate: number = 0
@@ -721,25 +697,20 @@ export class MockHTMLAudioElement implements HTMLAudioElement {
     isContentEditable: boolean = false
     onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
     onanimationcancel:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationend:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationiteration:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationstart:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onauxclick: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
         null
     onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
         null
     onbeforematch: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onbeforetoggle:
-        | ((this: GlobalEventHandlers, ev: ToggleEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null = null
     onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
     oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
@@ -751,8 +722,7 @@ export class MockHTMLAudioElement implements HTMLAudioElement {
     onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextmenu:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
@@ -782,8 +752,7 @@ export class MockHTMLAudioElement implements HTMLAudioElement {
     onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
         null
     ongotpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
@@ -798,8 +767,7 @@ export class MockHTMLAudioElement implements HTMLAudioElement {
         null
     onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onlostpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
         null
     onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
@@ -820,26 +788,19 @@ export class MockHTMLAudioElement implements HTMLAudioElement {
     onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onpointercancel:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerdown:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerenter:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerleave:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointermove:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerout:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerover:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerrawupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
@@ -869,32 +830,24 @@ export class MockHTMLAudioElement implements HTMLAudioElement {
     ontoggle: ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null =
         null
     ontransitioncancel:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionend:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionrun:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionstart:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationiteration:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationstart:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkittransitionend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
     autofocus: boolean = false
     dataset: DOMStringMap = undefined as any
@@ -1187,25 +1140,20 @@ export class MockHTMLDivElement implements HTMLDivElement {
     isContentEditable: boolean = false
     onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
     onanimationcancel:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationend:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationiteration:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationstart:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onauxclick: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
         null
     onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
         null
     onbeforematch: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onbeforetoggle:
-        | ((this: GlobalEventHandlers, ev: ToggleEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null = null
     onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
     oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
@@ -1217,8 +1165,7 @@ export class MockHTMLDivElement implements HTMLDivElement {
     onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextmenu:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
@@ -1248,8 +1195,7 @@ export class MockHTMLDivElement implements HTMLDivElement {
     onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
         null
     ongotpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
@@ -1264,8 +1210,7 @@ export class MockHTMLDivElement implements HTMLDivElement {
         null
     onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onlostpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
         null
     onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
@@ -1286,26 +1231,19 @@ export class MockHTMLDivElement implements HTMLDivElement {
     onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onpointercancel:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerdown:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerenter:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerleave:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointermove:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerout:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerover:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerrawupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
@@ -1335,32 +1273,24 @@ export class MockHTMLDivElement implements HTMLDivElement {
     ontoggle: ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null =
         null
     ontransitioncancel:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionend:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionrun:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionstart:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationiteration:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationstart:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkittransitionend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
     autofocus: boolean = false
     dataset: DOMStringMap = undefined as any
@@ -1599,8 +1529,7 @@ export class MockHTMLMediaElement implements HTMLMediaElement {
     muted: boolean = false
     networkState: number = 0
     onencrypted:
-        | ((this: HTMLMediaElement, ev: MediaEncryptedEvent) => any)
-        | null = null
+        ((this: HTMLMediaElement, ev: MediaEncryptedEvent) => any) | null = null
     onwaitingforkey: ((this: HTMLMediaElement, ev: Event) => any) | null = null
     paused: boolean = false
     playbackRate: number = 0
@@ -1680,25 +1609,20 @@ export class MockHTMLMediaElement implements HTMLMediaElement {
     isContentEditable: boolean = false
     onabort: ((this: GlobalEventHandlers, ev: UIEvent) => any) | null = null
     onanimationcancel:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationend:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationiteration:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onanimationstart:
-        | ((this: GlobalEventHandlers, ev: AnimationEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: AnimationEvent) => any) | null = null
     onauxclick: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
         null
     onbeforeinput: ((this: GlobalEventHandlers, ev: InputEvent) => any) | null =
         null
     onbeforematch: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onbeforetoggle:
-        | ((this: GlobalEventHandlers, ev: ToggleEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null = null
     onblur: ((this: GlobalEventHandlers, ev: FocusEvent) => any) | null = null
     oncancel: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncanplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
@@ -1710,8 +1634,7 @@ export class MockHTMLMediaElement implements HTMLMediaElement {
     onclose: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextlost: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oncontextmenu:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oncontextrestored: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     oncopy: ((this: GlobalEventHandlers, ev: ClipboardEvent) => any) | null =
@@ -1741,8 +1664,7 @@ export class MockHTMLMediaElement implements HTMLMediaElement {
     onformdata: ((this: GlobalEventHandlers, ev: FormDataEvent) => any) | null =
         null
     ongotpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     oninput: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     oninvalid: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onkeydown: ((this: GlobalEventHandlers, ev: KeyboardEvent) => any) | null =
@@ -1757,8 +1679,7 @@ export class MockHTMLMediaElement implements HTMLMediaElement {
         null
     onloadstart: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onlostpointercapture:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onmousedown: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
         null
     onmouseenter: ((this: GlobalEventHandlers, ev: MouseEvent) => any) | null =
@@ -1779,26 +1700,19 @@ export class MockHTMLMediaElement implements HTMLMediaElement {
     onplay: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onplaying: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onpointercancel:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerdown:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerenter:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerleave:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointermove:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerout:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerover:
-        | ((this: GlobalEventHandlers, ev: PointerEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null = null
     onpointerrawupdate: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onpointerup: ((this: GlobalEventHandlers, ev: PointerEvent) => any) | null =
@@ -1828,32 +1742,24 @@ export class MockHTMLMediaElement implements HTMLMediaElement {
     ontoggle: ((this: GlobalEventHandlers, ev: ToggleEvent) => any) | null =
         null
     ontransitioncancel:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionend:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionrun:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     ontransitionstart:
-        | ((this: GlobalEventHandlers, ev: TransitionEvent) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: TransitionEvent) => any) | null = null
     onvolumechange: ((this: GlobalEventHandlers, ev: Event) => any) | null =
         null
     onwaiting: ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationiteration:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkitanimationstart:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwebkittransitionend:
-        | ((this: GlobalEventHandlers, ev: Event) => any)
-        | null = null
+        ((this: GlobalEventHandlers, ev: Event) => any) | null = null
     onwheel: ((this: GlobalEventHandlers, ev: WheelEvent) => any) | null = null
     autofocus: boolean = false
     dataset: DOMStringMap = undefined as any
@@ -2138,8 +2044,7 @@ export class MockMediaKeySession implements MediaKeySession {
     onkeystatuseschange: ((this: MediaKeySession, ev: Event) => any) | null =
         null
     onmessage:
-        | ((this: MediaKeySession, ev: MediaKeyMessageEvent) => any)
-        | null = null
+        ((this: MediaKeySession, ev: MediaKeyMessageEvent) => any) | null = null
     sessionId: string = ''
 
     close = createSpy2<MediaKeySession['close']>('close')
@@ -2209,8 +2114,7 @@ export class MockMediaStream implements MediaStream {
     onaddtrack: ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null =
         null
     onremovetrack:
-        | ((this: MediaStream, ev: MediaStreamTrackEvent) => any)
-        | null = null
+        ((this: MediaStream, ev: MediaStreamTrackEvent) => any) | null = null
 
     addTrack = createSpy2<MediaStream['addTrack']>('addTrack')
     clone = createSpy2<MediaStream['clone']>('clone')

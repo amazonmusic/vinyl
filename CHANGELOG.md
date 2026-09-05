@@ -3,7 +3,7 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [3.0.1]() (2026-08-28)
+## [3.0.1](<>) (2026-08-28)
 
 ### Bug Fixes
 
@@ -15,7 +15,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [3.0.0]() (2026-08-28)
+## [3.0.0](<>) (2026-08-28)
 
 ### ⚠ BREAKING CHANGES
 
@@ -56,7 +56,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [2.0.4]() (2026-08-27)
+## [2.0.4](<>) (2026-08-27)
 
 ### Bug Fixes
 
@@ -70,7 +70,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [2.0.3]() (2026-08-27)
+## [2.0.3](<>) (2026-08-27)
 
 **Note:** Version bump only for package @amazon/vinyl-composite
 
@@ -79,7 +79,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [2.0.2]() (2026-08-27)
+## [2.0.2](<>) (2026-08-27)
 
 **Note:** Version bump only for package @amazon/vinyl-composite
 
@@ -88,7 +88,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [2.0.1]() (2026-08-27)
+## [2.0.1](<>) (2026-08-27)
 
 **Note:** Version bump only for package @amazon/vinyl-composite
 
@@ -97,7 +97,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [2.0.0]() (2026-08-26)
+## [2.0.0](<>) (2026-08-26)
 
 ### ⚠ BREAKING CHANGES
 
@@ -289,7 +289,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [1.2.0]() (2026-07-02)
+## [1.2.0](<>) (2026-07-02)
 
 ### Features
 
@@ -310,7 +310,7 @@ All notable changes to this project will be documented in this file. See
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
-## [1.1.1]() (2026-05-28)
+## [1.1.1](<>) (2026-05-28)
 
 **Note:** Version bump only for package @amazon/vinyl-composite
 
