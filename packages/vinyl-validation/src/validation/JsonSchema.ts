@@ -10,13 +10,7 @@ import type { Validator } from './Validator'
  * The `type` keyword value of a JSON Schema node.
  */
 export type JsonSchemaType =
-    | 'string'
-    | 'number'
-    | 'integer'
-    | 'boolean'
-    | 'object'
-    | 'array'
-    | 'null'
+    'string' | 'number' | 'integer' | 'boolean' | 'object' | 'array' | 'null'
 
 /**
  * A JSON Schema definition (a draft-07 compatible subset) describing the shape a value must take.

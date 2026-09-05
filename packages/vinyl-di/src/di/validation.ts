@@ -181,11 +181,10 @@ export type FlattenDependencies<
     : Dm[K] extends (deps: infer Expected) => any
       ? keyof Expected extends Current
           ? never
-          :
-                | keyof Expected
-                | FlattenDependencies<
-                      Dm,
-                      keyof Expected & keyof Dm,
-                      Current | (keyof Expected & keyof Dm)
-                  >
+          : | keyof Expected
+            | FlattenDependencies<
+                  Dm,
+                  keyof Expected & keyof Dm,
+                  Current | (keyof Expected & keyof Dm)
+              >
       : never

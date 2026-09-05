@@ -12,8 +12,7 @@ class Never implements Promise<never> {
 
     then<TResult1 = never, TResult2 = never>(
         _onfulfilled?:
-            | ((value: never) => PromiseLike<TResult1> | TResult1)
-            | null,
+            ((value: never) => PromiseLike<TResult1> | TResult1) | null,
         _onrejected?: ((reason: any) => PromiseLike<TResult2> | TResult2) | null
     ): Promise<never> {
         return this

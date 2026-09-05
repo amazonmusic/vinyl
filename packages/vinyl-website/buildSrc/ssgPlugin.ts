@@ -37,14 +37,12 @@ function buildRoutes(repoRoot: string): Route[] {
             activeNav: 'player',
             priority: 0.8,
         },
-        ...docsPages(repoRoot).map(
-            (p): Route => ({
-                meta: p.meta,
-                content: p.content,
-                activeNav: p.activeNav,
-                priority: p.meta.path === '/docs/' ? 0.8 : 0.6,
-            })
-        ),
+        ...docsPages(repoRoot).map((p): Route => ({
+            meta: p.meta,
+            content: p.content,
+            activeNav: p.activeNav,
+            priority: p.meta.path === '/docs/' ? 0.8 : 0.6,
+        })),
     ]
 }
 

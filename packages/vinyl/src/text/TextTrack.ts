@@ -18,11 +18,7 @@ import {
  * Categorizes the role of a text track. Mirrors HTMLMediaElement.TextTrackKind.
  */
 export type TextTrackKind =
-    | 'subtitles'
-    | 'captions'
-    | 'descriptions'
-    | 'chapters'
-    | 'metadata'
+    'subtitles' | 'captions' | 'descriptions' | 'chapters' | 'metadata'
 
 /**
  * Identifies and describes an available text track.

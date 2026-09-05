@@ -23,13 +23,7 @@ export type NonFunctionPropertyNames<T> = {
  * All primitive types.
  */
 export type Primitive =
-    | bigint
-    | boolean
-    | number
-    | string
-    | symbol
-    | null
-    | undefined
+    bigint | boolean | number | string | symbol | null | undefined
 
 /**
  * An empty object, safer than using `object` type.
@@ -55,12 +49,7 @@ export type JsonCompatible<T> = unknown extends T
     : T extends bigint | symbol | Fun
       ? never
       : T extends
-              | boolean
-              | number
-              | string
-              | null
-              | undefined
-              | { toJSON(): any }
+              boolean | number | string | null | undefined | { toJSON(): any }
         ? T
         : T extends readonly any[]
           ? readonly JsonCompatible<T[number]>[]

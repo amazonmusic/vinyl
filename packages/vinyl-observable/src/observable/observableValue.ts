@@ -111,8 +111,7 @@ export type DataChangedCallback<T> = (
 ) => void
 
 export type Picked<T, K extends keyof NonNullable<T>> = T extends
-    | undefined
-    | null
+    undefined | null
     ? NonNullable<T>[K] | undefined
     : NonNullable<T>[K]
 

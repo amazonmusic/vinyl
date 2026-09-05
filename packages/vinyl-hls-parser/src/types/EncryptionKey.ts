@@ -36,10 +36,7 @@ export interface EncryptionKey {
  * @see https://datatracker.ietf.org/doc/html/rfc8216#section-4.3.2.4
  */
 export type EncryptionMethod =
-    | 'NONE'
-    | 'AES-128'
-    | 'SAMPLE-AES'
-    | 'SAMPLE-AES-CTR'
+    'NONE' | 'AES-128' | 'SAMPLE-AES' | 'SAMPLE-AES-CTR'
 
 export const encryptionMethodValidator: ValueSchema<EncryptionMethod> = isOneOf(
     'NONE',

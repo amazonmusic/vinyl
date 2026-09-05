@@ -21,11 +21,7 @@ import { clamp } from '@amazon/vinyl-util'
  */
 
 export type TimelineEventType =
-    | 'playing'
-    | 'waiting'
-    | 'qualityChange'
-    | 'paused'
-    | 'ended'
+    'playing' | 'waiting' | 'qualityChange' | 'paused' | 'ended'
 
 export interface TimelineSample {
     time: number // seconds from test start
