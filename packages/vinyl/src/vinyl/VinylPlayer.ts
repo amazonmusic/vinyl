@@ -11,8 +11,11 @@ import {
     emptyRanges,
     equalDeep,
     EventHostImpl,
+    getLogLevel,
     logDebug,
     logInfo,
+    LogLevel,
+    logVerbose,
     logWarn,
     type ReadonlyRanges,
     type ReadonlySet,
@@ -174,7 +177,29 @@ export class VinylPlayer<
         playerRegistryRef.value.addPlayer(this)
         this.redispatchSubControllerEvents()
         this.redispatchCurrentTrackEvents()
+        this.initializeLoadSpanLogging()
         this.initializeAutoResetHandling()
+    }
+
+    /**
+     * Logs each republished load span once at the verbose level, formatting its
+     * bounds as ISO date strings and its duration in milliseconds.
+     */
+    protected initializeLoadSpanLogging(): void {
+        this.disposer.add(
+            this.on('loadSpan', (span) => {
+                // logVerbose would drop the record when verbose is off, but the
+                // date/duration formatting below would still run; guard it.
+                if (getLogLevel() > LogLevel.VERBOSE) return
+                logVerbose(this, 'loadSpan', {
+                    kind: span.kind,
+                    trackUri: span.trackUri,
+                    startTime: new Date(span.startTime).toISOString(),
+                    endTime: new Date(span.endTime).toISOString(),
+                    durationMs: (span.endTime - span.startTime).toFixed(2),
+                })
+            })
+        )
     }
 
     protected redispatchSubControllerEvents(): void {
