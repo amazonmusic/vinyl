@@ -1199,7 +1199,7 @@ describe('DrmControllerImpl', () => {
             drmController.setBufferingDrmInfo(drmInfo)
             await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
             await emitMessage(0, new ArrayBuffer(1))
-            expect(spy).toHaveBeenCalledOnceWith(
+            expect(spy).toHaveBeenCalledWith(
                 objectContaining({
                     kind: 'license',
                     startTime: any(Number),
@@ -1208,13 +1208,29 @@ describe('DrmControllerImpl', () => {
             )
         })
 
+        it('measures the key setup, contiguous with and before the license', async () => {
+            licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+            drmController.setBufferingDrmInfo(drmInfo, { trackUri: 'track-a' })
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            await emitMessage(0, new ArrayBuffer(1))
+            const spans = spy.calls.all().map((call) => call.args[0])
+            expect(spans.map((span) => span.kind)).toEqual([
+                'keySetup',
+                'license',
+            ])
+            const [keySetup, license] = spans
+            expect(keySetup.trackUri).toEqual('track-a')
+            expect(keySetup.endTime).toEqual(license.startTime)
+        })
+
         it('carries the content mime and content type on the license span', async () => {
             licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
             const spy = createEventSpy(drmController, 'loadSpanMeasured')
             drmController.setBufferingDrmInfo(drmInfo)
             await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
             await emitMessage(0, new ArrayBuffer(1))
-            expect(spy).toHaveBeenCalledOnceWith(
+            expect(spy).toHaveBeenCalledWith(
                 objectContaining({
                     kind: 'license',
                     mimeType: 'audio/mp4',
@@ -1229,8 +1245,26 @@ describe('DrmControllerImpl', () => {
             drmController.setBufferingDrmInfo(drmInfo)
             await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
             await emitMessage(0, new ArrayBuffer(1))
-            expect(spy).not.toHaveBeenCalled()
+            // Setup completed at the message, so keySetup is still measured.
+            expect(spy).not.toHaveBeenCalledWith(
+                objectContaining({ kind: 'license' })
+            )
             errorSpy.calls.reset()
+        })
+
+        it('measures key setup only for the first session of a track load', async () => {
+            licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+            drmController.setBufferingDrmInfo(drmInfo, { trackUri: 'track-a' })
+            await emitEncrypted(new Uint8Array([1]), 'cenc')
+            await emitEncrypted(new Uint8Array([2]), 'cenc')
+            expect(mediaKeys.createSession).toHaveBeenCalledTimes(2)
+            await emitMessage(0, new ArrayBuffer(1))
+            await emitMessage(1, new ArrayBuffer(1))
+            const keySetupSpans = spy.calls
+                .all()
+                .filter((call) => call.args[0].kind === 'keySetup')
+            expect(keySetupSpans.length).toEqual(1)
         })
 
         it('attributes the license span to the buffering track uri', async () => {
@@ -1239,7 +1273,7 @@ describe('DrmControllerImpl', () => {
             drmController.setBufferingDrmInfo(drmInfo, { trackUri: 'track-a' })
             await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
             await emitMessage(0, new ArrayBuffer(1))
-            expect(spy).toHaveBeenCalledOnceWith(
+            expect(spy).toHaveBeenCalledWith(
                 objectContaining({
                     kind: 'license',
                     trackUri: 'track-a',
@@ -1282,16 +1316,14 @@ describe('DrmControllerImpl', () => {
             await emitMessage(1, new ArrayBuffer(1))
             await emitMessage(0, new ArrayBuffer(1))
 
-            expect(spy).toHaveBeenCalledTimes(2)
-            expect(spy).toHaveBeenCalledWith(
-                objectContaining({
-                    kind: 'license',
-                    trackUri: 'track-preloaded',
-                })
-            )
-            expect(spy).toHaveBeenCalledWith(
-                objectContaining({ kind: 'license', trackUri: 'track-active' })
-            )
+            const licenseTrackUris = spy.calls
+                .all()
+                .map((call) => call.args[0])
+                .filter((span) => span.kind === 'license')
+                .map((span) => span.trackUri)
+            expect(licenseTrackUris.length).toEqual(2)
+            expect(licenseTrackUris).toContain('track-preloaded')
+            expect(licenseTrackUris).toContain('track-active')
         })
     })
 

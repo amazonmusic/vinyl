@@ -11,12 +11,14 @@ import type { ContentType } from './MediaQualityMetadata'
  * The stage of the track-load journey a {@link LoadSpanMeasurement} describes.
  *
  * - `manifest`: fetching and parsing the DASH/HLS manifest.
+ * - `keySetup`: the EME/CDM setup, from session creation to the CDM's first
+ *   license message. Precedes and is contiguous with `license`.
  * - `license`: the DRM license request/response exchange.
  * - `initSegment`: fetching the initialization segment.
  * - `firstSegment`: fetching the first media segment.
  */
 export type LoadSpanKind =
-    'manifest' | 'license' | 'initSegment' | 'firstSegment'
+    'manifest' | 'keySetup' | 'license' | 'initSegment' | 'firstSegment'
 
 /**
  * A timed span for one stage of a track load.

@@ -27,6 +27,7 @@ import {
     type ReadonlyAbort,
     remove,
     resolveValueProvider,
+    type Timestamp,
     withTimeout,
 } from '@amazon/vinyl-util'
 import { instanceOf, object, type ObjectSchema } from '@amazon/vinyl-validation'
@@ -67,6 +68,7 @@ import { defaultLicenseProvider } from './licenseProvider/defaultLicenseProvider
 import { extractContentId } from './util/extractContentId'
 import { createFairPlaySessionInitData } from './util/createFairPlaySessionInitData'
 import type { TrackUri } from '../track/Track'
+import type { LoadSpanKind } from '../streaming/LoadMetric'
 
 /**
  * The number of seconds a license request will be allowed before timing out.
@@ -150,6 +152,12 @@ export class DrmControllerImpl
     private sessionAbort: ReadonlyAbort | null = null
 
     private pendingMessageProps: DrmControllerMessageProps | null = null
+
+    // Armed per track load; latches on the first session so only the
+    // critical-path session's EME/CDM setup is measured.
+    private keySetupSpanArmed = true
+    private keySetupSpanStart: Timestamp | null = null
+
     private readonly disposer = createDisposer()
 
     constructor(
@@ -322,6 +330,7 @@ export class DrmControllerImpl
             throw new DrmError('Encrypted content must have a mimeType.')
         }
 
+        this.markKeySetupStart()
         const mediaKeys = await this.attachMediaKeys(drmInfo)
         this.abortIfDisposed()
 
@@ -378,6 +387,39 @@ export class DrmControllerImpl
         return newSession
     }
 
+    /**
+     * Captures the key-setup span start at the top of the session-creation path
+     * (before media keys are attached), latching so only the first session of
+     * the current track load is measured.
+     */
+    private markKeySetupStart(): void {
+        if (!this.keySetupSpanArmed) return
+        this.keySetupSpanArmed = false
+        this.keySetupSpanStart = Date.now()
+    }
+
+    private dispatchLoadSpan(
+        kind: LoadSpanKind,
+        startTime: Timestamp,
+        endTime: Timestamp,
+        messageProps: DrmControllerMessageProps
+    ): void {
+        this.dispatch('loadSpanMeasured', {
+            kind,
+            startTime,
+            endTime,
+            mimeType: messageProps.mimeType,
+            // Attributed at the source to the session's track; omitted (not set
+            // to undefined) when unknown, per exactOptionalPropertyTypes.
+            ...(messageProps.trackUri != null && {
+                trackUri: messageProps.trackUri,
+            }),
+            ...(messageProps.contentType != null && {
+                contentType: messageProps.contentType,
+            }),
+        })
+    }
+
     initializeForPlayback(
         drmInfo: MediaFormatMetadata | null,
         options?: DrmPlaybackOptions
@@ -410,6 +452,9 @@ export class DrmControllerImpl
         this.drmInfo = drmInfo
         this.bufferingTrackUri = options?.trackUri ?? null
         this.sessionAbort = options?.abort ?? null
+        // Re-arm so the new track load's first session is measured.
+        this.keySetupSpanArmed = true
+        this.keySetupSpanStart = null
     }
 
     /**
@@ -425,6 +470,7 @@ export class DrmControllerImpl
             this.handleError(new DrmError('DRM not supported.'))
             return
         }
+        this.markKeySetupStart()
         const mediaKeys = await this.attachMediaKeys(drmInfo)
         const drmProtection =
             drmInfo.contentProtections.find((cP) => {
@@ -615,6 +661,18 @@ export class DrmControllerImpl
         const keySystem = mediaKeys.keySystem
         logDebug(this, 'message', keySystem, event.message.byteLength)
 
+        // The CDM's first message ends the setup span; it is contiguous with the
+        // license round-trip measured below.
+        if (this.keySetupSpanStart != null) {
+            this.dispatchLoadSpan(
+                'keySetup',
+                this.keySetupSpanStart,
+                Date.now(),
+                messageProps
+            )
+            this.keySetupSpanStart = null
+        }
+
         const keySystemOptions =
             this.options.keySystems[keySystem] ?? this.options.keySystems['*']
         const licenseServerOptionsProvider = keySystemOptions?.licenseServer
@@ -645,20 +703,12 @@ export class DrmControllerImpl
             challenge
         )
         if (this.disposed) return
-        this.dispatch('loadSpanMeasured', {
-            kind: 'license',
-            startTime: licenseSpanStart,
-            endTime: Date.now(),
-            mimeType: messageProps.mimeType,
-            // Attributed at the source to the session's track; omitted (not set
-            // to undefined) when unknown, per exactOptionalPropertyTypes.
-            ...(messageProps.trackUri != null && {
-                trackUri: messageProps.trackUri,
-            }),
-            ...(messageProps.contentType != null && {
-                contentType: messageProps.contentType,
-            }),
-        })
+        this.dispatchLoadSpan(
+            'license',
+            licenseSpanStart,
+            Date.now(),
+            messageProps
+        )
         this.pendingMessageProps = null
         if (session.disposed) return
         logDebug(this, 'update')
