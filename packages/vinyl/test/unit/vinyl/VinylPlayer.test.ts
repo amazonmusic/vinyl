@@ -29,6 +29,7 @@ import {
     createArrayLikeIterator,
     emptyRanges,
     historyLogHandler,
+    LogLevel,
     noop,
     RangesImpl,
 } from '@amazon/vinyl-util'
@@ -49,7 +50,7 @@ import {
     MockTrackFactory,
     type MockVinylDependencies,
 } from '@amazon/vinyl/vinylTestUtil'
-import { createEventSpy } from '@amazon/vinyl-util/testUtil'
+import { createEventSpy, useMockLogger } from '@amazon/vinyl-util/testUtil'
 import { data } from '@amazon/vinyl-observable'
 import any = jasmine.any
 import createSpy = jasmine.createSpy
@@ -59,6 +60,8 @@ describe('VinylPlayer', () => {
     let depFactories: Factories<VinylDeps>
     let player: VinylPlayer
     let mockOptions: VinylDependencyOptions
+
+    const loggerRef = useMockLogger()
 
     polyfillCustomEvent()
 
@@ -335,6 +338,38 @@ describe('VinylPlayer', () => {
                 endTime: 2,
             })
             expect(spy).not.toHaveBeenCalled()
+        })
+
+        it('logs each republished span at the verbose level with formatted times', () => {
+            loggerRef.value.logLevel = LogLevel.VERBOSE
+            deps.drmController.dispatch('loadSpanMeasured', {
+                kind: 'license',
+                startTime: 1000,
+                endTime: 3500,
+                trackUri: 'track-a',
+            })
+            expect(loggerRef.value.verbose).toHaveBeenCalledOnceWith(
+                player,
+                'loadSpan',
+                {
+                    kind: 'license',
+                    trackUri: 'track-a',
+                    startTime: new Date(1000).toISOString(),
+                    endTime: new Date(3500).toISOString(),
+                    durationMs: '2500.00',
+                }
+            )
+        })
+
+        it('does not format or log a span when the verbose level is off', () => {
+            loggerRef.value.logLevel = LogLevel.DEBUG
+            deps.drmController.dispatch('loadSpanMeasured', {
+                kind: 'license',
+                startTime: 1000,
+                endTime: 3500,
+                trackUri: 'track-a',
+            })
+            expect(loggerRef.value.verbose).not.toHaveBeenCalled()
         })
     })
 
