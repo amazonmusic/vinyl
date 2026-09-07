@@ -5,6 +5,7 @@
 
 import type { Timestamp } from '@amazon/vinyl-util'
 import type { TrackUri } from '../track/Track'
+import type { ContentType } from './MediaQualityMetadata'
 
 /**
  * The stage of the track-load journey a {@link LoadSpanMeasurement} describes.
@@ -46,6 +47,19 @@ export interface LoadSpanMeasurement {
      * buffering DRM info is set).
      */
     readonly trackUri?: TrackUri
+
+    /**
+     * The MIME type of the content this span was measured for, when known. Set
+     * for DRM `license` spans so a certificate exchange and the per-content-type
+     * license exchanges are distinguishable.
+     */
+    readonly mimeType?: string
+
+    /**
+     * The content type this span was measured for, when known. Set alongside
+     * {@link mimeType} for DRM `license` spans.
+     */
+    readonly contentType?: ContentType
 }
 
 /**

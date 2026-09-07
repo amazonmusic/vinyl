@@ -97,6 +97,13 @@ export interface DrmControllerMessageProps {
      * to their own track.
      */
     readonly trackUri: TrackUri | null
+    /**
+     * The MIME and content type of the session's content, captured at creation
+     * so the license span can distinguish the certificate exchange from the
+     * per-content-type license exchanges.
+     */
+    readonly mimeType: string
+    readonly contentType: ContentType | null
 }
 
 /**
@@ -581,6 +588,8 @@ export class DrmControllerImpl
                     // Captured per session, so a concurrent preloaded track's
                     // license exchange keeps its own attribution.
                     trackUri: trackUri,
+                    mimeType: drmInfo.mimeType,
+                    contentType: drmInfo.contentType,
                 }),
                 LICENSE_TIMEOUT,
                 { message: LICENSE_TIMEOUT_MESSAGE }
@@ -640,10 +649,14 @@ export class DrmControllerImpl
             kind: 'license',
             startTime: licenseSpanStart,
             endTime: Date.now(),
+            mimeType: messageProps.mimeType,
             // Attributed at the source to the session's track; omitted (not set
             // to undefined) when unknown, per exactOptionalPropertyTypes.
             ...(messageProps.trackUri != null && {
                 trackUri: messageProps.trackUri,
+            }),
+            ...(messageProps.contentType != null && {
+                contentType: messageProps.contentType,
             }),
         })
         this.pendingMessageProps = null

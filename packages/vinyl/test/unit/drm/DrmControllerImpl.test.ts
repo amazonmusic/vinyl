@@ -1208,6 +1208,21 @@ describe('DrmControllerImpl', () => {
             )
         })
 
+        it('carries the content mime and content type on the license span', async () => {
+            licenseProvider.and.resolveTo(new Uint8Array([1]).buffer)
+            const spy = createEventSpy(drmController, 'loadSpanMeasured')
+            drmController.setBufferingDrmInfo(drmInfo)
+            await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+            await emitMessage(0, new ArrayBuffer(1))
+            expect(spy).toHaveBeenCalledOnceWith(
+                objectContaining({
+                    kind: 'license',
+                    mimeType: 'audio/mp4',
+                    contentType: 'audio',
+                })
+            )
+        })
+
         it('does not measure a failed license exchange', async () => {
             licenseProvider.and.rejectWith(new Error('license failed'))
             const spy = createEventSpy(drmController, 'loadSpanMeasured')
