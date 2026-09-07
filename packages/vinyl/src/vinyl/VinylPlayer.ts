@@ -194,6 +194,8 @@ export class VinylPlayer<
                 logVerbose(this, 'loadSpan', {
                     kind: span.kind,
                     trackUri: span.trackUri,
+                    mimeType: span.mimeType,
+                    contentType: span.contentType,
                     startTime: new Date(span.startTime).toISOString(),
                     endTime: new Date(span.endTime).toISOString(),
                     durationMs: (span.endTime - span.startTime).toFixed(2),

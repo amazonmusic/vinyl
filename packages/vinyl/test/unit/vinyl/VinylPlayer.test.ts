@@ -347,6 +347,8 @@ describe('VinylPlayer', () => {
                 startTime: 1000,
                 endTime: 3500,
                 trackUri: 'track-a',
+                mimeType: 'audio/mp4',
+                contentType: 'audio',
             })
             expect(loggerRef.value.verbose).toHaveBeenCalledOnceWith(
                 player,
@@ -354,6 +356,8 @@ describe('VinylPlayer', () => {
                 {
                     kind: 'license',
                     trackUri: 'track-a',
+                    mimeType: 'audio/mp4',
+                    contentType: 'audio',
                     startTime: new Date(1000).toISOString(),
                     endTime: new Date(3500).toISOString(),
                     durationMs: '2500.00',
