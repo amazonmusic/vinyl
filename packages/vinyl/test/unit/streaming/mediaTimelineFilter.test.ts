@@ -7,12 +7,13 @@ import {
     createEmptyMediaQualityMetadata,
     filterTimelineQualities,
     filterTimelineQualitiesAsync,
+    type ContentType,
     type MediaQualityData,
     type MediaTimeline,
 } from '@amazon/vinyl'
 
 function createQuality(
-    contentType: 'audio' | 'video',
+    contentType: ContentType,
     bandwidth: number
 ): MediaQualityData {
     return {
@@ -25,113 +26,115 @@ function createQuality(
     }
 }
 
-describe('filterTimelineQualities', () => {
-    const timeline: MediaTimeline = {
-        periods: [
-            {
-                startTime: 0,
-                endTime: 10,
-                qualities: [
-                    createQuality('audio', 128000),
-                    createQuality('audio', 256000),
-                    createQuality('video', 500000),
-                ],
-            },
-        ],
+function timelineOf(qualities: readonly MediaQualityData[]): MediaTimeline {
+    return {
+        periods: [{ startTime: 0, endTime: 10, qualities: [...qualities] }],
         minBufferTime: 2,
         getAdBreaks: () => Promise.resolve([]),
         getDuration: () => Promise.resolve(Infinity),
     }
+}
+
+function contentTypesOf(timeline: MediaTimeline): Set<ContentType | null> {
+    return new Set(
+        timeline.periods[0].qualities.map((q) => q.metadata.contentType)
+    )
+}
+
+function throwEmpty(): never {
+    throw new Error('no qualities')
+}
+
+describe('filterTimelineQualities', () => {
+    const timeline = timelineOf([
+        createQuality('audio', 128000),
+        createQuality('audio', 256000),
+        createQuality('video', 500000),
+    ])
 
     it('returns the timeline unchanged when the filter is null', () => {
         // A null predicate (e.g. no language preference) is a no-op.
-        const result = filterTimelineQualities(
-            null,
-            () => {
-                throw new Error('empty')
-            },
-            timeline
-        )
+        const result = filterTimelineQualities(null, throwEmpty, timeline)
         expect(result).toBe(timeline)
     })
 
-    it('filters qualities by predicate', () => {
+    it('filters qualities by predicate while keeping every present stream', () => {
         const result = filterTimelineQualities(
-            (q) => q.contentType === 'audio',
-            () => {
-                throw new Error('empty')
-            },
+            (q) => q.bandwidth !== 256000,
+            throwEmpty,
             timeline
         )
         expect(result.periods[0].qualities.length).toBe(2)
-        expect(
-            result.periods[0].qualities.every(
-                (q) => q.metadata.contentType === 'audio'
-            )
-        ).toBeTrue()
+        expect(contentTypesOf(result)).toEqual(new Set(['audio', 'video']))
     })
 
     it('preserves minBufferTime', () => {
-        const result = filterTimelineQualities(
-            () => true,
-            () => {
-                throw new Error('empty')
-            },
-            timeline
-        )
+        const result = filterTimelineQualities(() => true, throwEmpty, timeline)
         expect(result.minBufferTime).toBe(2)
     })
 
     it('throws when filtering removes all qualities', () => {
         expect(() =>
+            filterTimelineQualities(() => false, throwEmpty, timeline)
+        ).toThrowError('no qualities')
+    })
+
+    it('throws when filtering drops a present video stream to zero', () => {
+        expect(() =>
             filterTimelineQualities(
-                () => false,
-                () => {
-                    throw new Error('no qualities')
-                },
+                (q) => q.contentType === 'audio',
+                throwEmpty,
                 timeline
             )
         ).toThrowError('no qualities')
     })
+
+    it('throws when filtering drops a present audio stream to zero', () => {
+        expect(() =>
+            filterTimelineQualities(
+                (q) => q.contentType === 'video',
+                throwEmpty,
+                timeline
+            )
+        ).toThrowError('no qualities')
+    })
+
+    it('does not throw when losing only an optional text sidecar stream', () => {
+        const withText = timelineOf([
+            createQuality('audio', 128000),
+            createQuality('video', 500000),
+            createQuality('text', 1000),
+        ])
+        const result = filterTimelineQualities(
+            (q) => q.contentType !== 'text',
+            throwEmpty,
+            withText
+        )
+        expect(contentTypesOf(result)).toEqual(new Set(['audio', 'video']))
+    })
 })
 
 describe('filterTimelineQualitiesAsync', () => {
-    const timeline: MediaTimeline = {
-        periods: [
-            {
-                startTime: 0,
-                endTime: 10,
-                qualities: [
-                    createQuality('audio', 128000),
-                    createQuality('video', 500000),
-                ],
-            },
-        ],
-        minBufferTime: 2,
-        getAdBreaks: () => Promise.resolve([]),
-        getDuration: () => Promise.resolve(Infinity),
-    }
+    const timeline = timelineOf([
+        createQuality('audio', 128000),
+        createQuality('audio', 256000),
+        createQuality('video', 500000),
+    ])
 
-    it('filters qualities by async predicate', async () => {
+    it('filters qualities by async predicate while keeping every present stream', async () => {
         const result = await filterTimelineQualitiesAsync(
-            (q) => Promise.resolve(q.contentType === 'audio'),
-            () => {
-                throw new Error('empty')
-            },
+            (q) => Promise.resolve(q.bandwidth !== 256000),
+            throwEmpty,
             timeline
         )
-        expect(result.periods[0].qualities.length).toBe(1)
-        expect(result.periods[0].qualities[0].metadata.contentType).toBe(
-            'audio'
-        )
+        expect(result.periods[0].qualities.length).toBe(2)
+        expect(contentTypesOf(result)).toEqual(new Set(['audio', 'video']))
     })
 
     it('preserves minBufferTime', async () => {
         const result = await filterTimelineQualitiesAsync(
             () => Promise.resolve(true),
-            () => {
-                throw new Error('empty')
-            },
+            throwEmpty,
             timeline
         )
         expect(result.minBufferTime).toBe(2)
@@ -141,11 +144,33 @@ describe('filterTimelineQualitiesAsync', () => {
         await expectAsync(
             filterTimelineQualitiesAsync(
                 () => Promise.resolve(false),
-                () => {
-                    throw new Error('no qualities')
-                },
+                throwEmpty,
                 timeline
             )
         ).toBeRejectedWithError('no qualities')
+    })
+
+    it('throws when filtering drops a present video stream to zero', async () => {
+        await expectAsync(
+            filterTimelineQualitiesAsync(
+                (q) => Promise.resolve(q.contentType === 'audio'),
+                throwEmpty,
+                timeline
+            )
+        ).toBeRejectedWithError('no qualities')
+    })
+
+    it('does not throw when losing only an optional text sidecar stream', async () => {
+        const withText = timelineOf([
+            createQuality('audio', 128000),
+            createQuality('video', 500000),
+            createQuality('text', 1000),
+        ])
+        const result = await filterTimelineQualitiesAsync(
+            (q) => Promise.resolve(q.contentType !== 'text'),
+            throwEmpty,
+            withText
+        )
+        expect(contentTypesOf(result)).toEqual(new Set(['audio', 'video']))
     })
 })

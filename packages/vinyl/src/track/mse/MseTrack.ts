@@ -12,7 +12,6 @@ import {
     IntersectionRanges,
     logDebug,
     type Maybe,
-    MediaUnsupportedError,
     type ReadonlyRanges,
     type ReadonlySet,
     redispatchEvents,
@@ -123,10 +122,7 @@ export class MseTrack extends TrackBase {
         add(
             deps.contentTypesValue.onData((contentTypesPromise) => {
                 contentTypesPromise
-                    .then((value) => {
-                        this.setContentTypes(value)
-                        this.validateRequiredContentTypesPlayable()
-                    })
+                    .then((value) => this.setContentTypes(value))
                     .catch(this.errorHandler)
             })
         )
@@ -242,36 +238,7 @@ export class MseTrack extends TrackBase {
                     })
                 }
             }
-            this.validateRequiredContentTypesPlayable()
         })
-    }
-
-    /**
-     * Fails fast when a media content type the manifest declared (audio/video)
-     * has no playable qualities left after timeline filtering. Its stream can
-     * never create a source buffer, so without this the track waits forever for
-     * a source buffer that never arrives, surfacing only as an opaque
-     * `readyToAppend` timeout. Runs once both the required content types and the
-     * filtered timeline qualities are known (either order).
-     */
-    private validateRequiredContentTypesPlayable(): void {
-        const qualities = this._qualities
-        if (!qualities) return
-        const present = new Set(qualities.map((q) => q.contentType))
-        // contentTypesValue only ever yields audio/video (text is a sidecar
-        // pipeline, never an MSE source buffer), so every required type must
-        // have a playable quality left in the filtered timeline.
-        for (const contentType of this._contentTypes) {
-            if (!present.has(contentType)) {
-                this.errorHandler(
-                    new MediaUnsupportedError(
-                        `No playable ${contentType} rendition`,
-                        `no-playable-${contentType}`
-                    )
-                )
-                return
-            }
-        }
     }
 
     async getAds(): Promise<TrackAds> {
