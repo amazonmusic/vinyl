@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.2.0](https://github.com/amazonmusic/vinyl/compare/v3.1.0...v3.2.0) (2026-09-09)
+
+### Features
+
+- **streaming:** add a keySetup load span for the EME/CDM setup phase
+  ([d858011](https://github.com/amazonmusic/vinyl/commit/d858011ee62b2a5bced5c824f95f0847167970a0))
+- **streaming:** log load-span emissions at the verbose level
+  ([bda2b59](https://github.com/amazonmusic/vinyl/commit/bda2b59ba2715165bd9d25ac0e5d4c4683452a70))
+- **streaming:** tag DRM license load spans with mime and content type
+  ([227121d](https://github.com/amazonmusic/vinyl/commit/227121d1ff504b49e1ca404f8333a0369aeac3a2))
+
+### Bug Fixes
+
+- **streaming:** don&#x27;t strand audio when renditions straddle the
+  sample-rate band
+  ([c0c5e40](https://github.com/amazonmusic/vinyl/commit/c0c5e40f51e36317cebee78a6ec337edcb5da037))
+- **streaming:** error when a filter drops an audio/video stream to zero
+  ([7fe7dbb](https://github.com/amazonmusic/vinyl/commit/7fe7dbbe8681b272d2654affd9e6fbd58cc2fddc))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.1.0](https://github.com/amazonmusic/vinyl/compare/v3.0.1...v3.1.0) (2026-09-05)
 
 ### Features
