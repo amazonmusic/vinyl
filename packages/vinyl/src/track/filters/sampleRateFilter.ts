@@ -9,7 +9,6 @@ import {
     Browser,
     last,
     MediaUnsupportedError,
-    every,
     map,
     max,
     min,
@@ -38,10 +37,14 @@ export interface AudioSampleRateRangeOptions {
  * The upper bound is `maxSampleRate` when set, otherwise the platform's
  * `AudioContext`-reported output rate (Firefox is hard-capped at 48kHz, which it
  * cannot decode beyond via MSE). The optional lower bound is `minSampleRate`.
- * Both bounds are soft: if every audio rendition is above the max the lowest is
- * kept, and if every audio rendition is below the min the highest is kept, so
- * playback is never stranded. Only audio renditions count toward those
- * fallbacks — a co-present video quality (no audio rate) never influences them.
+ * Both bounds are soft, and soft *together*: when no audio rendition sits in the
+ * acceptable `[minSampleRate, maxSampleRate]` band, a single fallback is kept so
+ * playback is never stranded — the highest rate the ceiling can decode, or, when
+ * every rate is above the ceiling, the lowest. This holds even when renditions
+ * straddle an empty band (some below the floor, some above the ceiling). Only
+ * audio renditions count toward the fallback — a co-present video quality (no
+ * audio rate) never influences it. Firefox is the exception: its 48kHz cap is
+ * hard, with no fallback.
  */
 export function withinAudioSampleRateRange(
     options: AudioSampleRateRangeOptions,
@@ -49,36 +52,44 @@ export function withinAudioSampleRateRange(
     _index: number,
     array: ArrayLike<MediaQualityMetadata>
 ): boolean {
-    // Only audio renditions are gated on sampling rate; video and any other
-    // content type (including muxed video that happens to carry an audio rate)
-    // pass through untouched.
+    // Muxed video carrying an audio rate, and every non-audio type, pass through.
     if (metadata.contentType !== 'audio') return true
 
     const samplingRate = last(metadata.audioSamplingRate)
     if (!samplingRate) return true // sampling rate not set
 
-    const audioRates = () =>
+    const { minSampleRate } = options
+    // An explicit maxSampleRate takes precedence over the AudioContext rate.
+    const maxSampleRate =
+        options.maxSampleRate ?? options.capabilities.sampleRate
+
+    const audioRates = (): number[] =>
         map(array, (item) =>
             item.contentType === 'audio'
                 ? last(item.audioSamplingRate)
                 : undefined
         ).filter((rate): rate is number => rate != null)
 
-    // Lower bound (soft floor), independent of the platform max: below it, keep
-    // only the highest when every audio rendition is below the floor.
-    const { minSampleRate } = options
-    if (minSampleRate != null && samplingRate < minSampleRate) {
+    // The single rate to keep when this rendition is out of band — or undefined
+    // when some rendition IS in band, so out-of-band renditions are dropped.
+    // Evaluating both bounds together is what stops a straddle from stranding.
+    const outOfBandFallback = (): number | undefined => {
         const rates = audioRates()
-        return (
-            every(rates, (rate) => rate < minSampleRate) &&
-            samplingRate === max(rates)
-        )
+        const inBand = (rate: number): boolean =>
+            (minSampleRate == null || rate >= minSampleRate) &&
+            (!maxSampleRate || rate <= maxSampleRate)
+        if (rates.some(inBand)) return undefined
+        const decodable = maxSampleRate
+            ? rates.filter((rate) => rate <= maxSampleRate)
+            : rates
+        return decodable.length ? max(decodable) : min(rates)
     }
 
-    // Upper bound. An explicit maxSampleRate takes precedence over the
-    // AudioContext-reported output rate.
-    const maxSampleRate =
-        options.maxSampleRate ?? options.capabilities.sampleRate
+    // Lower bound (soft floor), independent of the platform max.
+    if (minSampleRate != null && samplingRate < minSampleRate) {
+        return samplingRate === outOfBandFallback()
+    }
+
     // No platform max to gauge support: keep. This also lets >48kHz through on
     // Firefox (its cap below is skipped) — accepted.
     if (!maxSampleRate) return true
@@ -89,10 +100,6 @@ export function withinAudioSampleRateRange(
     }
 
     if (samplingRate <= maxSampleRate) return true
-    // Above the max: keep only the lowest when every audio rendition exceeds it.
-    const rates = audioRates()
-    return (
-        every(rates, (rate) => rate > maxSampleRate) &&
-        samplingRate === min(rates)
-    )
+    // Above the ceiling (soft): keep only the fallback when no rate is in band.
+    return samplingRate === outOfBandFallback()
 }

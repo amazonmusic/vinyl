@@ -299,6 +299,30 @@ describe('withinAudioSampleRateRange minSampleRate floor', () => {
         expect(withinMin(low, 0, [low, mid])).toBe(false)
     })
 
+    it('keeps the highest when every rate (of three) is below the floor', () => {
+        const low = audioQuality([16_000])
+        const mid = audioQuality([24_000])
+        const high = audioQuality([32_000])
+        expect(withinMin(high, 2, [low, mid, high])).toBe(true)
+        expect(withinMin(mid, 1, [low, mid, high])).toBe(false)
+        expect(withinMin(low, 0, [low, mid, high])).toBe(false)
+    })
+
+    it('keeps the highest below-floor rate when no platform max is reported', () => {
+        // No AudioContext rate, so the floor is the only bound; with every rate
+        // below it, the highest is kept as the fallback.
+        capabilities.sampleRate = null
+        const low = audioQuality([16_000])
+        const high = audioQuality([32_000])
+        expect(withinMin(high, 1, [low, high])).toBe(true)
+        expect(withinMin(low, 0, [low, high])).toBe(false)
+    })
+
+    it('keeps a single audio rendition below the floor', () => {
+        const only = audioQuality([24_000])
+        expect(withinMin(only, 0, [only])).toBe(true)
+    })
+
     it('ignores non-audio qualities in the floor fallback', () => {
         const audio = audioQuality([24_000]) // below the floor
         const video = createEmptyMediaQualityMetadata()
@@ -307,5 +331,76 @@ describe('withinAudioSampleRateRange minSampleRate floor', () => {
         // Below the 48kHz floor but the only audio → kept; video is ignored.
         expect(withinMin(audio, 0, [audio, video])).toBe(true)
         expect(withinMin(video, 1, [audio, video])).toBe(true)
+    })
+})
+
+// The floor and ceiling are soft together: when renditions straddle an empty
+// band (some below the floor, some above the ceiling, none in between) neither
+// bound alone must strand audio.
+describe('withinAudioSampleRateRange straddling an empty band', () => {
+    let capabilities: MockCapabilities
+
+    beforeEach(() => {
+        // The soft ceiling is a non-Firefox behavior; Firefox's 48kHz cap is
+        // hard (covered above), so pin a non-Firefox UA to exercise the fallback.
+        setUserAgent('Chrome')
+        capabilities = new MockCapabilities()
+        // Ceiling at 48kHz; floor at 44.1kHz → acceptable band is [44.1k, 48k].
+        capabilities.sampleRate = 48_000
+    })
+
+    function audioQuality(rate: number[] | null) {
+        const quality = createEmptyMediaQualityMetadata()
+        quality.contentType = 'audio'
+        quality.audioSamplingRate = rate
+        return quality
+    }
+
+    function within(
+        metadata: ReturnType<typeof audioQuality>,
+        index: number,
+        array: readonly ReturnType<typeof audioQuality>[]
+    ): boolean {
+        return withinAudioSampleRateRange(
+            { capabilities, minSampleRate: 44_100 },
+            metadata,
+            index,
+            array
+        )
+    }
+
+    it('keeps the highest decodable rate when one is below the floor and one above the ceiling', () => {
+        const low = audioQuality([22_050]) // below the 44.1kHz floor
+        const high = audioQuality([96_000]) // above the 48kHz ceiling
+        // Empty band → the below-floor rate is decodable and kept; the
+        // above-ceiling rate is dropped, so audio is never stranded.
+        expect(within(low, 0, [low, high])).toBe(true)
+        expect(within(high, 1, [low, high])).toBe(false)
+    })
+
+    it('keeps the below-floor rate when the ceiling matches the output device rate', () => {
+        // Output device runs at 44.1kHz, so a 48kHz rendition is above the
+        // ceiling while a 22.05kHz rendition is below the floor.
+        capabilities.sampleRate = 44_100
+        const low = audioQuality([22_050])
+        const high = audioQuality([48_000])
+        expect(within(low, 0, [low, high])).toBe(true)
+        expect(within(high, 1, [low, high])).toBe(false)
+    })
+
+    it('still prefers an in-band rate over the straddle fallback', () => {
+        const low = audioQuality([22_050]) // below floor
+        const mid = audioQuality([44_100]) // in band
+        const high = audioQuality([96_000]) // above ceiling
+        expect(within(mid, 1, [low, mid, high])).toBe(true)
+        expect(within(low, 0, [low, mid, high])).toBe(false)
+        expect(within(high, 2, [low, mid, high])).toBe(false)
+    })
+
+    it('keeps the lowest when every rate is above the ceiling', () => {
+        const low = audioQuality([88_200])
+        const high = audioQuality([96_000])
+        expect(within(low, 0, [low, high])).toBe(true)
+        expect(within(high, 1, [low, high])).toBe(false)
     })
 })
