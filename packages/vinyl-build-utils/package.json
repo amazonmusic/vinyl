@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-build-utils",
-    "version": "3.1.0",
+    "version": "3.2.0",
     "description": "Build utilities and configuration for TypeScript libraries.",
     "repository": {
         "type": "git",
