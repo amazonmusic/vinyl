@@ -22,7 +22,7 @@ import {
 import { createEventSpy, useMockLogger } from '@amazon/vinyl-util/testUtil'
 import { flushPromises } from '@amazon/vinyl-util/browserTestUtil'
 import { externalDependencies } from '@amazon/vinyl-di'
-import { Abort, MediaUnsupportedError } from '@amazon/vinyl-util'
+import { Abort } from '@amazon/vinyl-util'
 import any = jasmine.any
 
 describe('MseTrack', () => {
@@ -728,11 +728,12 @@ describe('MseTrack', () => {
             expect(track.qualitiesUnfiltered).toEqual([qualityMetadata])
         })
 
-        it('fails fast when a required content type is entirely filtered out', async () => {
-            // contentTypes (from the manifest) is {audio, video}, but the
-            // transformed timeline has only a video quality — audio was fully
-            // filtered. The audio stream could never create a source buffer, so
-            // the track must fail rather than stall on the readyToAppend wait.
+        it('plays the surviving content type when another is entirely filtered out', async () => {
+            // The content types now come from the FILTERED timeline: with every
+            // audio rendition filtered, only 'video' is required. No audio stream
+            // is created, so the load is never stranded waiting for an audio
+            // source buffer that will never arrive, and the track does not error.
+            deps.contentTypesValue.value = Promise.resolve(new Set(['video']))
             const videoQuality = {
                 ...createEmptyMediaQualityMetadata(),
                 contentType: 'video' as const,
@@ -757,10 +758,10 @@ describe('MseTrack', () => {
             })
             track = createTrack()
             await flushPromises()
-            expect(track.error).toEqual(any(MediaUnsupportedError))
-            expect((track.error as { code?: string }).code).toBe(
-                'no-playable-audio'
-            )
+            expect(track.error).toBeNull()
+            expect(track.contentTypes).toEqual(new Set(['video']))
+            expect(getStream('video')).not.toBeNull()
+            expect(getStream('audio')).toBeNull()
         })
 
         it('reads qualities from the filtered timeline but qualitiesUnfiltered from the raw one', async () => {
