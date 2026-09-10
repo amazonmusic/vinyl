@@ -10,7 +10,7 @@ import { readFileSync } from 'fs'
 import { Marked } from 'marked'
 import { markedHighlight } from 'marked-highlight'
 import hljs from 'highlight.js'
-import { withBase } from './siteConfig'
+import { withBase } from './siteConfig.ts'
 
 export interface DocInfo {
     slug: string

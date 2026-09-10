@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { PageMeta } from '../pageTemplate'
-import { absoluteUrl, SITE_NAME } from '../siteConfig'
+import type { PageMeta } from '../pageTemplate.ts'
+import { absoluteUrl, SITE_NAME } from '../siteConfig.ts'
 
 export const playerMeta: PageMeta = {
     path: '/player/',

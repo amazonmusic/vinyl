@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { escapeHtml } from './html'
+import { escapeHtml } from './html.ts'
 import {
     absoluteUrl,
     GITHUB_URL,
@@ -11,7 +11,7 @@ import {
     OG_IMAGE,
     SITE_NAME,
     withBase,
-} from './siteConfig'
+} from './siteConfig.ts'
 
 // Inline SVGs for the persistent chrome (mirrors packages/.../components/icons).
 const ICONS = {
