@@ -6,10 +6,10 @@
 import { defineConfig } from 'vite'
 import legacy from '@vitejs/plugin-legacy'
 import { resolve } from 'path'
-import { docsPlugin } from './buildSrc/docsPlugin'
-import { highlightPlugin } from './buildSrc/highlightPlugin'
-import { ssgPlugin } from './buildSrc/ssgPlugin'
-import { BASE_PATH } from './buildSrc/siteConfig'
+import { docsPlugin } from './buildSrc/docsPlugin.ts'
+import { highlightPlugin } from './buildSrc/highlightPlugin.ts'
+import { ssgPlugin } from './buildSrc/ssgPlugin.ts'
+import { BASE_PATH } from './buildSrc/siteConfig.ts'
 import packageJson from './package.json' with { type: 'json' }
 
 export default defineConfig({
@@ -25,12 +25,12 @@ export default defineConfig({
         outDir: '../dist',
         emptyOutDir: true,
         rolldownOptions: {
-            input: resolve(__dirname, 'src/index.html'),
+            input: resolve(import.meta.dirname, 'src/index.html'),
         },
     },
     resolve: {
         alias: {
-            '@': resolve(__dirname, 'src'),
+            '@': resolve(import.meta.dirname, 'src'),
         },
         conditions: ['development'],
     },
@@ -43,16 +43,16 @@ export default defineConfig({
     },
     plugins: [
         highlightPlugin(),
-        docsPlugin(resolve(__dirname, '../..')),
+        docsPlugin(resolve(import.meta.dirname, '../..')),
         legacy({
             targets: ['chrome >= 64', 'firefox >= 67', 'safari >= 11.1'],
         }),
-        ssgPlugin(resolve(__dirname, '../..')),
+        ssgPlugin(resolve(import.meta.dirname, '../..')),
     ],
     server: {
         port: 8080,
         fs: {
-            allow: [resolve(__dirname, '../..')],
+            allow: [resolve(import.meta.dirname, '../..')],
         },
     },
 })
