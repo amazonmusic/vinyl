@@ -3,10 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { buildDocs, type DocInfo } from '../docsPlugin'
-import { escapeHtml } from '../html'
-import type { PageMeta } from '../pageTemplate'
-import { absoluteUrl, SITE_NAME, SITE_URL, withBase } from '../siteConfig'
+import { buildDocs, type DocInfo } from '../docsPlugin.ts'
+import { escapeHtml } from '../html.ts'
+import type { PageMeta } from '../pageTemplate.ts'
+import { absoluteUrl, SITE_NAME, SITE_URL, withBase } from '../siteConfig.ts'
 
 export interface DocPage {
     readonly meta: PageMeta

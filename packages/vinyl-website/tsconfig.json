@@ -8,6 +8,9 @@
         "declarationMap": false,
         "isolatedModules": true,
         "resolveJsonModule": true,
+        // Relative imports carry explicit .ts extensions so Vite's native
+        // config loader can resolve them; noEmit makes this safe.
+        "allowImportingTsExtensions": true,
         "noEmit": true
     },
     "include": ["src", "buildSrc", "vite.config.ts"]
