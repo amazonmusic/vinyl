@@ -43,6 +43,16 @@ import type { AdsProvider } from './AdsProvider'
  */
 export const AD_START_TOLERANCE = 0.05
 
+/**
+ * When a break's X-PLAYOUT-LIMIT budget is reached, an ad whose real media end is
+ * within this many seconds is allowed to finish on its own `ended` rather than
+ * being cut. The limit is a coarse, often whole-second budget while the media's
+ * true length is fractional, so without this grace an ad effectively as long as
+ * its budget would be clipped a fraction short. The tolerance is measured against
+ * the playback-reported (media) duration, not the ad's declared duration.
+ */
+export const PLAYOUT_LIMIT_TOLERANCE = 1
+
 export interface AdControllerImplDeps {
     readonly playbackController: ReadonlyPlaybackController
 }
@@ -773,16 +783,25 @@ export class AdControllerImpl
         // declared playout limit are still bounded.
         const limit = parentBreak.adBreak.playoutLimit
         if (limit == null) return
-        const elapsed = Math.max(
-            0,
-            this.deps.playbackController.currentTime - adState.timeStart
-        )
-        if (parentBreak.playoutElapsed + elapsed >= limit) {
-            // The break's total playout limit is reached: end the whole break,
-            // dropping any ads that have not started.
-            parentBreak.clear()
-            this.endAd(adState)
+        const pC = this.deps.playbackController
+        const elapsed = Math.max(0, pC.currentTime - adState.timeStart)
+        if (parentBreak.playoutElapsed + elapsed < limit) return
+        // Budget reached — but if the current ad is essentially at its natural
+        // media end (within PLAYOUT_LIMIT_TOLERANCE of the playback-reported
+        // duration), let it finish on its own `ended` rather than clipping the
+        // tail. A known finite, positive duration is required; an unknown (0) or
+        // non-finite duration (e.g. live) enforces the limit strictly.
+        if (
+            isFinite(pC.duration) &&
+            pC.duration > 0 &&
+            pC.duration - pC.currentTime <= PLAYOUT_LIMIT_TOLERANCE
+        ) {
+            return
         }
+        // The break's total playout limit is reached: end the whole break,
+        // dropping any ads that have not started.
+        parentBreak.clear()
+        this.endAd(adState)
     }
 
     private setPendingBreaks(newPending: AdBreakList): void {

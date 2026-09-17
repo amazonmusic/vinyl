@@ -1411,6 +1411,78 @@ describe('AdControllerImpl', () => {
             // content still resumes at the cue point (0), not startTime + playout.
             expect(resumes.at(-1)).toBe(0)
         })
+
+        it('does not cut at the playout limit when the ad is within tolerance of its media end', async () => {
+            // The budget is reached, but the ad's real media end is <1s away, so
+            // it should finish on its own `ended` rather than be clipped. The
+            // tolerance keys off the playback-reported duration, not ad.duration.
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: null,
+                        playoutLimit: 8,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: 20,
+                                uri: 'ad1.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            // Media is 8.5s long; at the 8s budget only 0.5s of media remains.
+            playbackController.duration = 8.5
+            updateTime(8) // cumulative 8 >= limit 8, but within 1s of media end
+            await flush()
+            expect(c.currentAdBreak).not.toBeNull()
+            expect(c.currentAd?.id).toBe('a1')
+
+            // It finishes on its own media `ended`.
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            await flush()
+            expect(c.currentAdBreak).toBeNull()
+        })
+
+        it('cuts at the playout limit when the ad has more than the tolerance of media left', async () => {
+            const c = createController()
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: null,
+                        playoutLimit: 8,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: 20,
+                                uri: 'ad1.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {}) // timeStart = 0
+            // Media is 20s long; at the 8s budget 12s of media remains → cut.
+            playbackController.duration = 20
+            updateTime(8)
+            await flush()
+            expect(c.currentAdBreak).toBeNull()
+        })
     })
 
     describe('CUE=ONCE and replay', () => {
