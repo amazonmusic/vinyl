@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-hls-parser",
-    "version": "3.2.0",
+    "version": "3.2.1",
     "description": "A fast HLS manifest parser for browser and Node.",
     "repository": {
         "type": "git",
@@ -89,12 +89,12 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-build-utils": "^3.2.0",
-        "@amazon/vinyl-jasmine-wrapper": "^3.2.0"
+        "@amazon/vinyl-build-utils": "^3.2.1",
+        "@amazon/vinyl-jasmine-wrapper": "^3.2.1"
     },
     "dependencies": {
-        "@amazon/vinyl-util": "^3.2.0",
-        "@amazon/vinyl-validation": "^3.2.0"
+        "@amazon/vinyl-util": "^3.2.1",
+        "@amazon/vinyl-validation": "^3.2.1"
     },
     "publishConfig": {
         "access": "public"

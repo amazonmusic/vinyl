@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.2.1](https://github.com/amazonmusic/vinyl/compare/v3.2.0...v3.2.1) (2026-09-17)
+
+### Bug Fixes
+
+- **ad:** add playout-limit tolerance near the media end
+  ([727a985](https://github.com/amazonmusic/vinyl/commit/727a985eb25edb1e49e30a1e4a2db87bcd345ab3))
+- **ad:** don&#x27;t truncate ads at their declared duration
+  ([a94b19b](https://github.com/amazonmusic/vinyl/commit/a94b19b2cb40615ed048441ef55b47d91dfb2e73))
+- **playback:** stop stall monitor emitting doubled/spurious stall events
+  ([38d604c](https://github.com/amazonmusic/vinyl/commit/38d604c39d11c3a1eca9bad5dc25b0702d159388))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.0](https://github.com/amazonmusic/vinyl/compare/v3.1.0...v3.2.0) (2026-09-09)
 
 ### Features
