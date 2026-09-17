@@ -43,6 +43,9 @@ const ANCHOR_MS = Date.parse(ANCHOR_ISO)
 // Real, playable assets. Content and ad differ so we can distinguish them.
 const CONTENT_ASSET = vinylTestAssets.hls.live_static_video_audio_60s_4s
 const AD_ASSET = vinylTestAssets.hls.live_static_video_audio_60s_2s
+// An ultra-short (1s) ad, for cases that must let an ad play to its natural
+// `ended` in real time rather than seeking to the asset's end.
+const SHORT_AD_ASSET = vinylTestAssets.hls.edge_static_video_1s
 
 interface Interstitial {
     readonly id: string
@@ -923,8 +926,8 @@ describe('hls ad interstitials integ', () => {
                         id: 'postroll-1',
                         startTime: 0,
                         duration: 4,
-                        // Short ad so the break ends quickly on its own.
-                        assetList: [{ uri: AD_ASSET, duration: 3 }],
+                        // A 1s ad so the break ends quickly on its own `ended`.
+                        assetList: [{ uri: SHORT_AD_ASSET, duration: 1 }],
                         cue: 'POST',
                     },
                 ]),
@@ -944,7 +947,8 @@ describe('hls ad interstitials integ', () => {
                 .withContext('postroll ad started')
                 .toBeTrue()
             expect(player.currentAdBreak?.placement).toBe('postroll')
-            // Let the postroll finish on its own, rather than skipping it.
+            // Let the 1s postroll finish on its own `ended`, rather than skipping
+            // it — the ad's media end must complete the break.
             expect(await poll(() => player.currentAd == null, { timeout: 40 }))
                 .withContext('postroll ad finished')
                 .toBeTrue()

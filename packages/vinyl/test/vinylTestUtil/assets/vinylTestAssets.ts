@@ -30,6 +30,7 @@ export const vinylTestAssets = {
     prog: {
         libmp3lame_60s_2ch_16bit_44100Hz_48kbps: `https://assets.dev.vinyl.music.amazon.dev/prog/libmp3lame_60s_2ch_16bit_44100Hz_48kbps.mp3`,
         libmp3lame_1800s_2ch_16bit_44100Hz_48kbps: `https://assets.dev.vinyl.music.amazon.dev/prog/libmp3lame_1800s_2ch_16bit_44100Hz_48kbps.mp3`,
+        libmp3lame_1s_2ch_16bit_44100Hz_48kbps: `https://assets.dev.vinyl.music.amazon.dev/prog/libmp3lame_1s_2ch_16bit_44100Hz_48kbps.mp3`,
     },
     dash: {
         live_static_aac_opus_flac_60s_segmentTemplate: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentTemplate/manifest.mpd`,
@@ -44,6 +45,11 @@ export const vinylTestAssets = {
         live_static_aac_opus_flac_60s_segmentBase_widevine_cl10: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase_widevine_cl10/manifest.mpd`,
         live_static_aac_opus_flac_60s_segmentBase_widevine: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_opus_flac_60s_segmentBase_widevine/manifest.mpd`,
         live_static_aac_1800s_segmentBase_widevine_cl30: `https://assets.dev.vinyl.music.amazon.dev/dash/live_static_aac_1800s_segmentBase_widevine_cl30/manifest.mpd`,
+
+        // Edge-case tracks: ultra-short 1s assets (audio-only + video), no
+        // captions or translations.
+        edge_static_aac_1s_segmentTemplate: `https://assets.dev.vinyl.music.amazon.dev/dash/edge_static_aac_1s_segmentTemplate/manifest.mpd`,
+        edge_static_video_1s_segmentTemplate: `https://assets.dev.vinyl.music.amazon.dev/dash/edge_static_video_1s_segmentTemplate/manifest.mpd`,
 
         // Ad-break assets (see DMTestAssetBuilder src/adBreaks): a ~3-min
         // labeled ABR ladder with five-language narration, full + forced
@@ -64,6 +70,11 @@ export const vinylTestAssets = {
         live_static_video_60s_4s_mpegts: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_60s_4s_mpegts/main.m3u8`,
         live_static_video_audio_60s_2s_mpegts: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_audio_60s_2s_mpegts/main.m3u8`,
         live_static_video_audio_60s_4s_mpegts: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_audio_60s_4s_mpegts/main.m3u8`,
+
+        // Edge-case tracks: ultra-short 1s assets (audio-only + video), no
+        // captions or translations.
+        edge_static_aac_1s: `https://assets.dev.vinyl.music.amazon.dev/hls/edge_static_aac_1s/main.m3u8`,
+        edge_static_video_1s: `https://assets.dev.vinyl.music.amazon.dev/hls/edge_static_video_1s/main.m3u8`,
 
         // Ad-break assets: base content + HLS Interstitial scenario variants.
         // `*_av` = video+audio, `*_audio` = audio-only; each `__<scenario>`
