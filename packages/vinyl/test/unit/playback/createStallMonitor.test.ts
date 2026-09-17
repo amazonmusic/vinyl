@@ -144,10 +144,54 @@ describe('createStallMonitor', () => {
         expect(onStallEnded).toHaveBeenCalledTimes(2)
     })
 
+    it('does not end and re-detect a stall on a non-advancing timeUpdate', async () => {
+        // Browsers emit `timeUpdate` even while the play head is frozen, with an unchanged (or
+        // briefly backward) currentTime. These must not be treated as progress, or the stall is
+        // ended and immediately re-detected, doubling the reported events.
+        monitor()
+        host.dispatch('playing', {})
+        host.dispatch('timeUpdate', { previous: 4, current: 5 })
+        await poll(4) // freeze 1s -> stallEntered
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+
+        // Still frozen: currentTime hasn't advanced (unchanged, backward, or sub-epsilon jitter).
+        host.dispatch('timeUpdate', { previous: 5, current: 5 })
+        host.dispatch('timeUpdate', { previous: 5, current: 4.99 })
+        host.dispatch('timeUpdate', { previous: 5, current: 5 + 1e-9 })
+        await poll(4)
+        expect(onStallEnded).not.toHaveBeenCalled()
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+
+        // A real forward advance ends the stall exactly once.
+        host.dispatch('timeUpdate', { previous: 5, current: 6 })
+        expect(onStallEnded).toHaveBeenCalledTimes(1)
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not re-detect a stall immediately after resuming via a playing event', async () => {
+        // Resuming via `playing` must restart the freeze clock. Otherwise the poll, still seeing
+        // the stale pre-freeze progress time, immediately re-enters a stall before the first
+        // post-resume timeUpdate arrives — an extra, spurious stall.
+        monitor()
+        host.dispatch('playing', {})
+        host.dispatch('timeUpdate', { previous: 0, current: 1 })
+        await poll(4) // freeze 1s -> stallEntered
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+
+        // Resume with a 'playing' event and no timeUpdate yet.
+        host.dispatch('playing', {})
+        expect(onStallEnded).toHaveBeenCalledTimes(1)
+
+        // The freeze clock reset on resume, so a sub-threshold gap is not a new stall.
+        await poll(3) // 0.75s < 1s threshold
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+    })
+
     it('stops reporting after disposal', async () => {
         monitor()
         host.dispatch('playing', {})
         stop!()
+        stop = undefined // disposal is single-shot; don't dispose again in afterEach
         await poll(8)
         expect(onStallEntered).not.toHaveBeenCalled()
     })

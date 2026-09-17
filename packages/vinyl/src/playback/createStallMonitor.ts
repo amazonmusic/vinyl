@@ -39,6 +39,13 @@ export interface StallMonitorCallbacks {
 }
 
 /**
+ * Minimum forward `currentTime` change (seconds) that counts as real progress. Guards the
+ * progress check against floating-point jitter so a negligible advance isn't mistaken for the
+ * play head moving.
+ */
+const PROGRESS_EPSILON = 1e-6
+
+/**
  * Watches a {@link ReadonlyPlaybackController} for stalls while playing: the play head freezing
  * (no `timeUpdate`) for longer than {@link StallMonitorOptions.stallThreshold} seconds.
  *
@@ -66,6 +73,8 @@ export function createStallMonitor(
     let inStall = false
     let pollId: ReturnType<typeof setInterval> | null = null
 
+    const { add, dispose } = createDisposer()
+
     const endStall = (reason: StallEndedReason): void => {
         if (!inStall) return
         inStall = false
@@ -83,6 +92,7 @@ export function createStallMonitor(
         clearInterval(pollId)
         pollId = null
     }
+    add(stopPoll)
 
     const startPoll = (): void => {
         if (pollId != null) return
@@ -103,20 +113,24 @@ export function createStallMonitor(
         stopPoll()
     }
 
-    const { add, dispose } = createDisposer()
-
     add(
         controller.on('playing', () => {
-            // Resuming from a stall closes it; otherwise this is a fresh start of playback, so
-            // begin the freeze clock now (no `timeUpdate` has necessarily arrived yet).
+            // Resuming from a stall closes it (using the pre-resume freeze start for its duration).
             if (inStall) endStall(StallEndedReason.PLAYING)
-            else lastProgressAt = Date.now()
+            // Whether resuming or freshly starting, the play head is advancing again, so restart the
+            // freeze clock. Without this the poll could immediately re-detect a stall from the stale
+            // pre-freeze timestamp before the first post-resume `timeUpdate` resets it.
+            lastProgressAt = Date.now()
             observedPlaying = true
             startPoll()
         })
     )
     add(
-        controller.on('timeUpdate', () => {
+        controller.on('timeUpdate', ({ previous, current }) => {
+            // Browsers emit `timeUpdate` while frozen (unchanged/backward `currentTime`); only a
+            // forward advance is progress, else a stall is ended and re-detected, doubling events.
+            if (previous != null && current - previous <= PROGRESS_EPSILON)
+                return
             // The play head advanced: close any open stall, then reset the freeze clock.
             if (inStall) endStall(StallEndedReason.PLAYING)
             lastProgressAt = Date.now()
@@ -126,11 +140,5 @@ export function createStallMonitor(
     add(controller.on('seeking', () => suspend(StallEndedReason.SEEKING)))
     add(controller.on('emptied', () => suspend(StallEndedReason.EMPTIED)))
 
-    let stopped = false
-    return () => {
-        if (stopped) return
-        stopped = true
-        stopPoll()
-        dispose()
-    }
+    return dispose
 }
