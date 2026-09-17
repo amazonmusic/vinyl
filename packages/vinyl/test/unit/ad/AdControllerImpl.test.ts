@@ -1165,7 +1165,6 @@ describe('AdControllerImpl', () => {
                     makeBreak({
                         startTime: 10,
                         duration: 20,
-                        // Null per-ad duration so the per-ad cap does not end it.
                         ads: [
                             {
                                 id: 'a1',
@@ -1280,7 +1279,11 @@ describe('AdControllerImpl', () => {
     })
 
     describe('ad duration and playout limits', () => {
-        it('advances to the next ad when one reaches its declared duration', async () => {
+        it('advances to the next ad on the ad media ended, not its declared duration', async () => {
+            // Each ad asset is its own source; a non-final ad advances on its own
+            // media `ended`. The declared per-ad duration must NOT end it early —
+            // a packager may under-declare it (whole-second rounding), which would
+            // otherwise truncate the real asset.
             const c = createController()
             await setContent(
                 c,
@@ -1292,7 +1295,7 @@ describe('AdControllerImpl', () => {
                             {
                                 id: 'a1',
                                 startTime: 0,
-                                duration: 5,
+                                duration: 5, // declared, server-rounded
                                 uri: 'ad1.m3u8',
                             },
                             {
@@ -1309,9 +1312,63 @@ describe('AdControllerImpl', () => {
             await flush()
             expect(c.currentAd?.id).toBe('a1')
             playbackController.dispatch('playing', {}) // timeStart = 0
-            updateTime(6) // elapsed 6 >= a1.duration 5 → advance
+
+            // Past the declared 5s, still within a1's real content — must NOT advance.
+            updateTime(6)
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+
+            // a1's media ends -> advance to a2.
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
             await flush()
             expect(c.currentAd?.id).toBe('a2')
+        })
+
+        it('does not cut the final/only ad at its declared duration; it ends on media ended', async () => {
+            // The ad server declares DURATION in whole seconds, but the asset's
+            // real content is longer (6.732s here). The only ad must play to its
+            // media `ended`, not be truncated at the rounded declared duration.
+            const c = createController()
+            const ended: string[] = []
+            c.on('adEnded', (e) => ended.push(e.ad.id))
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        startTime: 0,
+                        duration: 30,
+                        ads: [
+                            {
+                                id: 'a1',
+                                startTime: 0,
+                                duration: 6, // declared, server-rounded
+                                uri: 'ad1.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            updateTime(0)
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            playbackController.dispatch('playing', {}) // timeStart = 0
+
+            // Past the declared 6s, into the real content — must NOT end yet.
+            updateTime(6.5)
+            await flush()
+            expect(c.currentAd?.id).toBe('a1')
+            expect(ended).toEqual([])
+
+            // Real media end at 6.732 ends the ad.
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            expect(ended).toEqual(['a1'])
+            expect(c.currentAdBreak).toBeNull()
         })
 
         it('ends the whole break when the playout limit is reached, dropping remaining ads', async () => {

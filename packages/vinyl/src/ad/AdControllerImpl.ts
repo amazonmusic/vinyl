@@ -756,30 +756,32 @@ export class AdControllerImpl
     }
 
     /**
-     * Ads breaks can have a playout limit that may cut off ad playback.
-     * End the ad if that limit is reached.
+     * Enforces the break-level playout limit (X-PLAYOUT-LIMIT): a budget shared
+     * across all of the break's ads. When cumulative playout reaches it, the
+     * whole break ends, dropping any ads that have not started.
+     *
+     * This is deliberately NOT a per-ad cap. Each ad asset is its own source and
+     * ends on its media `ended` (see the 'ended' handler), which is what advances
+     * a multi-ad break. Ending an ad at its declared per-ad DURATION instead would
+     * truncate the real asset whenever a packager under-declares it — e.g. rounds
+     * a 6.732s asset down to a whole-second 6 — cutting off the fractional tail.
      */
     private enforcePlayoutLimits(adState: AdState): void {
-        const pC = this.deps.playbackController
-        const { ad, parentBreak } = adState
-        // Enforce playout limits independent of a finite content duration so
-        // live ads with a declared playout limit are still bounded.
-        if (adState.started) {
-            const elapsed = Math.max(0, pC.currentTime - adState.timeStart)
-            const adBreak = parentBreak.adBreak
-            const limit = adBreak.playoutLimit
-            if (
-                limit != null &&
-                parentBreak.playoutElapsed + elapsed >= limit
-            ) {
-                // The break's total playout limit is reached: end the whole
-                // break, dropping any ads that have not started.
-                parentBreak.clear()
-                this.endAd(adState)
-            } else if (ad.duration != null && elapsed >= ad.duration) {
-                // This ad reached its declared duration: advance to the next.
-                this.endAd(adState)
-            }
+        if (!adState.started) return
+        const { parentBreak } = adState
+        // Enforce independent of a finite content duration so live ads with a
+        // declared playout limit are still bounded.
+        const limit = parentBreak.adBreak.playoutLimit
+        if (limit == null) return
+        const elapsed = Math.max(
+            0,
+            this.deps.playbackController.currentTime - adState.timeStart
+        )
+        if (parentBreak.playoutElapsed + elapsed >= limit) {
+            // The break's total playout limit is reached: end the whole break,
+            // dropping any ads that have not started.
+            parentBreak.clear()
+            this.endAd(adState)
         }
     }
 
