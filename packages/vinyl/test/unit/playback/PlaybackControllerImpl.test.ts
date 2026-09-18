@@ -628,6 +628,22 @@ describe('PlaybackController', () => {
                     await seekExpectation
                 })
 
+                it('resolves a superseded seek at once when its seeking event never fires', async () => {
+                    // A source swap can leave the original seek's `seeking`
+                    // event unfired (the default mock never emits it). A newer
+                    // seek supersedes it; the stale one must resolve immediately
+                    // rather than hang for the full seekTimeout.
+                    setSeekable([[0, 100]])
+                    const first = controller.seekTo(50)
+                    const second = controller.seekTo(60)
+                    // No clock tick: the newer seek's abort resolves `first` now.
+                    // (A full-timeout hang would require clock.tick(seekTimeout).)
+                    await expectAsync(first).toBeResolved()
+                    // `second`'s own `seeking` never fires either; park its
+                    // rejection (settled on dispose) so it isn't unhandled.
+                    second.catch(() => undefined)
+                })
+
                 it('times out pending seeks after seekTimeout', async () => {
                     const pendingSeekExpectation = expectAsync(
                         controller.seekTo(60)
