@@ -13,6 +13,7 @@ import {
     DrmKeySystem,
     DrmRobustness,
     type EncryptedInitData,
+    EXCESSIVE_SESSION_COUNT,
     LICENSE_TIMEOUT,
     type LicenseProvider,
     type LicenseServerOptions,
@@ -1688,6 +1689,29 @@ describe('DrmControllerImpl', () => {
                 { licenseProvider }
             )
             expect(drmController.isEmeSupported()).toBeFalse()
+        })
+    })
+
+    describe('excessive sessions', () => {
+        it('warns once when the open session count exceeds the threshold', async () => {
+            drmController.setBufferingDrmInfo(drmInfo)
+            // Distinct init data per event so each opens its own session.
+            for (let i = 0; i < EXCESSIVE_SESSION_COUNT; i++) {
+                await emitEncrypted(new Uint8Array([i]))
+            }
+            expect(drmController.activeSessions).toBe(EXCESSIVE_SESSION_COUNT)
+            expect(logger.value.warn).not.toHaveBeenCalled()
+
+            // Crossing the threshold warns.
+            await emitEncrypted(new Uint8Array([EXCESSIVE_SESSION_COUNT]))
+            expect(drmController.activeSessions).toBe(
+                EXCESSIVE_SESSION_COUNT + 1
+            )
+            expect(logger.value.warn).toHaveBeenCalledTimes(1)
+
+            // Further sessions past the threshold don't re-warn.
+            await emitEncrypted(new Uint8Array([EXCESSIVE_SESSION_COUNT + 1]))
+            expect(logger.value.warn).toHaveBeenCalledTimes(1)
         })
     })
 

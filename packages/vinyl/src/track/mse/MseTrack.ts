@@ -5,7 +5,6 @@
 
 import { TrackBase, type TrackBaseDeps } from '../TrackBase'
 import {
-    Abort,
     equalDeep,
     first,
     type Fun,
@@ -92,7 +91,6 @@ export class MseTrack extends TrackBase {
     }
 
     private readonly streams: ContentStream[] = []
-    private readonly disposeAbort = new Abort()
     private lastPreloadOptions: ContentStreamPreloadOptions | null = null
     private readonly allFetchedRanges: ReadonlyRanges[] = []
     private readonly _fetchedRanges = new IntersectionRanges(
@@ -132,7 +130,7 @@ export class MseTrack extends TrackBase {
             if (this.active) {
                 this.deps.drmController.initializeForPlayback(event.current, {
                     trackUri: this.uri,
-                    abort: this.disposeAbort,
+                    abort: this.drmSessionAbort.value,
                 })
             }
         })
@@ -145,7 +143,7 @@ export class MseTrack extends TrackBase {
             if (event.current == null) return
             this.deps.drmController.setBufferingDrmInfo(event.current, {
                 trackUri: this.uri,
-                abort: this.disposeAbort,
+                abort: this.drmSessionAbort.value,
             })
         })
 
@@ -426,7 +424,7 @@ export class MseTrack extends TrackBase {
         this.streams.forEach((stream) => {
             this.deps.drmController.initializeForPlayback(
                 stream.streamingQuality,
-                { trackUri: this.uri, abort: this.disposeAbort }
+                { trackUri: this.uri, abort: this.drmSessionAbort.value }
             )
         })
         this.deps.playbackSource.src =
@@ -463,7 +461,7 @@ export class MseTrack extends TrackBase {
         // clear it here now that the track is no longer buffering.
         this.deps.drmController.setBufferingDrmInfo(null, {
             trackUri: this.uri,
-            abort: this.disposeAbort,
+            abort: this.drmSessionAbort.value,
         })
         // Tear down the DOM text track so its cues stop showing while this
         // track is suspended (e.g. an ad playing over it). The selection is

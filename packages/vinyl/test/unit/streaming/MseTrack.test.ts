@@ -289,6 +289,23 @@ describe('MseTrack', () => {
                 abort: any(Abort),
             })
         })
+
+        it('aborts the drm session abort so key sessions close', async () => {
+            // Regression: MSE key sessions must be tied to the per-activation
+            // drmSessionAbort (fired by closeDrmSessions on deactivate), not a
+            // separate abort that never fires — otherwise sessions leak.
+            track = createTrack()
+            await awaitContentTypes()
+            getAudioStream().streamingQuality =
+                createEmptyMediaQualityMetadata()
+            track.activate({})
+            const { abort } =
+                deps.drmController.initializeForPlayback.calls.mostRecent()
+                    .args[1]!
+            expect(abort!.aborted()).toBeFalse()
+            track.deactivate()
+            expect(abort!.aborted()).toBeTrue()
+        })
     })
 
     describe('error', () => {
