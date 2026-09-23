@@ -3,6 +3,21 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
+
+### Bug Fixes
+
+- **drm:** close MSE key sessions on track deactivation
+  ([f77c2f5](https://github.com/amazonmusic/vinyl/commit/f77c2f59a1594d2ecffaed8632801bdb3f7ff300))
+- **playback:** don&#x27;t hang a superseded seek on a seeking event that never
+  fires
+  ([4d55460](https://github.com/amazonmusic/vinyl/commit/4d554609d11d104626c371edb96a5472d5f7ab5c))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.1](https://github.com/amazonmusic/vinyl/compare/v3.2.0...v3.2.1) (2026-09-17)
 
 ### Bug Fixes
