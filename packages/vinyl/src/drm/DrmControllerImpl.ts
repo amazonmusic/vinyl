@@ -18,6 +18,7 @@ import {
     isSilentError,
     logDebug,
     logVerbose,
+    logWarn,
     type Maybe,
     memoize,
     noop,
@@ -74,6 +75,13 @@ import { createFairPlaySessionInitData } from './util/createFairPlaySessionInitD
  */
 export const LICENSE_TIMEOUT = 90
 const LICENSE_TIMEOUT_MESSAGE = 'License provider timed out after {time}s'
+
+/**
+ * An excessive number of concurrent key sessions. Sessions are expected to be
+ * closed as tracks deactivate; a count this high signals sessions are leaking
+ * (never closing) rather than a legitimate playback need.
+ */
+export const EXCESSIVE_SESSION_COUNT = 20
 
 /**
  * Dependencies for creating DrmController.
@@ -289,12 +297,20 @@ export class DrmControllerImpl
                 keySystemOptions?.initDataTransformer
             )
             this.sessions.push(newSession)
+            logVerbose(this, `total sessions: ${this.sessions.length}`)
+            if (this.sessions.length === EXCESSIVE_SESSION_COUNT + 1) {
+                logWarn(
+                    this,
+                    `${this.sessions.length} open key sessions exceeds ${EXCESSIVE_SESSION_COUNT}; sessions may be leaking (not closing on track deactivation)`
+                )
+            }
             this.dispatch('sessionCreate', {
                 initDataType: newSession.initDataType,
                 mimeType: newSession.mimeType,
             })
             newSession.on('closed', () => this.closeSession(newSession))
             abort?.onAborted(() => {
+                if (this.disposed) return
                 logDebug(this, 'abort session')
                 this.closeSession(newSession)
             })

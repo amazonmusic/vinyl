@@ -9,7 +9,6 @@ import {
     type TrackBaseOptions,
 } from '../TrackBase'
 import {
-    Abort,
     equalDeep,
     type Fun,
     IntersectionRanges,
@@ -66,7 +65,6 @@ export class MseTrack extends TrackBase {
     declare protected readonly deps: MseTrackDeps
 
     private readonly streams: ContentStream[] = []
-    private readonly disposeAbort = new Abort()
     private lastPreloadOptions: ContentStreamPreloadOptions | null = null
     private activateOptions: ContentStreamActivateOptions | null = null
     private readonly allFetchedRanges: ReadonlyRanges[] = []
@@ -117,7 +115,7 @@ export class MseTrack extends TrackBase {
             if (this.activateOptions) {
                 this.deps.drmController.initializeForPlayback(
                     event.current,
-                    this.disposeAbort
+                    this.drmSessionAbort.value
                 )
             }
         })
@@ -125,7 +123,7 @@ export class MseTrack extends TrackBase {
         this.on('bufferingQualityChange', (event) => {
             this.deps.drmController.setBufferingDrmInfo(
                 event.current,
-                this.disposeAbort
+                this.drmSessionAbort.value
             )
         })
 
@@ -306,7 +304,7 @@ export class MseTrack extends TrackBase {
         this.streams.forEach((stream) => {
             this.deps.drmController.initializeForPlayback(
                 stream.streamingQuality,
-                this.disposeAbort
+                this.drmSessionAbort.value
             )
         })
         this.deps.playbackSource.src =
