@@ -228,6 +228,10 @@ export class MediaSourceControllerImpl
         // at the token check rather than setting duration (and logging) after
         // deactivation.
         ++this.durationToken
+        // The next activation builds its own media source, whose duration has
+        // not been set; readiness must not carry over from this one. The
+        // 'sourceclose' handler cannot do it — its listener is already gone.
+        this.durationSet = false
         try {
             URL.revokeObjectURL(this.objectUrl!)
         } catch (error) {
