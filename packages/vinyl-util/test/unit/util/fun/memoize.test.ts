@@ -148,7 +148,35 @@ describe('memoize', () => {
                     c('a') // not cached after clear
                     expect(spy).toHaveBeenCalledTimes(2)
                 })
+
+                it('does not cache a throw, and keeps the entry it held', () => {
+                    const spy = createSpy()
+                        .and.returnValue('a-value')
+                        .withArgs('b')
+                        .and.throwError('expected')
+                    const c = memoize(spy, (arg) => arg, 1)
+                    expect(c('a')).toBe('a-value')
+                    expect(() => c('b')).toThrowError('expected')
+                    // 'a' is still the cached entry, and 'b' is retried.
+                    expect(c('a')).toBe('a-value')
+                    expect(spy).toHaveBeenCalledTimes(2)
+                    expect(() => c('b')).toThrowError('expected')
+                })
             })
+        })
+    })
+
+    describe('when the memoized function throws', () => {
+        it('retries on the next call rather than caching undefined', () => {
+            let calls = 0
+            const c = memoize(() => {
+                calls++
+                if (calls === 1) throw new Error('expected')
+                return 'value'
+            })
+            expect(() => c()).toThrowError('expected')
+            expect(c()).toBe('value')
+            expect(calls).toBe(2)
         })
     })
 })

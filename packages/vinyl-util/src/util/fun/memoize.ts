@@ -46,8 +46,10 @@ export function memoize<T extends Fun>(
         let value: ReturnType<T> | undefined = undefined
         const memoized = (): ReturnType<T> => {
             if (!cached) {
-                cached = true
+                // Marked cached only once `inner` returns, so a throw is not
+                // cached as an `undefined` result.
                 value = inner()
+                cached = true
             }
             return value as ReturnType<T>
         }
@@ -76,9 +78,11 @@ export function memoize<T extends Fun>(
         const memoized = (...args: Parameters<T>): ReturnType<T> => {
             const key = keyProvider(...args)
             if (!hasValue || cachedKey !== key) {
-                hasValue = true
-                cachedKey = key
+                // Recorded only once `inner` returns, so a throw neither caches
+                // an `undefined` result nor evicts the entry already held.
                 cachedValue = inner(...args)
+                cachedKey = key
+                hasValue = true
             }
             return cachedValue
         }
