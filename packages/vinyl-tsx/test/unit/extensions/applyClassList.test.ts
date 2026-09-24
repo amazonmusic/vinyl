@@ -5,6 +5,7 @@
 
 import { applyClassList, initializeConnectedObserver } from '@amazon/vinyl-tsx'
 import { data } from '@amazon/vinyl-observable'
+import { noop } from '@amazon/vinyl-util'
 import { installDomPolyfill } from '../domPolyfill'
 
 describe('applyClassList', () => {
@@ -22,6 +23,21 @@ describe('applyClassList', () => {
         applyClassList(el, ['foo', null, 'bar'])
         expect(el.classList.contains('foo')).toBeTrue()
         expect(el.classList.contains('bar')).toBeTrue()
+    })
+
+    it('does not add an empty token, which classList rejects', () => {
+        const el = dom.createElement('div')
+        expect(() => applyClassList(el, ['foo', '', 'bar'])).not.toThrow()
+        expect(el.classList.contains('')).toBeFalse()
+        expect(el.classList.contains('foo')).toBeTrue()
+        expect(el.classList.contains('bar')).toBeTrue()
+    })
+
+    it('returns a no-op unsubscribe when only static tokens are given', () => {
+        const el = dom.createElement('div')
+        // An empty token is dropped, but it is still a static token, so no
+        // connect observer is needed.
+        expect(applyClassList(el, ['', 'foo'])).toBe(noop)
     })
 
     it('subscribes to observable classes on connect', () => {
