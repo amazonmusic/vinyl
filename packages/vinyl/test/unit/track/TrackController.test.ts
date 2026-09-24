@@ -795,56 +795,6 @@ describe('TrackControllerImpl', () => {
                 expect(track.clearPrefetch).toHaveBeenCalledTimes(1)
             }
         })
-
-        it('also clears prefetch on preloaded ad tracks', async () => {
-            pending(
-                'REVIEW: the refactor no longer proactively preloads ad tracks ' +
-                    'discovered on the current track (ad tracks are created on ' +
-                    'adEntered only). Decide: intended removal (delete this spec) ' +
-                    'or regression (restore discovery-time ad preloading).'
-            )
-            const [main] = createLoadOptionsList(1)
-            trackController.load(main)
-            const track = trackController.activeTrack as MockTrack
-            const ads = {
-                trackUri: main.uri,
-                adBreaks: [
-                    {
-                        id: 'b1',
-                        startTime: 5,
-                        duration: 10,
-                        placement: 'midroll' as const,
-                        restrict: {},
-                        once: false,
-                        resumeOffset: null,
-                        playoutLimit: null,
-                        resolutionTimeOffset: null,
-                        skipControl: () => null,
-                        ads: () =>
-                            Promise.resolve([
-                                {
-                                    id: 'a1',
-                                    startTime: 5,
-                                    duration: 10,
-                                    uri: 'https://ads/a.m3u8',
-                                },
-                            ]),
-                    },
-                ],
-            }
-            track.ads = ads
-            track.dispatch('adsChange', { previous: null, current: ads })
-            // Ad resolution runs on microtasks.
-            await Promise.resolve()
-            await Promise.resolve()
-            await Promise.resolve()
-
-            const adTrack = trackController.getCachedTrack(
-                'https://ads/a.m3u8'
-            ) as MockTrack
-            trackController.clearPrefetch()
-            expect(adTrack.clearPrefetch).toHaveBeenCalled()
-        })
     })
 
     describe('clearQueue', () => {
@@ -1425,6 +1375,22 @@ describe('TrackControllerImpl', () => {
             expect(adTrack!.preload).toHaveBeenCalled()
         })
 
+        it('clears prefetch on a preloaded ad track', async () => {
+            const [main] = createLoadOptionsList(1)
+            factoryGivingBreak(main.uri, []) // records created tracks; no preroll
+            trackController.load(main)
+            await flushAds()
+            deps.adController.dispatch('adPreload', {
+                adBreak: midrollBreak('https://ads/mid.m3u8'),
+            })
+            await flushAds()
+            const adTrack = created.get('https://ads/mid.m3u8')!
+            // Ad tracks are not in the content cache, so this only holds if
+            // clearPrefetch reaches the per-parent ad track store too.
+            trackController.clearPrefetch()
+            expect(adTrack.clearPrefetch).toHaveBeenCalledTimes(1)
+        })
+
         it('ignores adPreload when there is no parent track', () => {
             expect(() =>
                 deps.adController.dispatch('adPreload', {
@@ -1642,26 +1608,6 @@ describe('TrackControllerImpl', () => {
             expect(track.activate).toHaveBeenCalledWith(
                 objectContaining({ startTime: 3 })
             )
-        })
-
-        it('skips the deferred resume if interrupted before the frame', async () => {
-            pending(
-                'REVIEW: content resume on adBreakCompleted is now synchronous ' +
-                    '(no deferred/interruptible frame), so this interruption ' +
-                    'guard no longer applies. Decide: intended or restore deferral.'
-            )
-            const [main] = createLoadOptionsList(1)
-            trackController.load(main)
-            const changeSpy = createEventSpy(trackController, 'trackActivated')
-            deps.adController.dispatch('adBreakCompleted', {
-                adBreak: adBreak('midroll'),
-                resumePosition: 5,
-            })
-            // Interrupt: a new ad becomes current before the deferred resume runs.
-            deps.adController.currentAd = { ...ad, id: 'other' }
-            await clock.tick()
-            // The deferred setQueue was skipped; no track change occurred.
-            expect(changeSpy).not.toHaveBeenCalled()
         })
 
         it('advances to the next track after a postroll ad when one exists', async () => {
