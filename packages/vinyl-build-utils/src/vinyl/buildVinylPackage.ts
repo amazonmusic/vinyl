@@ -204,14 +204,13 @@ export function buildVinylPackage(options?: VinylPackageOptions) {
         { watch }
     )
         .then(() => {
-            if (serve) {
-                if (!options?.serverOptions)
-                    throw new Error('serverOptions not set')
-                void startServer(options.serverOptions)
-            }
+            if (!serve) return
+            if (!options?.serverOptions)
+                throw new Error('serverOptions not set')
+            return startServer(options.serverOptions)
         })
-        .catch((error: any) => {
-            console.error('message' in error ? error.message : error)
+        .catch((error: unknown) => {
+            console.error(error instanceof Error ? error.message : error)
             process.exit(1)
         })
 }
