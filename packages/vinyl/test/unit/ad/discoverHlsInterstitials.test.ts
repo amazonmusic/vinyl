@@ -223,7 +223,8 @@ describe('discoverHlsInterstitials', () => {
                 'https://example.com/ads.json'
             )
             expect(ads.length).toBe(2)
-            expect(ads[0].uri).toBe('https://cdn.example.com/media/mid1.m3u8')
+            // Relative to the asset list, not to the media playlist.
+            expect(ads[0].uri).toBe('https://example.com/mid1.m3u8')
             expect(ads[0].duration).toBe(10)
             expect(ads[1].uri).toBe('https://cdn.example.com/mid2.m3u8')
             expect(ads[1].duration).toBeNull()
