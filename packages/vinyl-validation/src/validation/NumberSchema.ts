@@ -120,7 +120,7 @@ export class NumberSchema extends ValueSchema<number> {
     private static _base: NumberSchema | null = null
 
     /**
-     * The base Object validator validating that the input is an object.
+     * The base NumberSchema instance validating that the input is a number.
      */
     static get base(): NumberSchema {
         if (this._base == null)
