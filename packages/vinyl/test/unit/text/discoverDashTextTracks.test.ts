@@ -52,6 +52,20 @@ describe('discoverDashTextTracks', () => {
         expect(result[0].language).toBe('es')
     })
 
+    it('discovers a text AdaptationSet by its Representation mimeType', () => {
+        // DASH allows @mimeType on the Representation instead of the set.
+        const m = manifest(`
+            <AdaptationSet lang="fr">
+              <Representation id="fr-sub" mimeType="text/vtt" bandwidth="100">
+                <BaseURL>fr.vtt</BaseURL>
+              </Representation>
+            </AdaptationSet>`)
+        const result = discoverDashTextTracks(m, baseUrl)
+        expect(result.length).toBe(1)
+        expect(result[0].language).toBe('fr')
+        expect(result[0].uri).toBe('https://example.com/dash/fr.vtt')
+    })
+
     it('classifies kind=captions when role=caption is set', () => {
         const m = manifest(`
             <AdaptationSet contentType="text" lang="en" mimeType="text/vtt">
@@ -108,6 +122,11 @@ describe('discoverDashTextTracks', () => {
             <AdaptationSet contentType="audio" mimeType="audio/mp4">
               <Representation id="a" bandwidth="48000"/>
             </AdaptationSet>`)
+        expect(discoverDashTextTracks(m, baseUrl)).toEqual([])
+    })
+
+    it('skips a non-text AdaptationSet with no Representation', () => {
+        const m = manifest(`<AdaptationSet contentType="audio"/>`)
         expect(discoverDashTextTracks(m, baseUrl)).toEqual([])
     })
 
