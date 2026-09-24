@@ -18,11 +18,8 @@ export interface ServerHostOptions {
               readonly context: SecureContextOptions
 
               /**
-               * An SNI hostname, or wildcard (e.g. '*').
-               *
-               * If the SSL certificates are not present in the credentials folder, this will not be used.
-               *
-               * Default: 'local.maestro.amazon.dev'
+               * An SNI hostname, or wildcard (e.g. '*'). `context` must provide a
+               * certificate valid for this hostname.
                */
               readonly hostname: string
 
@@ -126,8 +123,7 @@ export async function startExpressServer(
         // HTTPS
         httpsServer = nodeHttps.createServer(
             (req: nodeHttp.IncomingMessage, res: nodeHttp.ServerResponse) => {
-                // call Express and ignore its Promise
-                void app(req, res)
+                app(req, res)
             }
         )
         httpsServer.addContext(https.hostname, https.context)
@@ -149,16 +145,23 @@ export async function startExpressServer(
         // HTTP
         httpServer = nodeHttp.createServer(
             (req: nodeHttp.IncomingMessage, res: nodeHttp.ServerResponse) => {
-                void app(req, res)
+                app(req, res)
             }
         )
 
         const startingPort = http?.port ?? 80
-        const port = await listenWithAddressIncrement(
-            httpServer,
-            startingPort,
-            maxPortAttempts
-        )
+        let port: number
+        try {
+            port = await listenWithAddressIncrement(
+                httpServer,
+                startingPort,
+                maxPortAttempts
+            )
+        } catch (error) {
+            // The caller never receives a handle, so close what is already open.
+            await close(httpsServer)
+            throw error
+        }
         httpDetails = {
             url: `http://localhost:${port}`,
             port,
