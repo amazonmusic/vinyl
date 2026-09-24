@@ -225,7 +225,14 @@ export class MutableValueImpl<T> extends MutableValueBase<T> {
         this._changeId++
         this.n = this.callbacks.length
         try {
-            while (this.currentIndex < this.n - 1) {
+            // `n` bounds the pass to the listeners present when it started, so
+            // one added during it is not notified. The live length bounds it
+            // too, since a callback may drop the remaining listeners — `dispose`
+            // clears them all without adjusting `n`.
+            while (
+                this.currentIndex <
+                Math.min(this.n, this.callbacks.length) - 1
+            ) {
                 this.callbacks[++this.currentIndex](value, previousValue)
             }
         } finally {
