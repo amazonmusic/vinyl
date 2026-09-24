@@ -386,6 +386,34 @@ describe('BufferingControllerImpl', () => {
             })
         })
 
+        describe('when the append budget grows while a segment is partly appended', () => {
+            it('appends only the bytes remaining in the segment', async () => {
+                // A budget wide enough to hold a whole segment, so draining the
+                // buffer can lift it back above the segment size mid-append.
+                bufferingController.dispose()
+                bufferingController = createBufferingController({
+                    maxAppendSize: { audio: 500 },
+                    minBuffer: 6,
+                })
+                bufferingController.activate()
+                setSegmentList([200, 400])
+                await open() // segment 0 appends whole, buffering 0-10s
+                await setTime(5) // segment 1 partly appends: 300 of 400 bytes
+                expect(getMostRecentAppendData().byteLength).toBe(300)
+
+                sourceBufferController.append.calls.reset()
+                // The playhead drains the buffer, widening the budget past the
+                // segment's full size.
+                await setTime(15.5)
+                const appended = sourceBufferController.append.calls
+                    .allArgs()
+                    .map(([data]) => data.byteLength)
+                // Only the 100 unappended bytes; re-appending all 400 would
+                // duplicate the 300 already buffered.
+                expect(appended[0]).toBe(100)
+            })
+        })
+
         describe('when contentType is undefined', () => {
             it('uses DEFAULT_MAX_APPEND_SIZE for max byte length', async () => {
                 setSegmentList(
