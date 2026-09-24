@@ -5,7 +5,7 @@
 
 import { ValidationError } from '@amazon/vinyl-util'
 import { ErrorOrigin } from '@amazon/vinyl-util'
-import { bufferToUtf16 } from '@amazon/vinyl-util'
+import { bufferToArrayBuffer, bufferToUtf16 } from '@amazon/vinyl-util'
 
 /**
  * Extract contentId from event data encoded as UTF16.
@@ -14,7 +14,7 @@ import { bufferToUtf16 } from '@amazon/vinyl-util'
  * `skd://0b5689bb-4171-97e5-c280-99f7abe4004f`
  */
 export function extractContentId(initData: Uint8Array<ArrayBuffer>): string {
-    const bufferStr = bufferToUtf16(initData.buffer)
+    const bufferStr = bufferToUtf16(bufferToArrayBuffer(initData))
     const matches = bufferStr.match(/skd:\/\/(.+)$/)
     if (!matches) {
         throw new ValidationError('No contentId match', ErrorOrigin.MEDIA)

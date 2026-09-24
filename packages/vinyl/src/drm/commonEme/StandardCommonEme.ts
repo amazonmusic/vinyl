@@ -148,12 +148,10 @@ export class StandardCommonMediaKeySession
     }
 
     private generateRequest(): Promise<void> {
-        const initData = this.initData
+        // `initData` is already a BufferSource; reading `buffer` from a view
+        // would ignore its offset and length.
         return this.session
-            .generateRequest(
-                this.initDataType,
-                initData instanceof ArrayBuffer ? initData : initData.buffer
-            )
+            .generateRequest(this.initDataType, this.initData)
             .catch(createDrmErrorHandler())
     }
 

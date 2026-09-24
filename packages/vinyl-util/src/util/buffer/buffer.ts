@@ -100,6 +100,24 @@ export function bufferToByteArray(
 }
 
 /**
+ * Returns the bytes a buffer view spans as a standalone ArrayBuffer.
+ *
+ * Reading `buffer` from a view directly is rarely correct; it spans the whole
+ * underlying allocation, ignoring the view's `byteOffset` and `byteLength`.
+ *
+ * @param buffer An ArrayBuffer, which is returned as is, or a view to copy from.
+ */
+export function bufferToArrayBuffer(
+    buffer: ArrayBufferView<ArrayBuffer> | ArrayBuffer
+): ArrayBuffer {
+    if (buffer instanceof ArrayBuffer) return buffer
+    return buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength
+    )
+}
+
+/**
  * Returns true if the two buffers are equal.
  */
 export function buffersEqual(

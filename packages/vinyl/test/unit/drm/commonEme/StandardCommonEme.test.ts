@@ -11,6 +11,7 @@ import {
     StandardCommonMediaKeySystemAccess,
 } from '@amazon/vinyl'
 import {
+    bufferToArrayBuffer,
     Deferred,
     DisposedError,
     never,
@@ -19,6 +20,7 @@ import {
 import type { MockNavigator } from '@amazon/vinyl-util/browserTestUtil'
 import {
     type EventFakesHandle,
+    expectIterableEquals,
     expectTypeEquals,
     flushPromises,
     implementEventFakes,
@@ -273,10 +275,10 @@ describe('StandardCommonEme', () => {
         })
 
         describe('when created', () => {
-            it('calls session.generateRequest() with the initData buffer', () => {
+            it('calls session.generateRequest() with the initData', () => {
                 expect(
                     mediaKeySession.generateRequest
-                ).toHaveBeenCalledOnceWith('cenc', initData.buffer)
+                ).toHaveBeenCalledOnceWith('cenc', initData)
 
                 mediaKeySession.generateRequest.calls.reset()
                 const arrayBuffer = new ArrayBuffer(0)
@@ -290,6 +292,24 @@ describe('StandardCommonEme', () => {
                 expect(
                     mediaKeySession.generateRequest
                 ).toHaveBeenCalledOnceWith('cenc', arrayBuffer)
+            })
+
+            it('passes only the bytes an offset initData view spans', () => {
+                mediaKeySession.generateRequest.calls.reset()
+                const view = new Uint8Array([1, 2, 3, 4, 5]).subarray(1, 4)
+                standardCommonMediaKeySession =
+                    new StandardCommonMediaKeySession(
+                        mediaKeySession,
+                        mimeType,
+                        'cenc',
+                        view
+                    )
+                const [, passed] =
+                    mediaKeySession.generateRequest.calls.mostRecent().args
+                expectIterableEquals(
+                    new Uint8Array(bufferToArrayBuffer(passed)),
+                    [2, 3, 4]
+                )
             })
 
             describe('when session.generateRequest rejects', () => {

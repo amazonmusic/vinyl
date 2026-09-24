@@ -4,6 +4,7 @@
  */
 
 import {
+    bufferToArrayBuffer,
     bufferToByteArray,
     type Disposable,
     DisposedError,
@@ -166,7 +167,7 @@ export class MsCommonMediaKeySession
 
     private readonly messageHandler = (event: MSMediaKeyMessageEvent) => {
         this.dispatch('message', {
-            message: event.message.buffer as ArrayBuffer,
+            message: bufferToArrayBuffer(event.message),
         })
     }
 
