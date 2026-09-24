@@ -180,13 +180,17 @@ describe('seeking integ', () => {
                 })
 
                 it('can continue seeking', async () => {
-                    const nextEnded = nextEventAsPromise(player, 'ended')
+                    // A fresh promise is needed per end, and must be created
+                    // before the seek that ends the track; awaiting a settled
+                    // one again would not wait for the second end.
+                    let nextEnded = nextEventAsPromise(player, 'ended')
                     await expectTrackCanSeekTo(player, 999)
                     await nextEnded
                     await expectTrackCanSeekTo(player, 0)
                     await expectTrackCanSeekTo(player, 5)
                     await expectTrackCanSeekTo(player, 15)
                     await expectTrackCanSeekTo(player, 35)
+                    nextEnded = nextEventAsPromise(player, 'ended')
                     await expectTrackCanSeekTo(player, 999)
                     await nextEnded
                 })
