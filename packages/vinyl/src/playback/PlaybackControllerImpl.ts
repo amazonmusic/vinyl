@@ -62,7 +62,7 @@ export interface PlaybackControllerImplOptions {
      * The minimum number of seconds before the end of the next seekable range allowed for a seek
      * operation. Some browsers will never complete a seek operation if the seek is too close to
      * this end range.
-     * Default: getMinSeekableBufferDefault() which is between 0.5 and 5, browser dependent.
+     * Default: getMinSeekableBufferDefault(), which is 2 on Chromium and 5 elsewhere.
      */
     readonly minSeekableBuffer: number
 

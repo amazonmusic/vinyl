@@ -150,7 +150,8 @@ export class LruCache<K, V> implements CacheMap<K, V> {
     }
 
     /**
-     * Executes a provided function once per each key/value pair in the Map, in insertion order.
+     * Executes a provided function once per each key/value pair in the Map,
+     * ordered from least recently used to most.
      *
      * @param callback A callback to invoke for every element in the cache.
      * @param thisArg Value to use as this when executing callback

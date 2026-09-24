@@ -72,7 +72,7 @@ export interface SegmentControllerImplDeps {
 export interface SegmentControllerImplOptions {
     /**
      * The amount of time ahead of the playhead to prefetch when the track is active.
-     * Default: 240
+     * Default: 180
      */
     readonly prefetchActive: number
 
