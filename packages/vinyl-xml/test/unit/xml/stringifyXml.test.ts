@@ -13,7 +13,10 @@ import {
     element,
     elements,
     mapXmlRules,
+    parseXml,
+    parseXmlHandler,
     stringifyXml,
+    type XmlRules,
 } from '@amazon/vinyl-xml'
 
 describe('stringifyXml', () => {
@@ -314,6 +317,36 @@ describe('stringifyXml', () => {
             // language=XML
             `<?xml version="1.0"?><doc><![CDATA[<This is > a Set of Characters>&lt;]]></doc>`
         )
+    })
+
+    it('splits a CDATA section that its characters would close early', () => {
+        interface DocType {
+            doc: {
+                chars: string
+            }
+        }
+
+        const rawRules: XmlRules<DocType> = {
+            doc: element({ chars: charactersString }, { required: true }),
+        }
+        const chars = 'before]]>after'
+        const xml = stringifyXml<DocType>(
+            { doc: { chars } },
+            mapXmlRules<DocType>(rawRules),
+            {
+                indent: '',
+                newline: '',
+                includeXmlDeclaration: false,
+            }
+        )
+        expect(xml).toBe(
+            // language=XML
+            `<doc><![CDATA[before]]]]><![CDATA[>after]]></doc>`
+        )
+        // The characters survive a round trip through the parser.
+        expect(
+            parseXml(xml, parseXmlHandler<DocType>(rawRules)).doc.chars
+        ).toBe(chars)
     })
 
     describe('when options.includeXmlDeclaration is false', () => {
