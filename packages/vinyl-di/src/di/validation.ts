@@ -105,7 +105,7 @@ export type ValidFactory<Dm, K extends keyof Dm> = Dm[K] extends (
     add: AddDisposable
 ) => infer R
     ? [R] extends [void]
-        ? [never, Dm[K]]
+        ? NeverNoVoidReturnType
         : [R] extends [ExpectedInputType<Dm, K>]
           ? Dm[K] extends () => any
               ? Dm[K] // No dependencies
@@ -170,7 +170,7 @@ export type ValidProviderDependencies<Deps, Dm> = Deps extends object
  * }
  * ```
  *
- * `FlattenDependencies<'d', Map> // 'c' | 'b' | 'a'`
+ * `FlattenDependencies<Map, 'd'> // 'c' | 'b' | 'a'`
  */
 export type FlattenDependencies<
     Dm,
