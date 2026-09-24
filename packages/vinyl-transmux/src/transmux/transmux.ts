@@ -405,7 +405,7 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
                 })
                 pendingParams = []
             }
-            // Skip other NAL types (SEI, AUD, etc.)
+            // Skip remaining NAL types (AUD, end of sequence/stream, filler).
         }
 
         if (accessUnits.length > 0) {

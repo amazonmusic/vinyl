@@ -54,10 +54,12 @@ export interface HlsDateRange {
     readonly endOnNext?: boolean
 
     /**
-     * The client-defined `X-` attributes of the range, keyed by their full
-     * attribute name (e.g. `X-ASSET-URI`). Values are the raw parsed strings
-     * with surrounding quotes removed. Numeric and hex `X-` attributes are
-     * kept verbatim so callers can interpret them per their own schema.
+     * Every attribute of the range that does not map to a typed field above,
+     * keyed by its full attribute name — the client-defined `X-` attributes
+     * (e.g. `X-ASSET-URI`) plus the remaining standard ones such as `CUE` and
+     * `SCTE35-*`. Values are the raw parsed strings with surrounding quotes
+     * removed. Numeric and hex attributes are kept verbatim so callers can
+     * interpret them per their own schema.
      */
     readonly clientAttributes: Readonly<Record<string, string>>
 }
