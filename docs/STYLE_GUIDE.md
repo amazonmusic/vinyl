@@ -56,7 +56,7 @@ formatting rules have automatic fixes.
 
 To run prettier fixes, in the terminal run: `prettier . --write`
 
-To run both prettier and oxlint auto-fix commands, run: `bb lint:write`
+To run both prettier and oxlint auto-fix commands, run: `npm run lint:write`
 
 ## Best Practices
 
