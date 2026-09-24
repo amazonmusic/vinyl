@@ -656,6 +656,53 @@ describe('AdControllerImpl', () => {
             await flush()
             expect(c.currentAdBreak).toBeNull()
         })
+
+        it('still enters a pending break when skipped while its ads resolve', async () => {
+            const c = createController()
+            let resolveAds: (ads: readonly AdInfo[]) => void = () => undefined
+            const entered: string[] = []
+            await setContent(
+                c,
+                trackAds(
+                    makeBreak({
+                        id: 'b1',
+                        startTime: 0,
+                        duration: 30,
+                        ads: () =>
+                            new Promise<readonly AdInfo[]>((resolve) => {
+                                resolveAds = resolve
+                            }),
+                    }),
+                    makeBreak({
+                        id: 'b2',
+                        startTime: 1,
+                        duration: 30,
+                        ads: [
+                            {
+                                id: 'a2',
+                                startTime: 1,
+                                duration: 10,
+                                uri: 'ad2.m3u8',
+                            },
+                        ],
+                    })
+                )
+            )
+            c.on('adBreakEntered', (e) => entered.push(e.adBreak.id))
+            // Both breaks contain the playhead, so both become pending and the
+            // first is entered while its ad list is still in flight.
+            updateTime(2)
+            await flush()
+            expect(entered).toEqual(['b1'])
+
+            c.skipAdBreak()
+            resolveAds([])
+            await flush()
+            // Nothing else drains the pending list, and a non-empty list blocks
+            // further midroll ingress, so b2 must be entered here.
+            expect(entered).toEqual(['b1', 'b2'])
+            expect(c.currentAdBreak?.id).toBe('b2')
+        })
     })
 
     describe('a break with no ads', () => {
@@ -958,6 +1005,38 @@ describe('AdControllerImpl', () => {
             updateTime(8)
             await flush()
             expect(thirds).toEqual(['a1'])
+        })
+
+        it('dispatches each quartile at most once per ad', async () => {
+            const c = createController()
+            const events: string[] = []
+            c.on('adFirstQuartile', () => events.push('first'))
+            c.on('adMidpoint', () => events.push('mid'))
+            c.on('adThirdQuartile', () => events.push('third'))
+            await setContent(
+                c,
+                trackAds(makeBreak({ startTime: 0, duration: 10 }))
+            )
+            updateTime(0)
+            await flush()
+            playbackController.dispatch('playing', {})
+            playbackController.duration = 10
+            playbackController.playbackRate = 1
+            // Every subsequent timeUpdate is still past each threshold, so an
+            // unlatched check would report the quartile again.
+            for (const [percent, time] of [
+                [0.3, 3],
+                [0.4, 4],
+                [0.6, 6],
+                [0.7, 7],
+                [0.8, 8],
+                [0.9, 9],
+            ] as const) {
+                playbackController.currentTimePercent = percent
+                updateTime(time)
+                await flush()
+            }
+            expect(events).toEqual(['first', 'mid', 'third'])
         })
 
         it('does not emit quartiles or throw when the ad duration is zero', async () => {
