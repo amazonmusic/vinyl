@@ -222,7 +222,8 @@ export class XmlWriter<T> {
         if (!charactersRule) return null
         const str = charactersRule.stringify(object[charactersRule.property])
         if (!str) return ''
-        return `<![CDATA[${str}]]>`
+        // `]]>` would close the section early, so it is split across two of them.
+        return `<![CDATA[${str.split(']]>').join(']]]]><![CDATA[>')}]]>`
     }
 
     /**
