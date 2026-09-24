@@ -88,5 +88,5 @@ export interface WebKitMediaKeySessionEventMap {
 }
 
 export interface WebKitMediaKeyMessageEvent extends Event {
-    readonly message: Uint8Array
+    readonly message: Uint8Array<ArrayBuffer>
 }

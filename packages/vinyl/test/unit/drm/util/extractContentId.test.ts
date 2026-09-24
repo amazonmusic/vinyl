@@ -21,6 +21,14 @@ describe('extractContentId', () => {
         })
     })
 
+    describe('with an offset view', () => {
+        it('reads only the bytes the view spans', () => {
+            const padded = createContentIdByteArray('\0\0skd://example0\0\0')
+            const view = padded.subarray(4, padded.byteLength - 4)
+            expect(extractContentId(view)).toBe('example0')
+        })
+    })
+
     describe('without match', () => {
         it('throws ValidationError', () => {
             expect(() => {
