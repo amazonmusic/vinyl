@@ -12,8 +12,8 @@ import type { TextTrackInfo } from './TextTrack'
  *
  * Considers an `<AdaptationSet>` to carry text when one of:
  *  - `contentType="text"`
- *  - `mimeType` starts with `text/` (e.g. `text/vtt`)
- *  - `mimeType` is `application/mp4` *and* the codec/role indicates text
+ *  - its `mimeType`, or that of one of its `<Representation>`s, starts with
+ *    `text/` (e.g. `text/vtt`)
  *
  * Within a text adaptation set, each `<Representation>` becomes one
  * {@link TextTrackInfo}. The `BaseURL` chain (MPD → Period → AdaptationSet →
@@ -91,11 +91,15 @@ export function discoverDashTextTracks(
 function isTextAdaptationSet(adaptationSet: {
     readonly contentType?: string
     readonly mimeType?: string
+    readonly Representation?: readonly { readonly mimeType?: string }[]
 }): boolean {
     if (adaptationSet.contentType === 'text') return true
     const mt = adaptationSet.mimeType
     if (mt && mt.startsWith('text/')) return true
-    return false
+    // `mimeType` may be declared on the Representation rather than the set.
+    return (adaptationSet.Representation ?? []).some((representation) =>
+        representation.mimeType?.startsWith('text/')
+    )
 }
 
 function isSidecarTextMime(mimeType: string | null): boolean {
