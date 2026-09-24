@@ -219,6 +219,8 @@ export class MutableValueImpl<T> extends MutableValueBase<T> {
     dispose() {
         this._disposed = true
         this.callbacks.length = 0
+        // Ends an in-progress notification pass, as unsubscribing adjusts `n`.
+        this.n = 0
     }
 
     private notify(value: T, previousValue: T) {
