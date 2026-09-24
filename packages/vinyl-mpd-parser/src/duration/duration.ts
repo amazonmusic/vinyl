@@ -82,18 +82,23 @@ export function stringifyDuration(value: Duration): string {
 
     const years = Math.floor(abs / Y)
     abs -= years * Y
-    const months = Math.floor((abs % Y) / M)
+    const months = Math.floor(abs / M)
     const days = Math.floor((abs % M) / D)
     const hours = Math.floor((abs % D) / H)
     const minutes = Math.floor((abs % H) / I)
     const seconds = abs % I
-    let isoString = `${sign}P`
-    if (years > 0) isoString += `${years}Y`
-    if (months > 0) isoString += `${months}M`
-    if (days > 0) isoString += `${days}D`
-    isoString += 'T'
-    if (hours > 0) isoString += `${hours}H`
-    if (minutes > 0) isoString += `${minutes}M`
-    if (seconds > 0 || !value) isoString += `${roundToNearest(seconds, 0.001)}S`
-    return isoString
+
+    let date = ''
+    if (years > 0) date += `${years}Y`
+    if (months > 0) date += `${months}M`
+    if (days > 0) date += `${days}D`
+    let time = ''
+    if (hours > 0) time += `${hours}H`
+    if (minutes > 0) time += `${minutes}M`
+    if (seconds > 0) time += `${roundToNearest(seconds, 0.001)}S`
+    // A duration must carry at least one component, so a zero duration is
+    // written as `PT0S`. The time designator is only written when a time
+    // component follows it; a trailing `T` is not a valid duration.
+    if (!date && !time) time = '0S'
+    return `${sign}P${date}${time && `T${time}`}`
 }

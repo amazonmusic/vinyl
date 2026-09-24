@@ -94,8 +94,30 @@ describe('stringifyDuration', () => {
     })
 
     it(`ensures there's at least one component present in the result`, () => {
-        expect(stringifyDuration(10 * 365 * 24 * 60 * 60)).toBe('P10YT')
         expect(stringifyDuration(5 * 60)).toBe('PT5M')
         expect(stringifyDuration(0)).toBe('PT0S')
+    })
+
+    it('omits the time designator when no time component follows it', () => {
+        // A trailing `T` is not a valid xs:duration.
+        expect(stringifyDuration(10 * 365 * 24 * 60 * 60)).toBe('P10Y')
+        expect(stringifyDuration(30 * 24 * 60 * 60)).toBe('P1M')
+        expect(stringifyDuration(24 * 60 * 60)).toBe('P1D')
+        expect(stringifyDuration(-(24 * 60 * 60))).toBe('-P1D')
+    })
+
+    it('round-trips whole date components through parseDuration', () => {
+        for (const value of [
+            24 * 60 * 60,
+            30 * 24 * 60 * 60,
+            365 * 24 * 60 * 60,
+            0,
+            5 * 60,
+            90061.5,
+        ]) {
+            expect(parseDuration(stringifyDuration(value)))
+                .withContext(`${value} -> ${stringifyDuration(value)}`)
+                .toBeCloseTo(value)
+        }
     })
 })

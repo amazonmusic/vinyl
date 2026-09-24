@@ -181,7 +181,7 @@ export interface BufferingControllerImplOptions {
 
     /**
      * The maximum number of bytes to append at a time per content type.
-     * Default: { audio: 1MiB, video: 15MiB }
+     * Default: { audio: 10MiB, video: 150MiB }
      */
     readonly maxAppendSize: Partial<Record<ContentType, number>>
 }
