@@ -86,8 +86,34 @@ const knownDirectives: Record<string, keyof CacheControl | undefined> = {
 } as const
 
 /**
+ * The directives whose argument is a delta-seconds count. The rest are present
+ * or absent; any argument they carry does not change that.
+ */
+const numericDirectives: ReadonlySet<keyof CacheControl> = new Set([
+    'maxAge',
+    'staleWhileRevalidate',
+    'staleIfError',
+])
+
+/**
+ * Strips the quotes from a quoted-string directive argument. A directive
+ * argument may be a token or a quoted-string (RFC 9111 §5.2).
+ */
+function unquote(value: string): string {
+    const trimmed = value.trim()
+    return trimmed.length > 1 &&
+        trimmed.startsWith('"') &&
+        trimmed.endsWith('"')
+        ? trimmed.slice(1, -1)
+        : trimmed
+}
+
+/**
  * Parses a Cache-Control header string into a structured object.
  * Handles known directives with optional numeric values.
+ *
+ * A delta-seconds directive whose argument is missing or not a number is
+ * ignored, so the returned values always match their declared types.
  *
  * @param str - The Cache-Control header string to parse.
  * @returns A CacheControl object representing the parsed directives.
@@ -96,23 +122,19 @@ export function parseCacheControl(
     str: string | null | undefined
 ): CacheControl {
     if (!str) return {}
-    const directives: any = {}
+    const directives: Record<string, number | boolean> = {}
     str.split(',').forEach((part) => {
         const [key, value] = part.trim().split('=') as [string, string?]
         const directiveKey = key.trim().toLowerCase() // Ensure case-insensitivity
 
         const typedKey = knownDirectives[directiveKey]
-        if (typedKey) {
-            // Parse the value or set to true for boolean directives
-            if (value === undefined) {
-                directives[typedKey] = true
-            } else {
-                const numericValue = parseInt(value, 10)
-                directives[typedKey] = isNaN(numericValue)
-                    ? value
-                    : numericValue
-            }
+        if (!typedKey) return
+        if (!numericDirectives.has(typedKey)) {
+            directives[typedKey] = true
+            return
         }
+        const numericValue = parseInt(unquote(value ?? ''), 10)
+        if (!isNaN(numericValue)) directives[typedKey] = numericValue
     })
     return directives
 }
