@@ -232,11 +232,13 @@ export class CacheManager {
             cacheControl,
             getCachedTimestamp(cached)
         )
-        if (cacheBehavior.preferCache) {
+        // There must be an entry to prefer: an `immutable` directive supplied
+        // through the options makes `preferCache` true even on a miss.
+        if (cached && cacheBehavior.preferCache) {
             if (cacheBehavior.reevaluate) {
                 fetchAndMaybeCache().catch(this.errorHandler)
             }
-            return cached!
+            return cached
         } else {
             if (!cacheBehavior.allowNetwork && !cached) {
                 throw new Error(NOT_CACHED_ERROR)
