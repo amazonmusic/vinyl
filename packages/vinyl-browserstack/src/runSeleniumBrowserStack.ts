@@ -15,6 +15,7 @@ import {
     logger,
     LogLevel,
     progressBar,
+    type ServerHandle,
     startBrowserStackLocal,
     startExpressServer,
     type WorkerOptions,
@@ -43,6 +44,10 @@ function generateNameForBrowser(browser: BrowserDetails): string {
     ]
         .filter((str) => str)
         .join(' ')
+}
+
+function logShutdownError(error: unknown): void {
+    logger.error('Failed to shut down cleanly:', error)
 }
 
 /**
@@ -91,7 +96,14 @@ export async function runSeleniumBrowserStack(
 
     const app = express()
     configureExpress(app, options.server)
-    const serverHandle = await startExpressServer({ app }, options.server)
+    let serverHandle: ServerHandle
+    try {
+        serverHandle = await startExpressServer({ app }, options.server)
+    } catch (error) {
+        // The tunnel is already up; leaving it running would hold the session.
+        await shutdownLocalTunnel()
+        throw error
+    }
 
     const client = new BrowserStackAutomateClient(bsCredentials)
 
@@ -140,13 +152,15 @@ export async function runSeleniumBrowserStack(
                 previousDecile = decile
             }
         }
-        if (options.stopOnFirstFailure && state.failed) void shutdown()
-        if (!state.remaining) void shutdown()
+        if ((options.stopOnFirstFailure && state.failed) || !state.remaining)
+            shutdown().catch(logShutdownError)
     }
 
     const sigIntHandler = () => {
         logger.info('SIGINT signal received.')
-        void shutdown().then(() => process.exit(1))
+        shutdown()
+            .catch(logShutdownError)
+            .finally(() => process.exit(1))
     }
     process.once('SIGINT', sigIntHandler)
 
@@ -159,12 +173,16 @@ export async function runSeleniumBrowserStack(
         logger.debug('Shutting down')
         process.removeListener('SIGINT', sigIntHandler)
 
-        await workerController.terminate()
-        await serverHandle.close()
-        await shutdownLocalTunnel()
-        const passed = workerController.allPassed
-        if (passed) logger.info('✅ All tests passed')
-        done({ passed })
+        try {
+            await workerController.terminate()
+            await serverHandle.close()
+            await shutdownLocalTunnel()
+        } finally {
+            // Report results even if teardown failed, otherwise the run hangs.
+            const passed = workerController.allPassed
+            if (passed) logger.info('✅ All tests passed')
+            done({ passed })
+        }
     }
     workerController.start()
     return await donePromise
@@ -180,12 +198,10 @@ export function runSeleniumBrowserStackAndExit(
         .then((result) => {
             if (!result.passed) process.exit(1)
         })
-        .catch((error: any) => {
-            console.error(
-                ansi.red +
-                    String('message' in error ? error.message : error) +
-                    ansi.resetColor
-            )
+        .catch((error: unknown) => {
+            const message =
+                error instanceof Error ? error.message : String(error)
+            console.error(ansi.red + message + ansi.resetColor)
             process.exit(1)
         })
 }
