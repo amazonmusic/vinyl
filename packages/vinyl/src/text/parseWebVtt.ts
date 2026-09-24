@@ -107,9 +107,10 @@ export function parseWebVtt(input: string): WebVttDocument {
     // Per the WebVTT spec, everything from the `WEBVTT` signature up to (and
     // including) the first blank line is the file header — metadata lines (e.g.
     // HLS's `X-TIMESTAMP-MAP=...`) belong in that block and MUST NOT be
-    // interpreted as cue content.
+    // interpreted as cue content. The header also ends at a timing line, so a
+    // document that omits the blank line still has its first cue parsed.
     let i = 1
-    while (i < lines.length && lines[i] !== '') i++
+    while (i < lines.length && lines[i] !== '' && !lines[i].includes('-->')) i++
 
     while (i < lines.length) {
         // Skip blank lines between blocks.
