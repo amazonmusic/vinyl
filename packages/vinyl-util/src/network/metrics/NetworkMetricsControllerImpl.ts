@@ -250,9 +250,11 @@ export class NetworkMetricsControllerImpl
     }
 
     private onDownloadSpeedChange = () => {
-        const downlink = this.deps.networkInformation?.downlink // mbps
+        const downlink = this.deps.networkInformation?.downlink // Mbps
         const estimatedSpeed = downlink
-            ? downlink * 1024 * 1024 // bps
+            ? // Megabits are decimal, matching the measured `bytes * 8 / seconds`
+              // this estimate is averaged with.
+              downlink * 1_000_000 // bps
             : this.options.unknownDownlinkBandwidthEstimate
         updateStatMetrics(
             this._metrics.estimatedDownlinkBandwidth,
