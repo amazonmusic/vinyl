@@ -755,7 +755,7 @@ describe('NetworkMetricsControllerImpl', () => {
             beforeEach(() => {
                 networkInformation = new MockNetworkInformation()
                 implementEventFakes(networkInformation)
-                networkInformation.downlink = 20 / 1024 / 1024 // mbps
+                networkInformation.downlink = 20 / 1_000_000 // Mbps
                 mC = new NetworkMetricsControllerImpl(
                     {
                         networkInformation,
@@ -777,7 +777,7 @@ describe('NetworkMetricsControllerImpl', () => {
                         min: 20,
                     })
 
-                    networkInformation.downlink = 16 / 1024 / 1024 // mbps
+                    networkInformation.downlink = 16 / 1_000_000 // Mbps
                     const e = mockEvent('change')
                     networkInformation.dispatchEvent(e)
                     expect(mC.metrics.estimatedDownlinkBandwidth).toEqual({
@@ -830,6 +830,14 @@ describe('NetworkMetricsControllerImpl', () => {
                         max: 20,
                         min: 8,
                     })
+                })
+
+                it('reads downlink as decimal megabits per second', () => {
+                    networkInformation.downlink = 10
+                    networkInformation.dispatchEvent(mockEvent('change'))
+                    expect(mC.metrics.estimatedDownlinkBandwidth.latest).toBe(
+                        10_000_000
+                    )
                 })
             })
         })
