@@ -19,9 +19,12 @@ export function applyClassList(
     element: HTMLElement,
     classList: readonly (Maybe<string> | ObservableValue<Maybe<string>>)[]
 ): Unsubscribe {
-    const tokens = classList.filter((s) => typeof s === 'string')
-    element.classList.add(...tokens)
-    if (tokens.length < classList.length) {
+    const strings = classList.filter((s) => typeof s === 'string')
+    // The empty string is not a valid class token — `add` rejects it — so it is
+    // dropped here as `bindClass` drops it for an observable token.
+    const tokens = strings.filter((s) => s !== '')
+    if (tokens.length) element.classList.add(...tokens)
+    if (strings.length < classList.length) {
         return onConnect(element, () => {
             const { add, dispose } = createDisposer()
             for (const dP of classList.filter(isObservableValue)) {
