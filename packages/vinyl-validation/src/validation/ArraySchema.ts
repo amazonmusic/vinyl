@@ -94,7 +94,11 @@ export const arrayValidators = {
             (length: number) => length === validators.length
         )
         return createDeepValidator(
-            substitute(locale.tuple, { value: validators.join(', ') }),
+            substitute(locale.tuple, {
+                value: validators
+                    .map((validator) => validator.description)
+                    .join(', '),
+            }),
             (input, options, path) => {
                 const errors: ValidationErrorMessage[] = []
                 errors.push(
