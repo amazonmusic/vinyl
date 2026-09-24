@@ -745,6 +745,12 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         for (const cachedTrack of this.trackCache.values()) {
             cachedTrack.clearPrefetch()
         }
+        // Ad tracks are held per parent, outside the track cache, so they would
+        // otherwise keep the fragments fetched before the change and serve them
+        // when their break is entered.
+        for (const adTracks of this.adTracksByParent.values()) {
+            for (const adTrack of adTracks.values()) adTrack.clearPrefetch()
+        }
     }
 
     clearQueue(): void {
