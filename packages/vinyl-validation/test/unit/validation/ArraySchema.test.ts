@@ -186,6 +186,12 @@ describe('ArraySchema', () => {
             ])
         })
 
+        it('describes itself with its element validators', () => {
+            expect(tuple(isOneOf(5, 6), isOneOf(7, 8)).description).toBe(
+                'array & [one of: 5 | 6, one of: 7 | 8]'
+            )
+        })
+
         describe('when options.all is true', () => {
             it('returns all validation errors', () => {
                 const v: Validator<[number, string]> = tuple(

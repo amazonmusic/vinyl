@@ -94,7 +94,7 @@ export class StringSchema extends ValueSchema<string> {
     private static _base: StringSchema | null = null
 
     /**
-     * The base SetSchema instance validating that the input is a Set.
+     * The base StringSchema instance validating that the input is a string.
      */
     static get base(): StringSchema {
         if (this._base == null)
