@@ -5,6 +5,7 @@
 
 import type { Unsubscribe } from '@amazon/vinyl-util'
 import {
+    bufferToArrayBuffer,
     bufferToByteArray,
     type Disposable,
     DisposedError,
@@ -162,7 +163,7 @@ export class WebKitCommonMediaKeySession
 
     private readonly messageHandler = (event: WebKitMediaKeyMessageEvent) => {
         this.dispatch('message', {
-            message: event.message.buffer as ArrayBuffer,
+            message: bufferToArrayBuffer(event.message),
         })
     }
 
