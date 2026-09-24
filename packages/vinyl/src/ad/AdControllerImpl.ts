@@ -503,7 +503,14 @@ export class AdControllerImpl
                 // The break may have been completed or swapped out (a content
                 // change, skip, or playout-limit) while its ads were resolving;
                 // don't start an ad for an abandoned break.
-                if (this.disposed || adBreakState.completedReason) return
+                if (this.disposed) return
+                if (adBreakState.completedReason) {
+                    // Whoever completed it could not advance (this call still
+                    // holds `loadingNext`), and nothing else drains the pending
+                    // list — a non-empty list blocks midroll ingress outright.
+                    if (!this.adBreakState) await nextBreak()
+                    return
+                }
                 if (ad) {
                     this.startAd(ad)
                 } else {
@@ -698,6 +705,7 @@ export class AdControllerImpl
                 currProgress > 0.25 &&
                 progressStart < AD_START_TOLERANCE
             ) {
+                adState.quartile.first = true
                 this.dispatch('adFirstQuartile', createAdProgressEvent(adState))
             }
             if (
@@ -705,6 +713,7 @@ export class AdControllerImpl
                 currProgress > 0.5 &&
                 progressStart < 0.25 + AD_START_TOLERANCE
             ) {
+                adState.quartile.midpoint = true
                 this.dispatch('adMidpoint', createAdProgressEvent(adState))
             }
             if (
@@ -712,6 +721,7 @@ export class AdControllerImpl
                 currProgress > 0.75 &&
                 progressStart < 0.5 + AD_START_TOLERANCE
             ) {
+                adState.quartile.third = true
                 this.dispatch('adThirdQuartile', createAdProgressEvent(adState))
             }
             // adEnded is not on progress but on a call to `endAd()`.
