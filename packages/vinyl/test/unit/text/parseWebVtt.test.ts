@@ -431,6 +431,34 @@ hi`
         expect(cues[0].text).toBe('hi')
     })
 
+    it('parses a cue that follows the signature with no blank line', () => {
+        // The header block ends at a timing line as well as at a blank line
+        // (WebVTT file parsing breaks out of the header loop on `-->`), so a
+        // document omitting the blank line still yields its cues.
+        const text = `WEBVTT
+00:00:01.000 --> 00:00:02.000
+hi
+
+00:00:03.000 --> 00:00:04.000
+there`
+        const cues = parseWebVtt(text).cues
+        expect(cues.length).toBe(2)
+        expect(cues[0].startTime).toBe(1)
+        expect(cues[0].text).toBe('hi')
+        expect(cues[1].text).toBe('there')
+    })
+
+    it('keeps header lines as header when a cue follows with no blank line', () => {
+        const text = `WEBVTT
+Kind: captions
+00:00:01.000 --> 00:00:02.000
+hi`
+        const cues = parseWebVtt(text).cues
+        expect(cues.length).toBe(1)
+        expect(cues[0].id).toBeNull()
+        expect(cues[0].text).toBe('hi')
+    })
+
     it('handles trailing identifier without timing line', () => {
         // Identifier with no following timing line - cue is dropped, parser
         // breaks out cleanly without throwing.
