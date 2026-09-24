@@ -289,39 +289,46 @@ export class RequesterImpl
 
         let lastResult: RequestResult | null = null
         let currentTry = 0
-        do {
-            ++currentTry
-            const attemptInfo: RequestAttemptInfo = {
-                currentTry,
-                timestamp: Date.now(),
-            }
-            this.dispatch('requestAttemptStart', {
-                requestInfo,
-                attemptInfo,
-            })
-            lastResult = await this.doRequest(
-                requestInfo,
-                requestOptions,
-                attemptInfo,
-                timeoutController
-            ).catch((reason) => {
-                const completeInfo: RequestCaughtErrorEvent = {
-                    ok: false,
-                    type: requestOptions.abort?.aborted()
-                        ? RequestFailureType.ABORT
-                        : RequestFailureType.INTERNAL,
-                    requestInfo,
-                    reason,
-                    willRetry: false,
+        try {
+            do {
+                ++currentTry
+                const attemptInfo: RequestAttemptInfo = {
+                    currentTry,
                     timestamp: Date.now(),
-                    retryAfter: null,
                 }
-                return { info: completeInfo, response: null } as const
-            })
+                this.dispatch('requestAttemptStart', {
+                    requestInfo,
+                    attemptInfo,
+                })
+                lastResult = await this.doRequest(
+                    requestInfo,
+                    requestOptions,
+                    attemptInfo,
+                    timeoutController
+                ).catch((reason) => {
+                    const completeInfo: RequestCaughtErrorEvent = {
+                        ok: false,
+                        type: requestOptions.abort?.aborted()
+                            ? RequestFailureType.ABORT
+                            : RequestFailureType.INTERNAL,
+                        requestInfo,
+                        reason,
+                        willRetry: false,
+                        timestamp: Date.now(),
+                        retryAfter: null,
+                    }
+                    return { info: completeInfo, response: null } as const
+                })
+                this.reportMetricsEntry(lastResult.info)
+                this.dispatch('requestAttemptComplete', lastResult.info)
+            } while (!lastResult.info.ok && lastResult.info.willRetry)
+        } finally {
+            // `timeout` budgets the whole request, including its retries and the
+            // backoff between them, so the controller lives until they are done —
+            // disposing it after an attempt would clear the timeout and stop the
+            // caller's abort from reaching a retry's fetch.
             timeoutController.dispose()
-            this.reportMetricsEntry(lastResult.info)
-            this.dispatch('requestAttemptComplete', lastResult.info)
-        } while (!lastResult.info.ok && lastResult.info.willRetry)
+        }
         this.dispatch('requestComplete', lastResult.info)
         if (lastResult.info.ok) return lastResult.response!
         else throw new RequestError(lastResult.response, lastResult.info)
