@@ -211,7 +211,9 @@ export interface MediaQualityMetadata extends MediaFormatMetadata {
      * An array restricts switching to only the listed group IDs.
      * Default behavior:
      * - DASH: restricted to own group unless adaptation-set-switching property is present.
-     * - HLS: restricted to variants with the same base codec and language.
+     * - HLS: unconstrained (null). Every variant is one group, and renditions are
+     *   selected by the media timeline's language and accessibility filters
+     *   rather than by a switching group.
      */
     readonly switchingGroupIds: readonly string[] | null
 }
