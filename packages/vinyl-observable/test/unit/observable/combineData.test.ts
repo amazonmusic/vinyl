@@ -31,7 +31,7 @@ describe('combineData', () => {
         b.value = 'y'
         expect(callback).toHaveBeenCalledWith(
             { a: 1, b: 'y' },
-            { a: 1, b: 'y' }
+            { a: 1, b: 'x' }
         )
 
         callback.calls.reset()
@@ -42,7 +42,7 @@ describe('combineData', () => {
         )
     })
 
-    it('ignores initial onData trigger from each input', () => {
+    it('emits once for the initial onData trigger of every input', () => {
         const a = data(5)
         const b = data(true)
 
@@ -61,12 +61,30 @@ describe('combineData', () => {
         a.value = 10
         expect(callback).toHaveBeenCalledWith(
             { a: 10, b: true },
-            { a: 10, b: true }
+            { a: 5, b: true }
         )
 
-        // The internal first-call flags are working because we didn't get redundant initial calls
+        // Each input is subscribed, and their immediate emissions were folded
+        // into the single initial call rather than emitting per input.
         expect(spyA).toHaveBeenCalled()
         expect(spyB).toHaveBeenCalled()
+    })
+
+    it('emits an input that changed before the first subscription', () => {
+        const a = data(1)
+        const b = data(2)
+        const combined = combineData({ a, b })
+
+        // combineData snapshots values when built, but its inputs are only
+        // subscribed on the first onData, so the snapshot can already be stale.
+        a.value = 99
+
+        const callback = jasmine.createSpy('callback')
+        combined.onData(callback)
+        expect(callback).toHaveBeenCalledOnceWith({ a: 99, b: 2 }, undefined)
+
+        b.value = 3
+        expect(callback).toHaveBeenCalledWith({ a: 99, b: 3 }, { a: 99, b: 2 })
     })
 
     it('unsubscribes from all inputs when outer unsub is called', () => {
