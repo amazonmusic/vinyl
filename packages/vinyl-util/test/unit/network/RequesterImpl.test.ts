@@ -865,6 +865,45 @@ describe('RequesterImpl module', () => {
             })
         })
 
+        describe('when the caller aborts during a retry', () => {
+            it('aborts that attempt’s fetch signal', async () => {
+                const signals: AbortSignal[] = []
+                const fetch = createSpy('fetch').and.callFake(
+                    (_input: any, init: any) => {
+                        signals.push(init.signal)
+                        // The first attempt fails so a retry is made; the retry
+                        // hangs until its signal aborts, as a real fetch would.
+                        if (signals.length === 1)
+                            return Promise.resolve(mock503Response)
+                        return new Promise((_resolve, reject) => {
+                            init.signal.addEventListener('abort', () =>
+                                reject(new Error('aborted by signal'))
+                            )
+                        })
+                    }
+                )
+                const requester = new RequesterImpl({
+                    networkMetricsController,
+                    fetch,
+                })
+                requester.configure({ retryOptions: { retries: 1 } })
+
+                const abort = new Abort()
+                const pending = expectAsync(
+                    requester.request('https://example.com', null, { abort })
+                ).toBeRejectedWith(any(RequestError))
+                // Let the failed attempt and the retry's zero backoff settle,
+                // well within the request timeout.
+                await clock.tick(0)
+                expect(signals.length).withContext('attempts').toBe(2)
+
+                abort.abort(new Error('caller aborted'))
+                await Promise.all([pending, clock.tick(0)])
+                // The retry's request must be cancelled, not just abandoned.
+                expect(signals[1].aborted).toBeTrue()
+            })
+        })
+
         describe('options', () => {
             it('returns the current options', () => {
                 const fetch: Fetch = () => Promise.resolve(mockOkResponse)
