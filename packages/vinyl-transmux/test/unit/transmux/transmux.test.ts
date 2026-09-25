@@ -55,6 +55,13 @@ describe('createTransmuxer', () => {
         )
     }
 
+    function toArrayBuffer(data: Uint8Array): ArrayBuffer {
+        return data.buffer.slice(
+            data.byteOffset,
+            data.byteOffset + data.byteLength
+        ) as ArrayBuffer
+    }
+
     describe('ADTS transmuxing', () => {
         it('produces an init segment on first call', () => {
             const transmuxer = createTransmuxer()
@@ -354,6 +361,78 @@ describe('createTransmuxer', () => {
                 )
             )
             expect(result.initSegment).not.toBeNull()
+        })
+    })
+
+    describe('when a track type only appears after the first segment', () => {
+        /**
+         * Collects the `track_ID` of every box of the given type, descending
+         * into container boxes.
+         */
+        function collectTrackIds(
+            data: Uint8Array,
+            boxType: 'tkhd' | 'tfhd',
+            start = 0,
+            end = data.length,
+            out: number[] = []
+        ): number[] {
+            const containers = [
+                'moov',
+                'trak',
+                'mdia',
+                'minf',
+                'stbl',
+                'moof',
+                'traf',
+            ]
+            let pos = start
+            while (pos + 8 <= end) {
+                const boxSize = readBoxSize(data, pos)
+                if (boxSize < 8) break
+                const type = readBoxType(data, pos)
+                if (type === boxType) {
+                    // Both boxes are full boxes; tkhd version 0 precedes
+                    // track_ID with creation and modification times.
+                    const idPos = boxType === 'tkhd' ? pos + 20 : pos + 12
+                    out.push(readBoxSize(data, idPos))
+                }
+                if (containers.includes(type))
+                    collectTrackIds(data, boxType, pos + 8, pos + boxSize, out)
+                pos += boxSize
+            }
+            return out
+        }
+
+        it('only references tracks the cached init segment declares', async () => {
+            const { buildMinimalTsSegment } =
+                await import('../testUtil/buildTsSegment')
+            const { decodeBipbopTsSegment } =
+                await import('../testUtil/bipbopTsFixture')
+            const transmuxer = createTransmuxer()
+
+            // An audio-only segment fixes the init segment to one audio track.
+            const audioOnly = buildMinimalTsSegment()
+            const first = transmuxer.transmux(toArrayBuffer(audioOnly))
+            const declared = collectTrackIds(
+                new Uint8Array(first.initSegment),
+                'tkhd'
+            )
+            expect(declared).toEqual([1])
+            expect(
+                collectTrackIds(new Uint8Array(first.mediaSegment), 'tfhd')
+            ).toEqual([1])
+
+            // A later segment also carries video, which the init segment has no
+            // track for. Its samples must not be muxed onto the audio track,
+            // and the audio must not move to an undeclared track.
+            const audioVideo = decodeBipbopTsSegment()
+            const second = transmuxer.transmux(toArrayBuffer(audioVideo))
+            expect(
+                collectTrackIds(new Uint8Array(second.initSegment), 'tkhd')
+            ).toEqual(declared)
+            expect(
+                collectTrackIds(new Uint8Array(second.mediaSegment), 'tfhd')
+            ).toEqual([1])
         })
     })
 

@@ -156,6 +156,35 @@ describe('string', () => {
         it('ignores named entities not found', () => {
             expect(decodeEntities(`&missing;`)).toBe(`&missing;`)
         })
+
+        it('decodes hexadecimal character references', () => {
+            expect(decodeEntities(`&#x26;`)).toBe(`&`)
+            expect(decodeEntities(`a&#x2019;b`)).toBe(`a’b`)
+        })
+
+        it('decodes hexadecimal character references case-insensitively', () => {
+            expect(decodeEntities(`&#X2019;&#x2019;&#x2Af;`)).toBe(`’’ʯ`)
+        })
+
+        it('decodes character references outside the basic plane', () => {
+            expect(decodeEntities(`&#128512;`)).toBe(`\u{1f600}`)
+            expect(decodeEntities(`&#x1F600;`)).toBe(`\u{1f600}`)
+        })
+
+        it('ignores character references that are not valid code points', () => {
+            // Beyond the Unicode range.
+            expect(decodeEntities(`&#1114112;`)).toBe(`&#1114112;`)
+            expect(decodeEntities(`&#x110000;`)).toBe(`&#x110000;`)
+            // A lone surrogate half is not a character.
+            expect(decodeEntities(`&#xD800;`)).toBe(`&#xD800;`)
+            expect(decodeEntities(`&#57343;`)).toBe(`&#57343;`)
+        })
+
+        it('ignores malformed character references', () => {
+            expect(decodeEntities(`&#;`)).toBe(`&#;`)
+            expect(decodeEntities(`&#x;`)).toBe(`&#x;`)
+            expect(decodeEntities(`&#12a;`)).toBe(`&#12a;`)
+        })
     })
 
     describe('encodeEntities', () => {

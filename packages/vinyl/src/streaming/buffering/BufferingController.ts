@@ -181,7 +181,7 @@ export interface BufferingControllerImplOptions {
 
     /**
      * The maximum number of bytes to append at a time per content type.
-     * Default: { audio: 1MiB, video: 15MiB }
+     * Default: { audio: 10MiB, video: 150MiB }
      */
     readonly maxAppendSize: Partial<Record<ContentType, number>>
 }
@@ -467,14 +467,19 @@ export class BufferingControllerImpl
         }
 
         const byteLength = streamingSegment.data.byteLength
-        if (byteLength > appendSize) {
+        // Measured against the bytes still to append rather than the whole
+        // segment: the playhead draining the buffer widens the budget, which
+        // would otherwise re-append what is already buffered.
+        const remaining = byteLength - this.appendOffset
+        const firstAppend = this.appendOffset === 0
+        if (remaining > appendSize) {
             const newOffset = this.appendOffset + appendSize
             const chunk = streamingSegment.data.slice(
                 this.appendOffset,
                 newOffset
             )
             await sourceBufferController.append(chunk)
-            if (this.appendOffset === 0) {
+            if (firstAppend) {
                 this.buffered.push(streamingSegment)
             }
             this.appendOffset = newOffset
@@ -483,9 +488,15 @@ export class BufferingControllerImpl
                 `appended chunk, this.appendOffset: ${this.appendOffset}`
             )
         } else {
-            await sourceBufferController.append(streamingSegment.data)
-            this.appendOffset = streamingSegment.data.byteLength
-            this.buffered.push(streamingSegment)
+            await sourceBufferController.append(
+                firstAppend
+                    ? streamingSegment.data
+                    : streamingSegment.data.slice(this.appendOffset)
+            )
+            this.appendOffset = byteLength
+            if (firstAppend) {
+                this.buffered.push(streamingSegment)
+            }
         }
         if (!tail) this.refreshHead() // Update quality immediately if buffer was empty
     }

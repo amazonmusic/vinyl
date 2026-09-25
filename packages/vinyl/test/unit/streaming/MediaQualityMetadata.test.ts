@@ -4,6 +4,8 @@
  */
 
 import { DrmKeySystem, drmProtectionValidator } from '@amazon/vinyl'
+import type { ALL_CONTENT_TYPES, ContentType } from '@amazon/vinyl'
+import { expectTypeStrictlyEquals } from '@amazon/vinyl-util/browserTestUtil'
 
 describe('drmProtectionValidator', () => {
     it('validates a complete DrmProtection', () => {
@@ -50,5 +52,16 @@ describe('drmProtectionValidator', () => {
 
     it('rejects invalid keySystem', () => {
         expect(drmProtectionValidator.isValid({ keySystem: 123 })).toBeFalse()
+    })
+})
+
+describe('ALL_CONTENT_TYPES', () => {
+    it('provides a comprehensive list of all content types', () => {
+        // The player emits quality-change events per entry; a missing type
+        // silently emits none, and `satisfies` alone does not catch it.
+        expectTypeStrictlyEquals<
+            ContentType,
+            (typeof ALL_CONTENT_TYPES)[number]
+        >(true)
     })
 })

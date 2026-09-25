@@ -59,11 +59,24 @@ describe('parseCacheControl', () => {
         })
     })
 
-    it('ignores malformed numeric values and treats them as string', () => {
-        const result = parseCacheControl('max-age=abc')
-        expect(result).toEqual({
-            maxAge: 'abc' as any,
+    it('ignores a delta-seconds directive with a non-numeric value', () => {
+        // Keeping the string would put it in a field the rest of the cache
+        // multiplies out to milliseconds, yielding NaN.
+        expect(parseCacheControl('max-age=abc')).toEqual({})
+        expect(parseCacheControl('max-age')).toEqual({})
+        expect(parseCacheControl('stale-if-error=')).toEqual({})
+    })
+
+    it('accepts quoted directive values', () => {
+        expect(parseCacheControl('max-age="3600"')).toEqual({ maxAge: 3600 })
+    })
+
+    it('treats a boolean directive with an argument as present', () => {
+        // `no-cache` may carry a field-name list, and is still in effect.
+        expect(parseCacheControl('no-cache="Set-Cookie"')).toEqual({
+            noCache: true,
         })
+        expect(parseCacheControl('no-store=0')).toEqual({ noStore: true })
     })
 
     it('trims whitespace and handles case-insensitive directive names', () => {

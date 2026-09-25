@@ -86,5 +86,5 @@ export interface MSMediaKeySessionEventMap {
 }
 
 export interface MSMediaKeyMessageEvent extends Event {
-    readonly message: Uint8Array
+    readonly message: Uint8Array<ArrayBuffer>
 }

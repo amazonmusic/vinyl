@@ -35,22 +35,22 @@ export function combineData<
 
     return externalData(current as Output, (setData) => {
         const subs: Unsubscribe[] = []
+        // `onData` emits immediately, and an input may have changed since this
+        // record was first built, so those emissions are recorded rather than
+        // skipped. Publishing is held off until every input is subscribed so a
+        // partially updated record is never emitted.
+        let subscribing = true
 
         for (const key of keys) {
-            const provider = providers[key]
-            let isFirst = true
             subs.push(
-                provider.onData((value) => {
-                    if (isFirst) {
-                        isFirst = false
-                        return
-                    }
+                providers[key].onData((value) => {
                     current[key] = value
-                    setData({ ...current } as Output)
+                    if (!subscribing) setData({ ...current } as Output)
                 })
             )
         }
-        setData(current as Output)
+        subscribing = false
+        setData({ ...current } as Output)
 
         return () => {
             for (const unsub of subs) unsub()

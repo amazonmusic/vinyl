@@ -231,6 +231,21 @@ describe('data', () => {
                 expect(() => (d.value = 'a')).toThrowError(DisposedError)
                 expect(() => d.onData(callback)).toThrowError(DisposedError)
             })
+
+            it('can be called from within an onData callback', () => {
+                const d = data(1)
+                const second = createSpy('second')
+                d.onData((value) => {
+                    if (value === 2) d.dispose()
+                })
+                d.onData(second)
+                second.calls.reset()
+
+                expect(() => (d.value = 2)).not.toThrow()
+                expect(d.disposed).toBeTrue()
+                // The listeners it dropped are not notified.
+                expect(second).not.toHaveBeenCalled()
+            })
         })
 
         describe('map', () => {

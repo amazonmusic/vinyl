@@ -61,12 +61,24 @@ interface TrackState {
     videoConfig: VideoTrackConfig | null
     audioDecodeTime: number
     videoDecodeTime: number
+    /**
+     * The `track_ID`s the cached init segment declares, assigned when it is
+     * built. Fragments must use these; a track the init segment does not
+     * declare cannot be emitted, since the init segment is cached for the
+     * lifetime of the transmuxer.
+     */
+    audioTrackId: number | null
+    videoTrackId: number | null
 }
 
 /**
  * Creates a stateful transmuxer instance. Call `transmux()` for each HLS
  * segment in order. The init segment is always returned (cached after first
  * call).
+ *
+ * The first segment fixes which tracks the stream has. A track type that only
+ * appears in a later segment is dropped, because the init segment declaring the
+ * tracks has already been handed to the caller.
  */
 export function createTransmuxer() {
     const state: TrackState = {
@@ -76,6 +88,8 @@ export function createTransmuxer() {
         videoConfig: null,
         audioDecodeTime: 0,
         videoDecodeTime: 0,
+        audioTrackId: null,
+        videoTrackId: null,
     }
 
     return { transmux: (data: ArrayBuffer) => transmux(state, data) }
@@ -160,11 +174,12 @@ function transmuxAdts(state: TrackState, data: Uint8Array): TransmuxResult {
             sampleRate,
             audioSpecificConfig: buildAudioSpecificConfig(firstFrame),
         }
+        state.audioTrackId = 1
         buildInitSegment(
             state,
             moov(
                 audioTrak({
-                    trackId: 1,
+                    trackId: state.audioTrackId,
                     sampleRate: state.audioConfig.sampleRate,
                     channelCount: state.audioConfig.channelConfiguration,
                     sampleEntry: mp4aSampleEntry(state.audioConfig),
@@ -197,7 +212,7 @@ function transmuxAdts(state: TrackState, data: Uint8Array): TransmuxResult {
 
     const moofBox = moof({
         sequenceNumber: state.sequenceNumber++,
-        trackId: 1,
+        trackId: state.audioTrackId!,
         baseDecodeTime: state.audioDecodeTime,
         samples,
     })
@@ -328,9 +343,10 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
     if (!state.initSegment && (audioConfig || videoConfig)) {
         const traks: Uint8Array[] = []
         if (videoConfig) {
+            state.videoTrackId = traks.length + 1
             traks.push(
                 videoTrak({
-                    trackId: traks.length + 1,
+                    trackId: state.videoTrackId,
                     width: videoConfig.width,
                     height: videoConfig.height,
                     sampleEntry: avc1SampleEntry(videoConfig),
@@ -338,9 +354,10 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
             )
         }
         if (audioConfig) {
+            state.audioTrackId = traks.length + 1
             traks.push(
                 audioTrak({
-                    trackId: traks.length + 1,
+                    trackId: state.audioTrackId,
                     sampleRate: audioConfig.sampleRate,
                     channelCount: audioConfig.channelConfiguration,
                     sampleEntry: mp4aSampleEntry(audioConfig),
@@ -350,12 +367,12 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
         buildInitSegment(state, moov(...traks))
     }
 
-    // Build media segment - for now handle audio track (trackId=1 for video, 2 for audio in muxed)
+    // Fragments may only reference the tracks the init segment declares.
     const fragments: Uint8Array[] = []
     let duration = 0
 
-    if (videoConfig && videoNalus.length > 0) {
-        const trackId = 1
+    if (videoConfig && videoNalus.length > 0 && state.videoTrackId != null) {
+        const trackId = state.videoTrackId
 
         // Group NAL units into access units. Each IDR or non-IDR slice
         // starts a new access unit. SPS/PPS are prepended to the next IDR.
@@ -388,7 +405,7 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
                 })
                 pendingParams = []
             }
-            // Skip other NAL types (SEI, AUD, etc.)
+            // Skip remaining NAL types (AUD, end of sequence/stream, filler).
         }
 
         if (accessUnits.length > 0) {
@@ -448,8 +465,13 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
         }
     }
 
-    if (audioConfig && audioRawData && audioFrames.length > 0) {
-        const trackId = videoConfig ? 2 : 1
+    if (
+        audioConfig &&
+        audioRawData &&
+        audioFrames.length > 0 &&
+        state.audioTrackId != null
+    ) {
+        const trackId = state.audioTrackId
         const samplesPerFrame = 1024
         const samples: SampleEntry[] = []
         const parts: Uint8Array[] = []

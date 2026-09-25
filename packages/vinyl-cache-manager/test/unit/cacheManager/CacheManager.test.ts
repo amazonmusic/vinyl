@@ -125,6 +125,18 @@ describe('CacheManager', () => {
             expect(fetchSpy).toHaveBeenCalled()
         })
 
+        it('fetches when immutable is set and there is no cached response', async () => {
+            // `immutable` makes the cached entry preferred indefinitely, but
+            // there has to be one to prefer.
+            mockCache.match.and.resolveTo(undefined)
+
+            const result = await manager.get(mockRequest, {
+                cacheControlOverrides: { immutable: true },
+            })
+            expect(result).toBe(mockResponse)
+            expect(fetchSpy).toHaveBeenCalled()
+        })
+
         it('throws if onlyIfCached is set and no cached response', async () => {
             mockCache.match.and.resolveTo(undefined)
 

@@ -164,7 +164,6 @@ export interface SkipControl {
  */
 export type AdBreakList = readonly AdBreakInfo[]
 
-// TODO: skip control offset/duration
 /**
  * A single ad within an {@link AdBreakInfo}.
  */

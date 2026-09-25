@@ -322,7 +322,9 @@ async function resolveHlsAssetList({
             id: `${rangeId}-${i}`,
             startTime,
             duration: asset.DURATION ?? null,
-            uri: resolveUrl(asset.URI, baseUrl),
+            // Relative to the asset list, which need not sit alongside the
+            // media playlist.
+            uri: resolveUrl(asset.URI, url),
         }
     })
     return { ads, skipControl: parseSkipControl(json['SKIP-CONTROL']) }

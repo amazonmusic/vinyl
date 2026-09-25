@@ -86,8 +86,11 @@ BROWSERSTACK_ACCESS_KEY=ga3sa6toGyabcves586a
 Your username and access key can be obtained by logging in and clicking the
 Access Key link at the top.
 
-For browser/device combinations that require SSL, the
-[DEVELOPER_SETUP.md](DEVELOPER_SETUP.md) Setup SSL setup must be completed.
+The suite is served over plain HTTP through the BrowserStack Local tunnel. For
+browser/device combinations that require a secure context, supply a certificate
+and an SNI hostname via the run's `server.https` options (see
+`ServerHostOptions` in `@amazon/vinyl-build-utils`); the test URL then resolves
+to that HTTPS server instead of the HTTP one.
 
 To run tests on BrowserStack, run `npm run test:browserstack`.
 

@@ -132,6 +132,41 @@ describe('MediaSourceControllerImpl', () => {
             )
             expect(() => controller.deactivate()).not.toThrow()
         })
+
+        it('does not report a re-activated media source as ready to append', async () => {
+            // A track is deactivated and reactivated whenever an ad plays over
+            // it, and each activation builds its own media source, whose
+            // duration has not been set yet.
+            open()
+            await flushPromises()
+            const firstRef = controller.createSourceBuffer('audio', 'audio/mp4')
+            expect(controller.readyToAppend)
+                .withContext('ready on the first media source')
+                .toBeTrue()
+
+            firstRef.dispose() // the buffering controller drops its buffers
+            controller.deactivate()
+
+            const secondSource = new MockMediaSource()
+            implementEventFakes(secondSource)
+            secondSource.addSourceBuffer.and.callFake(
+                () => new MockSourceBuffer()
+            )
+            mediaSourceFactory.and.returnValue(secondSource)
+            controller.activate()
+            await flushPromises()
+            controller.createSourceBuffer('audio', 'audio/mp4')
+            expect(controller.readyToAppend)
+                .withContext('duration not yet set on the new media source')
+                .toBeFalse()
+
+            secondSource.readyState = 'open'
+            secondSource.dispatchEvent(mockEvent('sourceopen'))
+            await flushPromises()
+            expect(controller.readyToAppend)
+                .withContext('ready once the new duration is set')
+                .toBeTrue()
+        })
     })
 
     describe('duration', () => {

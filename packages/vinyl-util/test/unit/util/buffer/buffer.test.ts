@@ -6,6 +6,7 @@
 import {
     base64ToByteArray,
     buffersEqual,
+    bufferToArrayBuffer,
     bufferToBase64,
     bufferToByteArray,
     bufferToByteStr,
@@ -92,6 +93,41 @@ describe('buffer utils', () => {
                     bytes,
                     [0xee, 0xff, 0xcc, 0xdd, 0xaa, 0xbb]
                 )
+            })
+        })
+    })
+
+    describe('bufferToArrayBuffer', () => {
+        describe('when given an ArrayBuffer', () => {
+            it('returns that buffer', () => {
+                const buffer = new ArrayBuffer(4)
+                expect(bufferToArrayBuffer(buffer)).toBe(buffer)
+            })
+        })
+
+        describe('when given a view spanning the whole buffer', () => {
+            it('returns a copy of its bytes', () => {
+                const view = new Uint8Array([1, 2, 3, 4])
+                const buffer = bufferToArrayBuffer(view)
+                expectIterableEquals(new Uint8Array(buffer), [1, 2, 3, 4])
+            })
+        })
+
+        describe('when given an offset view', () => {
+            it('returns only the bytes the view spans', () => {
+                const view = new Uint8Array([1, 2, 3, 4, 5]).subarray(1, 4)
+                const buffer = bufferToArrayBuffer(view)
+                expect(buffer.byteLength).toBe(3)
+                expectIterableEquals(new Uint8Array(buffer), [2, 3, 4])
+            })
+
+            it('honors the element size of wider views', () => {
+                const view = new Uint16Array([0x1122, 0x3344, 0x5566]).subarray(
+                    1
+                )
+                const buffer = bufferToArrayBuffer(view)
+                expect(buffer.byteLength).toBe(4)
+                expectIterableEquals(new Uint16Array(buffer), [0x3344, 0x5566])
             })
         })
     })

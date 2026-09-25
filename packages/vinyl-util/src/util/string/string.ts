@@ -87,7 +87,12 @@ export function isWhitespaceChar(charCode: number): boolean {
     )
 }
 
-const encodedEntitiesRegex = /&(#(\d+)|\w+);/gi
+const encodedEntitiesRegex = /&(?:#(?:x([\da-f]+)|(\d+))|(\w+));/gi
+
+/**
+ * The highest code point representable in UTF-16.
+ */
+const MAX_CODE_POINT = 0x10ffff
 
 /**
  * Predefined general xml entities
@@ -103,6 +108,10 @@ export const predefinedDecodeEntities: ReadonlyMap<string, string> = new Map([
 
 /**
  * Replaces all specified entities with their mapped representations.
+ * Decimal (`&#33;`) and hexadecimal (`&#x21;`) character references are both
+ * decoded. An unrecognized named entity, or a character reference that is not a
+ * valid code point, is left as-is.
+ *
  * For example (using {@link predefinedDecodeEntities}):
  * ```
  * `&lt;Hello to y&apos;all&#33;&gt;` becomes `<Hello to y'all!>`
@@ -115,20 +124,30 @@ export function decodeEntities(
     str: string,
     namedEntities: ReadonlyMap<string, string> = predefinedDecodeEntities
 ): string {
-    if (encodedEntitiesRegex.test(str)) {
-        return str.replace(
-            encodedEntitiesRegex,
-            (substring, entityName, codePoint) => {
-                if (codePoint !== undefined)
-                    return String.fromCharCode(parseInt(codePoint))
-                const entityValue = namedEntities.get(entityName.toLowerCase())
-                if (!entityValue) return substring
-                return entityValue
+    return str.replace(
+        encodedEntitiesRegex,
+        (
+            substring: string,
+            hex: Maybe<string>,
+            decimal: Maybe<string>,
+            entityName: Maybe<string>
+        ) => {
+            if (hex == null && decimal == null) {
+                return namedEntities.get(entityName!.toLowerCase()) ?? substring
             }
-        )
-    } else {
-        return str
-    }
+            const codePoint =
+                hex != null ? parseInt(hex, 16) : parseInt(decimal!, 10)
+            // Surrogate halves are not characters, and code points beyond the
+            // Unicode range would throw.
+            if (codePoint > MAX_CODE_POINT || isSurrogate(codePoint))
+                return substring
+            return String.fromCodePoint(codePoint)
+        }
+    )
+}
+
+function isSurrogate(codePoint: number): boolean {
+    return codePoint >= 0xd800 && codePoint <= 0xdfff
 }
 
 const standardEntityValueToNames = flipMap(predefinedDecodeEntities)
