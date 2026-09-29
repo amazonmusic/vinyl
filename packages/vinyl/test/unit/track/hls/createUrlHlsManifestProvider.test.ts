@@ -154,6 +154,31 @@ describe('fetchMediaPlaylist', () => {
         )
     })
 
+    it('sets the baseUrl from the response URL', async () => {
+        mockRequester.request.and.callFake(() => {
+            const resp = new Response(mediaM3u8)
+            Object.defineProperty(resp, 'url', {
+                value: 'https://redirected.com/hls/audio.m3u8',
+            })
+            return Promise.resolve(resp)
+        })
+        const playlist = await fetchMediaPlaylist({
+            uri: 'audio.m3u8',
+            baseUrl: 'https://example.com/path/main.m3u8',
+            defines: undefined,
+        })
+        expect(playlist.baseUrl).toBe('https://redirected.com/hls/audio.m3u8')
+    })
+
+    it('falls back to the requested URL when the response has no URL', async () => {
+        const playlist = await fetchMediaPlaylist({
+            uri: 'audio.m3u8',
+            baseUrl: 'https://example.com/path/main.m3u8',
+            defines: undefined,
+        })
+        expect(playlist.baseUrl).toBe('https://example.com/path/audio.m3u8')
+    })
+
     it('resolves EXT-X-DEFINE:QUERYPARAM from the playlist URL query string', async () => {
         mockRequester.request.and.callFake(() =>
             Promise.resolve(

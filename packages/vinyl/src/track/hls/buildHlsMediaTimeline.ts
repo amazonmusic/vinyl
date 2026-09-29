@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { HlsManifestData } from './HlsManifestData'
+import type { HlsManifestData, HlsMediaPlaylistData } from './HlsManifestData'
 import type { HlsMediaQualityMetadataResolver } from './HlsMediaQualityMetadataResolver'
 import type {
     ContentType,
@@ -204,7 +204,11 @@ function createHlsQualityData(
             affordance = 0
         ): Promise<SegmentReference<SegmentDataProvider> | null> {
             const playlist = await data.getMediaPlaylist(playlistUri)
-            const playlistBaseUrl = resolveUrl(playlistUri, baseUrl)
+            const playlistBaseUrl = getPlaylistBaseUrl(
+                playlist,
+                playlistUri,
+                baseUrl
+            )
             const segments = buildSegmentTimeline(
                 deps,
                 playlistBaseUrl,
@@ -265,6 +269,19 @@ async function discoverAdsFromManifest(
     const contentDuration = media.ended
         ? media.segments.reduce((sum, s) => sum + s.duration, 0)
         : null
-    const playlistBaseUrl = resolveUrl(variant.uri, data.baseUrl)
+    const playlistBaseUrl = getPlaylistBaseUrl(media, variant.uri, data.baseUrl)
     return discoverHlsInterstitials(media, playlistBaseUrl, contentDuration)
+}
+
+/**
+ * The URL a media playlist's relative URIs resolve against: the playlist's own
+ * URL after redirects when the provider supplies it, else the variant URI
+ * resolved against the main playlist's URL.
+ */
+function getPlaylistBaseUrl(
+    playlist: HlsMediaPlaylistData,
+    playlistUri: string,
+    mainBaseUrl: string
+): string {
+    return playlist.baseUrl ?? resolveUrl(playlistUri, mainBaseUrl)
 }

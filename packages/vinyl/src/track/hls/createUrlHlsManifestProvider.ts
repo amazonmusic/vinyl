@@ -3,10 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-    HlsMainPlaylist,
-    HlsMediaPlaylist,
-} from '@amazon/vinyl-hls-parser'
+import type { HlsMainPlaylist } from '@amazon/vinyl-hls-parser'
 import { parseMainPlaylist, parseMediaPlaylist } from '@amazon/vinyl-hls-parser'
 import type {
     Maybe,
@@ -19,7 +16,7 @@ import {
     requestWithRetry,
     resolveUrl,
 } from '@amazon/vinyl-util'
-import type { HlsManifestData } from './HlsManifestData'
+import type { HlsManifestData, HlsMediaPlaylistData } from './HlsManifestData'
 import type { HlsManifestProvider } from './createHlsManifestProvider'
 
 export function createUrlHlsManifestProvider(
@@ -78,16 +75,21 @@ export interface FetchMediaPlaylistOptions {
  */
 export async function fetchMediaPlaylist(
     options: FetchMediaPlaylistOptions
-): Promise<HlsMediaPlaylist> {
+): Promise<HlsMediaPlaylistData> {
     const { uri, baseUrl, defines, requestInit, abort } = options
     const variantUrl = resolveUrl(uri, baseUrl)
     const response = await requestWithRetry(variantUrl, requestInit, { abort })
     const text = await readResponseBody(response, 'text')
-    // The resolved URL (after redirects) carries the query parameters that
+    // The resolved URL (after redirects) is the base for the playlist's
+    // relative URIs, and carries the query parameters that
     // #EXT-X-DEFINE:QUERYPARAM entries resolve against (e.g. MediaTailor ad
     // manifests). Fall back to the requested URL if the response omits it.
-    const queryParams = parseQueryParams(response.url || variantUrl)
-    return parseMediaPlaylist(text, defines, queryParams)
+    const playlistUrl = response.url || variantUrl
+    const queryParams = parseQueryParams(playlistUrl)
+    return {
+        ...parseMediaPlaylist(text, defines, queryParams),
+        baseUrl: playlistUrl,
+    }
 }
 
 /**

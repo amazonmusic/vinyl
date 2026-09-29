@@ -651,6 +651,33 @@ describe('buildHlsMediaTimeline', () => {
         fetchSpy.and.callThrough()
     })
 
+    it('resolves segment and map URIs against the media playlist baseUrl', async () => {
+        const variant = createVariant('v1.m3u8', 128000)
+        const playlist = {
+            ...createMediaPlaylist([10]),
+            // The media playlist was redirected away from the main playlist's
+            // directory.
+            baseUrl: 'https://redirect.example.net/hls/v1.m3u8',
+        }
+        const manifestData = createManifestData([variant], playlist)
+
+        const fetchSpy = spyOn(globalThis, 'fetch').and.callFake(() =>
+            Promise.resolve(new Response(new ArrayBuffer(100)))
+        )
+
+        const timeline = buildHlsMediaTimeline(deps, manifestData)
+        const quality = timeline.periods[0].qualities[0]
+        const segment = await quality.getSegment(5)
+        await segment!.initData()
+        await segment!.data()
+        const urls = fetchSpy.calls.allArgs().map(([input]) => String(input))
+        expect(urls).toEqual([
+            'https://redirect.example.net/hls/init.mp4',
+            'https://redirect.example.net/hls/seg0.m4s',
+        ])
+        fetchSpy.and.callThrough()
+    })
+
     it('getDuration throws when no variants', async () => {
         const manifestData = createManifestData([], createMediaPlaylist([]))
         const timeline = buildHlsMediaTimeline(deps, manifestData)
