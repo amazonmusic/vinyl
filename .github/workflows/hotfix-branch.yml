@@ -1,0 +1,76 @@
+# Cuts a hotfix/** branch from a released version, then opens a PR bringing
+# main's release tooling onto it.
+#
+# Workflows on a branch run from that branch's own copy, and an older release
+# predates the hotfix-aware CI, versioning, publish, and Pages workflows. The
+# branch itself is created at the release exactly (no new commits, so branch
+# protection needs no bypass); the tooling lands through a reviewed PR.
+name: Create Hotfix Branch
+
+on:
+    workflow_dispatch:
+        inputs:
+            from:
+                description: Release tag or SHA to branch from (e.g. v1.2.2)
+                required: true
+            name:
+                description:
+                    Branch name after hotfix/ (default major.minor of the
+                    release, e.g. 1.2). Also names the npm dist-tag,
+                    hotfix-NAME.
+                required: false
+
+jobs:
+    create:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+            pull-requests: write
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  fetch-depth: 0
+                  token: ${{ secrets.RELEASE_PUSH_TOKEN }}
+
+            - name: Create branch and tooling PR
+              env:
+                  GH_TOKEN: ${{ secrets.RELEASE_PUSH_TOKEN }}
+                  FROM: ${{ inputs.from }}
+                  NAME: ${{ inputs.name }}
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+                  git switch --detach "$FROM"
+                  VERSION=$(node -p "require('./lerna.json').version")
+                  NAME="${NAME:-$(echo "$VERSION" | cut -d. -f1,2)}"
+                  BRANCH="hotfix/${NAME}"
+                  if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+                    echo "::error::${BRANCH} already exists."
+                    exit 1
+                  fi
+                  git push origin "HEAD:refs/heads/${BRANCH}"
+
+                  SETUP="hotfix-setup/${NAME}"
+                  git switch -c "$SETUP"
+                  git checkout origin/main -- \
+                    .github/workflows/ci.yml \
+                    .github/workflows/pages-deploy.yml \
+                    .github/workflows/release-publish.yml \
+                    .github/workflows/version.yml \
+                    buildSrc/stripDevExports.ts
+                  if [ "$(npm pkg get 'scripts.prepare:publish')" = '{}' ]; then
+                    npm pkg set 'scripts.prepare:publish=tsx buildSrc/stripDevExports.ts'
+                  fi
+                  git add -A
+                  if git diff --cached --quiet; then
+                    echo "${BRANCH} already has main's release tooling."
+                    exit 0
+                  fi
+                  git commit -m "ci: add hotfix release tooling from main"
+                  git push origin "$SETUP"
+                  gh pr create \
+                    --base "$BRANCH" \
+                    --head "$SETUP" \
+                    --title "ci(${BRANCH}): add hotfix release tooling from main" \
+                    --body "Brings main's CI, versioning, publish, and Pages workflows onto \`${BRANCH}\` (cut from \`${FROM}\`, v${VERSION}) so it can be released. Merge this before any fixes. Releases from this branch publish under the npm dist-tag \`hotfix-${NAME//\//-}\`."

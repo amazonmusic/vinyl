@@ -1,10 +1,13 @@
+# Opens a release PR. Run it from the branch to release ("Use workflow from"):
+# main for a normal release, or a hotfix/** branch for a patch on an older line.
+# Merging the PR triggers release-publish.yml.
 name: Version
 
 on:
     workflow_dispatch:
 
 concurrency:
-    group: version
+    group: version-${{ github.ref }}
     cancel-in-progress: false
 
 jobs:
@@ -32,9 +35,19 @@ jobs:
                   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
             - name: Generate version and changelogs
-              run:
-                  npx lerna version --conventional-commits --yes
-                  --no-git-tag-version --no-push
+              run: |
+                  case "$GITHUB_REF_NAME" in
+                    # Bump from the conventional commits since the last release.
+                    main) BUMP='' ;;
+                    # A hotfix line only ever takes patches.
+                    hotfix/*) BUMP='patch' ;;
+                    *)
+                      echo "::error::Run this workflow from main or a hotfix/** branch, not ${GITHUB_REF_NAME}."
+                      exit 1
+                      ;;
+                  esac
+                  npx lerna version $BUMP --conventional-commits --yes \
+                    --no-git-tag-version --no-push
 
             - name: Format
               run: npx prettier . --write
@@ -50,7 +63,7 @@ jobs:
                   git commit -m "chore(release): ${VERSION}"
                   git push origin "$BRANCH"
                   gh pr create \
-                    --base main \
+                    --base "$GITHUB_REF_NAME" \
                     --head "$BRANCH" \
                     --title "chore(release): ${VERSION}" \
-                    --body "Automated release PR. Merging will tag v${VERSION} and publish to npm."
+                    --body "Automated release PR. Merging into \`${GITHUB_REF_NAME}\` will tag v${VERSION} and publish to npm. Squash or rebase merge so the pushed commit keeps the \`chore(release):\` message."

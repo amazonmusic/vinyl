@@ -17,12 +17,38 @@ on:
                 required: false
                 default: main
 
-concurrency:
-    group: pages
-    cancel-in-progress: true
-
 jobs:
+    # Hotfix releases also push v* tags; only a tag reachable from main is the
+    # current release, so the live site is never replaced with an older line.
+    check:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: read
+        outputs:
+            deploy: ${{ steps.check.outputs.deploy }}
+        steps:
+            - uses: actions/checkout@v6
+              if: github.event_name == 'push'
+              with:
+                  fetch-depth: 0
+
+            - id: check
+              run: |
+                  if [ "$GITHUB_EVENT_NAME" != push ] ||
+                    git merge-base --is-ancestor HEAD origin/main; then
+                    echo "deploy=true" >> "$GITHUB_OUTPUT"
+                  else
+                    echo "Skipping ${GITHUB_REF_NAME}: not on main (a hotfix release)."
+                    echo "deploy=false" >> "$GITHUB_OUTPUT"
+                  fi
+
     deploy:
+        needs: check
+        if: needs.check.outputs.deploy == 'true'
+        # Job-level, so a skipped hotfix tag run doesn't cancel a main deploy.
+        concurrency:
+            group: pages
+            cancel-in-progress: true
         runs-on: ubuntu-latest
         permissions:
             contents: read
