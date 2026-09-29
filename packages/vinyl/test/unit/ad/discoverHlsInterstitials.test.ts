@@ -40,8 +40,9 @@ describe('discoverHlsInterstitials', () => {
      * A minimal `fetch` Response stand-in that satisfies `requestWithRetry`
      * (which reads `ok`/`status`/`headers` and rejects on non-ok responses).
      */
-    function okJsonResponse(body: unknown) {
+    function okJsonResponse(body: unknown, url = '') {
         return {
+            url,
             ok: true,
             status: 200,
             headers: { get: () => null },
@@ -223,10 +224,42 @@ describe('discoverHlsInterstitials', () => {
                 'https://example.com/ads.json'
             )
             expect(ads.length).toBe(2)
-            expect(ads[0].uri).toBe('https://cdn.example.com/media/mid1.m3u8')
+            // Relative to the asset list, not to the media playlist.
+            expect(ads[0].uri).toBe('https://example.com/mid1.m3u8')
             expect(ads[0].duration).toBe(10)
             expect(ads[1].uri).toBe('https://cdn.example.com/mid2.m3u8')
             expect(ads[1].duration).toBeNull()
+        } finally {
+            globalThis.fetch = origFetch
+        }
+    })
+
+    it('resolves relative asset URIs against the redirected asset list URL', async () => {
+        const origFetch = globalThis.fetch
+        const fetchSpy = jasmine
+            .createSpy('fetch')
+            .and.resolveTo(
+                okJsonResponse(
+                    { ASSETS: [{ URI: 'mid1.m3u8' }] },
+                    'https://ads.example.net/v2/ads.json'
+                )
+            )
+        globalThis.fetch = fetchSpy
+        try {
+            const playlist = makePlaylist({
+                dateRanges: [
+                    makeRange({
+                        duration: 10,
+                        clientAttributes: {
+                            'X-ASSET-LIST':
+                                'https://example.com/redirected.json',
+                        },
+                    }),
+                ],
+            })
+            const breaks = await discoverHlsInterstitials(playlist, BASE)
+            const ads = await resolveValueProvider(breaks[0].ads)
+            expect(ads[0].uri).toBe('https://ads.example.net/v2/mid1.m3u8')
         } finally {
             globalThis.fetch = origFetch
         }

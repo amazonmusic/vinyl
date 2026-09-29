@@ -313,16 +313,28 @@ async function resolveHlsAssetList({
     readonly startTime: number
     readonly baseUrl: string
 }): Promise<AssetContent> {
+    // X-ASSET-LIST "MAY be absolute, or it MAY be relative to the URI of the
+    // Playlist."
+    // @see https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-22#appendix-D.2
     const url = resolveUrl(assetListUrl, baseUrl)
     const response = await requestWithRetry(url)
     const json: AssetListDocument = await readResponseBody(response, 'json')
+    // A custom requester may return a synthesized Response with no url.
+    const assetListBaseUrl = response.url || url
     const assets = json.ASSETS ?? []
     const ads = assets.map((asset, i): AdInfo => {
         return {
             id: `${rangeId}-${i}`,
             startTime,
             duration: asset.DURATION ?? null,
-            uri: resolveUrl(asset.URI, baseUrl),
+            // Each Asset-Description "URI" MUST be an absolute URI, so the base
+            // only applies to non-conforming lists. As a leniency (not a spec
+            // rule), resolve against the asset list the URI was read from, as
+            // for any relative reference in a retrieved document (RFC 3986
+            // §5.1.3): asset lists are commonly served by an ad server rather
+            // than alongside the playlist.
+            // @see https://datatracker.ietf.org/doc/html/draft-pantos-hls-rfc8216bis-22#appendix-D.2
+            uri: resolveUrl(asset.URI, assetListBaseUrl),
         }
     })
     return { ads, skipControl: parseSkipControl(json['SKIP-CONTROL']) }
