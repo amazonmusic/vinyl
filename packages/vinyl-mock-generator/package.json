@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl-mock-generator",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "description": "Generates mock classes from interfaces",
     "repository": {
         "type": "git",
