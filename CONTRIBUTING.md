@@ -104,10 +104,24 @@ npm dist-tag `hotfix-<name>` so `latest` never moves.
    Pages only deploys tags on `main`, so the live site is unchanged. Consumers
    install the line with `npm install @amazon/vinyl@hotfix-1.2`.
 
-Hotfix branches are protected by the same rules as `main` (see
-[`.github/rulesets/hotfix.json`](.github/rulesets/hotfix.json)): no direct
-pushes, deletion, or force-pushes, and every change merges through a reviewed
-pull request.
+Hotfix branches are protected by the same rules as `main`: no direct pushes,
+deletion, or force-pushes, and every change merges through a reviewed pull
+request.
+
+### Branch rulesets
+
+The `main` and `hotfix/**` rulesets are kept as code in
+[`.github/rulesets/`](.github/rulesets/), one JSON file per ruleset in the
+GitHub REST API's format. To change one, edit its file and apply it; changes
+made in the GitHub UI should be copied back into the file.
+
+```bash
+.github/rulesets/apply.sh --check   # report drift from the live rulesets; changes nothing
+.github/rulesets/apply.sh           # create or update each ruleset, matched by name
+```
+
+Applying needs the `gh` CLI with repository admin rights. Enterprise-managed
+rulesets are never touched.
 
 ### One-time repository setup
 
@@ -124,10 +138,8 @@ a workflow that doesn't use it can no longer publish.
         -f name="$b" -f type=branch
     done
     ```
-2. **Hotfix branch ruleset:**
-    ```bash
-    gh api -X POST repos/amazonmusic/vinyl/rulesets --input .github/rulesets/hotfix.json
-    ```
+2. **Branch rulesets:** `.github/rulesets/apply.sh` (see
+   [Branch rulesets](#branch-rulesets)).
 3. **Require the environment in each package's trusted publisher.** npm allows
    one trusted publisher per package, so replace the existing one (workflow
    `release-publish.yml`, no environment). This needs npm 11.10+ and an account
