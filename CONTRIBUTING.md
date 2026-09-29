@@ -53,15 +53,95 @@ GitHub provides additional document on
 ## Releasing and publishing packages
 
 Releases are published to npm automatically by
-[`.github/workflows/release-publish.yml`](.github/workflows/release-publish.yml).
-When a `release/v*` pull request is merged into `main`, that workflow tags the
-version, creates a GitHub release, strips dev-only exports
-(`npm run prepare:publish`), and runs `npm publish --workspaces`. It
-authenticates to npm with
-[trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) — note
-`permissions: id-token: write` and the absence of any npm token — so npm
-verifies the publish came from this repo's workflow rather than a stored
-credential.
+[`.github/workflows/release-publish.yml`](.github/workflows/release-publish.yml)
+when a release commit lands on `main` or a `hotfix/**` branch. It authenticates
+to npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers)
+(OIDC) — note `permissions: id-token: write` and the absence of any npm token —
+and runs in the `npm-publish` GitHub environment, which only `main` and
+`hotfix/**` may deploy to. npm verifies each publish came from that workflow and
+environment rather than a stored credential, and attaches a provenance
+attestation to every version.
+
+Never publish from a local machine: a local publish skips the dev-export strip
+below, has no provenance, and can move the `latest` dist-tag by mistake.
+
+### Regular releases
+
+1. Run **Actions → Version** from `main`. It bumps versions from the
+   conventional commits since the last release, writes the changelogs, and opens
+   a `release/vX.Y.Z` pull request against `main`.
+2. Review and **squash or rebase** merge it. The pushed commit keeps its
+   `chore(release): X.Y.Z` message, which is what triggers the publish.
+3. The publish workflow tags `vX.Y.Z`, creates a GitHub release marked Latest,
+   strips dev-only exports (`npm run prepare:publish`), and runs
+   `npm publish --workspaces` under the `latest` dist-tag. The tag push deploys
+   GitHub Pages.
+
+### Hotfix releases
+
+A hotfix ships a patch on an older release line without releasing `main`. Each
+line has one long-lived, protected `hotfix/<name>` branch, published under the
+npm dist-tag `hotfix-<name>` so `latest` never moves.
+
+1. **Cut the line (once).** Run **Actions → Create Hotfix Branch** from `main`
+   with `from` set to the release to patch (e.g. `v1.2.2`). It creates
+   `hotfix/1.2` at that release, named for its major.minor unless you pass
+   `name`, and opens a `hotfix-setup/1.2` pull request bringing `main`'s release
+   tooling onto it. Merge that PR first: a branch runs its own copy of the
+   workflows, and an older release predates the hotfix-aware ones.
+2. **Land the fixes.** Cherry-pick each fix from `main` onto a branch off the
+   hotfix branch and open a pull request into it:
+    ```bash
+    git switch -c fix/drm-session-leak --no-track origin/hotfix/1.2
+    git cherry-pick -x <sha>
+    ```
+    CI runs on the pull request, and it needs the same review as `main`.
+3. **Release.** Run **Actions → Version** with **Use workflow from** set to
+   `hotfix/1.2`. It opens a patch-only `release/v1.2.3` pull request against
+   `hotfix/1.2`; squash or rebase merge it.
+4. **Publish is automatic.** The workflow tags `v1.2.3`, creates a GitHub
+   release that is _not_ marked Latest, and publishes under `hotfix-1.2`. GitHub
+   Pages only deploys tags on `main`, so the live site is unchanged. Consumers
+   install the line with `npm install @amazon/vinyl@hotfix-1.2`.
+
+Hotfix branches are protected by the same rules as `main` (see
+[`.github/rulesets/hotfix.json`](.github/rulesets/hotfix.json)): no direct
+pushes, deletion, or force-pushes, and every change merges through a reviewed
+pull request.
+
+### One-time repository setup
+
+These live in GitHub and npm settings rather than in the repository. Apply them
+in this order; the npm step goes last because once it requires the environment,
+a workflow that doesn't use it can no longer publish.
+
+1. **`npm-publish` environment**, limited to the release branches:
+    ```bash
+    gh api -X PUT repos/amazonmusic/vinyl/environments/npm-publish \
+      --input - <<< '{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}'
+    for b in main 'hotfix/**'; do
+      gh api -X POST repos/amazonmusic/vinyl/environments/npm-publish/deployment-branch-policies \
+        -f name="$b" -f type=branch
+    done
+    ```
+2. **Hotfix branch ruleset:**
+    ```bash
+    gh api -X POST repos/amazonmusic/vinyl/rulesets --input .github/rulesets/hotfix.json
+    ```
+3. **Require the environment in each package's trusted publisher.** npm allows
+   one trusted publisher per package, so replace the existing one (workflow
+   `release-publish.yml`, no environment). This needs npm 11.10+ and an account
+   with 2FA and publish rights; the first call prompts for 2FA, and npm offers
+   to skip it for the next five minutes:
+    ```bash
+    for pkg in $(npx lerna ls --json | node -p "JSON.parse(require('fs').readFileSync(0)).map(p => p.name).join(' ')"); do
+      id=$(npm trust list "$pkg" --json | node -p "JSON.parse(require('fs').readFileSync(0))[0]?.id ?? ''")
+      [ -n "$id" ] && npm trust revoke "$pkg" --id="$id"
+      npm trust github "$pkg" --repo amazonmusic/vinyl --file release-publish.yml \
+        --env npm-publish --allow-publish --yes
+      sleep 2
+    done
+    ```
 
 ### Publishing a brand-new package for the first time
 
@@ -97,8 +177,7 @@ Using `@amazon/vinyl-example` as the illustration:
    **Trusted Publisher**, add a GitHub Actions publisher:
     - Organization / repository: `amazonmusic/vinyl`
     - Workflow filename: `release-publish.yml`
-    - Leave the environment blank (the workflow does not use a GitHub
-      Environment).
+    - Environment: `npm-publish`
 5. **Verify.** The next `release/v*` merge should publish
    `@amazon/vinyl-example` automatically via OIDC, with no manual step and no
    stored token.
