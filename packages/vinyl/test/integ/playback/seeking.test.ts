@@ -190,6 +190,10 @@ describe('seeking integ', () => {
                     await expectTrackCanSeekTo(player, 5)
                     await expectTrackCanSeekTo(player, 15)
                     await expectTrackCanSeekTo(player, 35)
+                    // The first end left the player paused. Play so this end is
+                    // reached by playback, as the first was: a paused seek to
+                    // the end fires `ended` on WebKit but not on Chromium.
+                    await player.play()
                     nextEnded = nextEventAsPromise(player, 'ended')
                     await expectTrackCanSeekTo(player, 999)
                     await nextEnded
