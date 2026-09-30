@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v3.3.0) (2026-09-30)
+
+### Bug Fixes
+
+- **tsx:** don&#x27;t pass an empty class token to classList.add
+  ([ccef165](https://github.com/amazonmusic/vinyl/commit/ccef165e4cfc031a3ebc5edf3a251361795c1dad))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-tsx

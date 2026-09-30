@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v3.3.0) (2026-09-30)
+
+### Bug Fixes
+
+- **transmux:** keep fragment track IDs consistent with the init segment
+  ([ad8f0a8](https://github.com/amazonmusic/vinyl/commit/ad8f0a8a0327658d6d4dc300f6871e6f6a3ce350))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-transmux

@@ -3,6 +3,33 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v3.3.0) (2026-09-30)
+
+### Features
+
+- **util:** add rateLimit token-bucket rate limiter
+  ([f3660d8](https://github.com/amazonmusic/vinyl/commit/f3660d8ba3fa7e211770ce8600aebcb6af01fdda))
+
+### Bug Fixes
+
+- **drm:** honor buffer view bounds on key message and init data
+  ([de1979e](https://github.com/amazonmusic/vinyl/commit/de1979e4e0079e059d492ff6b8d09ea4ba817ee1))
+- **util:** decode hex and astral XML character references
+  ([bf6164d](https://github.com/amazonmusic/vinyl/commit/bf6164d4365308bc61b2714991fcf3f98af91b9c)),
+  closes [#x26](https://github.com/amazonmusic/vinyl/issues/x26)
+  [#128512](https://github.com/amazonmusic/vinyl/issues/128512)
+- **util:** don&#x27;t cache a throw as an undefined memoized result
+  ([31c4169](https://github.com/amazonmusic/vinyl/commit/31c4169f31214d0250d1677758421c3e18672b5d))
+- **util:** keep the request timeout alive across retries
+  ([c37b3a6](https://github.com/amazonmusic/vinyl/commit/c37b3a6b244de174f5d0f77b1e6792419d77e1ae))
+- **util:** read NetworkInformation downlink as decimal megabits
+  ([27b667e](https://github.com/amazonmusic/vinyl/commit/27b667e6f95980d7f8e762e9f10c2131d1c761a1))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-util

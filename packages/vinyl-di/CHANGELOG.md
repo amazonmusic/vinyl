@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v3.3.0) (2026-09-30)
+
+### Bug Fixes
+
+- **di:** report a void factory return with its named error type
+  ([e0b90a7](https://github.com/amazonmusic/vinyl/commit/e0b90a7d1b0db5f101672ba0500fde43afac047c))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-di

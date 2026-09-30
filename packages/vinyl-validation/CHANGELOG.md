@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v3.3.0) (2026-09-30)
+
+### Bug Fixes
+
+- **validation:** describe a tuple by its element validators
+  ([903d433](https://github.com/amazonmusic/vinyl/commit/903d4334d00847021d8f5ea709daad18b68c3297))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-validation
