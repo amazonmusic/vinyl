@@ -52,20 +52,50 @@ GitHub provides additional document on
 
 ## Releasing and publishing packages
 
-Releases are published to npm automatically by
-[`.github/workflows/release-publish.yml`](.github/workflows/release-publish.yml)
-when a release commit lands on `main` or a `hotfix/**` branch. It authenticates
-to npm with [trusted publishing](https://docs.npmjs.com/trusted-publishers)
-(OIDC) — note `permissions: id-token: write` and the absence of any npm token —
-and runs in the `npm-publish` GitHub environment, which only `main` and
-`hotfix/**` may deploy to. npm verifies each publish came from that workflow and
-environment rather than a stored credential, and attaches a provenance
-attestation to every version.
+Every package version is published to npm automatically by
+[`.github/workflows/release-publish.yml`](.github/workflows/release-publish.yml),
+on each push to `main` or a `hotfix/**` branch. It authenticates to npm with
+[trusted publishing](https://docs.npmjs.com/trusted-publishers) (OIDC) — note
+`permissions: id-token: write` and the absence of any npm token — and runs in
+the `npm-publish` GitHub environment, which only `main` and `hotfix/**` may
+deploy to. npm verifies each publish came from that workflow and environment
+rather than a stored credential, and attaches a provenance attestation to every
+version.
 
 Never publish from a local machine: a local publish skips the dev-export strip
 below, has no provenance, and can move the `latest` dist-tag by mistake.
 
+Each npm dist-tag has exactly one source:
+
+| dist-tag        | Published by                              | Version               |
+| --------------- | ----------------------------------------- | --------------------- |
+| `latest`        | merging a release PR into `main`          | `3.3.0`               |
+| `next`          | every other push to `main`                | `3.2.3-next.<UTC ts>` |
+| `hotfix-<name>` | merging a release PR into `hotfix/<name>` | `1.2.3`               |
+
+### Prerelease builds (`next`)
+
+Every merge to `main` that isn't a release publishes a prerelease of the next
+patch under the `next` dist-tag, so the latest `main` can be tested before it is
+released:
+
+```bash
+npm install @amazon/vinyl@next
+npm view @amazon/vinyl@next gitHead   # the commit it was built from
+```
+
+The version (for example `3.2.3-next.20260930151203`) is applied in CI only:
+nothing is committed or tagged, `main` keeps its released version, and no GitHub
+release or Pages deploy is made. Internal dependencies are pinned exactly, so
+one `next` build never mixes in packages from another. Semver ranges like
+`^3.2.2` never match prereleases, so consumers only get one by asking for it.
+The next patch number is used whatever the upcoming release turns out to be;
+every `next` build still sorts above the current `latest`.
+
 ### Regular releases
+
+Before releasing, test the newest `next` build: it is the release candidate for
+whatever `main` holds.
 
 1. Run **Actions → Version** from `main`. It bumps versions from the
    conventional commits since the last release, writes the changelogs, and opens
