@@ -1,5 +1,11 @@
-# Tags and publishes when a release commit (`chore(release): X`, from merging a
-# release/v* PR opened by version.yml) lands on main or a hotfix/** branch.
+# Publishes to npm on every push to main or a hotfix/** branch:
+#
+# - `publish`: a release commit (`chore(release): X`, from merging a release/v*
+#   PR opened by version.yml) is tagged, given a GitHub release, and published
+#   under `latest` (main) or `hotfix-<name>` (hotfix/<name>).
+# - `next`: any other push to main is published as a prerelease of the next
+#   patch (X.Y.Z+1-next.<UTC timestamp>) under `next`. The version is applied in
+#   CI only: nothing is committed or tagged.
 #
 # Runs on push rather than pull_request so github.ref is the real branch: that
 # lets the npm-publish environment restrict publishing to main and hotfix/**,
@@ -16,10 +22,6 @@ on:
     push:
         branches: [main, 'hotfix/**']
 
-concurrency:
-    group: release-publish-${{ github.ref }}
-    cancel-in-progress: false
-
 jobs:
     publish:
         # A squash or rebase merge of the release PR keeps its
@@ -27,6 +29,12 @@ jobs:
         if:
             "${{ startsWith(github.event.head_commit.message, 'chore(release):
             ') }}"
+        # Per job, not per workflow: GitHub keeps one pending run per group, so
+        # sharing a group with `next` would let a later push cancel a queued
+        # release.
+        concurrency:
+            group: release-publish-${{ github.ref }}
+            cancel-in-progress: false
         runs-on: ubuntu-latest
         environment: npm-publish
         permissions:
@@ -111,3 +119,71 @@ jobs:
               env:
                   DIST_TAG: ${{ steps.channel.outputs.dist-tag }}
               run: npm publish --workspaces --tag "$DIST_TAG"
+
+    next:
+        if:
+            "${{ github.ref == 'refs/heads/main' &&
+            !startsWith(github.event.head_commit.message, 'chore(release): ') }}"
+        # A newer push supersedes an older prerelease still in flight.
+        concurrency:
+            group: next-publish
+            cancel-in-progress: true
+        runs-on: ubuntu-latest
+        environment: npm-publish
+        permissions:
+            contents: read
+            id-token: write
+        steps:
+            - uses: actions/checkout@v6
+              with:
+                  # lerna version reads tags to find the packages to version.
+                  fetch-depth: 0
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: .tool-versions
+                  package-manager-cache: false
+                  registry-url: https://registry.npmjs.org
+
+            - run: npm install -g npm@latest
+
+            - run: npm ci
+
+            - name: Resolve prerelease version
+              id: channel
+              run: |
+                  RELEASED=$(node -p "require('./lerna.json').version")
+                  case "$RELEASED" in
+                    *-*)
+                      echo "::error::lerna.json holds a prerelease (${RELEASED}); prerelease versions are never committed."
+                      exit 1
+                      ;;
+                  esac
+                  # 3.2.2 → 3.2.3-next.20260930151203: above the current release,
+                  # below the next one, and ordered by build time.
+                  NEXT_PATCH=$(node -p "const [a, b, c] = process.argv[1].split('.').map(Number); [a, b, c + 1].join('.')" "$RELEASED")
+                  VERSION="${NEXT_PATCH}-next.$(date -u +%Y%m%d%H%M%S)"
+                  echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+                  echo "Publishing ${VERSION} from ${GITHUB_SHA} under dist-tag next"
+
+            - run: npm run release
+
+            - run: npm run build:release
+
+            - name: Apply prerelease version
+              # Sets every package to the prerelease and pins internal
+              # dependencies to it exactly, so a `next` install never mixes
+              # builds. Discarded with the runner: nothing is committed.
+              env:
+                  VERSION: ${{ steps.channel.outputs.version }}
+              run:
+                  npx lerna version "$VERSION" --exact --force-publish --yes
+                  --no-git-tag-version --no-push
+
+            - name: Strip dev-only exports before publish
+              run: npm run prepare:publish
+
+            - name: Publish to npm
+              # Always `next`, never `latest`; npm also refuses to publish a
+              # prerelease without an explicit --tag.
+              run: npm publish --workspaces --tag next
