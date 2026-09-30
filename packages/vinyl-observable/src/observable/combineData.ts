@@ -33,24 +33,35 @@ export function combineData<
         current[key] = provider.value as any
     }
 
-    return externalData(current as Output, (setData) => {
+    // `current` is the working record; consumers only ever see copies of it.
+    let published = { ...current } as Output
+    const publish = (setData: (value: Output) => void) => {
+        published = { ...current } as Output
+        setData(published)
+    }
+
+    return externalData(published, (setData) => {
         const subs: Unsubscribe[] = []
-        // `onData` emits immediately, and an input may have changed since this
-        // record was first built, so those emissions are recorded rather than
-        // skipped. Publishing is held off until every input is subscribed so a
-        // partially updated record is never emitted.
+        // `onData` emits immediately, and an input may have changed since the
+        // record was last published, so those emissions are recorded rather
+        // than skipped. Publishing is held off until every input is subscribed
+        // so a partially updated record is never emitted, and skipped when
+        // nothing changed: a new record would re-run everything mapped from it
+        // on each (re)subscription.
         let subscribing = true
 
         for (const key of keys) {
             subs.push(
                 providers[key].onData((value) => {
                     current[key] = value
-                    if (!subscribing) setData({ ...current } as Output)
+                    if (!subscribing) publish(setData)
                 })
             )
         }
         subscribing = false
-        setData({ ...current } as Output)
+        if (keys.some((key) => current[key] !== published[key])) {
+            publish(setData)
+        }
 
         return () => {
             for (const unsub of subs) unsub()
