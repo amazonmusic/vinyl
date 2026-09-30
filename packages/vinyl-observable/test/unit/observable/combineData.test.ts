@@ -87,6 +87,45 @@ describe('combineData', () => {
         expect(callback).toHaveBeenCalledWith({ a: 99, b: 3 }, { a: 99, b: 2 })
     })
 
+    it('keeps the same record when resubscribed without input changes', () => {
+        const a = data(1)
+        const b = data(2)
+        const combined = combineData({ a, b })
+        const initial = combined.value
+
+        combined.onData(() => {})()
+        const callback = jasmine.createSpy('callback')
+        combined.onData(callback)
+
+        expect(combined.value).toBe(initial)
+        expect(callback).toHaveBeenCalledOnceWith(initial, undefined)
+    })
+
+    it('does not re-run a mapped value when resubscribed without input changes', () => {
+        const a = data(1)
+        const getter = jasmine
+            .createSpy('getter')
+            .and.callFake(({ a }: { a: number }) => a * 2)
+        const mapped = combineData({ a }).map(getter)
+
+        mapped.onData(() => {})()
+        mapped.onData(() => {})()
+
+        expect(getter).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not mutate a record it has already published', () => {
+        const a = data(1)
+        const combined = combineData({ a })
+        const initial = combined.value
+
+        a.value = 2
+        combined.onData(() => {})
+
+        expect(initial).toEqual({ a: 1 })
+        expect(combined.value).toEqual({ a: 2 })
+    })
+
     it('unsubscribes from all inputs when outer unsub is called', () => {
         const a = data(0)
         const b = data(1)
