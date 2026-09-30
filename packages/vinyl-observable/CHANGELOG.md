@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v3.3.0) (2026-09-30)
+
+### Bug Fixes
+
+- **observable:** don&#x27;t crash when a callback disposes the value
+  ([ce8a662](https://github.com/amazonmusic/vinyl/commit/ce8a662959115d7315e5051aef4a86c18703a35d))
+- **observable:** don&#x27;t republish an unchanged combineData record on
+  subscribe
+  ([9e9ab5e](https://github.com/amazonmusic/vinyl/commit/9e9ab5ec8f4c486e591c61e050391d97c293ae70))
+- **observable:** emit inputs that changed before combineData was subscribed
+  ([f743ac1](https://github.com/amazonmusic/vinyl/commit/f743ac1419e921ed09573ef11825502bce866d22))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-observable

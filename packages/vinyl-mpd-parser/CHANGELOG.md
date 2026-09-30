@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [3.3.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v3.3.0) (2026-09-30)
+
+### Features
+
+- **mpd-parser:** export dashDrmRules for parser rule extension
+  ([ebb5be9](https://github.com/amazonmusic/vinyl/commit/ebb5be92bdab078530390b7fedcf3b78ffea87b0))
+
+### Bug Fixes
+
+- **mpd-parser:** don&#x27;t emit a trailing time designator in a duration
+  ([71b4ea3](https://github.com/amazonmusic/vinyl/commit/71b4ea3582d3dde2526760d0e4baedb223cf1bc7))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-mpd-parser
