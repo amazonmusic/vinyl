@@ -76,8 +76,13 @@
     justify-content: center;
     transition: background var(--transition-fast);
 
-    &:hover {
+    &:hover:not(:disabled) {
         background: var(--color-surface-hover);
+    }
+
+    &:disabled {
+        opacity: 0.4;
+        cursor: default;
     }
 
     svg {

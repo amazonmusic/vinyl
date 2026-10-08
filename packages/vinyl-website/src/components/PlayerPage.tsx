@@ -1,5 +1,6 @@
 import { jsx } from '@amazon/vinyl-tsx'
 import {
+    createQueueLink,
     createTrackFromUrl,
     type DemoTrack,
     enqueueContent,
@@ -16,7 +17,7 @@ import {
 } from '@amazon/vinyl'
 import { data } from '@amazon/vinyl-observable'
 import { Icon } from './icons'
-import { toastError } from './toast'
+import { toast, toastError } from './toast'
 
 const TYPE_OPTIONS: readonly (TrackType | 'auto')[] = [
     'auto',
@@ -354,27 +355,50 @@ export function PlayerPage() {
                 </form>
             </div>
 
-            {/* Shown only when something is queued. The list is rebuilt
-                imperatively on each queueChange (observable children render as
-                text, so a reactive node list needs a manual update). */}
+            {/* Shown only when something is loaded: the current track followed
+                by the upcoming queue. The list is rebuilt imperatively on each
+                change (observable children render as text, so a reactive node
+                list needs a manual update). */}
             <div
                 className="card"
-                visible={playerState.queue$.map((q) => q.length > 0)}
+                visible={playerState.track$.map((t) => t != null)}
             >
                 <div className="cardHeader">
                     <h2>Play Queue</h2>
+                    <button
+                        className="btnIcon"
+                        type="button"
+                        title="Copy link to this play queue"
+                        aria-label="Copy link to this play queue"
+                        disabled={playerState.track$.map((t) => t == null)}
+                        onclick={copyQueueLink}
+                    >
+                        <Icon name="link" />
+                    </button>
                 </div>
                 <div
                     className="demoGrid"
                     onConnect={(el) => {
-                        const render = (items: readonly TrackLoadOptions[]) =>
+                        const render = () => {
+                            const current = playerState.track$.value
                             el.replaceChildren(
-                                ...items.map((item, i) =>
+                                ...(current
+                                    ? [<CurrentQueueItem track={current} />]
+                                    : []),
+                                ...playerState.queue$.value.map((item, i) =>
                                     QueueItem({ item, index: i })
                                 )
                             )
-                        render(playerState.queue$.value)
-                        return playerState.queue$.onData(render)
+                        }
+                        render()
+                        const unsubscribeTrack =
+                            playerState.track$.onData(render)
+                        const unsubscribeQueue =
+                            playerState.queue$.onData(render)
+                        return () => {
+                            unsubscribeTrack()
+                            unsubscribeQueue()
+                        }
                     }}
                 />
             </div>
@@ -453,6 +477,44 @@ function DemoCard(props: { readonly track: DemoTrack }) {
             >
                 <Icon name="add" />
             </button>
+        </div>
+    )
+}
+
+/** Copies a link reproducing the current track and play queue. */
+function copyQueueLink() {
+    const link = createQueueLink()
+    if (link == null) return
+    navigator.clipboard
+        .writeText(link)
+        .then(() => toast('Play queue link copied'))
+        .catch(() => toastError('Could not copy the link to the clipboard'))
+}
+
+/** The Play Queue's first row: the currently loaded track. */
+function CurrentQueueItem(props: { readonly track: DemoTrack }) {
+    const { track } = props
+    return (
+        <div className="demoCard">
+            <div className="demoCardMain queueItemMain">
+                <div className="demoCardIcon">
+                    <Icon
+                        name={
+                            track.contentType === 'video'
+                                ? 'movie'
+                                : 'audio_file'
+                        }
+                    />
+                </div>
+                <div className="demoCardContent">
+                    <div className="demoCardTitle">
+                        {track.title ?? track.url}
+                    </div>
+                    <div className="demoCardDesc">{track.url}</div>
+                </div>
+                <span className="badge">Now playing</span>
+                <span className="badge">{track.type}</span>
+            </div>
         </div>
     )
 }
