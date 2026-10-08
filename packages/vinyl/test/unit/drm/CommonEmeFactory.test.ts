@@ -4,82 +4,126 @@
  */
 
 import {
-    MockMSMediaKeys,
-    useWebKitMediaKeys,
-} from '@amazon/vinyl/vinylTestUtil'
-import {
+    type CommonEme,
     commonEmeFactory,
+    type MediaKeySupport,
+    mediaKeySupportRef,
     MsCommonEme,
     StandardCommonEme,
     WebKitCommonEme,
 } from '@amazon/vinyl'
-import { isNode } from '@amazon/vinyl-util'
+import { overrideGlobalInit } from '@amazon/vinyl-util/testUtil'
 
-function useStandardMediaKeys() {
-    const originalMediaKeys = global.MediaKeys
-    beforeEach(() => {
-        global.MediaKeys = {} as any
-    })
-    afterEach(() => {
-        global.MediaKeys = originalMediaKeys
-    })
+type CommonEmeClass = abstract new (...args: never[]) => CommonEme
+
+function useMediaKeySupport(support: Partial<MediaKeySupport>) {
+    overrideGlobalInit(mediaKeySupportRef, () => ({
+        standardEme: false,
+        webkitEme: false,
+        msEme: false,
+        ...support,
+    }))
 }
 
-function useMsMediaKeys() {
-    const originalMSMediaKeys = (global as any).MSMediaKeys
-    beforeEach(() => {
-        ;(global as any).MSMediaKeys = MockMSMediaKeys
-    })
-
-    afterEach(() => {
-        ;(global as any).MSMediaKeys = originalMSMediaKeys
-    })
+function describeSupport(support: MediaKeySupport): string {
+    const supported = [
+        support.standardEme && 'standard',
+        support.webkitEme && 'WebKit',
+        support.msEme && 'MS',
+    ].filter(Boolean)
+    return supported.length ? supported.join(' + ') : 'none'
 }
 
-describe('CommonEmeFactory', () => {
-    beforeEach(() => {
-        if (!isNode()) pending('Cannot mock EME API outside Node')
-    })
+// Every combination of supported EME implementations, with the expected
+// implementation when standard is preferred and when prefixed is preferred.
+const cases: readonly {
+    readonly support: MediaKeySupport
+    readonly preferStandard: CommonEmeClass | null
+    readonly preferPrefixed: CommonEmeClass | null
+}[] = [
+    {
+        support: { standardEme: false, webkitEme: false, msEme: false },
+        preferStandard: null,
+        preferPrefixed: null,
+    },
+    {
+        support: { standardEme: true, webkitEme: false, msEme: false },
+        preferStandard: StandardCommonEme,
+        preferPrefixed: StandardCommonEme,
+    },
+    {
+        support: { standardEme: false, webkitEme: true, msEme: false },
+        preferStandard: WebKitCommonEme,
+        preferPrefixed: WebKitCommonEme,
+    },
+    {
+        support: { standardEme: false, webkitEme: false, msEme: true },
+        preferStandard: MsCommonEme,
+        preferPrefixed: MsCommonEme,
+    },
+    {
+        support: { standardEme: true, webkitEme: true, msEme: false },
+        preferStandard: StandardCommonEme,
+        preferPrefixed: WebKitCommonEme,
+    },
+    {
+        support: { standardEme: true, webkitEme: false, msEme: true },
+        preferStandard: StandardCommonEme,
+        preferPrefixed: MsCommonEme,
+    },
+    {
+        support: { standardEme: false, webkitEme: true, msEme: true },
+        preferStandard: WebKitCommonEme,
+        preferPrefixed: WebKitCommonEme,
+    },
+    {
+        support: { standardEme: true, webkitEme: true, msEme: true },
+        preferStandard: StandardCommonEme,
+        preferPrefixed: WebKitCommonEme,
+    },
+]
 
-    describe('when WebKit EME is supported', () => {
-        useWebKitMediaKeys(true)
+// Only `true` opts in to prefixed EME; unset, null, and false all keep the
+// standard-first default.
+const preferStandardCases: readonly {
+    readonly label: string
+    readonly create: () => CommonEme | null
+}[] = [
+    { label: 'no options', create: () => commonEmeFactory() },
+    { label: 'undefined options', create: () => commonEmeFactory(undefined) },
+    { label: 'null options', create: () => commonEmeFactory(null) },
+    { label: 'empty options', create: () => commonEmeFactory({}) },
+    ...[undefined, null, false].map((preferPrefixedMediaKeys) => ({
+        label: `preferPrefixedMediaKeys: ${String(preferPrefixedMediaKeys)}`,
+        create: () => commonEmeFactory({ preferPrefixedMediaKeys }),
+    })),
+]
 
-        it('returns WebKitCommonEme instance', () => {
-            expect(commonEmeFactory()).toBeInstanceOf(WebKitCommonEme)
-        })
+function expectEme(eme: CommonEme | null, expected: CommonEmeClass | null) {
+    if (expected == null) {
+        expect(eme).toBeNull()
+    } else {
+        expect(eme).toBeInstanceOf(expected)
+    }
+}
 
-        describe('and standard EME is supported', () => {
-            useStandardMediaKeys()
+describe('commonEmeFactory', () => {
+    for (const { support, preferStandard, preferPrefixed } of cases) {
+        describe(`when ${describeSupport(support)} EME is supported`, () => {
+            useMediaKeySupport(support)
 
-            // WebKit prefix currently takes priority, needs testing if necessary.
-            it('returns WebKitCommonEme instance', () => {
-                expect(commonEmeFactory()).toBeInstanceOf(WebKitCommonEme)
+            for (const { label, create } of preferStandardCases) {
+                it(`returns ${preferStandard?.name ?? 'null'} given ${label}`, () => {
+                    expectEme(create(), preferStandard)
+                })
+            }
+
+            it(`returns ${preferPrefixed?.name ?? 'null'} given preferPrefixedMediaKeys: true`, () => {
+                expectEme(
+                    commonEmeFactory({ preferPrefixedMediaKeys: true }),
+                    preferPrefixed
+                )
             })
         })
-    })
-
-    describe('when standard EME is supported', () => {
-        useStandardMediaKeys()
-
-        it('returns StandardMediaKeys', () => {
-            expect(commonEmeFactory()).toBeInstanceOf(StandardCommonEme)
-        })
-    })
-
-    describe('when MS EME is supported', () => {
-        useMsMediaKeys()
-
-        it('returns MSCommonEme', () => {
-            expect(commonEmeFactory()).toBeInstanceOf(MsCommonEme)
-        })
-
-        describe('and standard EME is supported', () => {
-            useStandardMediaKeys()
-
-            // standard takes priority
-            it('returns StandardCommonEme', () => {
-                expect(commonEmeFactory()).toBeInstanceOf(StandardCommonEme)
-            })
-        })
-    })
+    }
 })

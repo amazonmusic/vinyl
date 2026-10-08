@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { ReadonlyRecord, ValueProvider } from '@amazon/vinyl-util'
+import type { Maybe, ReadonlyRecord, ValueProvider } from '@amazon/vinyl-util'
 import type { DrmInitDataType } from '../streaming/DrmInitDataType'
 import type { MediaFormatMetadata } from '../streaming/MediaQualityMetadata'
 import {
+    boolean,
     enumOf,
     func,
     isOneOf,
@@ -57,6 +58,23 @@ export interface DrmOptions {
      * be used.
      */
     readonly licenseProvider?: LicenseProvider
+
+    /**
+     * If true, the prefixed EME implementations (WebKit, then MS) are preferred
+     * over standard EME when the browser supports them. Otherwise standard EME
+     * is used, falling back to a prefixed implementation only when standard EME
+     * is unavailable.
+     *
+     * Set this to use {@link DrmKeySystem.FAIR_PLAY_1_0}, which is only
+     * available through WebKit-prefixed EME.
+     *
+     * Read once when the player is constructed (it selects the EME
+     * implementation); setting it via `configure` or per-track options has no
+     * effect.
+     *
+     * Default: false
+     */
+    readonly preferPrefixedMediaKeys?: Maybe<boolean>
 }
 
 /**
@@ -156,4 +174,5 @@ export const drmOptionsValidator: ObjectSchema<DrmOptions> = object({
     ),
 
     licenseProvider: func().optional(),
+    preferPrefixedMediaKeys: boolean().maybe().optional(),
 })

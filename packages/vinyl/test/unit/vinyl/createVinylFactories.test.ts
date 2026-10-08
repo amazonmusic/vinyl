@@ -10,14 +10,18 @@ import {
     DrmKeySystem,
     type InferVinylOverrideDependencyType,
     LoudnessNormalizationControllerImpl,
+    mediaKeySupportRef,
     PlaybackControllerImpl,
     PlaybackSourceImpl,
+    StandardCommonEme,
     TrackControllerImpl,
     type TrackControllerImplOptions,
     type TrackFactory,
     type VinylDeps,
     type VinylTrackLoadOptions,
+    WebKitCommonEme,
 } from '@amazon/vinyl'
+import { overrideGlobalInit } from '@amazon/vinyl-util/testUtil'
 import {
     createContainer,
     type Dependencies,
@@ -101,6 +105,48 @@ describe('createVinylFactories', () => {
         )
 
         container.dispose()
+    })
+
+    describe('commonEme', () => {
+        overrideGlobalInit(mediaKeySupportRef, () => ({
+            standardEme: true,
+            webkitEme: true,
+            msEme: false,
+        }))
+
+        function createCommonEme(
+            drm?: Parameters<typeof createVinylFactories>[0]['drm']
+        ) {
+            const container = createContainer(
+                createVinylFactories({
+                    media: new MockHTMLAudioElement(),
+                    ...(drm && { drm }),
+                })
+            )
+            const commonEme = container.dependencies.commonEme
+            container.dispose()
+            return commonEme
+        }
+
+        it('prefers standard EME by default', () => {
+            expect(createCommonEme()).toBeInstanceOf(StandardCommonEme)
+            expect(createCommonEme({})).toBeInstanceOf(StandardCommonEme)
+        })
+
+        it('prefers standard EME when drm.preferPrefixedMediaKeys is false or null', () => {
+            expect(
+                createCommonEme({ preferPrefixedMediaKeys: false })
+            ).toBeInstanceOf(StandardCommonEme)
+            expect(
+                createCommonEme({ preferPrefixedMediaKeys: null })
+            ).toBeInstanceOf(StandardCommonEme)
+        })
+
+        it('prefers prefixed EME when drm.preferPrefixedMediaKeys is true', () => {
+            expect(
+                createCommonEme({ preferPrefixedMediaKeys: true })
+            ).toBeInstanceOf(WebKitCommonEme)
+        })
     })
 
     describe('InferVinylOverrideDependencyType', () => {

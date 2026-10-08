@@ -40,3 +40,34 @@ describe('DrmControllerImpl integ', () => {
         })
     })
 })
+
+describe('DrmControllerImpl integ when preferPrefixedMediaKeys is true', () => {
+    const prefixedSuite = createVinylSuite({
+        drm: {
+            keySystems: {
+                [DrmKeySystem.WIDEVINE]: {
+                    licenseServer: {
+                        url: 'https://cwip-shaka-proxy.appspot.com/no_auth',
+                    },
+                },
+            },
+            preferPrefixedMediaKeys: true,
+        },
+    })
+
+    beforeEach(async () => {
+        await pendingIfWidevineNotSupported(prefixedSuite.player)
+    })
+
+    // Widevine is only available through standard EME, so preferring
+    // prefixed EME must still fall back to it and play.
+    it('plays dash widevine', async () => {
+        prefixedSuite.player.load({
+            type: 'dash',
+            uri: vinylTestAssets.dash
+                .live_static_aac_opus_flac_60s_segmentBase_widevine,
+        })
+        await prefixedSuite.player.play()
+        await expectTrackPlays(prefixedSuite.player)
+    })
+})

@@ -162,7 +162,10 @@ export function createVinylFactories(options: VinylDependencyOptions) {
         drmKeySystemResolver: () => defaultDrmKeySystemResolver,
         drmController: (deps: DrmControllerImplDeps) =>
             new DrmControllerImpl(deps, options.drm),
-        commonEme: commonEmeFactory,
+        commonEme: () =>
+            commonEmeFactory({
+                preferPrefixedMediaKeys: options.drm?.preferPrefixedMediaKeys,
+            }),
         autoResetController: (deps: AutoResetControllerImplDeps) =>
             new AutoResetControllerImpl(deps, options.autoReset),
         adController: (deps: AdControllerImplDeps) =>

@@ -43,6 +43,9 @@ describe('MsCommonEme', () => {
     })
 
     afterEach(() => {
+        // The globals are only mocked under Node; in a browser these are the
+        // real EME APIs, which later specs in the bundle rely on.
+        if (!isNode()) return
         delete (global as any).MSMediaKeys
         delete (global as any).MSMediaKeySession
         delete (global as any).MSMediaKeyError

@@ -2,6 +2,7 @@
 import './_includes'
 import './drm/DrmControllerImpl.test'
 export * from './drm/pendingIfWidevineNotSupported'
+import './drm/preferPrefixedMediaKeys.test'
 import './event/looped.test'
 import './event/playingAndPlayed.test'
 import './event/stall.test'
