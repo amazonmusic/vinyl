@@ -7,18 +7,44 @@ import { MsCommonEme } from './MsCommonEme'
 import { StandardCommonEme } from './StandardCommonEme'
 import { WebKitCommonEme } from './WebKitCommonEme'
 import type { CommonEme } from './CommonEme'
-import { globalRef } from '@amazon/vinyl-util'
+import { globalRef, type Maybe } from '@amazon/vinyl-util'
+
+/**
+ * Options for {@link commonEmeFactory}.
+ */
+export interface CommonEmeFactoryOptions {
+    /**
+     * If true, the prefixed EME implementations (WebKit, then MS) are preferred
+     * over standard EME when available. Otherwise standard EME is preferred and
+     * the prefixed implementations are only used when it is unavailable.
+     *
+     * Default: false
+     */
+    readonly preferPrefixedMediaKeys?: Maybe<boolean>
+}
 
 /**
  * Common EME Factory provides the first supported implementation of CommonEme.
- * The priority is WebKit, Standard, then MS.
  *
- * Note: WebKit if present is currently prioritized over standard for legacy reasons. This may be an obsolete
- * requirement. https://jira.music.amazon.dev/browse/PLAYBACK-6072 ticket to investigate.
+ * The priority is Standard, then WebKit, then MS. If
+ * {@link CommonEmeFactoryOptions.preferPrefixedMediaKeys} is true, the priority
+ * is WebKit, then MS, then Standard.
  */
-export function commonEmeFactory(): CommonEme | null {
+export function commonEmeFactory(
+    options?: Maybe<CommonEmeFactoryOptions>
+): CommonEme | null {
+    if (options?.preferPrefixedMediaKeys === true) {
+        return createPrefixedCommonEme() ?? createStandardCommonEme()
+    }
+    return createStandardCommonEme() ?? createPrefixedCommonEme()
+}
+
+function createStandardCommonEme(): CommonEme | null {
+    return supportsStandardEme() ? new StandardCommonEme() : null
+}
+
+function createPrefixedCommonEme(): CommonEme | null {
     if (supportsWebKitEme()) return new WebKitCommonEme()
-    if (supportsStandardEme()) return new StandardCommonEme()
     if (supportsMsEme()) return new MsCommonEme()
     return null
 }

@@ -41,6 +41,9 @@ describe('WebkitCommonEme', () => {
     })
 
     afterEach(() => {
+        // The globals are only mocked under Node; in a browser these are the
+        // real EME APIs, which later specs in the bundle rely on.
+        if (!isNode()) return
         delete (global as any).WebKitMediaKeys
         delete (global as any).WebKitMediaKeySession
         delete (global as any).WebKitMediaKeyError

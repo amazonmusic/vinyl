@@ -59,6 +59,10 @@ export enum DrmKeySystem {
 
     /**
      * Apple's Fairplay for legacy Apple Media Keys.
+     *
+     * Only available through WebKit-prefixed EME, which requires
+     * {@link DrmOptions.preferPrefixedMediaKeys} when the browser also supports
+     * standard EME.
      */
     FAIR_PLAY_1_0 = 'com.apple.fps.1_0',
 }
