@@ -6,7 +6,7 @@
 import { initializeConnectedObserver, jsx } from '@amazon/vinyl-tsx'
 import { PlayerPage } from './components/PlayerPage'
 import { TransportBar } from './components/TransportBar'
-import { playerState } from './player'
+import { playerState, restoreQueueFromUrl } from './player'
 
 // Mounts the interactive player demo into the statically rendered /player page.
 // Loaded lazily by client.ts only on that route (keeps the heavy @amazon/vinyl
@@ -19,4 +19,5 @@ if (root) {
     document.body.append(
         <TransportBar visible={playerState.track$.map((v) => v != null)} />
     )
+    restoreQueueFromUrl()
 }

@@ -183,7 +183,22 @@ player.on('seekRangeChange', ({ current }) => {
     playerState.seekRange$.value = current
 })
 
-player.on('queueChange', ({ current }) => {
+// Set while the website rebuilds the queue itself (clear + re-enqueue), so
+// those intermediate queue changes aren't mistaken for an advance.
+let editingQueue = false
+
+player.on('queueChange', ({ previous, current }) => {
+    // The player doesn't expose the current item's load options, so detect an
+    // advance (the queue loses its head) and promote that head to the current
+    // track. Explicit loads overwrite track$ after calling player.load.
+    if (
+        !editingQueue &&
+        previous != null &&
+        previous.length === current.length + 1 &&
+        current.every((item, i) => item === previous[i + 1])
+    ) {
+        playerState.track$.value = fromLoadOptions(previous[0])
+    }
     playerState.queue$.value = current
 })
 
@@ -250,6 +265,25 @@ function toLoadOptions(track: DemoTrack): PlayerLoadOptions {
         extra: { ...track.config?.extra, ...displayInfo },
     }
     return { type: track.type, uri: track.url, config }
+}
+
+/** The inverse of {@link toLoadOptions}: splits the display fields back out of `config.extra`. */
+function fromLoadOptions(loadOptions: TrackLoadOptions): DemoTrack {
+    const { title, description, contentType, ...extra } = (loadOptions.config
+        ?.extra ?? {}) as TrackDisplayInfo & Record<string, unknown>
+    const { extra: _, ...rest } = loadOptions.config ?? {}
+    const config: TrackConfigOptions = {
+        ...rest,
+        ...(Object.keys(extra).length > 0 && { extra }),
+    }
+    return {
+        url: loadOptions.uri,
+        type: loadOptions.type as TrackType,
+        ...(title != null && { title }),
+        ...(description != null && { description }),
+        ...(contentType != null && { contentType }),
+        ...(Object.keys(config).length > 0 && { config }),
+    }
 }
 
 /**
@@ -323,8 +357,110 @@ export function enqueueContent(track: DemoTrack) {
  */
 export function removeFromQueue(index: number) {
     const remaining = player.queue.filter((_, i) => i !== index)
-    player.clearQueue()
-    if (remaining.length) player.enqueue(...remaining)
+    editingQueue = true
+    try {
+        player.clearQueue()
+        if (remaining.length) player.enqueue(...remaining)
+    } finally {
+        editingQueue = false
+    }
+}
+
+const QUEUE_PARAM = 'queue'
+
+/**
+ * Builds a link that reproduces the current track followed by the play queue.
+ * The tracks are JSON (binary DRM fields such as a service certificate encoded
+ * as base64) in a base64url `queue` query parameter. Function-valued options
+ * (e.g. a dynamic license server provider) can't be serialized and are dropped.
+ */
+export function createQueueLink(): string | null {
+    const current = playerState.track$.value
+    if (current == null) return null
+    const tracks = [current, ...player.queue.map(fromLoadOptions)]
+    const json = JSON.stringify(tracks, (_, value: unknown) =>
+        value instanceof ArrayBuffer || ArrayBuffer.isView(value)
+            ? { $bytes: bytesToBase64(toUint8Array(value)) }
+            : value
+    )
+    const url = new URL(location.href)
+    url.hash = ''
+    url.searchParams.set(
+        QUEUE_PARAM,
+        bytesToBase64(new TextEncoder().encode(json), true)
+    )
+    return url.href
+}
+
+/**
+ * Loads the queue encoded by {@link createQueueLink} from the page URL, if
+ * present: the first track plays and the rest are queued after it.
+ */
+export function restoreQueueFromUrl() {
+    const encoded = new URLSearchParams(location.search).get(QUEUE_PARAM)
+    if (!encoded) return
+    let tracks: unknown
+    try {
+        const json = new TextDecoder().decode(base64ToBytes(encoded))
+        tracks = JSON.parse(json, (_, value: unknown) =>
+            isEncodedBytes(value) ? base64ToBytes(value.$bytes).buffer : value
+        )
+    } catch {
+        toastError('Could not read the play queue from the link')
+        return
+    }
+    if (!Array.isArray(tracks) || !tracks.every(isDemoTrack)) {
+        toastError('Could not read the play queue from the link')
+        return
+    }
+    if (tracks.length === 0) return
+    const [first, ...rest] = tracks as [DemoTrack, ...DemoTrack[]]
+    player.load(...tracks.map(toLoadOptions))
+    playerState.track$.value = first
+    playerState.hasVideo$.value = first.contentType === 'video'
+    // Autoplay is commonly blocked on a fresh page load; the transport's play
+    // button starts it instead.
+    player.play().catch((error: unknown) => {
+        if ((error as Error | null)?.name !== 'NotAllowedError')
+            handleError(error)
+    })
+    if (rest.length) toast(`Queued ${rest.length} more from the link`)
+}
+
+function isDemoTrack(value: unknown): value is DemoTrack {
+    const track = value as Partial<DemoTrack> | null
+    return (
+        typeof track?.url === 'string' &&
+        (track.type === 'dash' || track.type === 'hls' || track.type === 'src')
+    )
+}
+
+function isEncodedBytes(value: unknown): value is { $bytes: string } {
+    return (
+        typeof value === 'object' &&
+        value != null &&
+        typeof (value as { $bytes?: unknown }).$bytes === 'string'
+    )
+}
+
+function toUint8Array(value: ArrayBuffer | ArrayBufferView): Uint8Array {
+    return value instanceof ArrayBuffer
+        ? new Uint8Array(value)
+        : new Uint8Array(value.buffer, value.byteOffset, value.byteLength)
+}
+
+function bytesToBase64(bytes: Uint8Array, urlSafe = false): string {
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    const base64 = btoa(binary)
+    return urlSafe
+        ? base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+        : base64
+}
+
+function base64ToBytes(base64: string): Uint8Array {
+    const binary = atob(base64.replace(/-/g, '+').replace(/_/g, '/'))
+    return Uint8Array.from(binary, (c) => c.charCodeAt(0))
 }
 
 export function togglePlayPause() {
