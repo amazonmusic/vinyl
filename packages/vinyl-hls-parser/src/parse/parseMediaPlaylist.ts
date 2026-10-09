@@ -75,7 +75,10 @@ export function parseMediaPlaylist(
 
     let currentKey: EncryptionKey | undefined
     let currentMap: HlsMap | undefined
-    let pendingByteRange: { length: number; offset: number } | undefined
+    let pendingByteRange: PartialByteRange | undefined
+    // End (exclusive) of the previous segment's sub-range, where a byte range
+    // without an offset begins.
+    let previousByteRangeEnd: number | undefined
     let pendingDiscontinuity = false
     let pendingDateTime: string | undefined
 
@@ -106,7 +109,7 @@ export function parseMediaPlaylist(
                 // Process tags that come between EXTINF and URI
                 if (nextLine.startsWith(EXT_X_BYTERANGE)) {
                     const rangeStr = nextLine.substring(EXT_X_BYTERANGE.length)
-                    pendingByteRange = parseByteRangeString(rangeStr)
+                    pendingByteRange = parsePartialByteRange(rangeStr)
                 } else if (nextLine === EXT_X_DISCONTINUITY) {
                     pendingDiscontinuity = true
                 } else if (nextLine.startsWith(EXT_X_PROGRAM_DATE_TIME)) {
@@ -130,13 +133,20 @@ export function parseMediaPlaylist(
                 }
             }
 
+            const byteRange = pendingByteRange && {
+                length: pendingByteRange.length,
+                offset: pendingByteRange.offset ?? previousByteRangeEnd ?? 0,
+            }
+            previousByteRangeEnd = byteRange
+                ? byteRange.offset + byteRange.length
+                : undefined
             segments.push({
                 uri,
                 duration,
                 sequenceNumber: mediaSequence + sequenceCounter,
                 ...(currentKey && { key: currentKey }),
                 ...(currentMap && { map: currentMap }),
-                ...(pendingByteRange && { byteRange: pendingByteRange }),
+                ...(byteRange && { byteRange }),
                 discontinuity: pendingDiscontinuity,
                 ...(pendingDateTime && { programDateTime: pendingDateTime }),
             })
@@ -199,7 +209,7 @@ export function parseMediaPlaylist(
             }
         } else if (trimmed.startsWith(EXT_X_BYTERANGE)) {
             const rangeStr = trimmed.substring(EXT_X_BYTERANGE.length)
-            pendingByteRange = parseByteRangeString(rangeStr)
+            pendingByteRange = parsePartialByteRange(rangeStr)
         } else if (trimmed === EXT_X_DISCONTINUITY) {
             pendingDiscontinuity = true
         } else if (trimmed.startsWith(EXT_X_PROGRAM_DATE_TIME)) {
@@ -308,16 +318,32 @@ function parseHlsDateRange(
     }
 }
 
+/** A byte range whose offset may be omitted (`n[@o]`). */
+interface PartialByteRange {
+    readonly length: number
+    readonly offset: number | undefined
+}
+
 /**
- * Parses a byte range string (e.g. "1000@500" or "1000") into length and offset.
+ * Parses a byte range string (e.g. "1000@500" or "1000") into length and
+ * offset, leaving the offset undefined when omitted.
+ */
+function parsePartialByteRange(str: string): PartialByteRange {
+    const parts = str.split('@')
+    return {
+        length: Number(parts[0]),
+        offset: parts.length > 1 ? Number(parts[1]) : undefined,
+    }
+}
+
+/**
+ * Parses an EXT-X-MAP BYTERANGE (e.g. "1000@500" or "1000"), whose omitted
+ * offset is 0.
  */
 function parseByteRangeString(str: string): {
     readonly length: number
     readonly offset: number
 } {
-    const parts = str.split('@')
-    return {
-        length: Number(parts[0]),
-        offset: parts.length > 1 ? Number(parts[1]) : 0,
-    }
+    const { length, offset } = parsePartialByteRange(str)
+    return { length, offset: offset ?? 0 }
 }
