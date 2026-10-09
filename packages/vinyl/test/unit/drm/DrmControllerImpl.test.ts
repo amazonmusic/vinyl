@@ -25,6 +25,7 @@ import { createEventSpy, useMockLogger } from '@amazon/vinyl-util/testUtil'
 import {
     Abort,
     base64ToByteArray,
+    byteStrToByteArray,
     bufferToBase64,
     Deferred,
     ErrorLevel,
@@ -721,6 +722,70 @@ describe('DrmControllerImpl', () => {
                 ])
             })
 
+            for (const keySystem of [
+                DrmKeySystem.FAIR_PLAY,
+                DrmKeySystem.PLAY_READY,
+                DrmKeySystem.CLEAR_KEY,
+            ]) {
+                it(`requests no robustness by default for ${keySystem}`, async () => {
+                    drmController.setBufferingDrmInfo({
+                        ...drmInfo,
+                        contentProtections: [{ keySystem }],
+                        contentType: 'audio',
+                        mimeType: 'audio/mp4',
+                    })
+                    await emitEncrypted()
+                    expect(
+                        commonEme.requestMediaKeySystemAccess
+                    ).toHaveBeenCalledOnceWith(keySystem, [
+                        {
+                            initDataTypes: ['cenc'],
+                            audioCapabilities: [
+                                {
+                                    contentType: 'audio/mp4',
+                                    encryptionScheme: 'cenc',
+                                },
+                            ],
+                        },
+                    ])
+                })
+            }
+
+            it('requests the configured robustness for a non-Widevine key system', async () => {
+                drmController.configure({
+                    keySystems: {
+                        [DrmKeySystem.PLAY_READY]: {
+                            audio: {
+                                robustness: DrmRobustness.HW_SECURE_CRYPTO,
+                            },
+                        },
+                    },
+                })
+                drmController.setBufferingDrmInfo({
+                    ...drmInfo,
+                    contentProtections: [
+                        { keySystem: DrmKeySystem.PLAY_READY },
+                    ],
+                    contentType: 'audio',
+                    mimeType: 'audio/mp4',
+                })
+                await emitEncrypted()
+                expect(
+                    commonEme.requestMediaKeySystemAccess
+                ).toHaveBeenCalledOnceWith(DrmKeySystem.PLAY_READY, [
+                    {
+                        initDataTypes: ['cenc'],
+                        audioCapabilities: [
+                            {
+                                contentType: 'audio/mp4',
+                                encryptionScheme: 'cenc',
+                                robustness: DrmRobustness.HW_SECURE_CRYPTO,
+                            },
+                        ],
+                    },
+                ])
+            })
+
             describe('when media key initialization fails', () => {
                 describe('and the error is silent', () => {
                     beforeEach(() => {
@@ -1329,6 +1394,123 @@ describe('DrmControllerImpl', () => {
     })
 
     describe('serverCertificate', () => {
+        describe('when keySystem is FAIR_PLAY_2_0', () => {
+            const contentId = '0b5689bb-4171-97e5-c280-99f7abe4004f'
+            const certificate = new Uint8Array([1, 2, 3, 4])
+            const certificateRequest = byteStrToByteArray('certificate').buffer
+
+            beforeEach(() => {
+                drmController = new DrmControllerImpl(deps, {
+                    keySystems: {
+                        [DrmKeySystem.FAIR_PLAY_2_0]: {
+                            licenseServer: {
+                                serverCertificate: certificate.buffer,
+                            },
+                        },
+                    },
+                    licenseProvider,
+                })
+                errorSpy = createEventSpy(drmController, 'error')
+                mediaKeys.keySystem = DrmKeySystem.FAIR_PLAY_2_0
+                drmController.setBufferingDrmInfo({
+                    ...drmInfo,
+                    initDataType: 'sinf',
+                    contentProtections: [
+                        { keySystem: DrmKeySystem.FAIR_PLAY_2_0, contentId },
+                    ],
+                })
+            })
+
+            it('starts the session from the content id instead of the encrypted init data', async () => {
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'sinf')
+                expect(mediaKeys.createSession).toHaveBeenCalledOnceWith(
+                    drmInfo.mimeType,
+                    'sinf',
+                    byteStrToByteArray(contentId)
+                )
+            })
+
+            it('reuses the session for another encrypted event with the same content id', async () => {
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'sinf')
+                await emitEncrypted(new Uint8Array([8, 8, 8]), 'sinf')
+                expect(mediaKeys.createSession).toHaveBeenCalledTimes(1)
+            })
+
+            it('answers the certificate request with the server certificate', async () => {
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'sinf')
+                await emitMessage(0, certificateRequest)
+
+                expect(getSession(0).update).toHaveBeenCalledOnceWith(
+                    certificate.buffer
+                )
+                expect(licenseProvider).not.toHaveBeenCalled()
+            })
+
+            it('does not answer the certificate request on a disposed session', async () => {
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'sinf')
+                getSession(0).disposed = true
+                await emitMessage(0, certificateRequest)
+
+                expect(getSession(0).update).not.toHaveBeenCalled()
+            })
+
+            it('requests a license for the message after the certificate request', async () => {
+                const spc = new ArrayBuffer(8)
+                const ckc = new ArrayBuffer(4)
+                licenseProvider.and.resolveTo(ckc)
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'sinf')
+                await emitMessage(0, certificateRequest)
+                await emitMessage(0, spc)
+
+                expect(licenseProvider).toHaveBeenCalledOnceWith(
+                    DrmKeySystem.FAIR_PLAY_2_0,
+                    { serverCertificate: certificate.buffer },
+                    spc
+                )
+                expect(getSession(0).update).toHaveBeenCalledWith(ckc)
+            })
+
+            it('emits an error when the protection has no content id', async () => {
+                drmController.setBufferingDrmInfo({
+                    ...drmInfo,
+                    initDataType: 'sinf',
+                    contentProtections: [
+                        { keySystem: DrmKeySystem.FAIR_PLAY_2_0 },
+                    ],
+                })
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'sinf')
+                expectError('FairPlay 2.0 requires a content id')
+            })
+
+            it('emits an error when certificate data was not configured', async () => {
+                drmController = new DrmControllerImpl(deps, {
+                    licenseProvider,
+                })
+                errorSpy = createEventSpy(drmController, 'error')
+                drmController.setBufferingDrmInfo({
+                    ...drmInfo,
+                    initDataType: 'sinf',
+                    contentProtections: [
+                        { keySystem: DrmKeySystem.FAIR_PLAY_2_0, contentId },
+                    ],
+                })
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'sinf')
+                await emitMessage(0, certificateRequest)
+                expectError('FairPlay requires certificate data')
+            })
+
+            it('treats a certificate request from another key system as a license challenge', async () => {
+                mediaKeys.keySystem = DrmKeySystem.FAIR_PLAY
+                drmController.setBufferingDrmInfo({
+                    ...drmInfo,
+                    contentProtections: [{ keySystem: DrmKeySystem.FAIR_PLAY }],
+                })
+                await emitEncrypted(new Uint8Array([9, 9, 9]), 'cenc')
+                await emitMessage(0, certificateRequest)
+                expect(licenseProvider).toHaveBeenCalledTimes(1)
+            })
+        })
+
         describe('when keySystem is FAIR_PLAY_1_0', () => {
             it('initializes sessions using createFairPlaySessionInitData', async () => {
                 // These data were extracted from a catalog track, asin://B0B5HKZZ98.

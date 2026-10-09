@@ -102,6 +102,13 @@ export interface DrmProtection {
      * PlayReady object.
      */
     readonly pro?: Maybe<string>
+
+    /**
+     * FairPlay content (asset) id the license server looks the key up by, such
+     * as the asset id of an HLS `skd://` key URI. Used to start
+     * {@link DrmKeySystem.FAIR_PLAY_2_0} sessions.
+     */
+    readonly contentId?: Maybe<string>
 }
 
 export const drmProtectionValidator: ObjectSchema<DrmProtection> =
@@ -109,6 +116,7 @@ export const drmProtectionValidator: ObjectSchema<DrmProtection> =
         keySystem: enumOf(DrmKeySystem),
         pro: string().maybe().optional(),
         pssh: string().maybe().optional(),
+        contentId: string().maybe().optional(),
     })
 
 export const mediaFormatMetadataValidator: ObjectSchema<MediaFormatMetadata> =

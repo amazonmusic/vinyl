@@ -8,7 +8,8 @@ import {
     base64ToByteArray,
     buffersEqual,
     bufferToByteArray,
-    clone,
+    bufferToByteStr,
+    byteStrToByteArray,
     type Comparator,
     compareBy,
     createDisposer,
@@ -63,6 +64,7 @@ import type {
 import { unpackPlayReadyChallenge } from './util/unpackPlayReadyChallenge'
 import type {
     LicenseProvider,
+    LicenseServerOptions,
     ServerCertificate,
 } from './licenseProvider/LicenseProvider'
 import { defaultLicenseProvider } from './licenseProvider/defaultLicenseProvider'
@@ -563,9 +565,10 @@ export class DrmControllerImpl
                 keySystem,
                 drmInfo.contentType
             )
+            const robustness =
+                mediaOptions?.robustness ?? defaultRobustness(keySystem)
             const capability: MediaKeySystemMediaCapability = {
-                robustness:
-                    mediaOptions?.robustness ?? DrmRobustness.SW_SECURE_CRYPTO,
+                ...(robustness != null && { robustness }),
                 encryptionScheme: drmInfo.encryptionScheme,
             }
             if (drmInfo.mimeType) {
@@ -675,40 +678,65 @@ export class DrmControllerImpl
 
         const keySystem = mediaKeys.keySystem
         logDebug(this, 'message', keySystem, event.message.byteLength)
-
-        // The CDM's first message ends the setup span; it is contiguous with the
-        // license round-trip measured below.
-        if (this.keySetupSpanStart != null) {
-            this.dispatchLoadSpan(
-                'keySetup',
-                this.keySetupSpanStart,
-                Date.now(),
-                messageProps
-            )
-            this.keySetupSpanStart = null
-        }
+        const messageTime = Date.now()
 
         const keySystemOptions =
             this.options.keySystems[keySystem] ?? this.options.keySystems['*']
         const licenseServerOptionsProvider = keySystemOptions?.licenseServer
 
         // Get the license server configuration for the current key system.
-        const licenseServerOptions =
-            clone(await resolveValueProvider(licenseServerOptionsProvider)) ??
-            {}
+        // Not deep-cloned: the server certificate may be an ArrayBuffer.
+        const resolvedLicenseServerOptions = await resolveValueProvider(
+            licenseServerOptionsProvider
+        )
+        let licenseServerOptions: LicenseServerOptions = {
+            ...resolvedLicenseServerOptions,
+        }
         this.abortIfDisposed()
+
+        // FairPlay 2.0 asks for the server certificate before its license
+        // request; it's part of key setup, not a license round trip.
+        if (isFairPlayCertificateRequest(keySystem, event.message)) {
+            const certBytes = toCertBytes(
+                licenseServerOptions.serverCertificate
+            )
+            if (!certBytes) {
+                throw new DrmError('FairPlay requires certificate data')
+            }
+            this.pendingMessageProps = null
+            if (session.disposed) return
+            logDebug(this, 'update certificate')
+            await session.update(certBytes.buffer)
+            return
+        }
+
+        // The CDM's first license message ends the setup span; it is
+        // contiguous with the license round-trip measured below.
+        if (this.keySetupSpanStart != null) {
+            this.dispatchLoadSpan(
+                'keySetup',
+                this.keySetupSpanStart,
+                messageTime,
+                messageProps
+            )
+            this.keySetupSpanStart = null
+        }
 
         let challenge: BodyInit = event.message
         if (isPlayReady(keySystem)) {
             const unpacked = unpackPlayReadyChallenge(challenge)
             challenge = unpacked.challenge
-            if (licenseServerOptions.init == null)
-                licenseServerOptions.init = {}
-            licenseServerOptions.init.headers = {
-                ...normalizeHeadersInit(
-                    licenseServerOptions.init.headers ?? {}
-                ),
-                ...unpacked.headers,
+            licenseServerOptions = {
+                ...licenseServerOptions,
+                init: {
+                    ...licenseServerOptions.init,
+                    headers: {
+                        ...normalizeHeadersInit(
+                            licenseServerOptions.init?.headers ?? {}
+                        ),
+                        ...unpacked.headers,
+                    },
+                },
             }
         }
         const licenseSpanStart = Date.now()
@@ -883,17 +911,36 @@ function toCertBytes(
 }
 
 /**
+ * The robustness requested when none is configured for the key system.
+ * Robustness strings are key-system specific: the {@link DrmRobustness} values
+ * are Widevine's, and other key systems reject a configuration requesting one
+ * they don't recognize (e.g. Safari's FairPlay rejects any non-empty
+ * robustness), so only Widevine gets a default.
+ */
+function defaultRobustness(keySystem: DrmKeySystem): DrmRobustness | undefined {
+    return keySystem === DrmKeySystem.WIDEVINE
+        ? DrmRobustness.SW_SECURE_CRYPTO
+        : undefined
+}
+
+/**
  * Default initDataTransformer. For FAIR_PLAY_1_0, packs the skd init data
  * with the extracted content ID and server certificate into the format
  * expected by WebKit-prefixed EME. FAIR_PLAY_1_0 always uses initDataType
  * 'skd', so we only need to check the key system.
+ * For FAIR_PLAY_2_0, the session is started from the protection's content id
+ * (see {@link DrmProtection.contentId}) instead of the media's init data.
  * For all other key systems, returns init data unchanged.
  */
 function defaultInitDataTransformer(
     keySystem: DrmKeySystem,
     certBytes: Uint8Array<ArrayBuffer> | null
 ): InitDataTransformer {
-    return (initData: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer> => {
+    return (
+        initData: Uint8Array<ArrayBuffer>,
+        _initDataType: DrmInitDataType,
+        drmInfo: MediaFormatMetadata
+    ): Uint8Array<ArrayBuffer> => {
         if (keySystem === DrmKeySystem.FAIR_PLAY_1_0) {
             if (!certBytes) {
                 throw new DrmError('FairPlay requires certificate data')
@@ -901,6 +948,32 @@ function defaultInitDataTransformer(
             const contentId = extractContentId(initData)
             return createFairPlaySessionInitData(initData, contentId, certBytes)
         }
+        if (keySystem === DrmKeySystem.FAIR_PLAY_2_0) {
+            const contentId = drmInfo.contentProtections.find(
+                (cP) => cP.keySystem === keySystem
+            )?.contentId
+            if (!contentId) {
+                throw new DrmError('FairPlay 2.0 requires a content id', {
+                    drmInfo,
+                })
+            }
+            // Content ids are ASCII (e.g. the asset id of an skd:// URI).
+            return byteStrToByteArray(contentId)
+        }
         return initData
     }
+}
+
+/**
+ * Whether a key message is FairPlay 2.0's request for the server certificate,
+ * sent before its license request.
+ */
+function isFairPlayCertificateRequest(
+    keySystem: DrmKeySystem,
+    message: ArrayBuffer
+): boolean {
+    return (
+        keySystem === DrmKeySystem.FAIR_PLAY_2_0 &&
+        bufferToByteStr(message) === 'certificate'
+    )
 }

@@ -7,6 +7,8 @@ import {
     buildHlsMediaTimeline,
     createDefaultMediaTimelineTransformer,
     createEmptyMediaQualityMetadata,
+    defaultDrmKeySystemResolver,
+    DrmKeySystem,
     type HlsManifestData,
 } from '@amazon/vinyl'
 import { noop } from '@amazon/vinyl-util'
@@ -16,6 +18,7 @@ import {
     MockDrmController,
 } from '@amazon/vinyl/vinylTestUtil'
 import type {
+    EncryptionKey,
     HlsMainPlaylist,
     HlsMediaPlaylist,
     VariantStream,
@@ -66,6 +69,7 @@ describe('buildHlsMediaTimeline', () => {
         }),
         requestInterceptor: noop,
         segmentRequestInit: undefined,
+        drmKeySystemResolver: defaultDrmKeySystemResolver,
     }
 
     it('builds a single-period timeline from HLS manifest', () => {
@@ -497,6 +501,69 @@ describe('buildHlsMediaTimeline', () => {
         // Only the AAC rendition survives; the period is not emptied, so no
         // MediaUnsupportedError is thrown.
         expect(audio.map((q) => q.metadata.codecs)).toEqual(['mp4a.40.2'])
+    })
+
+    describe('when fMP4 segments are encrypted', () => {
+        function createEncryptedPlaylist(key: EncryptionKey): HlsMediaPlaylist {
+            const playlist = createMediaPlaylist([4, 4])
+            return {
+                ...playlist,
+                segments: playlist.segments.map((segment) => ({
+                    ...segment,
+                    key,
+                })),
+            }
+        }
+
+        it('adds the EXT-X-KEY DRM metadata to the segment quality', async () => {
+            const variant = createVariant('v1.m3u8', 128000)
+            const timeline = buildHlsMediaTimeline(
+                deps,
+                createManifestData(
+                    [variant],
+                    createEncryptedPlaylist({
+                        method: 'SAMPLE-AES',
+                        uri: 'skd://key-1',
+                        keyFormat: 'com.apple.streamingkeydelivery',
+                    })
+                )
+            )
+            const quality = timeline.periods[0].qualities[0]
+
+            const segment = await quality.getSegment(5)
+            expect(segment!.quality).toEqual({
+                ...quality.metadata,
+                contentProtections: [
+                    { keySystem: DrmKeySystem.FAIR_PLAY, contentId: 'key-1' },
+                    {
+                        keySystem: DrmKeySystem.FAIR_PLAY_2_0,
+                        contentId: 'key-1',
+                    },
+                ],
+                encryptionScheme: 'cbcs',
+                initDataType: 'sinf',
+            })
+            // The timeline metadata itself stays clear.
+            expect(quality.metadata.contentProtections).toEqual([])
+        })
+
+        it('keeps the quality metadata for keys that are not EME-decryptable', async () => {
+            const variant = createVariant('v1.m3u8', 128000)
+            const timeline = buildHlsMediaTimeline(
+                deps,
+                createManifestData(
+                    [variant],
+                    createEncryptedPlaylist({
+                        method: 'AES-128',
+                        uri: 'https://example.com/key',
+                    })
+                )
+            )
+            const quality = timeline.periods[0].qualities[0]
+
+            const segment = await quality.getSegment(0)
+            expect(segment!.quality).toBe(quality.metadata)
+        })
     })
 
     it('uses transmux path when no EXT-X-MAP is present', async () => {

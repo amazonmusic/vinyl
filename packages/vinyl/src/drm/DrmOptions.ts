@@ -135,6 +135,13 @@ export type InitDataTransformer = (
 ) => Uint8Array<ArrayBuffer>
 
 export interface DrmMediaKeySystemOptions {
+    /**
+     * The requested robustness. These are Widevine robustness levels, so only
+     * set this for key systems that accept them.
+     *
+     * Default: {@link DrmRobustness.SW_SECURE_CRYPTO} for Widevine; none for
+     * other key systems.
+     */
     readonly robustness?: DrmRobustness
 }
 

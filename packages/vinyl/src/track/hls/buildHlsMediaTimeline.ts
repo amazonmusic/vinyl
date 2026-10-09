@@ -28,8 +28,10 @@ import { hlsByteRangeToMediaRange } from './util/hlsByteRangeToMediaRange'
 import { createTransmuxer } from '@amazon/vinyl-transmux'
 import type { AdBreakList } from '../../ad/AdBreakInfo'
 import { discoverHlsInterstitials } from '../../ad/discoverHlsInterstitials'
+import { hlsKeyDrmInfo, type HlsKeyDrmInfoDeps } from './util/hlsKeyDrmInfo'
 
-export interface BuildHlsMediaTimelineDeps extends CreateSegmentDataProviderDeps {
+export interface BuildHlsMediaTimelineDeps
+    extends CreateSegmentDataProviderDeps, HlsKeyDrmInfoDeps {
     readonly mediaQualityMetadataResolver: HlsMediaQualityMetadataResolver
 }
 
@@ -220,8 +222,14 @@ function createHlsQualityData(
             // fMP4: use #EXT-X-MAP init segment directly.
             const hlsMap = playlist.segments[0]?.map
             if (hlsMap) {
+                // Encryption is declared per media playlist (EXT-X-KEY), so the
+                // DRM metadata is only known here, on the segment's quality.
+                const drmInfo = hlsKeyDrmInfo(
+                    deps,
+                    playlist.segments[segments.indexOf(segment)]?.key
+                )
                 return {
-                    quality: metadata,
+                    quality: drmInfo ? { ...metadata, ...drmInfo } : metadata,
                     ...segment,
                     initData: createSegmentDataProvider(deps, {
                         url: resolveUrl(hlsMap.uri, playlistBaseUrl),

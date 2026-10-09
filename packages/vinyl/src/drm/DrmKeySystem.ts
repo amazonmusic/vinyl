@@ -58,13 +58,30 @@ export enum DrmKeySystem {
     FAIR_PLAY = 'com.apple.fps',
 
     /**
-     * Apple's Fairplay for legacy Apple Media Keys.
+     * Apple's Fairplay for legacy Apple Media Keys, for natively played HLS.
      *
      * Only available through WebKit-prefixed EME, which requires
      * {@link DrmOptions.preferPrefixedMediaKeys} when the browser also supports
      * standard EME.
      */
     FAIR_PLAY_1_0 = 'com.apple.fps.1_0',
+
+    /**
+     * Apple's Fairplay for legacy Apple Media Keys, for Media Source
+     * Extensions playback.
+     *
+     * The session is started from the FairPlay content (asset) id
+     * ({@link DrmProtection.contentId}), which the CDM sends as the SPC's
+     * asset id, while the key is applied to the SourceBuffer's samples. Unlike
+     * standard EME's {@link FAIR_PLAY}, the asset id is therefore independent
+     * of the media's key id. Before the license request, the CDM asks for the
+     * server certificate with a `certificate` message.
+     *
+     * Only available through WebKit-prefixed EME, which requires
+     * {@link DrmOptions.preferPrefixedMediaKeys} when the browser also supports
+     * standard EME.
+     */
+    FAIR_PLAY_2_0 = 'com.apple.fps.2_0',
 }
 
 /**
@@ -89,6 +106,7 @@ export function isPlayReady(keySystem: DrmKeySystem): boolean {
 export const FAIR_PLAY_KEY_SYSTEMS: readonly DrmKeySystem[] = [
     DrmKeySystem.FAIR_PLAY,
     DrmKeySystem.FAIR_PLAY_1_0,
+    DrmKeySystem.FAIR_PLAY_2_0,
 ] as const
 
 export function isFairPlay(keySystem: DrmKeySystem): boolean {
