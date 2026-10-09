@@ -256,7 +256,7 @@ segment.ts`
         expect(result.segments[0].byteRange!.offset).toBe(0)
     })
 
-    it('defaults byte range offset to 0 when omitted', () => {
+    it('defaults the first byte range offset to 0 when omitted', () => {
         const manifest = [
             '#EXTM3U',
             '#EXT-X-BYTERANGE:75232',
@@ -267,6 +267,63 @@ segment.ts`
         const result = parseMediaPlaylist(manifest)
         expect(result.segments[0].byteRange!.length).toBe(75232)
         expect(result.segments[0].byteRange!.offset).toBe(0)
+    })
+
+    it('starts an offset-less byte range after the previous segment sub-range', () => {
+        // DMLS-style single-file fMP4: only the first range has an offset.
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-MAP:URI="track.mp4",BYTERANGE="921@0"',
+            '#EXTINF:10,',
+            '#EXT-X-BYTERANGE:323694@1337',
+            'track.mp4',
+            '#EXTINF:10,',
+            '#EXT-X-BYTERANGE:322146',
+            'track.mp4',
+            '#EXT-X-BYTERANGE:321342',
+            '#EXTINF:10,',
+            'track.mp4',
+        ].join('\n')
+
+        const result = parseMediaPlaylist(manifest)
+        expect(result.segments.map((segment) => segment.byteRange)).toEqual([
+            { length: 323694, offset: 1337 },
+            { length: 322146, offset: 1337 + 323694 },
+            { length: 321342, offset: 1337 + 323694 + 322146 },
+        ])
+    })
+
+    it('defaults an EXT-X-MAP byte range offset to 0 when omitted', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-MAP:URI="init.mp4",BYTERANGE="812"',
+            '#EXTINF:9,',
+            'seg.mp4',
+        ].join('\n')
+
+        const result = parseMediaPlaylist(manifest)
+        expect(result.segments[0].map!.byteRange).toEqual({
+            length: 812,
+            offset: 0,
+        })
+    })
+
+    it('defaults an offset-less byte range to 0 after a segment without one', () => {
+        const manifest = [
+            '#EXTM3U',
+            '#EXT-X-BYTERANGE:100@50',
+            '#EXTINF:9,',
+            'a.mp4',
+            '#EXTINF:9,',
+            'b.mp4',
+            '#EXT-X-BYTERANGE:200',
+            '#EXTINF:9,',
+            'c.mp4',
+        ].join('\n')
+
+        const result = parseMediaPlaylist(manifest)
+        expect(result.segments[1].byteRange).toBeUndefined()
+        expect(result.segments[2].byteRange).toEqual({ length: 200, offset: 0 })
     })
 
     it('marks segment with discontinuity', () => {
