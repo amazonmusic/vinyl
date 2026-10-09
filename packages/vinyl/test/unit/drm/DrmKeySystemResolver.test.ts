@@ -13,7 +13,11 @@ describe('defaultDrmKeySystemResolver', () => {
         ).toEqual([DrmKeySystem.WIDEVINE])
         expect(
             defaultDrmKeySystemResolver(ContentProtectionScheme.FAIR_PLAY)
-        ).toEqual([DrmKeySystem.FAIR_PLAY, DrmKeySystem.FAIR_PLAY_1_0])
+        ).toEqual([
+            DrmKeySystem.FAIR_PLAY,
+            DrmKeySystem.FAIR_PLAY_1_0,
+            DrmKeySystem.FAIR_PLAY_2_0,
+        ])
         expect(
             defaultDrmKeySystemResolver(ContentProtectionScheme.CENC)
         ).toEqual([])

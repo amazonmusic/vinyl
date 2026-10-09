@@ -20,6 +20,7 @@ describe('isFairPlay', () => {
     it('returns true if key system is one of FairPlay key systems', () => {
         expect(isFairPlay(DrmKeySystem.FAIR_PLAY)).toBeTrue()
         expect(isFairPlay(DrmKeySystem.FAIR_PLAY_1_0)).toBeTrue()
+        expect(isFairPlay(DrmKeySystem.FAIR_PLAY_2_0)).toBeTrue()
         expect(isFairPlay(DrmKeySystem.PLAY_READY_3000)).toBeFalse()
         expect(isFairPlay(DrmKeySystem.WIDEVINE)).toBeFalse()
     })

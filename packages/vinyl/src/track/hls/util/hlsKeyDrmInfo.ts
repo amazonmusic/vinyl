@@ -5,11 +5,7 @@
 
 import type { EncryptionKey } from '@amazon/vinyl-hls-parser'
 import { ContentProtectionScheme } from '@amazon/vinyl-mpd-parser'
-import {
-    bufferToBase64,
-    byteStrToByteArray,
-    type Maybe,
-} from '@amazon/vinyl-util'
+import type { Maybe } from '@amazon/vinyl-util'
 import type { CencEncryptionScheme } from '../../../drm/CencEncryptionScheme'
 import { DrmKeySystem } from '../../../drm/DrmKeySystem'
 import type { DrmKeySystemResolver } from '../../../drm/DrmKeySystemResolver'
@@ -44,12 +40,15 @@ const PLAY_READY_KEY_FORMAT = 'com.microsoft.playready'
  * DASH ContentProtection scheme. METHOD=NONE, whole-segment AES-128, and
  * `identity` (clear key URI) keys are not EME-decryptable and return null.
  *
- * FairPlay sessions are created from the key's `skd://` asset id (init data
- * type `skd`), supplied as manifest init data so in-band `encrypted` events
- * are ignored. Those report the init segment's `sinf` box instead, from which
- * the CDM puts the binary key id in the SPC, where license servers expect the
- * asset id. The legacy {@link DrmKeySystem.FAIR_PLAY_1_0} key system
- * is excluded: it only decrypts natively played HLS, not MSE.
+ * FairPlay sessions are created from the media element's in-band `encrypted`
+ * events, which report the init segment's `sinf` box. With standard EME
+ * ({@link DrmKeySystem.FAIR_PLAY}), the CDM keys the session by the binary key
+ * id and also sends it as the SPC's asset id. With WebKit-prefixed EME
+ * ({@link DrmKeySystem.FAIR_PLAY_2_0}), the session is started from the
+ * `skd://` asset id, supplied as each protection's
+ * {@link DrmProtection.contentId}, and sent as the SPC's asset id. The legacy
+ * {@link DrmKeySystem.FAIR_PLAY_1_0} key system is excluded: it only decrypts
+ * natively played HLS, not MSE.
  */
 export function hlsKeyDrmInfo(
     deps: HlsKeyDrmInfoDeps,
@@ -60,11 +59,11 @@ export function hlsKeyDrmInfo(
     const keyFormat = key.keyFormat?.toLowerCase()
     let schemeIdUri: string
     let initDataType: DrmInitDataType
-    let initData: string | null = null
+    let contentId: string | null = null
     if (keyFormat === FAIR_PLAY_KEY_FORMAT) {
         schemeIdUri = ContentProtectionScheme.FAIR_PLAY
-        initDataType = 'skd'
-        initData = key.uri ? fairPlayInitData(key.uri) : null
+        initDataType = 'sinf'
+        contentId = key.uri?.replace(/^skd:\/\//i, '') || null
     } else if (keyFormat === PLAY_READY_KEY_FORMAT) {
         schemeIdUri = ContentProtectionScheme.PLAY_READY
         initDataType = 'cenc'
@@ -81,20 +80,11 @@ export function hlsKeyDrmInfo(
     return {
         contentProtections: keySystems.map((keySystem) => ({
             keySystem,
-            ...(initData != null && { pssh: initData }),
+            ...(contentId != null && { contentId }),
         })),
         encryptionScheme,
         initDataType,
     }
-}
-
-/**
- * The `skd` init data for a FairPlay key URI: its asset id (the URI without the
- * `skd://` scheme), which the CDM places in the SPC for the license server to
- * look up the key by.
- */
-function fairPlayInitData(uri: string): string {
-    return bufferToBase64(byteStrToByteArray(uri.replace(/^skd:\/\//i, '')))
 }
 
 function methodToEncryptionScheme(

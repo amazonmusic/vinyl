@@ -9,10 +9,11 @@ import {
     hlsKeyDrmInfo,
 } from '@amazon/vinyl'
 import type { EncryptionKey } from '@amazon/vinyl-hls-parser'
-import objectContaining = jasmine.objectContaining
 
 describe('hlsKeyDrmInfo', () => {
     const deps = { drmKeySystemResolver: defaultDrmKeySystemResolver }
+
+    const contentId = '0b5689bb-4171-97e5-c280-99f7abe4004f'
 
     const fairPlayKey: EncryptionKey = {
         method: 'SAMPLE-AES',
@@ -41,17 +42,31 @@ describe('hlsKeyDrmInfo', () => {
     })
 
     describe('for FairPlay', () => {
-        it('uses the skd asset id as cbcs skd init data', () => {
+        it('uses cbcs with in-band sinf init data and the skd asset id as the content id', () => {
             expect(hlsKeyDrmInfo(deps, fairPlayKey)).toEqual({
                 contentProtections: [
-                    {
-                        keySystem: DrmKeySystem.FAIR_PLAY,
-                        pssh: btoa('0b5689bb-4171-97e5-c280-99f7abe4004f'),
-                    },
+                    { keySystem: DrmKeySystem.FAIR_PLAY, contentId },
+                    { keySystem: DrmKeySystem.FAIR_PLAY_2_0, contentId },
                 ],
                 encryptionScheme: 'cbcs',
-                initDataType: 'skd',
+                initDataType: 'sinf',
             })
+        })
+
+        it('omits the content id when the key has no uri', () => {
+            const { uri: _, ...withoutUri } = fairPlayKey
+            expect(
+                hlsKeyDrmInfo(deps, withoutUri)!.contentProtections.every(
+                    (cP) => cP.contentId == null
+                )
+            ).toBeTrue()
+        })
+
+        it('supplies no manifest init data, so encrypted events drive sessions', () => {
+            const info = hlsKeyDrmInfo(deps, fairPlayKey)
+            expect(
+                info!.contentProtections.every((cP) => cP.pssh == null)
+            ).toBeTrue()
         })
 
         it('excludes the WebKit-prefixed FairPlay 1.0 key system', () => {
@@ -67,14 +82,10 @@ describe('hlsKeyDrmInfo', () => {
                     ...fairPlayKey,
                     keyFormat: 'COM.APPLE.STREAMINGKEYDELIVERY',
                 })?.contentProtections
-            ).toEqual([objectContaining({ keySystem: DrmKeySystem.FAIR_PLAY })])
-        })
-
-        it('omits init data when the key has no uri', () => {
-            const { uri: _, ...withoutUri } = fairPlayKey
-            expect(hlsKeyDrmInfo(deps, withoutUri)?.contentProtections).toEqual(
-                [{ keySystem: DrmKeySystem.FAIR_PLAY }]
-            )
+            ).toEqual([
+                { keySystem: DrmKeySystem.FAIR_PLAY, contentId },
+                { keySystem: DrmKeySystem.FAIR_PLAY_2_0, contentId },
+            ])
         })
     })
 
