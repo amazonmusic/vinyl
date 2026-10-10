@@ -5,7 +5,7 @@
 
 import { DrmKeySystem, type VinylPlayer } from '@amazon/vinyl'
 import { createVinylSuite } from '@amazon/vinyl/vinylTestUtil'
-import type { Maybe } from '@amazon/vinyl-util'
+import { type Maybe, sleep } from '@amazon/vinyl-util'
 
 type EmeImplementation = 'standard' | 'webkit' | 'ms'
 
@@ -63,7 +63,17 @@ async function usedImplementations(
         ])
     }
 
-    await player.client.capabilities.supportsKeySystem(DrmKeySystem.WIDEVINE)
+    // Clear Key is built into every standard EME CDM, so the check doesn't wait
+    // on a CDM download (Firefox can fetch Widevine on first use, outlasting the
+    // spec timeout). Only which entry point was called matters, so stop once
+    // one was, giving the check a bounded wait to settle before teardown.
+    const supported = player.client.capabilities
+        .supportsKeySystem(DrmKeySystem.CLEAR_KEY)
+        .catch(() => {})
+    for (let i = 0; i < 50 && !spies.some(([, spy]) => spy.calls.any()); i++) {
+        await sleep(0.1)
+    }
+    await Promise.race([supported, sleep(5)])
     return spies
         .filter(([, spy]) => spy.calls.any())
         .map(([implementation]) => implementation)
