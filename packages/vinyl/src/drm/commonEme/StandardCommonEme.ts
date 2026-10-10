@@ -18,6 +18,7 @@ import type {
     CommonMediaKeySession,
     CommonMediaKeySessionEventMap,
     CommonMediaKeySystemAccess,
+    DrmKeyStatus,
 } from './CommonEme'
 import type { DrmKeySystem } from '../DrmKeySystem'
 import { type EncryptedInitData } from './EncryptedInitData'
@@ -103,6 +104,18 @@ export class StandardCommonMediaKeys implements CommonMediaKeys {
 }
 
 /**
+ * Copies a key id (an ArrayBuffer or a view of one) to a standalone
+ * ArrayBuffer, so it stays valid if the CDM reuses its storage.
+ */
+function copyKeyId(keyId: BufferSource): ArrayBuffer {
+    const bytes =
+        keyId instanceof ArrayBuffer
+            ? new Uint8Array(keyId)
+            : new Uint8Array(keyId.buffer, keyId.byteOffset, keyId.byteLength)
+    return bytes.slice().buffer
+}
+
+/**
  * CommonMediaKeySession for unprefixed EME implementations.
  */
 export class StandardCommonMediaKeySession
@@ -121,6 +134,17 @@ export class StandardCommonMediaKeySession
         })
     }
 
+    private readonly keyStatusesChangeHandler = () => {
+        const keyStatuses: DrmKeyStatus[] = []
+        this.session.keyStatuses.forEach((status, keyId) => {
+            keyStatuses.push({
+                keyId: copyKeyId(keyId),
+                status,
+            })
+        })
+        this.dispatch('keyStatusesChange', { keyStatuses })
+    }
+
     constructor(
         private readonly session: MediaKeySession,
         readonly mimeType: string,
@@ -129,6 +153,10 @@ export class StandardCommonMediaKeySession
     ) {
         super()
         session.addEventListener('message', this.messageHandler)
+        session.addEventListener(
+            'keystatuseschange',
+            this.keyStatusesChangeHandler
+        )
         if ((session as any).closed) {
             // Compatibility: React Native MSE does not provide a 'closed' promise.
             session.closed
@@ -168,6 +196,10 @@ export class StandardCommonMediaKeySession
         super.dispose()
         this._disposed = true
         this.session.removeEventListener('message', this.messageHandler)
+        this.session.removeEventListener(
+            'keystatuseschange',
+            this.keyStatusesChangeHandler
+        )
         this.session.close().catch(noop)
     }
 }

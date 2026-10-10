@@ -30,6 +30,7 @@ import {
 import { createEventSpy } from '@amazon/vinyl-util/testUtil'
 import createSpy = jasmine.createSpy
 import type { EventFakesHandle } from '@amazon/vinyl-util/browserTestUtil'
+import any = jasmine.any
 
 describe('MsCommonEme', () => {
     beforeEach(() => {
@@ -295,6 +296,31 @@ describe('MsCommonEme', () => {
                 initData
             )
             mockMsMediaKeyError = new MockMSMediaKeyError()
+        })
+
+        it('emits keyStatusesChange with the init data as usable when a key is added', () => {
+            const keyStatusesSpy = createEventSpy(
+                msCommonMediaKeySession,
+                'keyStatusesChange'
+            )
+
+            mockMsMediaKeySession.dispatchEvent(mockEvent('mskeyadded'))
+
+            expect(keyStatusesSpy).toHaveBeenCalledOnceWith({
+                keyStatuses: [
+                    {
+                        keyId: new Uint8Array([1, 2, 3]).buffer,
+                        status: 'usable',
+                    },
+                ],
+            })
+        })
+
+        it('stops listening for added keys when disposed', () => {
+            msCommonMediaKeySession.dispose()
+            expect(
+                mockMsMediaKeySession.removeEventListener
+            ).toHaveBeenCalledWith('mskeyadded', any(Function))
         })
 
         it('adds event listener on session for mskeymessage event', () => {

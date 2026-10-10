@@ -31,6 +31,7 @@ import {
 } from '@amazon/vinyl/vinylTestUtil'
 import { createEventSpy } from '@amazon/vinyl-util/testUtil'
 import createSpy = jasmine.createSpy
+import any = jasmine.any
 
 describe('WebkitCommonEme', () => {
     beforeEach(() => {
@@ -375,6 +376,31 @@ describe('WebkitCommonEme', () => {
                 initData
             )
             mockWebKitMediaKeyError = new MockWebKitMediaKeyError()
+        })
+
+        it('emits keyStatusesChange with the init data as usable when a key is added', () => {
+            const keyStatusesSpy = createEventSpy(
+                webKitCommonMediaKeySession,
+                'keyStatusesChange'
+            )
+
+            mockWebKitMediaKeySession.dispatchEvent(mockEvent('webkitkeyadded'))
+
+            expect(keyStatusesSpy).toHaveBeenCalledOnceWith({
+                keyStatuses: [
+                    {
+                        keyId: new Uint8Array([1, 2, 3]).buffer,
+                        status: 'usable',
+                    },
+                ],
+            })
+        })
+
+        it('stops listening for added keys when disposed', () => {
+            webKitCommonMediaKeySession.dispose()
+            expect(
+                mockWebKitMediaKeySession.removeEventListener
+            ).toHaveBeenCalledWith('webkitkeyadded', any(Function))
         })
 
         it('adds event listener on session for webkitkeymessage event', () => {

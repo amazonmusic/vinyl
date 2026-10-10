@@ -116,6 +116,38 @@ export interface CommonMediaKeySessionEventMap {
      * Dispatched when the session is forcibly closed by the CDM.
      */
     readonly closed: CommonMediaKeySessionClosedEvent
+
+    /**
+     * Dispatched when the status of the session's keys changes.
+     */
+    readonly keyStatusesChange: CommonMediaKeyStatusesChangeEvent
+}
+
+/**
+ * The status of a session's key.
+ */
+export interface DrmKeyStatus {
+    /**
+     * The key id.
+     *
+     * WebKit- and MS-prefixed EME don't report key ids; for them this is the
+     * session's init data, and the status is `usable` once a key is added.
+     */
+    readonly keyId: ArrayBuffer
+
+    /**
+     * The key's status, e.g. `usable`, `expired`, or `output-restricted`.
+     *
+     * @see https://w3c.github.io/encrypted-media/#dom-mediakeystatus
+     */
+    readonly status: MediaKeyStatus
+}
+
+export interface CommonMediaKeyStatusesChangeEvent {
+    /**
+     * The status of each of the session's keys.
+     */
+    readonly keyStatuses: readonly DrmKeyStatus[]
 }
 
 /**

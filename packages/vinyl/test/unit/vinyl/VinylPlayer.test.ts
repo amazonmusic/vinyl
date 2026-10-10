@@ -22,6 +22,7 @@ import {
     vinylGlobalRef,
     type VinylPlayer,
     type VinylTrackLoadOptions,
+    DrmKeySystem,
 } from '@amazon/vinyl'
 import { externalDependencies, type Factories } from '@amazon/vinyl-di'
 import {
@@ -969,6 +970,26 @@ describe('VinylPlayer', () => {
                 target: deps.drmController,
                 error,
             })
+        })
+    })
+
+    describe('when drmController emits keyStatusesChange', () => {
+        it('re-dispatches the keyStatusesChange event', () => {
+            const keyStatusesSpy = createEventSpy(player, 'keyStatusesChange')
+            const event = {
+                keySystem: DrmKeySystem.FAIR_PLAY_2_0,
+                keyStatuses: [
+                    {
+                        keyId: new Uint8Array([1, 2]).buffer,
+                        status: 'usable' as const,
+                    },
+                ],
+                trackUri: 'asin://B0B5HKZZ98',
+            }
+
+            deps.drmController.dispatch('keyStatusesChange', event)
+
+            expect(keyStatusesSpy).toHaveBeenCalledOnceWith(event)
         })
     })
 

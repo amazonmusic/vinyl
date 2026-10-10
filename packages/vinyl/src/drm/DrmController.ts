@@ -11,6 +11,7 @@ import {
 } from '@amazon/vinyl-util'
 import type { DrmInitDataType } from '../streaming/DrmInitDataType'
 import type { DrmKeySystem } from './DrmKeySystem'
+import type { DrmKeyStatus } from './commonEme/CommonEme'
 import type { MediaFormatMetadata } from '../streaming/MediaQualityMetadata'
 import type { BasicErrorEvent } from '../event/BasicErrorEvent'
 import type { DrmOptions } from './DrmOptions'
@@ -53,6 +54,29 @@ export interface DrmControllerEventMap {
      * `loadSpan` using the carried `trackUri`.
      */
     readonly loadSpanMeasured: LoadSpanMeasurement
+
+    /**
+     * The status of a key session's keys changed, e.g. a key became `usable`
+     * after a license was applied, or `expired` / `output-restricted`.
+     */
+    readonly keyStatusesChange: DrmKeyStatusesChangeEvent
+}
+
+export interface DrmKeyStatusesChangeEvent {
+    /**
+     * The key system of the session whose keys changed.
+     */
+    readonly keySystem: DrmKeySystem
+
+    /**
+     * The status of each of the session's keys.
+     */
+    readonly keyStatuses: readonly DrmKeyStatus[]
+
+    /**
+     * The track whose playback created the key session, if known.
+     */
+    readonly trackUri: TrackUri | null
 }
 
 export interface MediaKeysSetEvent {

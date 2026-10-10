@@ -163,6 +163,7 @@ export class MsCommonMediaKeySession
         super()
         session.addEventListener('mskeymessage', this.messageHandler)
         session.addEventListener('mskeyerror', this.errorHandler)
+        session.addEventListener('mskeyadded', this.keyAddedHandler)
     }
 
     private readonly messageHandler = (event: MSMediaKeyMessageEvent) => {
@@ -184,6 +185,19 @@ export class MsCommonMediaKeySession
         }
     }
 
+    // Prefixed EME reports no key ids or statuses; a key was added for the
+    // session's init data.
+    private readonly keyAddedHandler = () => {
+        this.dispatch('keyStatusesChange', {
+            keyStatuses: [
+                {
+                    keyId: bufferToByteArray(this.initData).slice().buffer,
+                    status: 'usable',
+                },
+            ],
+        })
+    }
+
     update(key: ArrayBuffer): Promise<void> {
         if (this.disposed) return Promise.reject(new DisposedError())
         this.session.update(new Uint8Array(key))
@@ -200,6 +214,7 @@ export class MsCommonMediaKeySession
         this.session.close()
         this.session.removeEventListener('mskeymessage', this.messageHandler)
         this.session.removeEventListener('mskeyerror', this.errorHandler)
+        this.session.removeEventListener('mskeyadded', this.keyAddedHandler)
     }
 }
 
