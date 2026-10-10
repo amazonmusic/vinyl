@@ -663,6 +663,19 @@ export class DrmControllerImpl
             this.closeSession(session)
             this.handleError(event.error)
         })
+        session.on('keyStatusesChange', ({ keyStatuses }) => {
+            if (this.disposed) return
+            logDebug(
+                this,
+                'keyStatusesChange',
+                keyStatuses.map((keyStatus) => keyStatus.status)
+            )
+            this.dispatch('keyStatusesChange', {
+                keySystem: mediaKeys.keySystem,
+                keyStatuses,
+                trackUri,
+            })
+        })
         return session
     }
 

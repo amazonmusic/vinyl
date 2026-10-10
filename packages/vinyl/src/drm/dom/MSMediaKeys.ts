@@ -83,6 +83,7 @@ declare global {
 export interface MSMediaKeySessionEventMap {
     readonly mskeymessage: MSMediaKeyMessageEvent
     readonly mskeyerror: Event
+    readonly mskeyadded: Event
 }
 
 export interface MSMediaKeyMessageEvent extends Event {

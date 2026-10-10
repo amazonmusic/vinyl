@@ -62,7 +62,7 @@ import {
     type MediaQualityMetadata,
 } from '../streaming/MediaQualityMetadata'
 import type { ReadonlyPlaybackStreamingState } from './ReadonlyPlaybackStreamingState'
-import type { DrmController } from '../drm/DrmController'
+import type { DrmController, DrmControllerEventMap } from '../drm/DrmController'
 import {
     ALL_STREAMING_EVENTS,
     type StreamingEventMap,
@@ -92,7 +92,8 @@ export interface VinylPlayerEventMap<
         StreamingEventMap,
         TextTrackEventMap,
         AdEventMap,
-        LoadMetricEventMap {
+        LoadMetricEventMap,
+        Pick<DrmControllerEventMap, 'keyStatusesChange'> {
     /**
      * Dispatched when {@link VinylPlayer.resetPending} changes.
      *
@@ -220,7 +221,12 @@ export class VinylPlayer<
                 ALL_TRACK_CONTROLLER_EVENTS
             )
         )
-        add(redispatchEvents(this, this.drmController, ['error']))
+        add(
+            redispatchEvents(this, this.drmController, [
+                'error',
+                'keyStatusesChange',
+            ])
+        )
         // The shared DRM controller serves multiple tracks (active + preloaded),
         // so it stamps each license span with the initiating track at the source
         // (via its key session). Republish using that carried uri; drop spans

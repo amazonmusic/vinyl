@@ -85,6 +85,7 @@ declare global {
 export interface WebKitMediaKeySessionEventMap {
     readonly webkitkeymessage: WebKitMediaKeyMessageEvent
     readonly webkitkeyerror: Event
+    readonly webkitkeyadded: Event
 }
 
 export interface WebKitMediaKeyMessageEvent extends Event {

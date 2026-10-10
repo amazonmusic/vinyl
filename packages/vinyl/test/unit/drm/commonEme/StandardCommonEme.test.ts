@@ -274,6 +274,51 @@ describe('StandardCommonEme', () => {
             })
         })
 
+        describe('when the key statuses change', () => {
+            it('emits keyStatusesChange with each key id and status', () => {
+                const keyIdA = new Uint8Array([9, 1, 2, 3, 9]).subarray(1, 4)
+                const keyIdB = new Uint8Array([4, 5]).buffer
+                mediaKeySession.keyStatuses = new Map<
+                    BufferSource,
+                    MediaKeyStatus
+                >([
+                    [keyIdA, 'usable'],
+                    [keyIdB, 'output-restricted'],
+                ])
+                const keyStatusesSpy = createEventSpy(
+                    standardCommonMediaKeySession,
+                    'keyStatusesChange'
+                )
+
+                mediaKeySession.dispatchEvent(mockEvent('keystatuseschange'))
+
+                expect(keyStatusesSpy).toHaveBeenCalledOnceWith({
+                    keyStatuses: [
+                        {
+                            keyId: new Uint8Array([1, 2, 3]).buffer,
+                            status: 'usable',
+                        },
+                        {
+                            keyId: new Uint8Array([4, 5]).buffer,
+                            status: 'output-restricted',
+                        },
+                    ],
+                })
+                // Copies, not the CDM's storage.
+                const [first, second] =
+                    keyStatusesSpy.calls.mostRecent().args[0].keyStatuses
+                expect(first.keyId).not.toBe(keyIdA.buffer)
+                expect(second.keyId).not.toBe(keyIdB)
+            })
+
+            it('stops listening when disposed', () => {
+                standardCommonMediaKeySession.dispose()
+                expect(
+                    mediaKeySession.removeEventListener
+                ).toHaveBeenCalledWith('keystatuseschange', any(Function))
+            })
+        })
+
         describe('when created', () => {
             it('calls session.generateRequest() with the initData', () => {
                 expect(

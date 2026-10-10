@@ -1394,6 +1394,48 @@ describe('DrmControllerImpl', () => {
     })
 
     describe('serverCertificate', () => {
+        describe('when a session emits keyStatusesChange', () => {
+            it('emits keyStatusesChange with the key system and track', async () => {
+                const keyStatusesSpy = createEventSpy(
+                    drmController,
+                    'keyStatusesChange'
+                )
+                drmController.setBufferingDrmInfo(drmInfo, {
+                    trackUri: 'track-1',
+                })
+                await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+                const keyStatuses = [
+                    {
+                        keyId: new Uint8Array([4, 5]).buffer,
+                        status: 'usable' as const,
+                    },
+                ]
+
+                getSession(0).dispatch('keyStatusesChange', { keyStatuses })
+
+                expect(keyStatusesSpy).toHaveBeenCalledOnceWith({
+                    keySystem: DrmKeySystem.WIDEVINE,
+                    keyStatuses,
+                    trackUri: 'track-1',
+                })
+            })
+
+            it('does not emit after being disposed', async () => {
+                const keyStatusesSpy = createEventSpy(
+                    drmController,
+                    'keyStatusesChange'
+                )
+                drmController.setBufferingDrmInfo(drmInfo)
+                await emitEncrypted(new Uint8Array([1, 2, 3]), 'cenc')
+                const session = getSession(0)
+                drmController.dispose()
+
+                session.dispatch('keyStatusesChange', { keyStatuses: [] })
+
+                expect(keyStatusesSpy).not.toHaveBeenCalled()
+            })
+        })
+
         describe('when keySystem is FAIR_PLAY_2_0', () => {
             const contentId = '0b5689bb-4171-97e5-c280-99f7abe4004f'
             const certificate = new Uint8Array([1, 2, 3, 4])

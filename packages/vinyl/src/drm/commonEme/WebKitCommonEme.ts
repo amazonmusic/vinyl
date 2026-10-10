@@ -159,6 +159,7 @@ export class WebKitCommonMediaKeySession
         super()
         session.addEventListener('webkitkeymessage', this.messageHandler)
         session.addEventListener('webkitkeyerror', this.errorHandler)
+        session.addEventListener('webkitkeyadded', this.keyAddedHandler)
     }
 
     private readonly messageHandler = (event: WebKitMediaKeyMessageEvent) => {
@@ -180,6 +181,19 @@ export class WebKitCommonMediaKeySession
         }
     }
 
+    // Prefixed EME reports no key ids or statuses; a key was added for the
+    // session's init data.
+    private readonly keyAddedHandler = () => {
+        this.dispatch('keyStatusesChange', {
+            keyStatuses: [
+                {
+                    keyId: bufferToByteArray(this.initData).slice().buffer,
+                    status: 'usable',
+                },
+            ],
+        })
+    }
+
     update(key: ArrayBuffer): Promise<void> {
         if (this.disposed) return Promise.reject(new DisposedError())
         this.session.update(new Uint8Array(key))
@@ -198,6 +212,7 @@ export class WebKitCommonMediaKeySession
             this.messageHandler
         )
         this.session.removeEventListener('webkitkeyerror', this.errorHandler)
+        this.session.removeEventListener('webkitkeyadded', this.keyAddedHandler)
         // Do not wait on close, and ignore errors.
         this.session.close()
     }
