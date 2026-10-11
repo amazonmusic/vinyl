@@ -38,8 +38,9 @@ export function playerContent(): string {
             This interactive demo runs the Amazon Vinyl playback engine directly in your
             browser. Paste any MPEG-DASH (<code>.mpd</code>) or HLS (<code>.m3u8</code>) manifest
             URL to play it, or pick one of the bundled demo streams below — including audio-only and
-            video DASH, HLS with fragmented MP4 and MPEG-TS transmuxing, and HLS Interstitial (SGAI)
-            ad-break scenarios such as pre/mid/post rolls, asset lists, and playout limits.
+            video DASH, HLS with fragmented MP4 and MPEG-TS transmuxing, HLS Interstitial (SGAI)
+            ad-break scenarios such as pre/mid/post rolls, asset lists, and playout limits, and
+            stitched SCTE-35 (SSAI) and DASH alternative MPD ad scenarios.
         </p>
     </section>
 </div>

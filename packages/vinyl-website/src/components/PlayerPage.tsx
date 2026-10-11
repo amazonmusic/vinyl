@@ -164,6 +164,100 @@ const adBreakTracks: DemoTrack[] = [
     },
 ]
 
+// Stitched (SSAI) streams signalled with SCTE-35, and DASH alternative MPD
+// (SGAI) streams. Stitched ads play within the content timeline; the scrub
+// bar shows them in orange.
+const ssaiTracks: DemoTrack[] = [
+    {
+        title: 'DASH SCTE-35 Midroll (xml+bin)',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_scte35_xmlbin/stream.mpd`,
+        description:
+            'Multi-Period SSAI: a 15s ad Period at 1:00 signalled by a urn:scte:scte35:2014:xml+bin splice_insert event.',
+    },
+    {
+        title: 'DASH SCTE-35 Midroll (xml)',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_scte35_xml/stream.mpd`,
+        description:
+            'The same midroll signalled by a urn:scte:scte35:2013:xml SpliceInfoSection event.',
+    },
+    {
+        title: 'DASH SCTE-35 Pod (time_signal)',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_pod_time_signal/stream.mpd`,
+        description:
+            'A 25s pod of two ad Periods at 1:00, signalled by a time_signal placement opportunity.',
+    },
+    {
+        title: 'DASH SCTE-35 Pre + Mid + Post',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_pre_mid_post/stream.mpd`,
+        description:
+            'Stitched preroll (0:00), midroll (1:30), and postroll (3:20), each its own ad Period.',
+    },
+    {
+        title: 'HLS SCTE-35 Midroll (OUT/IN)',
+        type: 'hls',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/hls/ssai_scte35/main.m3u8`,
+        description:
+            'A 15s ad stitched at 1:00 behind EXT-X-DISCONTINUITY, signalled by SCTE35-OUT and SCTE35-IN date ranges.',
+    },
+    {
+        title: 'HLS SCTE-35 Pod (CMD)',
+        type: 'hls',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/hls/ssai_scte35_cmd/main.m3u8`,
+        description:
+            'A 25s two-ad pod at 1:00, signalled by a SCTE35-CMD time_signal date range.',
+    },
+    {
+        title: 'DASH Alternative MPD Insert',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_insert/stream.mpd`,
+        description:
+            'SGAI: InsertPresentation preroll and 1:00 midroll, played as separate ad presentations.',
+    },
+    {
+        title: 'DASH Alternative MPD Replace',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_replace/stream.mpd`,
+        description:
+            'SGAI: ReplacePresentation at 1:00 replacing 15s of content; content resumes at 1:15.',
+    },
+    {
+        title: 'DASH Alternative MPD List Pod',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_list/stream.mpd`,
+        description:
+            'SGAI: InsertPresentation at 1:00 whose uri is a list MPD of a two-ad pod.',
+    },
+    {
+        title: 'DASH List MPD',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/list_mpd/stream.mpd`,
+        description:
+            'A list MPD of three Linked Periods: an imported preroll, the content, and a postroll.',
+    },
+    {
+        title: 'DASH XLink Remote Period',
+        type: 'dash',
+        contentType: 'video',
+        url: `https://assets.dev.vinyl.music.amazon.dev/dash/xlink_remote_period/stream.mpd`,
+        description:
+            'A remote Period (xlink:actuate="onRequest") resolving to a stitched SCTE-35 pod at 1:00, and a resolve-to-zero Period.',
+    },
+]
+
 export function PlayerPage() {
     const url$ = data('')
     const title$ = data('')
@@ -424,6 +518,22 @@ export function PlayerPage() {
                         </div>
                     </summary>
                     <DemoGrid tracks={adBreakTracks} />
+                </details>
+            </div>
+
+            <div className="card">
+                <details className="adBreakSection">
+                    <summary className="adBreakSummary">
+                        <Icon name="chevron_right" />
+                        <div className="adBreakSummaryText">
+                            <h2>SSAI and DASH Ad Test Streams</h2>
+                            <div className="subtitle">
+                                Stitched SCTE-35 (DASH and HLS) and DASH
+                                alternative MPD scenarios
+                            </div>
+                        </div>
+                    </summary>
+                    <DemoGrid tracks={ssaiTracks} />
                 </details>
             </div>
         </div>
