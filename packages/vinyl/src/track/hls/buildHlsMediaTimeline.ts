@@ -219,17 +219,29 @@ function createHlsQualityData(
             const segment = getSegmentAtTime(time, segments, affordance)
             if (!segment) return null
 
-            // fMP4: use #EXT-X-MAP init segment directly.
-            const hlsMap = playlist.segments[0]?.map
+            // fMP4: use the segment's #EXT-X-MAP init segment directly.
+            const hlsSegment = playlist.segments[segments.indexOf(segment)]
+            const hlsMap = hlsSegment.map
             if (hlsMap) {
                 // Encryption is declared per media playlist (EXT-X-KEY), so the
                 // DRM metadata is only known here, on the segment's quality.
-                const drmInfo = hlsKeyDrmInfo(
-                    deps,
-                    playlist.segments[segments.indexOf(segment)]?.key
-                )
+                const drmInfo = hlsKeyDrmInfo(deps, hlsSegment.key)
+                let quality = drmInfo ? { ...metadata, ...drmInfo } : metadata
+                // A discontinuity may declare a new EXT-X-MAP (e.g. a stitched
+                // ad encoded differently from the content); its segments need
+                // their own init segment, so they get their own decoder id.
+                const firstMap = playlist.segments[0]?.map
+                if (
+                    hlsMap.uri !== firstMap?.uri ||
+                    hlsMap.byteRange?.offset !== firstMap.byteRange?.offset
+                ) {
+                    quality = {
+                        ...quality,
+                        decoderId: `${metadata.decoderId}#${hlsMap.uri}@${hlsMap.byteRange?.offset ?? 0}`,
+                    }
+                }
                 return {
-                    quality: drmInfo ? { ...metadata, ...drmInfo } : metadata,
+                    quality,
                     ...segment,
                     initData: createSegmentDataProvider(deps, {
                         url: resolveUrl(hlsMap.uri, playlistBaseUrl),
