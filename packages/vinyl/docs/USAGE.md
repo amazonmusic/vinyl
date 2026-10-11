@@ -590,12 +590,13 @@ settings (`position` / `line` / `size` / `align` / `vertical`), cue payload tags
 (`<c.class>`, `<i>`, `<b>`, `<v>`, `<lang>`, …), and `STYLE`-block `::cue`
 rules. Implement the `TextTrackRenderer` interface for a fully custom renderer.
 
-## Ad Breaks (Server-Guided Ad Insertion)
+## Ad Breaks
 
-Vinyl surfaces server-guided ad breaks through a single, provider-agnostic API
-on `VinylPlayer`. Today this is driven by HLS Interstitials (SGAI); the same API
-is intended to also carry DASH SCTE-35 splices, so applications observe one
-interface regardless of the streaming protocol.
+Vinyl surfaces ad breaks through a single, provider-agnostic API on
+`VinylPlayer`, whether they are interstitials (HLS Interstitials, DASH
+alternative MPD events) played as separate ad tracks, or stitched (SSAI) breaks
+signalled with SCTE-35 in HLS date ranges or DASH MPD events. See
+[ADS.md](./ADS.md) for the model, the signals read, and ad decisioning (VAST).
 
 ### Discovery
 
@@ -610,6 +611,11 @@ is mapped to an abstract `AdBreakInfo`:
 - An `X-ASSET-URI` yields a single resolved ad; an `X-ASSET-LIST` yields a break
   whose assets are resolved asynchronously (empty `ads` up front).
 - The break is classified as `preroll`, `midroll`, or `postroll`.
+
+Date ranges carrying `SCTE35-OUT` / `SCTE35-IN` / `SCTE35-CMD` become stitched
+breaks. For DASH, `EventStream` events in the SCTE 214-1 SCTE-35 schemes become
+stitched breaks with an ad per ad Period, and alternative MPD insert / replace
+events become interstitial breaks.
 
 Discovery happens automatically when a track loads — applications need only
 listen for the `currentTrackAdsChange` event or read `player.currentTrackAds`.

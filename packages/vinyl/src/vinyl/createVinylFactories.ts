@@ -31,6 +31,7 @@ import {
     type AdControllerImplDeps,
     type AdControllerImplOptions,
 } from '../ad/AdControllerImpl'
+import type { AdBreakResolver } from '../ad/AdBreakResolver'
 import { createDashFactories } from '../track/dash/createDashFactories'
 import { createHlsFactories } from '../track/hls/createHlsFactories'
 import {
@@ -168,6 +169,8 @@ export function createVinylFactories(options: VinylDependencyOptions) {
             }),
         autoResetController: (deps: AutoResetControllerImplDeps) =>
             new AutoResetControllerImpl(deps, options.autoReset),
+        // Override to resolve ad breaks, e.g. from a VAST ad server.
+        adBreakResolver: (): AdBreakResolver | null => null,
         adController: (deps: AdControllerImplDeps) =>
             new AdControllerImpl(deps, options.adController),
         createDashFactories: createDashFactories(options),

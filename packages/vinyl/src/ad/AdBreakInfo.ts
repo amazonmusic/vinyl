@@ -5,6 +5,7 @@
 
 import type { TrackUri } from '../track/Track'
 import type { ValueProvider } from '@amazon/vinyl-util'
+import type { SpliceInfoSection } from './scte35/SpliceInfoSection'
 
 export interface TrackAds {
     /**
@@ -28,6 +29,58 @@ export interface TrackAds {
 export type AdBreakPlacement = 'preroll' | 'midroll' | 'postroll'
 
 /**
+ * How a break's ads are delivered.
+ *
+ *  - `interstitial` - each ad is a separate presentation (it has a
+ *    {@link AdInfo.uri}) that the player switches to while primary content is
+ *    paused, then switches back from. HLS Interstitials and DASH alternative MPD
+ *    events are interstitials. This is server-guided (SGAI) or client-side ad
+ *    insertion.
+ *  - `stitched` - the ads are part of the content's own media timeline, as
+ *    produced by server-side ad insertion (SSAI) such as AWS Elemental
+ *    MediaTailor. The player plays straight through them; the break and its
+ *    ads are tracked from the playhead.
+ */
+export type AdInsertion = 'interstitial' | 'stitched'
+
+/**
+ * The manifest signal an ad break was discovered from.
+ *
+ *  - `hls-interstitial` - an HLS `EXT-X-DATERANGE` with
+ *    `CLASS="com.apple.hls.interstitial"`.
+ *  - `hls-scte35` - an HLS `EXT-X-DATERANGE` with `SCTE35-OUT`, `SCTE35-IN`, or
+ *    `SCTE35-CMD` attributes.
+ *  - `dash-scte35` - a DASH MPD event in an SCTE 214 SCTE-35 scheme.
+ *  - `dash-alternative-mpd` - a DASH alternative MPD insert or replace event
+ *    (ISO/IEC 23009-1 5.16).
+ */
+export type AdBreakSource =
+    'hls-interstitial' | 'hls-scte35' | 'dash-scte35' | 'dash-alternative-mpd'
+
+/**
+ * The manifest signal that described an ad break, for applications that need
+ * more than the normalized {@link AdBreakInfo} fields, such as an ad decision
+ * request built from the avail's SCTE-35 segmentation UPID.
+ */
+export interface AdBreakSignal {
+    /** The kind of signal. */
+    readonly source: AdBreakSource
+
+    /**
+     * The scheme that identified the signal: the DASH EventStream
+     * `@schemeIdUri`, or the HLS date range `CLASS` (null when absent).
+     */
+    readonly schemeIdUri: string | null
+
+    /**
+     * The decoded SCTE-35 sections that delimit the break, in signalled order
+     * (e.g. the `SCTE35-OUT` then `SCTE35-IN` of an HLS date range). Empty when
+     * the signal carries no SCTE-35.
+     */
+    readonly scte35: readonly SpliceInfoSection[]
+}
+
+/**
  * Restrictions on user interaction during an ad break.
  */
 export interface AdRestriction {
@@ -49,10 +102,10 @@ export interface AdRestriction {
  * A provider-agnostic description of a single ad break on the media timeline.
  *
  * An ad break is a span of the presentation that carries advertising rather
- * than primary content. The same shape is produced from HLS Interstitials
- * (EXT-X-DATERANGE with `CLASS="com.apple.hls.interstitial"`) and, in the
- * future, from DASH SCTE-35 splice signals, so applications observe one
- * interface regardless of the streaming protocol.
+ * than primary content. The same shape is produced from HLS Interstitials,
+ * HLS SCTE-35 date ranges, DASH SCTE-35 MPD events, and DASH alternative MPD
+ * events, so applications observe one interface regardless of the streaming
+ * protocol. See {@link signal} for the source signal.
  *
  * Times are expressed on the player's media timeline, in seconds, so they can
  * be compared directly against the media's current time.
@@ -141,6 +194,24 @@ export interface AdBreakInfo {
      * (An HLS interstitial sets this from the `X-ASSET-LIST` `SKIP-CONTROL`.)
      */
     readonly skipControl: ValueProvider<SkipControl | null>
+
+    /**
+     * How the break's ads are delivered. Absent is `interstitial`.
+     */
+    readonly insertion?: AdInsertion
+
+    /**
+     * The manifest signal the break was discovered from. Absent for breaks
+     * supplied by an application.
+     */
+    readonly signal?: AdBreakSignal
+}
+
+/**
+ * Returns true when the break's ads are stitched into the content timeline.
+ */
+export function isStitchedAdBreak(adBreak: AdBreakInfo): boolean {
+    return adBreak.insertion === 'stitched'
 }
 
 /**
@@ -172,7 +243,11 @@ export interface AdInfo {
     /** A stable identifier for this ad within its break. */
     readonly id: string
 
-    /** The start time of this ad on the media timeline, in seconds. */
+    /**
+     * The start time of this ad on the media timeline, in seconds. For an
+     * interstitial this is its break's start time; for a stitched ad it is
+     * where the ad's media begins within the content.
+     */
     readonly startTime: number
 
     /** The duration of this ad in seconds, or null when unknown. */
@@ -181,7 +256,7 @@ export interface AdInfo {
     /**
      * The URI of the ad asset, when the source signal provides one directly
      * (e.g. an HLS interstitial `X-ASSET-URI`). Null when the ad is described
-     * only indirectly.
+     * only indirectly, and for stitched ads, which play from the content.
      */
     readonly uri: TrackUri | null
 }

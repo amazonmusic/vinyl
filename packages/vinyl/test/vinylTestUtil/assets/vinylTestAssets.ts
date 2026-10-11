@@ -53,11 +53,18 @@ export const vinylTestAssets = {
 
         // Ad-break assets (see DMTestAssetBuilder src/adBreaks): a ~3-min
         // labeled ABR ladder with five-language narration, full + forced
-        // captions. Base content only — DASH ad-break scenarios are not
-        // generated (Vinyl has no DASH ad support yet); the HLS variants below
-        // carry the ad breaks.
+        // captions.
         vinyl_ad_breaks_av: `https://assets.dev.vinyl.music.amazon.dev/dash/vinyl_ad_breaks_av/manifest.mpd`,
         vinyl_ad_breaks_audio: `https://assets.dev.vinyl.music.amazon.dev/dash/vinyl_ad_breaks_audio/manifest.mpd`,
+        // Stitched (SSAI) multi-Period ad breaks signalled with SCTE-35 MPD
+        // events, and alternative MPD (SGAI) events. See DMTestAssetBuilder
+        // docs/AD_BREAK_ASSETS.md for each scenario's timeline.
+        vinyl_ad_breaks_av__ssai_scte35_xmlbin: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_scte35_xmlbin/stream.mpd`,
+        vinyl_ad_breaks_av__ssai_scte35_xml: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_scte35_xml/stream.mpd`,
+        vinyl_ad_breaks_av__ssai_pod_time_signal: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_pod_time_signal/stream.mpd`,
+        vinyl_ad_breaks_av__ssai_pre_mid_post: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_pre_mid_post/stream.mpd`,
+        vinyl_ad_breaks_av__altmpd_insert: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_insert/stream.mpd`,
+        vinyl_ad_breaks_av__altmpd_replace: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_replace/stream.mpd`,
     },
     hls: {
         live_static_video_audio_60s_2s: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_audio_60s_2s/main.m3u8`,
@@ -92,6 +99,9 @@ export const vinylTestAssets = {
         vinyl_ad_breaks_audio__single_uri_pre_mid_post: `https://assets.dev.vinyl.music.amazon.dev/hls/vinyl_ad_breaks_audio/single_uri_pre_mid_post.m3u8`,
         vinyl_ad_breaks_audio__asset_list_midroll: `https://assets.dev.vinyl.music.amazon.dev/hls/vinyl_ad_breaks_audio/asset_list_midroll.m3u8`,
         vinyl_ad_breaks_audio__empty_breaks_pre_mid_post: `https://assets.dev.vinyl.music.amazon.dev/hls/vinyl_ad_breaks_audio/empty_breaks_pre_mid_post.m3u8`,
+        // Stitched (SSAI) ad breaks signalled with SCTE-35 EXT-X-DATERANGE.
+        vinyl_ad_breaks_av__ssai_scte35: `https://assets.dev.vinyl.music.amazon.dev/hls/ssai_scte35/main.m3u8`,
+        vinyl_ad_breaks_av__ssai_scte35_cmd: `https://assets.dev.vinyl.music.amazon.dev/hls/ssai_scte35_cmd/main.m3u8`,
     },
 
     // Segmented streaming is added by hand, ControlledMediaSource provides a way to test

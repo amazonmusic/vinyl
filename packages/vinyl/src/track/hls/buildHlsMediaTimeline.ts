@@ -28,6 +28,7 @@ import { hlsByteRangeToMediaRange } from './util/hlsByteRangeToMediaRange'
 import { createTransmuxer } from '@amazon/vinyl-transmux'
 import type { AdBreakList } from '../../ad/AdBreakInfo'
 import { discoverHlsInterstitials } from '../../ad/discoverHlsInterstitials'
+import { discoverHlsScte35AdBreaks } from '../../ad/discoverHlsScte35AdBreaks'
 import { hlsKeyDrmInfo, type HlsKeyDrmInfoDeps } from './util/hlsKeyDrmInfo'
 
 export interface BuildHlsMediaTimelineDeps
@@ -290,7 +291,16 @@ async function discoverAdsFromManifest(
         ? media.segments.reduce((sum, s) => sum + s.duration, 0)
         : null
     const playlistBaseUrl = getPlaylistBaseUrl(media, variant.uri, data.baseUrl)
-    return discoverHlsInterstitials(media, playlistBaseUrl, contentDuration)
+    const interstitials = await discoverHlsInterstitials(
+        media,
+        playlistBaseUrl,
+        contentDuration
+    )
+    const stitched = discoverHlsScte35AdBreaks(media, contentDuration)
+    if (!stitched.length) return interstitials
+    return [...interstitials, ...stitched].sort(
+        (a, b) => a.startTime - b.startTime
+    )
 }
 
 /**

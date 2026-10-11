@@ -5,7 +5,12 @@
 
 import type { ChangeEvent } from '../event/ChangeEvent'
 import { type ReadonlyEventHost } from '@amazon/vinyl-util'
-import { type AdBreakInfo, type AdInfo, type TrackAds } from './AdBreakInfo'
+import {
+    type AdBreakInfo,
+    type AdInfo,
+    isStitchedAdBreak,
+    type TrackAds,
+} from './AdBreakInfo'
 import type { AdsProvider } from './AdsProvider'
 
 /**
@@ -194,6 +199,15 @@ export interface AdBreakCompleteEvent extends AdBreakEvent {
     readonly reason: AdChangeReason
 }
 
+/**
+ * Why an ad or ad break completed:
+ *
+ *  - `ended` - it played to its end.
+ *  - `skipped` - it was skipped, or for a stitched ad, the playhead was moved
+ *    out of it.
+ *  - `contentChange` - the content changed.
+ *  - `error` - it failed.
+ */
 export type AdChangeReason = 'ended' | 'skipped' | 'contentChange' | 'error'
 
 export const ALL_AD_EVENTS = [
@@ -224,7 +238,9 @@ export interface ReadonlyAdController extends ReadonlyEventHost<AdEventMap> {
 
     /**
      * The ad break currently containing the playhead, or null when the
-     * playhead is in primary content.
+     * playhead is in primary content. Either an interstitial break, which has
+     * replaced the content track with its ad tracks, or a stitched break,
+     * which is part of the content.
      */
     readonly currentAdBreak: AdBreakInfo | null
 
@@ -253,6 +269,7 @@ export interface AdController extends ReadonlyAdController {
 
     /**
      * Skips the entire active ad break, advancing past all remaining ads.
+     * A stitched break is skipped by seeking to its end.
      * No-op when no ad break is active.
      */
     skipAdBreak(): void
@@ -260,6 +277,7 @@ export interface AdController extends ReadonlyAdController {
     /**
      * Skips the currently playing ad. If there are more ads in the break,
      * the next ad begins. If it's the last ad, the break ends.
+     * A stitched ad is skipped by seeking to its end.
      * No-op when no ad break is active.
      */
     skipAd(): void
@@ -287,4 +305,15 @@ export interface AdController extends ReadonlyAdController {
      * Resolves with the active postroll, or null if there wasn't one.
      */
     enterPostroll(): Promise<AdBreakInfo | null>
+}
+
+/**
+ * Returns true when an interstitial break is active: its ad tracks, not the
+ * content track, own playback.
+ */
+export function isInterstitialActive(
+    adController: ReadonlyAdController
+): boolean {
+    const adBreak = adController.currentAdBreak
+    return adBreak != null && !isStitchedAdBreak(adBreak)
 }

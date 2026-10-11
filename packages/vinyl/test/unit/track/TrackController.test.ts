@@ -1136,7 +1136,8 @@ describe('TrackControllerImpl', () => {
         function factoryGivingBreak(
             contentUri: string,
             adUris: readonly string[],
-            placement: 'preroll' | 'midroll' | 'postroll' = 'preroll'
+            placement: 'preroll' | 'midroll' | 'postroll' = 'preroll',
+            insertion: 'interstitial' | 'stitched' = 'interstitial'
         ) {
             deps.trackFactory.createTrack.and.callFake((options) => {
                 const track = new MockTrack()
@@ -1153,6 +1154,7 @@ describe('TrackControllerImpl', () => {
                                       startTime: 0,
                                       duration: 10,
                                       placement,
+                                      insertion,
                                       restrict: {},
                                       once: true,
                                       resumeOffset: null,
@@ -1214,6 +1216,19 @@ describe('TrackControllerImpl', () => {
             trackController.load(main)
             await flushAds()
             expect(created.has('https://ads/mid.m3u8')).toBeFalse()
+        })
+
+        it('does not preload stitched prerolls', async () => {
+            const [main] = createLoadOptionsList(1)
+            factoryGivingBreak(
+                main.uri,
+                ['https://ads/pre.m3u8'],
+                'preroll',
+                'stitched'
+            )
+            trackController.load(main)
+            await flushAds()
+            expect(created.has('https://ads/pre.m3u8')).toBeFalse()
         })
 
         it('creates a preroll ad track only once across repeated preloads', async () => {
@@ -1449,6 +1464,7 @@ describe('TrackControllerImpl', () => {
             trackController.load(...createLoadOptionsList(1))
             deps.adController.currentAd = ad
             deps.adController.dispatch('adEntered', {
+                adBreak: adBreak('midroll'),
                 ad,
                 index: 0,
                 totalAds: 1,
@@ -1477,6 +1493,7 @@ describe('TrackControllerImpl', () => {
             const badAd = { ...ad, uri: 'unresolvable' }
             deps.adController.currentAd = badAd
             deps.adController.dispatch('adEntered', {
+                adBreak: adBreak('midroll'),
                 ad: badAd,
                 index: 0,
                 totalAds: 1,
@@ -1498,6 +1515,7 @@ describe('TrackControllerImpl', () => {
         it('ignores adEntered when there is no parent track', () => {
             expect(() =>
                 deps.adController.dispatch('adEntered', {
+                    adBreak: adBreak('midroll'),
                     ad: { id: 'a1', startTime: 0, duration: 5, uri: 'ad' },
                     index: 0,
                     totalAds: 1,
@@ -1580,6 +1598,56 @@ describe('TrackControllerImpl', () => {
             expect(track.activate).not.toHaveBeenCalled()
         })
 
+        it('does not load a track for a stitched ad', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            deps.adController.currentAd = ad
+            deps.adController.dispatch('adEntered', {
+                adBreak: { ...adBreak('midroll'), insertion: 'stitched' },
+                ad,
+                index: 0,
+                totalAds: 1,
+            })
+            await clock.tick()
+            expect(trackController.activeTrack?.uri).toBe(main.uri)
+        })
+
+        it('keeps the content track when a stitched break completes', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            await clock.tick()
+            const track = trackController.activeTrack as MockTrack
+            track.activate.calls.reset()
+            const trackEnded = jasmine.createSpy('trackEnded')
+            trackController.on('trackEnded', trackEnded)
+            deps.adController.dispatch('adBreakCompleted', {
+                adBreak: { ...adBreak('postroll'), insertion: 'stitched' },
+                resumePosition: 7,
+            })
+            await clock.tick()
+            expect(trackController.activeTrack).toBe(track)
+            expect(track.activate).not.toHaveBeenCalled()
+            expect(trackEnded).not.toHaveBeenCalled()
+        })
+
+        it('resumes content when an interstitial completes inside a stitched break', async () => {
+            const [main] = createLoadOptionsList(1)
+            trackController.load(main)
+            deps.adController.currentAdBreak = {
+                ...adBreak('midroll'),
+                insertion: 'stitched',
+            }
+            deps.adController.dispatch('adBreakCompleted', {
+                adBreak: adBreak('midroll'),
+                resumePosition: 7,
+            })
+            await clock.tick()
+            const track = trackController.activeTrack as MockTrack
+            expect(track.activate).toHaveBeenCalledWith(
+                objectContaining({ startTime: 7 })
+            )
+        })
+
         it('resumes the parent track at the resume position after a midroll ad', async () => {
             const [main] = createLoadOptionsList(1)
             trackController.load(main)
@@ -1633,6 +1701,7 @@ describe('TrackControllerImpl', () => {
             // A postroll ad takes over, deactivating the content track.
             deps.adController.currentAd = ad
             deps.adController.dispatch('adEntered', {
+                adBreak: adBreak('midroll'),
                 ad,
                 index: 0,
                 totalAds: 1,
@@ -1739,6 +1808,7 @@ describe('TrackControllerImpl', () => {
             trackController.load(...createLoadOptionsList(1))
             deps.adController.currentAd = ad
             deps.adController.dispatch('adEntered', {
+                adBreak: adBreak('midroll'),
                 ad,
                 index: 0,
                 totalAds: 1,

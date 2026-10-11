@@ -1,13 +1,24 @@
-# Ad Interstitials
+# Ads
 
-The Amazon Vinyl player supports server-guided ad insertion (SGAI) via HLS
-Interstitials (`EXT-X-DATERANGE` with `CLASS="com.apple.hls.interstitial"`). Ad
-breaks are discovered from the manifest, exposed through a provider-agnostic
-model, and played back transparently on the same media element as content.
+The Amazon Vinyl player discovers ad breaks from HLS and DASH manifests, exposes
+them through one provider-agnostic model, and plays them on the same media
+element as content. Two kinds of break are supported:
 
-DASH SCTE-35 ad support is planned as a fast follow and will surface through the
-same `AdController` model, so application code written against this API will not
-need to change.
+- **Interstitial** breaks (server-guided or client-side ad insertion,
+  SGAI/CSAI): each ad is its own presentation, which the player switches to
+  while content waits. Signalled by HLS Interstitials (`EXT-X-DATERANGE` with
+  `CLASS="com.apple.hls.interstitial"`) and DASH alternative MPD events
+  (`InsertPresentation` / `ReplacePresentation`, ISO/IEC 23009-1 5.16).
+- **Stitched** breaks (server-side ad insertion, SSAI): the ads are already part
+  of the content's media timeline, as produced by AWS Elemental MediaTailor and
+  other SSAI services. The player plays straight through them and reports the
+  break and its ads from the playhead. Signalled by SCTE-35: HLS
+  `EXT-X-DATERANGE` `SCTE35-OUT` / `SCTE35-IN` / `SCTE35-CMD`, and DASH MPD
+  events in the SCTE 214-1 schemes.
+
+See [Signals](#signals) for exactly what is read, and
+[Ad decisioning](#ad-decisioning-vast-vmap) for filling breaks from an ad
+server.
 
 ## The model
 
@@ -31,9 +42,15 @@ through the player; they never deal with HLS- or DASH-specific tags.
   These are provider-agnostic; an HLS interstitial, for example, populates them
   from its `CUE=ONCE`, `X-RESUME-OFFSET`, `X-PLAYOUT-LIMIT`,
   `X-RESOLUTION-TIME-OFFSET`, and `X-ASSET-LIST` `SKIP-CONTROL` signals.
+  `insertion` is `interstitial` (the default when absent) or `stitched`, and
+  `signal` describes the manifest signal the break came from: its `source`
+  (`hls-interstitial`, `hls-scte35`, `dash-scte35`, or `dash-alternative-mpd`),
+  the `schemeIdUri`, and the decoded SCTE-35 sections (`scte35`), e.g. for
+  reading a segmentation UPID.
 - **`AdInfo`** — a single ad within a break, with its own `id`, `startTime`,
   `duration`, and asset `uri` (or `null`). Playback of an ad is capped at its
-  `duration` when that is known.
+  `duration` when that is known. A stitched ad has no `uri`; its `startTime` is
+  where its media begins within the content.
 - **`ads`** — a `ValueProvider<AdList>`; resolve it (via `resolveValueProvider`)
   to the break's `readonly AdInfo[]`. Asset lists fetched lazily (e.g. an HLS
   `X-ASSET-LIST`) resolve on first call and cache; breaks whose assets are known
@@ -57,16 +74,18 @@ player.currentAdBreak // AdBreakInfo | null
 // The ad currently playing within the active break, or null.
 player.currentAd // AdInfo | null
 
-// While an ad plays it is the active track, so `activeTrack` refers to the ad
-// track (not content) during a break. `currentAdBreak != null` likewise tells
-// you an ad is currently playing.
+// While an interstitial ad plays it is the active track, so `activeTrack`
+// refers to the ad track (not content) during the break. During a stitched
+// break the content track stays active.
 player.activeTrack // ReadonlyTrack | null
 
 // Skip the current ad. If more ads remain in the break the next one begins;
-// otherwise the break ends and content resumes. No-op with no active break.
+// otherwise the break ends and content resumes. A stitched ad is skipped by
+// seeking to its end. No-op with no active break.
 player.skipAd()
 
-// Skip the entire active break and resume content. No-op with no active break.
+// Skip the entire active break and resume content. A stitched break is skipped
+// by seeking to its end. No-op with no active break.
 player.skipAdBreak()
 ```
 
@@ -145,7 +164,8 @@ skip window opens.
 ## How playback works
 
 Ad breaks are played on the **same media element** as content — there is no
-second video element. When the playhead enters a break, the `TrackController`:
+second video element. When the playhead enters an interstitial break, the
+`TrackController`:
 
 1. Suspends the content track, remembering the resume position.
 2. Creates (or reuses a preloaded) ad track and activates it.
@@ -154,6 +174,30 @@ second video element. When the playhead enters a break, the `TrackController`:
 4. When the break ends, reactivates the content track at the resume position the
    break dictates (ads either replace embedded content or resume from the prior
    position).
+
+### Stitched breaks
+
+A stitched break is tracked, not played separately: nothing is loaded and the
+content track stays active. The `AdController` follows the playhead:
+
+- Crossing into a break emits `adBreakEntered`, and into each ad `adEntered` and
+  (while playing) `adPlaying`, with `adTimeUpdate` and quartile events as the ad
+  plays. Quartiles are reported only for the parts of the ad that were played
+  from before them, as for interstitials.
+- Playing across an ad's end emits `adEnded` then `adCompleted` with `ended`;
+  playing across the break's end completes the break with `ended`.
+- Seeking out of an ad or break completes it with `skipped`. Seeking back into a
+  break enters it again; stitched breaks are not suppressed after playing, since
+  the content cannot be played without them.
+- `skipAd` / `skipAdBreak` complete with `skipped` and seek to the ad's or
+  break's end. `restrict.jump` is not enforced: the player does not snap seeks
+  back to the break.
+- `adBreakCompleted`'s `resumePosition` is where the playhead is (the break's
+  end after playing through it). The `TrackController` does not act on it.
+
+Breaks are discovered once per manifest. Stitched ad events require a reasonable
+time update rate; with a coarse rate, quartiles reached between two updates are
+reported together.
 
 ### Preloading
 
@@ -183,6 +227,131 @@ grow without bound.
   at (or just past) the content's end, the playhead rarely reports a time inside
   it before the content's `ended` fires — so the player treats a content `ended`
   as the trigger to play a pending postroll before finishing the queue.
+
+## Signals
+
+### HLS Interstitials
+
+`EXT-X-DATERANGE` tags with `CLASS="com.apple.hls.interstitial"`: `X-ASSET-URI`
+and `X-ASSET-LIST` (with `SKIP-CONTROL`), `CUE` (`PRE`, `POST`, `ONCE`),
+`X-RESTRICT`, `X-RESUME-OFFSET`, `X-PLAYOUT-LIMIT`, and
+`X-RESOLUTION-TIME-OFFSET`.
+
+### HLS SCTE-35
+
+`EXT-X-DATERANGE` tags carrying `SCTE35-OUT`, `SCTE35-IN`, or `SCTE35-CMD` (RFC
+8216 4.3.2.7.1). Ranges sharing an `ID` are one break: the splice out opens it
+and the splice in, usually with the final `DURATION` or `END-DATE`, closes it. A
+`SCTE35-CMD` opens a break when it is a `time_signal` with an advertising
+segmentation descriptor (break, advertisement, placement opportunity, or ad
+block start). The duration is `DURATION`, the `END-DATE` span,
+`PLANNED-DURATION`, then the SCTE-35 `break_duration` or
+`segmentation_duration`. Each `EXT-X-DISCONTINUITY` within the break starts a
+new ad. Dates are mapped to the media timeline by the closest preceding
+`EXT-X-PROGRAM-DATE-TIME`, so a program date time is required.
+
+### DASH SCTE-35
+
+`EventStream` events in the SCTE 214-1 schemes:
+
+| `@schemeIdUri`                 | Event body                                                           |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `urn:scte:scte35:2014:xml+bin` | `<scte35:Signal><scte35:Binary>` with a base64 `splice_info_section` |
+| `urn:scte:scte35:2013:xml`     | `<scte35:SpliceInfoSection>` XML                                     |
+| `urn:scte:scte35:2013:bin`     | a base64 `splice_info_section` as the element text or `@messageData` |
+
+The SCTE-35 XML namespace is `http://www.scte.org/schemas/35/2016`. Following
+DASH-IF IOP v5 Part 5, the Event's `@presentationTime` (less the
+`EventStream@presentationTimeOffset`, on the Period's timeline) and `@duration`
+give the break's span; without an Event duration, the SCTE-35 `break_duration`
+or `segmentation_duration` is used, then the time of the matching splice in
+(same `splice_event_id` or `segmentation_event_id`). Each Period starting within
+the break is one of its ads (with the Period `@id` as the ad id), which matches
+multi-Period SSAI such as MediaTailor's. An avail repeated in several Periods is
+reported once.
+
+### DASH alternative MPD
+
+`EventStream` events with `@schemeIdUri`
+`urn:mpeg:dash:event:alternativeMPD:insert:2025` or
+`urn:mpeg:dash:event:alternativeMPD:replace:2025`, each with an
+`InsertPresentation` or `ReplacePresentation` child. `@uri` is the ad (resolved
+against the MPD URL), `@maxDuration` is the `playoutLimit`, and
+`@earliestResolutionTimeOffset` the `resolutionTimeOffset`, in the EventStream's
+timescale. An insert resumes content where it paused (`resumeOffset` 0); a
+replace resumes at `@returnOffset`, by default the event's end. A `@uri` without
+an `.mpd` or `.m3u8` extension is typed by a HEAD request's `Content-Type`. List
+MPDs (`MPD@type="list"`) are not supported; resolve them into ads with an
+[ad break resolver](#ad-decisioning-vast-vmap).
+
+### SCTE-35 decoding
+
+`decodeSpliceInfoSection` (binary) and `decodeSpliceInfoSectionText` (hex `0x…`
+or base64) decode a `splice_info_section` to a `SpliceInfoSection`:
+`splice_null`, `splice_insert`, and `time_signal` commands, and segmentation
+descriptors. `getSpliceAvail` interprets a section as the start or end of an ad
+avail. Encrypted sections, other commands, and other descriptors are reported
+but not decoded, and the CRC is not verified.
+
+## Ad decisioning (VAST, VMAP)
+
+Vinyl does not parse VAST or VMAP or fire tracking beacons. Instead, every
+discovered break passes through an `AdBreakResolver`, which an application
+provides to fill breaks from its ad server:
+
+```typescript
+import { createVinylPlayer, type AdBreakResolver } from '@amazon/vinyl'
+
+const adBreakResolver: AdBreakResolver = (adBreak, { trackUri }) => {
+    // Keep breaks that already have their ads.
+    if (adBreak.signal?.source === 'hls-interstitial') return adBreak
+    return {
+        ...adBreak,
+        // Play the avail's ads client side, then resume after the avail.
+        insertion: 'interstitial',
+        resumeOffset: adBreak.duration,
+        // Resolved lazily, as the break is approached or entered.
+        ads: () => requestVastAds(trackUri, adBreak),
+    }
+}
+
+const player = createVinylPlayer(
+    { media: videoElement },
+    { adBreakResolver: () => adBreakResolver }
+)
+```
+
+The resolver is called once per discovered break object (HLS breaks are
+rediscovered when a live playlist updates, so memoize ad requests by break `id`
+there). It runs for every source, so it can:
+
+- Replace a stitched SCTE-35 avail with client-side ads (as above). The avail's
+  SCTE-35 sections in `adBreak.signal.scte35` carry its duration and
+  segmentation UPID for the ad request.
+- Fill an alternative MPD event or HLS `X-ASSET-LIST`-style break whose URI is
+  an ad decision endpoint.
+- Leave stitched breaks stitched and add tracking: listen for `adEntered`,
+  quartile events, and `adCompleted` and fire the beacons from your VAST
+  response.
+
+Mapping a VAST response to `AdInfo`: each linear `<Ad>` in sequence order is an
+`AdInfo` with the `<Creative>` id or `<Ad id>` as `id`, `<Duration>` as
+`duration`, and the `<MediaFile>` URL (an HLS or DASH rendition, or progressive
+MP4) as `uri`. Fire `<Impression>` and the `start`, `firstQuartile`, `midpoint`,
+`thirdQuartile`, and `complete` `<Tracking>` events on `adPlaying`,
+`adFirstQuartile`, `adMidpoint`, `adThirdQuartile`, and `adEnded`; `skip` on
+`adCompleted` with reason `skipped`; and `<Error>` on `adError`. For a VMAP,
+each `<vmap:AdBreak timeOffset>` maps to a break (`start` → preroll, `end` →
+postroll, a time → midroll) whose `ads` resolves the break's VAST.
+
+### AWS Elemental MediaTailor
+
+MediaTailor's SSAI manifests work without configuration: HLS ad avails carry
+`EXT-X-DATERANGE` SCTE-35 and DASH ad avails are separate Periods with
+`urn:scte:scte35:2014:xml+bin` events, so they surface as stitched breaks with
+one ad per ad Period. MediaTailor's client-side tracking API returns avails with
+tracking events keyed by time; match them to breaks by `startTime` and fire the
+beacons from the ad events above.
 
 ## Restrictions
 

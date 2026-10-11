@@ -20,6 +20,8 @@ import {
     createDashRepresentationSegmentProvider,
     type DashSegmentProviderDeps,
 } from './timeline/DashRepresentationSegmentProvider'
+import { discoverDashAdBreaks } from '../../ad/discoverDashAdBreaks'
+import { memoize } from '@amazon/vinyl-util'
 
 export type BuildDashMediaTimelineDeps = DashSegmentProviderDeps
 
@@ -57,7 +59,10 @@ export function buildDashMediaTimeline(
     return {
         periods,
         minBufferTime: manifest.MPD.minBufferTime,
-        getAdBreaks: () => Promise.resolve([]), // Dash ads are not yet supported
+        // The manifest is immutable, so its breaks are discovered once.
+        getAdBreaks: memoize(() =>
+            Promise.resolve(discoverDashAdBreaks(manifest, baseUrl, duration))
+        ),
         getDuration: () => Promise.resolve(duration),
     }
 }

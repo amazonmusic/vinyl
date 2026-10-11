@@ -85,4 +85,25 @@ describe('buildDashMediaTimeline', () => {
         const duration = await timeline.getDuration()
         expect(duration).toEqual(jasmine.any(Number))
     })
+
+    it('discovers ad breaks from MPD events once', async () => {
+        const data: DashManifestData = {
+            manifest: parseDashManifest(`<?xml version="1.0" encoding="UTF-8"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" profiles="urn:mpeg:dash:profile:isoff-on-demand:2011"
+     minBufferTime="PT2S" type="static" mediaPresentationDuration="PT120S">
+    <Period id="p0" start="PT0S">
+        <EventStream schemeIdUri="urn:mpeg:dash:event:alternativeMPD:insert:2025" timescale="1000">
+            <Event presentationTime="60000" id="1"><InsertPresentation uri="ad.mpd"/></Event>
+        </EventStream>
+    </Period>
+</MPD>`),
+            baseUrl: 'https://example.com/content/stream.mpd',
+        }
+        const timeline = buildDashMediaTimeline(deps, data)
+        const adBreaks = await timeline.getAdBreaks()
+        expect(adBreaks.map((b) => [b.id, b.startTime, b.placement])).toEqual([
+            ['1', 60, 'midroll'],
+        ])
+        expect(await timeline.getAdBreaks()).toBe(adBreaks)
+    })
 })
