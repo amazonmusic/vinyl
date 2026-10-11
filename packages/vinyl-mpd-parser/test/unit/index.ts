@@ -2,6 +2,7 @@
 import './duration/duration.test'
 import './manifest/dashManifestXmlRules.test'
 import './manifest/dashParser.test'
+import './manifest/parseDash_events.test'
 import './manifest/parseDash_personalizedResponse.test'
 import './manifest/parseDash_segmentTemplate.test'
 import './manifest/stringifyDash_isoffLive.test'

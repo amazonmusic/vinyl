@@ -23,6 +23,10 @@ import { cencXmlRules } from './ext/drm/cencXmlRules'
 import type { DashProtections } from './ext/drm/contentProtection'
 import { createDashProtectionXmlRules } from './ext/drm/contentProtection'
 import { playreadyXmlRules } from './ext/drm/playreadyXmlRules'
+import {
+    createDashScte35EventXmlRules,
+    type DashScte35Events,
+} from './ext/events/scte35XmlRules'
 import type { OptionalDeep } from '@amazon/vinyl-util'
 
 /**
@@ -32,7 +36,7 @@ import type { OptionalDeep } from '@amazon/vinyl-util'
  */
 
 export type DashDrmManifest = Merged<
-    DashManifest & DashProtections<ContentProtection>
+    DashManifest & DashProtections<ContentProtection> & DashScte35Events
 >
 
 export interface ContentProtection
@@ -41,7 +45,8 @@ export interface ContentProtection
 export const dashDrmRules = mergeXmlRules(
     dashManifestXmlRules(),
     createDashProtectionXmlRules(cencXmlRules),
-    createDashProtectionXmlRules(playreadyXmlRules)
+    createDashProtectionXmlRules(playreadyXmlRules),
+    createDashScte35EventXmlRules()
 )
 
 const dashDrmRulesMapped = mapXmlRules(dashDrmRules)
