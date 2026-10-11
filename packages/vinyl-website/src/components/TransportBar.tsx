@@ -45,6 +45,11 @@ export function TransportBar(props: JsxElementProps<'div'>) {
     } = playerState
 
     const adBreakActive$ = currentAdBreak$.map((b) => b != null)
+    // A stitched (SSAI) break plays within the content timeline, so the scrub
+    // bar stays; an interstitial replaces the content track, so it is hidden.
+    const interstitialActive$ = currentAdBreak$.map(
+        (b) => b != null && b.insertion !== 'stitched'
+    )
     const adRemainingLabel$ = adTimeRemaining$.map(formatTime)
     // The ad controller decides skippability (respecting the skip window and any
     // restriction); until the window opens, show a countdown instead of a button.
@@ -211,7 +216,7 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                 </div>
                 <div
                     className="transportProgress"
-                    visible={adBreakActive$.map((v) => !v)}
+                    visible={interstitialActive$.map((v) => !v)}
                 >
                     <span className="progressTime">{elapsed$}</span>
                     <div className="progressBar">
@@ -226,10 +231,10 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                     <span className="progressTime">{remaining$}</span>
                 </div>
                 {/* Spacer keeps the surrounding controls in place while the
-                    scrub bar is hidden during ad playback. */}
+                    scrub bar is hidden during interstitial ad playback. */}
                 <div
                     className="transportProgressSpacer"
-                    visible={adBreakActive$}
+                    visible={interstitialActive$}
                 />
                 <div className="transportTrackInfo">
                     <div className="trackTitle">

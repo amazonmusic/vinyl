@@ -46,15 +46,17 @@ export function ScrubBar(props: ScrubBarProps) {
         const duration = seekRange.end - seekRange.start
         if (duration <= 0) return []
         return adBreaks.map((b) => {
-            // Pre/post-rolls sit at the timeline edges rather than spanning
-            // content time, so they render as a 3px pin at the start/end — not
-            // a duration-scaled band (which would stretch a long postroll
-            // across most of the bar).
-            if (b.placement === 'preroll') {
-                return { left: '0%', width: '3px' }
+            const stitched = b.insertion === 'stitched'
+            // Interstitial pre/post-rolls sit at the timeline edges rather than
+            // spanning content time, so they render as a 3px pin at the
+            // start/end — not a duration-scaled band (which would stretch a long
+            // postroll across most of the bar). Stitched breaks are part of the
+            // content timeline, so every placement is a band.
+            if (!stitched && b.placement === 'preroll') {
+                return { left: '0%', width: '3px', stitched }
             }
-            if (b.placement === 'postroll') {
-                return { left: 'calc(100% - 3px)', width: '3px' }
+            if (!stitched && b.placement === 'postroll') {
+                return { left: 'calc(100% - 3px)', width: '3px', stitched }
             }
             // Midroll: a band scaled by the break's duration, positioned at its
             // start time. When the duration is unknown, fall back to a 3px pin.
@@ -67,7 +69,7 @@ export function ScrubBar(props: ScrubBarProps) {
                 b.duration != null && b.duration > 0
                     ? toPercentCss(clamp(b.duration / duration, 0, 1 - leftPct))
                     : '3px'
-            return { left: toPercentCss(leftPct), width }
+            return { left: toPercentCss(leftPct), width, stitched }
         })
     })
 
@@ -100,7 +102,11 @@ export function ScrubBar(props: ScrubBarProps) {
                             el.replaceChildren(
                                 ...markers.map((m) => (
                                     <div
-                                        className="progressBarAdMarker"
+                                        className={
+                                            m.stitched
+                                                ? 'progressBarAdMarker stitched'
+                                                : 'progressBarAdMarker'
+                                        }
                                         style={{
                                             left: m.left,
                                             width: m.width,

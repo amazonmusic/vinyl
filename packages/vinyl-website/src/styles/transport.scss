@@ -323,6 +323,11 @@
     min-width: 3px;
 }
 
+// Stitched (SSAI) breaks play within the content timeline.
+.progressBarAdMarker.stitched {
+    background: #ff9f43;
+}
+
 .progressFill {
     position: absolute;
     top: 0;
