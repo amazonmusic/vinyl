@@ -40,6 +40,7 @@ import type {
     DescriptorType,
     EventStreamType,
     EventType,
+    ImportedMpdType,
     MetricsType,
     MPDtype,
     MultipleSegmentBaseType,
@@ -65,10 +66,18 @@ import type {
 
 export const dashNamespaceUri = 'urn:mpeg:dash:schema:mpd:2011'
 
+/**
+ * The XLink namespace of remote element `xlink:href` and `xlink:actuate`
+ * attributes.
+ */
+export const XLINK_NAMESPACE_URI = 'http://www.w3.org/1999/xlink'
+
 export function dashManifestXmlRules(): XmlRules<DashManifest> {
     const attrActuateType = attr<actuateType>(assertActuateEnum, stringify, {
         default: 'onRequest',
+        namespaceUri: XLINK_NAMESPACE_URI,
     } as const)
+    const attrHref = attrString({ namespaceUri: XLINK_NAMESPACE_URI })
 
     const descriptorType: XmlRules<DescriptorType> = {
         id: attrString,
@@ -142,7 +151,7 @@ export function dashManifestXmlRules(): XmlRules<DashManifest> {
     const segmentListType: XmlRules<SegmentListType> = {
         ...multipleSegmentBaseType,
         actuate: attrActuateType,
-        href: attrString,
+        href: attrHref,
         SegmentURL: elements(segmentURLType),
     } as const
 
@@ -182,7 +191,7 @@ export function dashManifestXmlRules(): XmlRules<DashManifest> {
     const eventStreamType: XmlRules<EventStreamType> = {
         Event: elements(eventType),
         actuate: attrActuateType,
-        href: attrString,
+        href: attrHref,
         messageData: attrString,
         schemeIdUri: attrString({ required: true }),
         timescale: attrInt,
@@ -258,7 +267,7 @@ export function dashManifestXmlRules(): XmlRules<DashManifest> {
         bitstreamSwitching: attrBoolean,
         contentType: attrString,
         group: attrInt,
-        href: attrString,
+        href: attrHref,
         id: attrInt,
         lang: attrString,
         maxBandwidth: attrInt,
@@ -293,6 +302,11 @@ export function dashManifestXmlRules(): XmlRules<DashManifest> {
         Reporting: elements(descriptorType, { minOccurs: 1 }),
     } as const
 
+    const importedMpdType: XmlRules<ImportedMpdType> = {
+        earliestResolutionTimeOffset: attrFloat,
+        _content: charactersString,
+    } as const
+
     const periodType: XmlRules<PeriodType> = {
         BaseURL: elements(baseURLType),
         SegmentBase: element(segmentBaseType),
@@ -303,10 +317,11 @@ export function dashManifestXmlRules(): XmlRules<DashManifest> {
         AdaptationSet: elements(adaptationSetType),
         Subset: elements(subsetType),
         SupplementalProperty: elements(descriptorType),
+        ImportedMPD: element(importedMpdType),
         actuate: attrActuateType,
         bitstreamSwitching: attrBoolean({ default: false }),
         duration: attr(parseDuration, stringifyDuration),
-        href: attrString,
+        href: attrHref,
         id: attrString,
         start: attr(parseDuration, stringifyDuration),
     } as const
@@ -450,7 +465,8 @@ export function stringifyIntVector(value: readonly number[]): string {
 
 const presentationTypeValidator: Validator<PresentationType> = isOneOf(
     'static',
-    'dynamic'
+    'dynamic',
+    'list'
 )
 
 /**

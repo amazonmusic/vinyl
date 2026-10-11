@@ -613,6 +613,21 @@ export interface MultipleSegmentBaseType extends SegmentBaseType {
 }
 
 /**
+ * A Linked Period's imported MPD reference.
+ */
+export interface ImportedMpdType {
+    /**
+     * The URL of the imported single-Period MPD.
+     */
+    readonly _content?: string
+
+    /**
+     * How far before the Period starts the imported MPD may be resolved, in seconds.
+     */
+    readonly earliestResolutionTimeOffset?: number
+}
+
+/**
  * Represents a single period within an MPD, defining a specific portion of the content with its own set of
  * adaptation sets and resources.
  */
@@ -698,13 +713,23 @@ export interface PeriodType {
     readonly Subset?: readonly SubsetType[]
 
     /**
+     * The MPD whose single Period this Linked Period imports (ISO/IEC 23009-1 6th edition 5.3.2.6), as in each
+     * Period of a `list` MPD.
+     */
+    readonly ImportedMPD?: ImportedMpdType
+
+    /**
      * Supplemental properties for this period, providing additional descriptors that may enhance the presentation
      * or setup.
      */
     readonly SupplementalProperty?: readonly DescriptorType[]
 }
 
-export type PresentationType = 'static' | 'dynamic'
+/**
+ * `static` and `dynamic` presentations, and `list` MPDs (ISO/IEC 23009-1 6th
+ * edition), whose Periods each import an MPD (see {@link ImportedMpdType}).
+ */
+export type PresentationType = 'static' | 'dynamic' | 'list'
 
 /**
  * Provides metadata about the program or content represented in a DASH Media Presentation Description (MPD) or
