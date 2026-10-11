@@ -667,6 +667,49 @@ describe('buildHlsMediaTimeline', () => {
         )
     })
 
+    it("uses a discontinuity's own EXT-X-MAP with its own decoder id", async () => {
+        const variant = createVariant('v1.m3u8', 128000)
+        const playlist = {
+            targetDuration: 10,
+            segments: [
+                { duration: 10, uri: 'c0.m4s', map: { uri: 'init.mp4' } },
+                {
+                    duration: 10,
+                    uri: 'ad0.m4s',
+                    discontinuity: true,
+                    map: { uri: 'ad/init.mp4' },
+                },
+                {
+                    duration: 10,
+                    uri: 'c1.m4s',
+                    map: {
+                        uri: 'init.mp4',
+                        byteRange: { offset: 100, length: 50 },
+                    },
+                },
+                { duration: 10, uri: 'c2.m4s', map: { uri: 'init.mp4' } },
+            ],
+        } as unknown as HlsMediaPlaylist
+        const timeline = buildHlsMediaTimeline(
+            deps,
+            createManifestData([variant], playlist)
+        )
+        const quality = timeline.periods[0].qualities[0]
+        const decoderIds = await Promise.all(
+            [5, 15, 25, 35].map(
+                async (time) =>
+                    (await quality.getSegment(time))!.quality.decoderId
+            )
+        )
+        const base = quality.metadata.decoderId
+        expect(decoderIds).toEqual([
+            base,
+            `${base}#ad/init.mp4@0`,
+            `${base}#init.mp4@100`,
+            base,
+        ])
+    })
+
     it('passes byteRange from map to createSegmentDataProvider as mediaRange', async () => {
         const variant = createVariant('v1.m3u8', 128000)
         const playlist = {
