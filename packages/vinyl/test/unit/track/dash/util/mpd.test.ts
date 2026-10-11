@@ -27,13 +27,13 @@ describe('mpd utils', () => {
         it('combines inherited properties', () => {
             // language=XML
             const manifest = parseDashManifest(`<?xml version="1.0" ?>
-            <MPD minBufferTime="PT0.0S" profiles="" xmlns="urn:mpeg:dash:schema:mpd:2011">
+            <MPD minBufferTime="PT0.0S" profiles="" xmlns="urn:mpeg:dash:schema:mpd:2011" xmlns:xlink="http://www.w3.org/1999/xlink">
                 <Period>
-                    <SegmentList actuate="onRequest" duration="20S"/>
+                    <SegmentList xlink:actuate="onRequest" duration="20S"/>
                     <AdaptationSet>
                         <SegmentList startNumber="1"/>
                         <Representation id="0" bandwidth="2345">
-                            <SegmentList actuate="onLoad">
+                            <SegmentList xlink:actuate="onLoad">
                                 <SegmentURL media="mediaExample"/>
                             </SegmentList>
                         </Representation>

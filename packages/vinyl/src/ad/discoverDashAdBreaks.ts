@@ -416,7 +416,9 @@ function createAlternativeMpdBreak({
     return {
         id,
         startTime,
-        duration,
+        // A zero-length event (typical of an insert, which pauses the main
+        // presentation) is a point in time: its span is unknown.
+        duration: duration || null,
         placement: classifyAlternativeMpdPlacement(
             startTime,
             presentationDuration

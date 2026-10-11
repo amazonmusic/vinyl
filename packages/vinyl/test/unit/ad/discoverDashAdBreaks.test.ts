@@ -369,7 +369,7 @@ describe('discoverDashAdBreaks', () => {
                 mpd(`
     <Period id="p0" start="PT0S">
         <EventStream schemeIdUri="${DashAlternativeMpdScheme.INSERT}" timescale="1000">
-            <Event presentationTime="0" id="1">
+            <Event presentationTime="0" duration="0" id="1">
                 <InsertPresentation uri="../ad_preroll/stream.mpd"/>
             </Event>
             <Event presentationTime="60000" id="2">
@@ -389,6 +389,7 @@ describe('discoverDashAdBreaks', () => {
                 'midroll',
                 'postroll',
             ])
+            expect(breaks[0].duration).toBeNull()
             expect(breaks[0].ads).toEqual([
                 {
                     id: '1-0',

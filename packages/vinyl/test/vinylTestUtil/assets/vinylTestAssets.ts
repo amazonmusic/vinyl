@@ -65,6 +65,11 @@ export const vinylTestAssets = {
         vinyl_ad_breaks_av__ssai_pre_mid_post: `https://assets.dev.vinyl.music.amazon.dev/dash/ssai_pre_mid_post/stream.mpd`,
         vinyl_ad_breaks_av__altmpd_insert: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_insert/stream.mpd`,
         vinyl_ad_breaks_av__altmpd_replace: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_replace/stream.mpd`,
+        // A list MPD, an alternative MPD whose uri is a list MPD pod, and an
+        // XLink remote Period.
+        vinyl_ad_breaks_av__list_mpd: `https://assets.dev.vinyl.music.amazon.dev/dash/list_mpd/stream.mpd`,
+        vinyl_ad_breaks_av__altmpd_list: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_list/stream.mpd`,
+        vinyl_ad_breaks_av__xlink_remote_period: `https://assets.dev.vinyl.music.amazon.dev/dash/xlink_remote_period/stream.mpd`,
     },
     hls: {
         live_static_video_audio_60s_2s: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_audio_60s_2s/main.m3u8`,

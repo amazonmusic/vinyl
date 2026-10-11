@@ -314,6 +314,103 @@ describe('ad insertion integ', () => {
         })
     })
 
+    describe('dash list MPDs and remote elements', () => {
+        it('plays a list MPD as consecutive imported Periods', async () => {
+            const player = suite.player
+            player.load({
+                type: 'dash',
+                uri: vinylTestAssets.dash.vinyl_ad_breaks_av__list_mpd,
+            })
+            expect(
+                await poll(() => (player.seekRange?.end ?? 0) > 180, {
+                    timeout: 20,
+                })
+            )
+                .withContext('duration includes every imported Period')
+                .toBeTrue()
+            // Crosses from the imported preroll into the imported content.
+            await playThenSeek(28.5)
+            await expectPlaysTo(31)
+        })
+
+        it('plays an alternative MPD whose uri is a list MPD pod', async () => {
+            await loadAndAwaitAdBreaks({
+                type: 'dash',
+                uri: vinylTestAssets.dash.vinyl_ad_breaks_av__altmpd_list,
+            })
+            const player = suite.player
+            const [adBreak] = player.currentTrackAds!.adBreaks
+            expect(adBreak).toEqual(
+                jasmine.objectContaining({
+                    startTime: 60,
+                    insertion: 'interstitial',
+                    playoutLimit: 25,
+                })
+            )
+            const recorded = record(player)
+            try {
+                await playThenSeek(59)
+                expect(
+                    await poll(
+                        () =>
+                            player.currentAd?.uri != null &&
+                            player.activeTrack?.uri === player.currentAd.uri,
+                        { timeout: 30 }
+                    )
+                )
+                    .withContext('pod ad track active')
+                    .toBeTrue()
+                const adStart = player.currentTime
+                expect(
+                    await poll(() => player.currentTime > adStart + 1, {
+                        timeout: 30,
+                    })
+                )
+                    .withContext('pod plays')
+                    .toBeTrue()
+                player.skipAdBreak()
+                // An insert resumes where content paused.
+                expect(
+                    recorded.breaksCompleted.at(-1)?.resumePosition
+                ).toBeCloseTo(60, 0)
+            } finally {
+                recorded.dispose()
+            }
+        })
+
+        it('resolves a remote Period into a stitched pod', async () => {
+            await loadAndAwaitAdBreaks({
+                type: 'dash',
+                uri: vinylTestAssets.dash
+                    .vinyl_ad_breaks_av__xlink_remote_period,
+            })
+            const player = suite.player
+            const [adBreak, ...rest] = player.currentTrackAds!.adBreaks
+            expect(rest).toEqual([])
+            expect(adBreak).toEqual(
+                jasmine.objectContaining({
+                    startTime: 60,
+                    duration: 25,
+                    insertion: 'stitched',
+                })
+            )
+            expect(adBreak.ads).toEqual([
+                jasmine.objectContaining({ startTime: 60, duration: 20 }),
+                jasmine.objectContaining({ startTime: 80, duration: 5 }),
+            ])
+            const recorded = record(player)
+            try {
+                await playThenSeek(78.5)
+                await expectPlaysTo(81)
+                expect(recorded.adsCompleted.map((e) => e.reason)).toEqual([
+                    'ended',
+                ])
+            } finally {
+                recorded.dispose()
+            }
+        })
+    })
+
     describe('hls stitched SCTE-35', () => {
         it('merges SCTE35-OUT and SCTE35-IN into a stitched break', async () => {
             await loadAndAwaitAdBreaks({

@@ -8,8 +8,13 @@ import { createDashManifestProvider } from '@amazon/vinyl'
 import createSpy = jasmine.createSpy
 
 describe('createDashManifestProvider', () => {
-    it('returns provided manifestProvider when available', () => {
-        const mockManifestProvider = createSpy('manifestProvider')
+    it('uses the provided manifestProvider when available', async () => {
+        const data = {
+            manifest: { MPD: { Period: [] } },
+            baseUrl: 'test://',
+        }
+        const mockManifestProvider =
+            createSpy('manifestProvider').and.resolveTo(data)
         const loadOptions = {
             uri: 'test://manifest.mpd',
             type: 'dash' as const,
@@ -20,7 +25,8 @@ describe('createDashManifestProvider', () => {
             requestInterceptor: {} as any,
         })
 
-        expect(provider).toBe(mockManifestProvider)
+        expect(await provider()).toBe(data as any)
+        expect(mockManifestProvider).toHaveBeenCalled()
     })
 
     it('creates urlDashManifestProvider when manifestProvider not provided', () => {
