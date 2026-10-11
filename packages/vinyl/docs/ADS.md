@@ -280,9 +280,36 @@ against the MPD URL), `@maxDuration` is the `playoutLimit`, and
 `@earliestResolutionTimeOffset` the `resolutionTimeOffset`, in the EventStream's
 timescale. An insert resumes content where it paused (`resumeOffset` 0); a
 replace resumes at `@returnOffset`, by default the event's end. A `@uri` without
-an `.mpd` or `.m3u8` extension is typed by a HEAD request's `Content-Type`. List
-MPDs (`MPD@type="list"`) are not supported; resolve them into ads with an
-[ad break resolver](#ad-decisioning-vast-vmap).
+an `.mpd` or `.m3u8` extension is typed by a HEAD request's `Content-Type`. The
+`@uri` may return a list MPD (`MPD@type="list"`), such as an ad pod from an ad
+decision server; it plays as one ad of consecutive Periods (see
+[List MPDs and remote elements](#list-mpds-and-remote-elements)).
+
+### List MPDs and remote elements
+
+Every DASH manifest's remote content is resolved when it loads, before its ad
+breaks are discovered, so it plays as a self-contained presentation:
+
+- **Linked Periods** (ISO/IEC 23009-1 6th edition 5.3.2.6): a Period with an
+  `ImportedMPD` takes the content of the referenced static, single-Period MPD,
+  keeping its own `@id` and `@start`, the smaller `@duration`, and its
+  `EventStream` and `SupplementalProperty` elements unless the imported Period
+  has equivalents. The imported MPD's base URLs become the Period's absolute
+  `BaseURL`. A list MPD, whose Periods each import an MPD, plays as a
+  multi-Period presentation. An import that fails, or is not a static
+  single-Period MPD, leaves the Period as it is, without the import.
+- **Remote elements** (5.5): a `Period`, `AdaptationSet`, `EventStream`, or
+  `SegmentList` with an `xlink:href` is replaced by the elements of the fetched
+  fragment, which may link further (up to a depth of 5).
+  `urn:mpeg:dash:resolve-to-zero:2013` removes the element. Both
+  `xlink:actuate="onLoad"` and `"onRequest"` links are resolved at load, so an
+  `onRequest` remote Period (DASH-IF's SGAI late binding) is resolved early
+  rather than as the playhead approaches it; its resolved ad Periods are then
+  reported like any other, e.g. as stitched SCTE-35 breaks. A link that fails to
+  resolve leaves the element's own content; a Period left without content is
+  removed.
+
+The manifest request interceptor and `requestInit` apply to these requests.
 
 ### SCTE-35 decoding
 
