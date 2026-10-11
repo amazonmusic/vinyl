@@ -826,6 +826,13 @@ describe('parseDashManifest', () => {
                                     {
                                         duration: 24,
                                         id: 136,
+                                        Signal: {
+                                            Binary: {
+                                                _content:
+                                                    '/DAhAAAAAAAAAP/wEAUAAACIf+9/fgAg9YDAAAAAAABiJjIs',
+                                            },
+                                        },
+                                        _content: '',
                                         presentationTime: 1550252760,
                                     },
                                 ],
@@ -1951,6 +1958,13 @@ describe('parseDashManifest', () => {
                                     {
                                         duration: 24,
                                         id: 137,
+                                        Signal: {
+                                            Binary: {
+                                                _content:
+                                                    '/DAhAAAAAAAAAP/wEAUAAACJf+9/fgAg9YDAAAAAAAC/KdNe',
+                                            },
+                                        },
+                                        _content: '',
                                         presentationTime: 1550252880,
                                     },
                                 ],
@@ -3076,6 +3090,13 @@ describe('parseDashManifest', () => {
                                     {
                                         duration: 24,
                                         id: 138,
+                                        Signal: {
+                                            Binary: {
+                                                _content:
+                                                    '/DAhAAAAAAAAAP/wEAUAAACKf+9/fgAg9YDAAAAAAADc+O1/',
+                                            },
+                                        },
+                                        _content: '',
                                         presentationTime: 1550253000,
                                     },
                                 ],

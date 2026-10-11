@@ -32,6 +32,7 @@ import { parseRatio, stringifyRatio } from '../media/ratio'
 import { parseFrameRate, stringifyFrameRate } from '../media/frameRate'
 import type {
     AdaptationSetType,
+    AlternativePresentationType,
     BaseURLType,
     ConditionalUintType,
     ContentComponentType,
@@ -158,11 +159,24 @@ export function dashManifestXmlRules(): XmlRules<DashManifest> {
         id: attrString,
     } as const
 
+    const alternativePresentationType: XmlRules<AlternativePresentationType> = {
+        uri: attrString,
+        maxDuration: attrInt,
+        earliestResolutionTimeOffset: attrInt,
+        returnOffset: attrInt,
+        clip: attrBoolean,
+        startWithOffset: attrBoolean,
+    } as const
+
     const eventType: XmlRules<EventType> = {
         duration: attrInt,
         id: attrInt,
         messageData: attrString,
         presentationTime: attrInt({ default: 0 }),
+        contentEncoding: attrString,
+        _content: charactersString,
+        InsertPresentation: element(alternativePresentationType),
+        ReplacePresentation: element(alternativePresentationType),
     } as const
 
     const eventStreamType: XmlRules<EventStreamType> = {
@@ -172,6 +186,7 @@ export function dashManifestXmlRules(): XmlRules<DashManifest> {
         messageData: attrString,
         schemeIdUri: attrString({ required: true }),
         timescale: attrInt,
+        presentationTimeOffset: attrInt,
         value: attrString,
     } as const
 

@@ -341,6 +341,12 @@ export interface EventStreamType {
     readonly timescale?: number
 
     /**
+     * The presentation time, in timescale units, that corresponds to the start of the Period. Subtracted from each
+     * event's `presentationTime`. Default: 0
+     */
+    readonly presentationTimeOffset?: number
+
+    /**
      * An optional value associated with the event stream, whose interpretation depends on the scheme.
      */
     readonly value?: string
@@ -374,6 +380,67 @@ export interface EventType {
      * The presentation time of the event, in timescale units, relative to the start of the presentation.
      */
     readonly presentationTime: number
+
+    /**
+     * The encoding of the event's text content, `base64` when it is binary data.
+     */
+    readonly contentEncoding?: string
+
+    /**
+     * The event's text content, the message for schemes that carry it in the element body.
+     */
+    readonly _content?: string
+
+    /**
+     * The alternative presentation inserted at the event (`urn:mpeg:dash:event:alternativeMPD:insert:2025`).
+     * ISO/IEC 23009-1 5.16.3.
+     */
+    readonly InsertPresentation?: AlternativePresentationType
+
+    /**
+     * The alternative presentation that replaces the event's span of the main presentation
+     * (`urn:mpeg:dash:event:alternativeMPD:replace:2025`). ISO/IEC 23009-1 5.16.4.
+     */
+    readonly ReplacePresentation?: AlternativePresentationType
+}
+
+/**
+ * An alternative MPD event's presentation, ISO/IEC 23009-1 5.16.
+ * Durations and offsets are in the parent EventStream's timescale units.
+ */
+export interface AlternativePresentationType {
+    /**
+     * The URL of the alternative MPD, or of a resolver that returns it.
+     */
+    readonly uri?: string
+
+    /**
+     * The maximum duration the alternative presentation may play.
+     */
+    readonly maxDuration?: number
+
+    /**
+     * How far before the event the alternative MPD may be resolved.
+     */
+    readonly earliestResolutionTimeOffset?: number
+
+    /**
+     * Replace only: the offset from the event's start at which the main presentation resumes. Defaults to the
+     * event's duration.
+     */
+    readonly returnOffset?: number
+
+    /**
+     * Replace only: when true (the default), a late-starting alternative presentation is clipped so the main
+     * presentation resumes on time.
+     */
+    readonly clip?: boolean
+
+    /**
+     * Replace only: when true, a late-starting alternative presentation starts at the offset it would have reached
+     * had it started on time.
+     */
+    readonly startWithOffset?: boolean
 }
 
 /**
