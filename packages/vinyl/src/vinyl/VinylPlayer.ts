@@ -77,7 +77,11 @@ import {
     type TextTrackEventMap,
     type TextTrackInfo,
 } from '../text/TextTrack'
-import { type AdEventMap, ALL_AD_EVENTS } from '../ad/AdController'
+import {
+    type AdEventMap,
+    ALL_AD_EVENTS,
+    isInterstitialActive,
+} from '../ad/AdController'
 import type { AdBreakInfo, AdInfo, TrackAds } from '../ad/AdBreakInfo'
 
 /**
@@ -253,7 +257,7 @@ export class VinylPlayer<
             this.on('codecUnsupported', (event) => {
                 // While an ad is playing, the ad track owns the media pipeline;
                 // do not rebuild the content track out from under it.
-                if (this.deps.adController.currentAdBreak) return
+                if (isInterstitialActive(this.deps.adController)) return
                 logWarn(
                     this,
                     'codec unsupported, reloading track:',
@@ -368,7 +372,7 @@ export class VinylPlayer<
                 // skip to avoid an intermediate clear and preserve captions.
                 if (
                     track === activeTrack &&
-                    !this.deps.adController.currentAdBreak
+                    !isInterstitialActive(this.deps.adController)
                 ) {
                     transition(null)
                 }

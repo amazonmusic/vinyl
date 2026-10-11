@@ -32,8 +32,12 @@ import type {
     TrackLoadOptions,
 } from './TrackFactory'
 import type { ChangeEvent } from '../event/ChangeEvent'
-import type { AdController } from '../ad/AdController'
-import type { AdBreakInfo, AdInfo } from '../ad/AdBreakInfo'
+import { type AdController, isInterstitialActive } from '../ad/AdController'
+import {
+    type AdBreakInfo,
+    type AdInfo,
+    isStitchedAdBreak,
+} from '../ad/AdBreakInfo'
 
 export interface TrackControllerEventMap<
     TrackLoadOptionsType extends TrackLoadOptions,
@@ -351,6 +355,8 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         )
         add(
             adController.on('adEntered', (event) => {
+                // Stitched ads play within the content track.
+                if (isStitchedAdBreak(event.adBreak)) return
                 const adParent = this.adParent
                 if (!adParent) {
                     logDebug(this, 'ad entered, no parent track')
@@ -389,12 +395,14 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
         add(
             adController.on('adBreakCompleted', (event) => {
                 logDebug(this, 'adBreakCompleted')
+                // Stitched breaks never leave the content track.
+                if (isStitchedAdBreak(event.adBreak)) return
                 const adParent = this.adParent
                 if (!adParent) {
                     logDebug(this, 'ad break completed, no parent track')
                     return
                 }
-                if (adController.currentAdBreak) {
+                if (isInterstitialActive(adController)) {
                     logDebug(this, 'more adbreaks')
                     return
                 }
@@ -620,6 +628,7 @@ export class TrackControllerImpl<TrackLoadOptionsType extends TrackLoadOptions>
             .then(async (trackAds) => {
                 for (const [index, adBreak] of trackAds.adBreaks.entries()) {
                     if (adBreak.placement !== 'preroll') continue
+                    if (isStitchedAdBreak(adBreak)) continue
                     const ads = await resolveValueProvider(adBreak.ads)
                     for (const ad of ads) {
                         await this.preloadAd({

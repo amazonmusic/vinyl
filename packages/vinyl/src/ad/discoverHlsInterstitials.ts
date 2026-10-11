@@ -100,6 +100,12 @@ export function discoverHlsInterstitials(
             ads: async () => (await resolveContent()).ads,
             skipControl: async () => (await resolveContent()).skipControl,
             restrict,
+            insertion: 'interstitial',
+            signal: {
+                source: 'hls-interstitial',
+                schemeIdUri: HLS_INTERSTITIAL_CLASS,
+                scte35: [],
+            },
         })
     }
 

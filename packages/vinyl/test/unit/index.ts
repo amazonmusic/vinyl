@@ -1,8 +1,13 @@
 /** Auto-generated from build scripts */
 import './ad/AdController.test'
 import './ad/AdControllerImpl.test'
+import './ad/AdControllerImplStitched.test'
 import './ad/defaultAdLoadOptionsResolver.test'
+import './ad/discoverDashAdBreaks.test'
 import './ad/discoverHlsInterstitials.test'
+import './ad/discoverHlsScte35AdBreaks.test'
+import './ad/scte35/decodeSpliceInfoSection.test'
+export * from './ad/scte35/scte35TestUtil'
 import './client/CapabilitiesImpl.test'
 export * from './client/userAgent/userAgentExpectations'
 import './drm/CencEncryptionScheme.test'

@@ -26,6 +26,7 @@ import {
     type AdBreakInfo,
     type AdBreakList,
     type AdInfo,
+    isStitchedAdBreak,
     type TrackAds,
 } from './AdBreakInfo'
 import type {
@@ -35,8 +36,11 @@ import type {
     AdProgressEvent,
 } from './AdController'
 import type { ReadonlyPlaybackController } from '../playback/ReadonlyPlaybackController'
+import type { PlaybackController } from '../playback/PlaybackController'
 import { AdError } from './AdError'
 import type { AdsProvider } from './AdsProvider'
+import type { AdBreakResolver } from './AdBreakResolver'
+import { StitchedAdTracker } from './StitchedAdTracker'
 
 /**
  * The % playhead start tolerance for playback progress when emitting ad progress events.
@@ -54,7 +58,17 @@ export const AD_START_TOLERANCE = 0.05
 export const PLAYOUT_LIMIT_TOLERANCE = 1
 
 export interface AdControllerImplDeps {
-    readonly playbackController: ReadonlyPlaybackController
+    /**
+     * The playback controller. `seekTo` skips stitched ads.
+     */
+    readonly playbackController: ReadonlyPlaybackController &
+        Pick<PlaybackController, 'seekTo'>
+
+    /**
+     * Resolves each discovered ad break, e.g. to fill an avail with ads from an
+     * ad decision server. When null or absent, breaks are used as discovered.
+     */
+    readonly adBreakResolver?: AdBreakResolver | null
 }
 
 export interface AdControllerImplOptions {
@@ -135,6 +149,11 @@ interface AdState {
  * (null) or breaks which restrict `jump` will become active at
  * `currentTime > startTime`
  *
+ * Stitched breaks ({@link AdBreakInfo.insertion} `stitched`) are part of the
+ * content's media timeline: they are tracked from the playhead as the content
+ * plays through them (see {@link StitchedAdTracker}), never loaded as ad
+ * tracks, and skipping one seeks past it.
+ *
  * This class contains no HLS- or DASH-specific logic; discovery code maps its
  * protocol's signals to {@link AdBreakInfo} exposed by an
  * {@link AdsProvider.getAds}, which this controller reads once the provider is
@@ -174,6 +193,8 @@ export class AdControllerImpl
     private readonly disposer = createDisposer()
     private adBreakState: AdBreakState | null = null
     private loadingNext = false
+    private readonly stitched: StitchedAdTracker
+    private readonly resolvedBreaks = new WeakMap<AdBreakInfo, AdBreakInfo>()
 
     constructor(
         private readonly deps: AdControllerImplDeps,
@@ -183,6 +204,14 @@ export class AdControllerImpl
         this.options = { ...defaultAdControllerImplOptions, ...options }
         const { add } = this.disposer
         const { playbackController } = this.deps
+        this.stitched = add(
+            new StitchedAdTracker({
+                playbackController,
+                dispatch: (type, event) => this.dispatch(type, event),
+                logTarget: this,
+                contentActive: () => this.adBreakState == null,
+            })
+        )
         add(
             playbackController.on('playing', () => {
                 if (this.adState) {
@@ -293,14 +322,19 @@ export class AdControllerImpl
         const current = value ?? null
         this._trackAds = current
 
-        this.midrollAds = (value?.adBreaks ?? []).filter(
+        const adBreaks = value?.adBreaks ?? []
+        const interstitials = adBreaks.filter(
+            (adBreak) => !isStitchedAdBreak(adBreak)
+        )
+        this.midrollAds = interstitials.filter(
             (adBreak) => adBreak.placement === 'midroll'
         )
         // Midroll + postroll breaks are eligible for the ahead-of-time preload
         // signal. adBreaks are already sorted by start time, so this stays sorted.
-        this.preloadableBreaks = (value?.adBreaks ?? []).filter(
+        this.preloadableBreaks = interstitials.filter(
             (adBreak) => adBreak.placement !== 'preroll'
         )
+        this.stitched.setBreaks(adBreaks.filter(isStitchedAdBreak))
 
         logDebug(this, 'setTrackAds', value)
         this.dispatch('currentTrackAdsChange', {
@@ -333,8 +367,7 @@ export class AdControllerImpl
 
         if (!provider) return
         const refreshAds = () => {
-            provider
-                .getAds()
+            this.getResolvedAds(provider)
                 .then((ads) => {
                     if (interrupted()) return
                     this.setTrackAds(ads)
@@ -352,6 +385,28 @@ export class AdControllerImpl
         refreshAds()
     }
 
+    /**
+     * Gets the provider's ads, resolved by the {@link AdBreakResolver}.
+     */
+    private async getResolvedAds(provider: AdsProvider): Promise<TrackAds> {
+        const ads = await provider.getAds()
+        const resolver = this.deps.adBreakResolver
+        if (!resolver) return ads
+        const adBreaks = ads.adBreaks
+            .map((adBreak) => {
+                // Resolve each discovered break once, so its resolved ads
+                // provider is not recreated on every read.
+                let resolved = this.resolvedBreaks.get(adBreak)
+                if (!resolved) {
+                    resolved = resolver(adBreak, { trackUri: ads.trackUri })
+                    this.resolvedBreaks.set(adBreak, resolved)
+                }
+                return resolved
+            })
+            .sort((a, b) => a.startTime - b.startTime)
+        return { ...ads, adBreaks }
+    }
+
     async enterPreroll(): Promise<AdBreakInfo | null> {
         return this.enterRoll('preroll')
     }
@@ -367,8 +422,7 @@ export class AdControllerImpl
         logVerbose(this, `checking for ${placement} ads`)
         this.lastPlaybackTime = this.deps.playbackController.currentTime
         const interrupted = this.providerInterrupted()
-        return this.adsProvider
-            .getAds()
+        return this.getResolvedAds(this.adsProvider)
             .then((ads) => {
                 if (interrupted()) {
                     logVerbose(
@@ -377,12 +431,15 @@ export class AdControllerImpl
                     )
                     return null
                 }
+                // Stitched rolls play as part of the content.
                 this.setPendingBreaks(
                     ads.adBreaks.filter(
-                        (adBreak) => adBreak.placement === placement
+                        (adBreak) =>
+                            adBreak.placement === placement &&
+                            !isStitchedAdBreak(adBreak)
                     )
                 )
-                return this.currentAdBreak
+                return this.adBreakState?.adBreak ?? null
             })
             .catch(() => {
                 return null
@@ -398,6 +455,7 @@ export class AdControllerImpl
 
     skipAdBreak(): void {
         const adBreakState = this.adBreakState
+        if (!adBreakState && this.stitched.skipAdBreak()) return
         if (!adBreakState) {
             logDebug(this, 'skipAdBreak, no-op')
             return
@@ -455,7 +513,7 @@ export class AdControllerImpl
     }
 
     get currentAdBreak(): AdBreakInfo | null {
-        return this.adBreakState?.adBreak ?? null
+        return this.adBreakState?.adBreak ?? this.stitched.currentAdBreak
     }
 
     /**
@@ -564,7 +622,9 @@ export class AdControllerImpl
     }
 
     get currentAd(): AdInfo | null {
-        return this.adState?.ad ?? null
+        return this.adBreakState
+            ? (this.adState?.ad ?? null)
+            : this.stitched.currentAd
     }
 
     private get adState(): AdState | null {
@@ -599,7 +659,7 @@ export class AdControllerImpl
      * Checks if the playhead has entered a time to activate a midroll ad.
      */
     private onTimeUpdate = (): void => {
-        const adBreak = this.currentAdBreak
+        const adBreak = this.adBreakState?.adBreak
         const adState = this.adState
         if (adBreak) {
             // Ad progress events
@@ -610,6 +670,7 @@ export class AdControllerImpl
             return
         }
         const pC = this.deps.playbackController
+        this.stitched.onTimeUpdate()
         if (this.hasProvider && pC.playing && !this.pendingAdBreaks.length) {
             // Not an ad playing, main content.
             this.lastPlaybackTime = pC.currentTime
@@ -830,6 +891,7 @@ export class AdControllerImpl
     }
 
     skipAd(): void {
+        if (!this.adBreakState && this.stitched.skipAd()) return
         this.completeAd(this.adState, 'skipped')
         this.nextAdOrBreak()
     }

@@ -1,5 +1,6 @@
 /** Auto-generated from build scripts */
 import './_includes'
+import './ad/ssaiAdBreaks.test'
 import './drm/DrmControllerImpl.test'
 export * from './drm/pendingIfWidevineNotSupported'
 import './drm/preferPrefixedMediaKeys.test'

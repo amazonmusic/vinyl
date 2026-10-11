@@ -242,6 +242,65 @@ describe('createHlsFactories', () => {
             expect(adBreaks[0].id).toBe('ad1')
         })
 
+        it('merges stitched SCTE-35 breaks with interstitials by start time', async () => {
+            const factoryCreator = createHlsFactories(null)
+            const segments = mockMediaPlaylist.segments.map((segment, i) =>
+                i === 0
+                    ? {
+                          ...segment,
+                          programDateTime: '2023-12-31T23:59:50.000Z',
+                      }
+                    : segment
+            )
+            const media = {
+                ...interstitialManifest(),
+                getMediaPlaylist: () =>
+                    Promise.resolve({
+                        ...mockMediaPlaylist,
+                        segments,
+                        dateRanges: [
+                            {
+                                id: 'ad1',
+                                classId: 'com.apple.hls.interstitial',
+                                startDate: '2024-01-01T00:00:01.000Z',
+                                duration: 1,
+                                clientAttributes: {
+                                    'X-ASSET-URI':
+                                        'https://ads.example.com/ad.m3u8',
+                                },
+                            },
+                            {
+                                id: 'splice-1',
+                                startDate: '2023-12-31T23:59:52.000Z',
+                                duration: 2,
+                                clientAttributes: {
+                                    'SCTE35-OUT':
+                                        '0xFC302500000000000000FFF01405000000017FEFFE005265C0FE0014997000010000000084907032',
+                                },
+                            },
+                        ],
+                    }),
+            }
+            const provider =
+                createSpy<HlsManifestProvider>(
+                    'stitchedProvider'
+                ).and.resolveTo(media)
+            const factories = factoryCreator(hlsFactoryDeps)({
+                uri: 'https://example.com/main.m3u8',
+                type: 'hls',
+                manifestProvider: provider,
+            })
+            const deps = createContainer(factories).dependencies
+            const timeline = await deps.mediaTimeline.value
+            const adBreaks = await timeline.getAdBreaks()
+            expect(
+                adBreaks.map((b) => [b.id, b.startTime, b.insertion])
+            ).toEqual([
+                ['splice-1', 2, 'stitched'],
+                ['ad1', 11, 'interstitial'],
+            ])
+        })
+
         it('omits ad breaks when the playlist has none', async () => {
             const factoryCreator = createHlsFactories(null)
             const factories = factoryCreator(hlsFactoryDeps)({
