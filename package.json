@@ -32,6 +32,9 @@
         "watch": "lerna run watch --parallel --scope @amazon/*",
         "prepare": "husky"
     },
+    "nx": {
+        "includedScripts": []
+    },
     "devDependencies": {
         "@babel/core": "^7.23.7",
         "@babel/preset-env": "^7.23.7",
