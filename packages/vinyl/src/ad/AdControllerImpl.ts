@@ -913,8 +913,10 @@ export class AdControllerImpl
     }
 
     private endAd(adState: AdState): void {
+        // adEnded precedes the ad's (and its break's) completion.
+        if (!adState.completedReason)
+            this.dispatch('adEnded', createAdProgressEvent(adState))
         this.completeAd(adState, 'ended')
-        this.dispatch('adEnded', createAdProgressEvent(adState))
         this.nextAdOrBreak()
     }
 

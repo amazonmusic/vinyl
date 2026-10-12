@@ -931,6 +931,38 @@ describe('AdControllerImpl', () => {
             expect(playing).toEqual(['a1'])
         })
 
+        it('dispatches adEnded before the ad and its break complete', async () => {
+            const c = createController()
+            const events: string[] = []
+            for (const type of [
+                'adEnded',
+                'adCompleted',
+                'adBreakCompleted',
+            ] as const) {
+                c.on(type, () => events.push(type))
+            }
+            await setContent(
+                c,
+                trackAds(makeBreak({ startTime: 0, duration: 10 }))
+            )
+            updateTime(1)
+            await flush()
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            // A second ended for the completed ad is ignored.
+            playbackController.dispatch('ended', {
+                previous: false,
+                current: true,
+            })
+            expect(events).toEqual([
+                'adEnded',
+                'adCompleted',
+                'adBreakCompleted',
+            ])
+        })
+
         it('dispatches adEnded when playback ends', async () => {
             const c = createController()
             const ended: string[] = []
