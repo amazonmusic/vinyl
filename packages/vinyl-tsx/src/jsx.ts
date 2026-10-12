@@ -88,7 +88,18 @@ export type DomIntrinsicElements = {
     [K in keyof HTMLElementTagNameMap]: JsxElementProps<K>
 }
 
-export type JsxChild = Node | string | ObservableValue<Node | string>
+/**
+ * A child of a JSX element. Arrays, including nested arrays, are flattened, so
+ * a list of elements or text can be passed without spreading it. Null and
+ * undefined children are omitted.
+ */
+export type JsxChild =
+    | Node
+    | string
+    | ObservableValue<Node | string>
+    | null
+    | undefined
+    | readonly JsxChild[]
 
 export function jsx<K extends keyof HTMLElementTagNameMap>(
     type: K,
@@ -119,20 +130,34 @@ export function jsx(type: any, props: any, ...children: any) {
                 setProp(element, k, v)
             }
         }
-        element.append(
-            ...children
-                .filter((child: JsxChild | null) => child != null)
-                .map((child: JsxChild) => {
-                    return isObservableValue(child) ? ActiveText(child) : child
-                })
-        )
+        element.append(...toNodes(children))
         return element
     } else {
         return type(props ?? {}, children)
     }
 }
 
-export function Fragment(_props: AnyRecord, children: (Node | string)[]) {
+/**
+ * Converts JSX children to the nodes or text to append, flattening arrays and
+ * omitting null and undefined children.
+ */
+function toNodes(children: readonly JsxChild[]): (Node | string)[] {
+    const out: (Node | string)[] = []
+    const add = (child: JsxChild) => {
+        if (child == null) return
+        if (Array.isArray(child)) {
+            for (const c of child as readonly JsxChild[]) add(c)
+        } else if (isObservableValue(child)) {
+            out.push(ActiveText(child))
+        } else {
+            out.push(child as Node | string)
+        }
+    }
+    for (const child of children) add(child)
+    return out
+}
+
+export function Fragment(_props: AnyRecord, children: JsxChild[]) {
     return jsx(
         'div',
         {

@@ -41,8 +41,26 @@ describe('jsx', () => {
         })
 
         it('filters null children', () => {
-            const el = jsx('div', {}, null as unknown as string, 'hello')
+            const el = jsx('div', {}, null, undefined, 'hello')
             expect(el.childNodes.length).toBe(1)
+        })
+
+        it('flattens array children', () => {
+            initializeConnectedObserver()
+            const span = dom.createElement('span')
+            const el = jsx(
+                'div',
+                {},
+                'a',
+                ['b', span, null],
+                [['c', [data('d')]]],
+                []
+            )
+            expect(el.childNodes.length).toBe(5)
+            expect(el.childNodes[2]).toBe(span)
+            expect(
+                [0, 1, 3, 4].map((i) => el.childNodes[i].textContent)
+            ).toEqual(['a', 'b', 'c', 'd'])
         })
 
         it('converts observable children to ActiveText', () => {
@@ -207,6 +225,15 @@ describe('jsx', () => {
         it('appends children', () => {
             const el = Fragment({}, ['hello', 'world'])
             expect(el.childNodes.length).toBe(2)
+        })
+
+        it('flattens array children', () => {
+            const el = Fragment({}, [['hello', 'world'], '!'])
+            expect(Array.from(el.childNodes, (n) => n.textContent)).toEqual([
+                'hello',
+                'world',
+                '!',
+            ])
         })
     })
 

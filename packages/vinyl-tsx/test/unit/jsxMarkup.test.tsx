@@ -5,6 +5,26 @@ import { data } from '@amazon/vinyl-observable'
 describe('jsxMarkup', () => {
     installDomPolyfill()
 
+    describe('tsx children', () => {
+        it('accepts arrays of elements and text without spreading', () => {
+            const items = ['a', 'b']
+            const el = (
+                <ul>
+                    {items.map((item) => (
+                        <li>{item}</li>
+                    ))}
+                    {['c', <li>d</li>]}
+                </ul>
+            )
+            expect(Array.from(el.childNodes, (n) => n.textContent)).toEqual([
+                'a',
+                'b',
+                'c',
+                'd',
+            ])
+        })
+    })
+
     describe('tsx elements', () => {
         it('are compile-time safe', () => {
             const d = <div id="test123" />

@@ -395,7 +395,7 @@ export function PlayerPage() {
                                     aria-label="Track type"
                                     onchange={bindValue(type$)}
                                 >
-                                    {...TYPE_OPTIONS.map((t) => (
+                                    {TYPE_OPTIONS.map((t) => (
                                         <option value={t}>{t}</option>
                                     ))}
                                 </select>
@@ -409,7 +409,7 @@ export function PlayerPage() {
                                     aria-label="DRM key system"
                                     onchange={bindValue(keySystem$)}
                                 >
-                                    {...KEY_SYSTEM_OPTIONS.map((k) => (
+                                    {KEY_SYSTEM_OPTIONS.map((k) => (
                                         <option value={k.value}>
                                             {k.label}
                                         </option>
@@ -543,7 +543,9 @@ export function PlayerPage() {
 function DemoGrid(props: { readonly tracks: readonly DemoTrack[] }) {
     return (
         <div className="demoGrid">
-            {...props.tracks.map((track) => <DemoCard track={track} />)}
+            {props.tracks.map((track) => (
+                <DemoCard track={track} />
+            ))}
         </div>
     )
 }
