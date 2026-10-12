@@ -238,7 +238,7 @@ const ssaiTracks: DemoTrack[] = [
         contentType: 'video',
         url: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_list/stream.mpd`,
         description:
-            'SGAI: InsertPresentation at 1:00 whose uri is a list MPD of a two-ad pod.',
+            'SGAI: InsertPresentation at 1:00 whose uri is a list MPD of a two-ad pod, played as two ads.',
     },
     {
         title: 'DASH List MPD',
@@ -246,7 +246,7 @@ const ssaiTracks: DemoTrack[] = [
         contentType: 'video',
         url: `https://assets.dev.vinyl.music.amazon.dev/dash/list_mpd/stream.mpd`,
         description:
-            'A list MPD of three Linked Periods: an imported preroll, the content, and a postroll.',
+            'A list MPD of three Linked Periods: an imported preroll, the content, and a postroll. The ad Periods carry SCTE-35, so they are stitched breaks.',
     },
     {
         title: 'DASH XLink Remote Period',

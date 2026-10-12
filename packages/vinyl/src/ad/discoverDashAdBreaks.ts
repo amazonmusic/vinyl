@@ -3,21 +3,31 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type {
-    AlternativePresentationType,
-    DashManifest,
-    EventStreamType,
-    EventType,
-    PeriodType,
-    Scte35Event,
-    Scte35SpliceInfoSectionType,
+import {
+    type AlternativePresentationType,
+    type DashManifest,
+    type EventStreamType,
+    type EventType,
+    type MPDtype,
+    parseDashManifest,
+    type PeriodType,
+    type Scte35Event,
+    type Scte35SpliceInfoSectionType,
 } from '@amazon/vinyl-mpd-parser'
-import { type LogTarget, logWarn, resolveUrl } from '@amazon/vinyl-util'
+import {
+    type LogTarget,
+    logWarn,
+    memoize,
+    readResponseBody,
+    requestWithRetry,
+    resolveUrl,
+} from '@amazon/vinyl-util'
 import type {
     AdBreakInfo,
     AdBreakList,
     AdBreakPlacement,
     AdInfo,
+    AdList,
 } from './AdBreakInfo'
 import { classifyStitchedPlacement } from './stitchedAdBreak'
 import { decodeSpliceInfoSectionText } from './scte35/decodeSpliceInfoSection'
@@ -407,12 +417,7 @@ function createAlternativeMpdBreak({
         value == null ? null : value / timescale
     const id = String(event.id ?? startTime)
     const playoutLimit = toSeconds(presentation.maxDuration)
-    const ad: AdInfo = {
-        id: `${id}-0`,
-        startTime,
-        duration: playoutLimit,
-        uri: resolveUrl(presentation.uri, baseUrl),
-    }
+    const uri = resolveUrl(presentation.uri, baseUrl)
     return {
         id,
         startTime,
@@ -435,7 +440,15 @@ function createAlternativeMpdBreak({
             presentation.earliestResolutionTimeOffset
         ),
         restrict: {},
-        ads: [ad],
+        // Resolved when the break is approached or entered.
+        ads: memoize(() =>
+            resolveAlternativePresentationAds({
+                id,
+                uri,
+                startTime,
+                playoutLimit,
+            })
+        ),
         skipControl: null,
         signal: {
             source: 'dash-alternative-mpd',
@@ -443,6 +456,51 @@ function createAlternativeMpdBreak({
             scte35: [],
         },
     }
+}
+
+/**
+ * Resolves an alternative presentation's ads. A list MPD (`MPD@type="list"`),
+ * such as an ad pod from an ad decision server, is one ad per Period, each
+ * playing its imported MPD. Any other presentation, or one that cannot be
+ * read here, is a single ad; its ad track reports any load failure.
+ */
+async function resolveAlternativePresentationAds({
+    id,
+    uri,
+    startTime,
+    playoutLimit,
+}: {
+    readonly id: string
+    readonly uri: string
+    readonly startTime: number
+    readonly playoutLimit: number | null
+}): Promise<AdList> {
+    const single: AdList = [
+        { id: `${id}-0`, startTime, duration: playoutLimit, uri },
+    ]
+    let mpd: MPDtype
+    let documentUrl: string
+    try {
+        const response = await requestWithRetry(uri)
+        documentUrl = response.url || uri
+        mpd = parseDashManifest(await readResponseBody(response, 'text')).MPD
+    } catch (error) {
+        logWarn(logTarget, `alternative MPD ${uri} could not be read`, error)
+        return single
+    }
+    if (mpd.type !== 'list') return single
+    const ads: AdInfo[] = []
+    for (const period of mpd.Period) {
+        const imported = period.ImportedMPD?._content?.trim()
+        if (!imported) continue
+        ads.push({
+            id: period.id ?? `${id}-${ads.length}`,
+            startTime,
+            duration: period.duration ?? null,
+            uri: resolveUrl(imported, documentUrl),
+        })
+    }
+    return ads
 }
 
 function classifyAlternativeMpdPlacement(
