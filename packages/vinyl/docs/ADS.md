@@ -282,8 +282,9 @@ timescale. An insert resumes content where it paused (`resumeOffset` 0); a
 replace resumes at `@returnOffset`, by default the event's end. A `@uri` without
 an `.mpd` or `.m3u8` extension is typed by a HEAD request's `Content-Type`. The
 `@uri` may return a list MPD (`MPD@type="list"`), such as an ad pod from an ad
-decision server; it plays as one ad of consecutive Periods (see
-[List MPDs and remote elements](#list-mpds-and-remote-elements)).
+decision server: each of its Periods is one ad, playing its imported MPD, so
+each ad gets its own events and `skipAd` advances to the next. The `@uri` is
+fetched when the break's ads are resolved (as it is approached or entered).
 
 ### List MPDs and remote elements
 
@@ -296,8 +297,11 @@ breaks are discovered, so it plays as a self-contained presentation:
   `EventStream` and `SupplementalProperty` elements unless the imported Period
   has equivalents. The imported MPD's base URLs become the Period's absolute
   `BaseURL`. A list MPD, whose Periods each import an MPD, plays as a
-  multi-Period presentation. An import that fails, or is not a static
-  single-Period MPD, leaves the Period as it is, without the import.
+  multi-Period presentation. A list MPD signals no ads by itself: Linked Periods
+  are content unless they are signalled, e.g. by SCTE-35 events on the Linked
+  Period (which are kept), which makes them stitched ad breaks. An import that
+  fails, or is not a static single-Period MPD, leaves the Period as it is,
+  without the import.
 - **Remote elements** (5.5): a `Period`, `AdaptationSet`, `EventStream`, or
   `SegmentList` with an `xlink:href` is replaced by the elements of the fetched
   fragment, which may link further (up to a depth of 5).

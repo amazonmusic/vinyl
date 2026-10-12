@@ -10,6 +10,8 @@ import {
     spliceInfoSectionFromXml,
 } from '@amazon/vinyl'
 import { parseDashManifest } from '@amazon/vinyl-mpd-parser'
+import { requesterWithRetryRef, resolveValueProvider } from '@amazon/vinyl-util'
+import { MockRequester } from '@amazon/vinyl-util/testUtil'
 import {
     segmentationDescriptor,
     spliceInfoSection,
@@ -364,7 +366,24 @@ describe('discoverDashAdBreaks', () => {
     })
 
     describe('alternative MPD', () => {
-        it('maps insert events to interstitial breaks', () => {
+        let mockRequester: MockRequester
+        let documents: Record<string, string>
+
+        beforeEach(() => {
+            documents = {}
+            mockRequester = new MockRequester()
+            mockRequester.request.and.callFake((input) => {
+                const url = String(input)
+                return Promise.resolve(
+                    url in documents
+                        ? new Response(documents[url])
+                        : new Response('', { status: 404 })
+                )
+            })
+            requesterWithRetryRef.set(() => mockRequester)
+        })
+
+        it('maps insert events to interstitial breaks', async () => {
             const breaks = discoverDashAdBreaks(
                 mpd(`
     <Period id="p0" start="PT0S">
@@ -390,7 +409,8 @@ describe('discoverDashAdBreaks', () => {
                 'postroll',
             ])
             expect(breaks[0].duration).toBeNull()
-            expect(breaks[0].ads).toEqual([
+            // An ad that cannot be read here is a single ad.
+            expect(await resolveValueProvider(breaks[0].ads)).toEqual([
                 {
                     id: '1-0',
                     startTime: 0,
@@ -470,6 +490,69 @@ describe('discoverDashAdBreaks', () => {
                     playoutLimit: 10,
                 })
             )
+        })
+
+        it('maps a list MPD presentation to an ad per Period', async () => {
+            documents['https://ads.example.com/decision/pod'] =
+                `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" type="list" profiles="urn:mpeg:dash:profile:list:2024" minBufferTime="PT1S">
+    <Period id="ad_01" duration="PT15S"><ImportedMPD>creative_101.mpd</ImportedMPD></Period>
+    <Period duration="PT30S"><ImportedMPD>https://cdn2.example.com/creative_102.mpd</ImportedMPD></Period>
+    <Period id="empty"><ImportedMPD> </ImportedMPD></Period>
+    <Period id="none"/>
+    <Period id="ad_03"><ImportedMPD>c3.mpd</ImportedMPD></Period>
+</MPD>`
+            documents['https://ads.example.com/single.mpd'] =
+                `<?xml version="1.0"?>
+<MPD xmlns="urn:mpeg:dash:schema:mpd:2011" profiles="urn:mpeg:dash:profile:isoff-on-demand:2011" minBufferTime="PT1S">
+    <Period id="p"/>
+</MPD>`
+            const [pod, single] = discoverDashAdBreaks(
+                mpd(`
+    <Period id="p0" start="PT0S">
+        <EventStream schemeIdUri="${DashAlternativeMpdScheme.INSERT}" timescale="1">
+            <Event presentationTime="60" id="7">
+                <InsertPresentation uri="https://ads.example.com/decision/pod" maxDuration="45"/>
+            </Event>
+            <Event presentationTime="90" id="8">
+                <InsertPresentation uri="https://ads.example.com/single.mpd" maxDuration="10"/>
+            </Event>
+        </EventStream>
+    </Period>`),
+                BASE,
+                120
+            )
+            const podAds = await resolveValueProvider(pod.ads)
+            expect(podAds).toEqual([
+                {
+                    id: 'ad_01',
+                    startTime: 60,
+                    duration: 15,
+                    uri: 'https://ads.example.com/decision/creative_101.mpd',
+                },
+                {
+                    id: '7-1',
+                    startTime: 60,
+                    duration: 30,
+                    uri: 'https://cdn2.example.com/creative_102.mpd',
+                },
+                {
+                    id: 'ad_03',
+                    startTime: 60,
+                    duration: null,
+                    uri: 'https://ads.example.com/decision/c3.mpd',
+                },
+            ])
+            // Resolved once.
+            expect(await resolveValueProvider(pod.ads)).toBe(podAds)
+            expect(await resolveValueProvider(single.ads)).toEqual([
+                {
+                    id: '8-0',
+                    startTime: 90,
+                    duration: 10,
+                    uri: 'https://ads.example.com/single.mpd',
+                },
+            ])
         })
 
         it('ignores events without a presentation uri', () => {

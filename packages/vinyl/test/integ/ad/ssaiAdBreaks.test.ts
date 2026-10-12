@@ -315,25 +315,45 @@ describe('ad insertion integ', () => {
     })
 
     describe('dash list MPDs and remote elements', () => {
-        it('plays a list MPD as consecutive imported Periods', async () => {
-            const player = suite.player
-            player.load({
+        it('plays a list MPD, reporting its signalled ad Periods as stitched breaks', async () => {
+            await loadAndAwaitAdBreaks({
                 type: 'dash',
                 uri: vinylTestAssets.dash.vinyl_ad_breaks_av__list_mpd,
             })
+            const player = suite.player
             expect(
-                await poll(() => (player.seekRange?.end ?? 0) > 180, {
-                    timeout: 20,
-                })
-            )
-                .withContext('duration includes every imported Period')
-                .toBeTrue()
-            // Crosses from the imported preroll into the imported content.
-            await playThenSeek(28.5)
-            await expectPlaysTo(31)
+                player.currentTrackAds!.adBreaks.map((b) => [
+                    b.startTime,
+                    b.duration,
+                    b.placement,
+                    b.insertion,
+                ])
+            ).toEqual([
+                [0, 30, 'preroll', 'stitched'],
+                [185, 10, 'postroll', 'stitched'],
+            ])
+            expect(player.seekRange?.end).toBeCloseTo(195, 0)
+            const recorded = record(player)
+            try {
+                // Crosses from the imported preroll into the imported content.
+                await playThenSeek(28.5)
+                expect(
+                    await poll(
+                        () => player.currentAdBreak?.placement === 'preroll',
+                        { timeout: 30 }
+                    )
+                )
+                    .withContext('in the stitched preroll')
+                    .toBeTrue()
+                await expectPlaysTo(31)
+                expect(recorded.breaksCompleted.at(-1)?.reason).toBe('ended')
+                expect(player.currentAdBreak).toBeNull()
+            } finally {
+                recorded.dispose()
+            }
         })
 
-        it('plays an alternative MPD whose uri is a list MPD pod', async () => {
+        it('plays each ad of an alternative MPD list pod', async () => {
             await loadAndAwaitAdBreaks({
                 type: 'dash',
                 uri: vinylTestAssets.dash.vinyl_ad_breaks_av__altmpd_list,
@@ -351,28 +371,51 @@ describe('ad insertion integ', () => {
             try {
                 await playThenSeek(59)
                 expect(
-                    await poll(
-                        () =>
-                            player.currentAd?.uri != null &&
-                            player.activeTrack?.uri === player.currentAd.uri,
-                        { timeout: 30 }
-                    )
-                )
-                    .withContext('pod ad track active')
-                    .toBeTrue()
-                const adStart = player.currentTime
-                expect(
-                    await poll(() => player.currentTime > adStart + 1, {
+                    await poll(() => recorded.adsEntered.length > 0, {
                         timeout: 30,
                     })
                 )
-                    .withContext('pod plays')
+                    .withContext('first ad entered')
                     .toBeTrue()
-                player.skipAdBreak()
-                // An insert resumes where content paused.
+                const [first] = recorded.adsEntered
+                expect(first.totalAds).toBe(2)
+                expect(first.ad.uri).toMatch(/ad_spot-a\/manifest\.mpd$/)
                 expect(
-                    recorded.breaksCompleted.at(-1)?.resumePosition
-                ).toBeCloseTo(60, 0)
+                    await poll(() => player.activeTrack?.uri === first.ad.uri, {
+                        timeout: 30,
+                    })
+                )
+                    .withContext('first ad track active')
+                    .toBeTrue()
+                // Skipping the first ad advances to the second, which plays to
+                // its end, completing the break.
+                player.skipAd()
+                expect(
+                    await poll(() => recorded.adsEntered.length > 1, {
+                        timeout: 30,
+                    })
+                )
+                    .withContext('second ad entered')
+                    .toBeTrue()
+                const second = recorded.adsEntered[1]
+                expect(second.index).toBe(1)
+                expect(second.ad.uri).toMatch(/ad_spot-b\/manifest\.mpd$/)
+                expect(
+                    await poll(() => recorded.breaksCompleted.length > 0, {
+                        timeout: 30,
+                    })
+                )
+                    .withContext('break completed')
+                    .toBeTrue()
+                expect(recorded.adsCompleted.map((e) => e.reason)).toEqual([
+                    'skipped',
+                    'ended',
+                ])
+                // An insert resumes where content paused.
+                expect(recorded.breaksCompleted[0].resumePosition).toBeCloseTo(
+                    60,
+                    0
+                )
             } finally {
                 recorded.dispose()
             }
