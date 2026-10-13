@@ -5,4 +5,10 @@
 
 import { buildVinylPackage } from '@amazon/vinyl-build-utils'
 
-buildVinylPackage()
+buildVinylPackage({
+    serverOptions: {
+        http: { port: 9000 },
+        staticDir: './dist/test',
+        addressInUseAutoIncrement: true,
+    },
+})

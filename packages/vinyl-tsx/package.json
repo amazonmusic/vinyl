@@ -63,6 +63,7 @@
         "lint:write": "npm run indexFiles:write && npm run oxlint:write && npm run prettier:write",
         "test": "tsx ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
         "test:coverage": "c8 npm run test",
+        "start": "tsx buildSrc/build.ts --serve",
         "watch": "tsx buildSrc/build.ts --watch",
         "watch:release": "tsx buildSrc/build.ts --watch --release",
         "oxlint:check": "oxlint --type-aware --deny-warnings",

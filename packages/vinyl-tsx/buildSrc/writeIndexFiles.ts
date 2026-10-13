@@ -7,3 +7,4 @@ import { writeIndexFile } from '@amazon/vinyl-build-utils'
 
 writeIndexFile('./src')
 writeIndexFile('./test/unit')
+writeIndexFile('./test/benchmark')

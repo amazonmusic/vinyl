@@ -116,8 +116,11 @@ export function buildVinylPackage(options?: VinylPackageOptions) {
     const sharedTestResourcesDir = `${rootDir}/testResources`
     const testResourcesDir = 'test/jasmine/resources'
     const testDist = './dist/test'
-    if (fs.existsSync('./test/integ')) {
-        // If this package has integ tests, copy the integ test resources,
+    if (
+        fs.existsSync('./test/integ') ||
+        (serve && fs.existsSync('./test/benchmark'))
+    ) {
+        // If this package has integ tests, or serves its benchmarks, copy the test resources,
         // from /testResources, test/jasmine/resources (optional), and copy the jasmine wrapper and css
         copyFiles({
             src: sharedTestResourcesDir,
