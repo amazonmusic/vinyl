@@ -69,6 +69,53 @@ describe('connectedObserver', () => {
             unsub()
         })
 
+        it('runs onConnect callbacks without dispatching events when events are off', () => {
+            const unsub = initializeConnectedObserver({ events: false })
+            const element = dom.createElement('div')
+            const listener = createSpy('listener')
+            const callback = createSpy('callback')
+            const innerUnsub = createSpy('innerUnsub')
+            callback.and.returnValue(innerUnsub)
+            element.addEventListener('connect', listener)
+            element.addEventListener('disconnect', listener)
+            onConnect(element, callback)
+
+            dom.simulateConnect(dom.document, element)
+            dom.simulateDisconnect(dom.document, element)
+
+            expect(callback).toHaveBeenCalledOnceWith(element)
+            expect(innerUnsub).toHaveBeenCalledTimes(1)
+            expect(listener).not.toHaveBeenCalled()
+            unsub()
+        })
+
+        it('runs each onConnect callback once when events are on too', () => {
+            const unsub = initializeConnectedObserver()
+            const element = dom.createElement('div')
+            const callback = createSpy('callback')
+            onConnect(element, callback)
+
+            dom.simulateConnect(dom.document, element)
+
+            expect(callback).toHaveBeenCalledTimes(1)
+            unsub()
+        })
+
+        it('lets a callback stop observing while its node connects', () => {
+            const unsub = initializeConnectedObserver({ events: false })
+            const element = dom.createElement('div')
+            const later = createSpy('later')
+            const stop: () => void = onConnect(element, () => {
+                stop()
+            })
+            onConnect(element, later)
+
+            dom.simulateConnect(dom.document, element)
+
+            expect(later).toHaveBeenCalledTimes(1)
+            unsub()
+        })
+
         it('returns an unsubscribe function that disconnects the observer', () => {
             const unsub = initializeConnectedObserver()
             const observer = dom.FakeMutationObserver.instances[0]
