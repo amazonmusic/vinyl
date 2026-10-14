@@ -5,9 +5,12 @@ Tests are written in Jasmine, there are Unit, Integration, and Benchmark tests.
 To iterate on tests in Node, run `npm run test` or `npm run test:coverage` to
 test with coverage reporting.
 
-To iterate on tests in a browser, run `npm run start`. Jasmine can isolate to a
-specific test either by temporarily using `fit` or `fdescribe` (read f for
-focus) in the test, or by providing a filter.
+To iterate on tests in a browser, run `npm run start` and open the server's URL.
+The page shows a "Click to start" prompt before the suite runs: the click is the
+user gesture that unlocks the shared media element, which plays unmuted at a low
+volume (Safari 27 ends progressive playback that starts silently without a
+gesture). Jasmine can isolate to a specific test either by temporarily using
+`fit` or `fdescribe` (read f for focus) in the test, or by providing a filter.
 
 ## Running tests from your IDE
 
@@ -66,10 +69,37 @@ When running tests in a browser, here are the possible queryString parameters:
 - `checkAudio` - If true | 1, an AnalyzerNode is attached to the media element.
   When tests call `await assertFrequency()`. This verifies that the tone sweep
   the test assets use matches what we expect to hear from the audio playback.
+- `stopOnSpecFailure` - If false, runs every spec instead of stopping at the
+  first failure.
 
 When running tests in a browser, the window must remain in the foreground. This
-is in order to have consistent timeupdate events and prevent auto-pausing muted
+is in order to have consistent timeupdate events and prevent auto-pausing
 audio/video.
+
+### Local browsers
+
+`npm run test:integ` builds the integ page and runs it in real browsers on this
+machine, one after another: Playwright's Chromium, Firefox, and WebKit, then
+Safari through safaridriver. Each start prompt is clicked with trusted input,
+every spec runs, and the results (spec counts, the seed, and each failure) are
+printed when all browsers finish. The command exits non-zero if any browser
+failed. Each run's console logs are written to `integLogs/`, which is safe to
+delete.
+
+Install the Playwright browsers once with
+`npx playwright install chromium firefox webkit`. Safari needs remote
+automation: in Safari, enable Settings > Advanced > "Show features for web
+developers", then Develop > "Allow Remote Automation" (or run
+`safaridriver --enable`). Unavailable browsers are skipped with a message.
+
+Options are passed after `--` to a package's script, for example
+`npm run test:integ -w @amazon/vinyl -- --browsers=chromium,safari --spec=progressive`:
+
+- `--browsers` - a comma separated list of `chromium`, `firefox`, `webkit`, and
+  `safari`.
+- `--headed` - shows the Playwright browser windows.
+- Any other `--name=value` is added to the page's query parameters, such as
+  `--spec`, `--seed`, or `--vinylLogLevel`.
 
 ### BrowserStack
 
@@ -92,7 +122,10 @@ and an SNI hostname via the run's `server.https` options (see
 `ServerHostOptions` in `@amazon/vinyl-build-utils`); the test URL then resolves
 to that HTTPS server instead of the HTTP one.
 
-To run tests on BrowserStack, run `npm run test:browserstack`.
+To run tests on BrowserStack, run `npm run test:browserstack`. The runner clicks
+each page's start prompt over WebDriver, tapping it with a touch pointer on iOS,
+where element clicks are synthesized in script and don't count as a user
+gesture.
 
 BrowserStack test logs can be found in the `bStackLogs` directory. This
 directory is safe to delete.

@@ -5,6 +5,8 @@
 
 export * from './capabilities'
 export * from './clickStartPrompt'
+export * from './localBrowsers'
+export * from './runLocalBrowsers'
 export * from './runSeleniumBrowserStack'
 export * from './WebDriverWorker'
 export * from './WebDriverWorkerController'

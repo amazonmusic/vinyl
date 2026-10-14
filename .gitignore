@@ -1,4 +1,5 @@
 **/bStackLogs/
+**/integLogs/
 *.tgz
 *.tsbuildinfo
 .DS_Store

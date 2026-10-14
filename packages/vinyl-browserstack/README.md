@@ -1,7 +1,8 @@
 # @amazon/vinyl-browserstack
 
 Runs an **in-browser Jasmine** suite across BrowserStack real browsers over
-**Selenium/WebDriver** (`hub-cloud.browserstack.com/wd/hub`).
+**Selenium/WebDriver** (`hub-cloud.browserstack.com/wd/hub`), or locally in
+Playwright's browsers and Safari.
 
 ## How it works
 
@@ -13,7 +14,8 @@ and serves it. This runner:
 2. Starts the **BrowserStack Local** tunnel.
 3. Builds a real **WebDriver** session per browser — parallelized to the
    account's available session budget — and navigates each to the test URL with
-   a `?reportApi=` query param.
+   a `?reportApi=` query param, then clicks the page's start prompt (a touch tap
+   on iOS) so media can play unmuted.
 4. Keeps each session alive with a periodic no-op WebDriver command (the specs
    run in-browser with no driver interaction, so the session's idle timer must
    be reset explicitly — REST status polling does not reset it), and enforces a
@@ -44,3 +46,22 @@ runSeleniumBrowserStackAndExit({
 
 Credentials come from `options.credentials` or the `BROWSERSTACK_USERNAME` /
 `BROWSERSTACK_ACCESS_KEY` environment variables (a `.env` file is honored).
+
+## Local browsers
+
+`runLocalBrowsersAndExit` serves the same test page and runs it on this machine
+in Playwright's Chromium, Firefox, and WebKit, then Safari through safaridriver,
+clicking the start prompt with trusted input. It runs every spec and prints the
+spec counts, seed, and failures per browser, exiting non-zero on any failure.
+
+```ts
+import { runLocalBrowsersAndExit } from '@amazon/vinyl-browserstack'
+import { vinylDefaultBrowserStackOptions } from '@amazon/vinyl-build-utils'
+
+runLocalBrowsersAndExit({ server: vinylDefaultBrowserStackOptions.server })
+```
+
+Playwright is an optional peer dependency; add `playwright` as a devDependency
+and install its browsers with `npx playwright install`. Safari is skipped with a
+message unless remote automation is enabled (Develop > "Allow Remote
+Automation").
