@@ -245,6 +245,7 @@ export class PlaybackControllerImpl
         this.initializeMutedEvent()
         this.initializeLoopedEvent()
         this.initializeReadyStateChangeEvent()
+        this.initializeSeekWaitingEvent()
     }
 
     /**
@@ -271,7 +272,11 @@ export class PlaybackControllerImpl
             'waiting',
             'waitingForKey',
         ] as const) {
-            this.domEvents.on(toLowerCase(key), () => this.dispatch(key, {}))
+            this.domEvents.on(toLowerCase(key), () => {
+                // `waiting` may already have been dispatched; see initializeSeekWaitingEvent.
+                if (key === 'waiting' && this._waiting) return
+                this.dispatch(key, {})
+            })
         }
 
         // Keep specific event information for progress events.
@@ -812,6 +817,24 @@ export class PlaybackControllerImpl
             // seek owns the element and arms its own watch.
             if (!this.paused && !seekAbort.aborted()) this.startStallDetection()
         }
+    }
+
+    /**
+     * Dispatches `waiting` when a seek while playing targets an unbuffered position and the media element did not.
+     * Safari 27 keeps its readyState while seeking, so it never fires `waiting` for the seek.
+     * @private
+     */
+    private initializeSeekWaitingEvent() {
+        const timeoutSlot = this.disposer.add(new TimeoutSlot())
+        this.domEvents.on('seeking', () => {
+            timeoutSlot.set(() => {
+                const media = this.media
+                if (this._waiting || !media.seeking || media.paused) return
+                const range = this.buffered.getRangeAt(media.currentTime)
+                if (range && range[1] > media.currentTime) return
+                this.dispatch('waiting', {})
+            }, 0)
+        })
     }
 
     /**
