@@ -61,7 +61,8 @@ describe('createHlsFactories', () => {
             type: 'hls',
             manifestProvider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
 
         expect(deps).toEqual(
             objectContaining<typeof deps>({
@@ -75,6 +76,7 @@ describe('createHlsFactories', () => {
                 qualitySelector: any(QualitySelectorImpl),
             })
         )
+        container.dispose()
     })
 
     it('wires per-track option observables from the player options', () => {
@@ -84,11 +86,13 @@ describe('createHlsFactories', () => {
             type: 'hls',
             manifestProvider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         const options = hlsFactoryDeps.options.value
         expect(deps.audio.value).toBe(options.audio)
         expect(deps.allowedContentTypes.value).toBe(options.allowedContentTypes)
         expect(deps.abr.value).toBe(options.abr)
+        container.dispose()
     })
 
     it('exposes the shared adController without owning it', () => {
@@ -129,8 +133,10 @@ describe('createHlsFactories', () => {
             type: 'hls',
             manifestProvider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         expect(deps.contentStreamFactory('audio')).toEqual(any(Object))
+        container.dispose()
     })
 
     it('uses createUrlHlsManifestProvider when no manifestProvider given', () => {
@@ -140,8 +146,10 @@ describe('createHlsFactories', () => {
             uri: 'https://example.com/main.m3u8',
             type: 'hls',
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         expect(deps.manifestController).toEqual(any(ManifestControllerImpl))
+        container.dispose()
     })
 
     it('creates a sidecar text track controller and populates from manifest', async () => {
@@ -170,7 +178,8 @@ describe('createHlsFactories', () => {
             type: 'hls',
             manifestProvider: provider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         // Resolve textTrackController first so it subscribes to
         // manifestTransformed before the manifest promise resolves.
         const controller = deps.textTrackController
@@ -179,6 +188,7 @@ describe('createHlsFactories', () => {
         expect(controller).toBeDefined()
         expect(controller.textTracks.length).toBe(1)
         expect(controller.textTracks[0].language).toBe('en')
+        container.dispose()
     })
 
     it('text track controller swallows manifest fetch errors', async () => {
@@ -191,13 +201,15 @@ describe('createHlsFactories', () => {
             type: 'hls',
             manifestProvider: provider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         const controller = deps.textTrackController
         // Trigger the transform; the promise will reject but the
         // textTrackController must not throw.
         await deps.manifestTransformed.value.catch(() => undefined)
         await new Promise((r) => setTimeout(r, 0))
         expect(controller.textTracks).toEqual([])
+        container.dispose()
     })
 
     describe('ad interstitial discovery', () => {
@@ -235,11 +247,13 @@ describe('createHlsFactories', () => {
                 type: 'hls',
                 manifestProvider: provider,
             })
-            const deps = createContainer(factories).dependencies
+            const container = createContainer(factories)
+            const deps = container.dependencies
             const timeline = await deps.mediaTimeline.value
             const adBreaks = await timeline.getAdBreaks()
             expect(adBreaks.length).toBe(1)
             expect(adBreaks[0].id).toBe('ad1')
+            container.dispose()
         })
 
         it('merges stitched SCTE-35 breaks with interstitials by start time', async () => {
@@ -290,7 +304,8 @@ describe('createHlsFactories', () => {
                 type: 'hls',
                 manifestProvider: provider,
             })
-            const deps = createContainer(factories).dependencies
+            const container = createContainer(factories)
+            const deps = container.dependencies
             const timeline = await deps.mediaTimeline.value
             const adBreaks = await timeline.getAdBreaks()
             expect(
@@ -299,6 +314,7 @@ describe('createHlsFactories', () => {
                 ['splice-1', 2, 'stitched'],
                 ['ad1', 11, 'interstitial'],
             ])
+            container.dispose()
         })
 
         it('omits ad breaks when the playlist has none', async () => {
@@ -308,9 +324,11 @@ describe('createHlsFactories', () => {
                 type: 'hls',
                 manifestProvider,
             })
-            const deps = createContainer(factories).dependencies
+            const container = createContainer(factories)
+            const deps = container.dependencies
             const timeline = await deps.mediaTimeline.value
             expect(await timeline.getAdBreaks()).toEqual([])
+            container.dispose()
         })
 
         it('discovers ads against a live (non-ended) playlist', async () => {
@@ -323,9 +341,11 @@ describe('createHlsFactories', () => {
                 type: 'hls',
                 manifestProvider: provider,
             })
-            const deps = createContainer(factories).dependencies
+            const container = createContainer(factories)
+            const deps = container.dependencies
             const timeline = await deps.mediaTimeline.value
             expect((await timeline.getAdBreaks()).length).toBe(1)
+            container.dispose()
         })
 
         it('returns no ad breaks when there are no variants', async () => {
@@ -344,9 +364,11 @@ describe('createHlsFactories', () => {
                 type: 'hls',
                 manifestProvider: provider,
             })
-            const deps = createContainer(factories).dependencies
+            const container = createContainer(factories)
+            const deps = container.dependencies
             const timeline = await deps.mediaTimeline.value
             expect(await timeline.getAdBreaks()).toEqual([])
+            container.dispose()
         })
 
         it('surfaces media playlist fetch errors from getAdBreaks', async () => {
@@ -362,7 +384,8 @@ describe('createHlsFactories', () => {
                 type: 'hls',
                 manifestProvider: provider,
             })
-            const deps = createContainer(factories).dependencies
+            const container = createContainer(factories)
+            const deps = container.dependencies
             const timeline = await deps.mediaTimeline.value
             // Discovery is now lazy: getAdBreaks() rejects on a failed media
             // playlist fetch, leaving error handling to the caller (e.g.
@@ -370,6 +393,7 @@ describe('createHlsFactories', () => {
             await expectAsync(timeline.getAdBreaks()).toBeRejectedWithError(
                 'media down'
             )
+            container.dispose()
         })
     })
 })

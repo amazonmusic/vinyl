@@ -71,7 +71,8 @@ describe('createDashFactories', () => {
             type: 'dash',
             manifestProvider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
 
         expect(deps).toEqual(
             objectContaining<typeof deps>({
@@ -87,6 +88,7 @@ describe('createDashFactories', () => {
                 qualitySelector: any(QualitySelectorImpl),
             })
         )
+        container.dispose()
     })
 
     it('wires per-track option observables from the player options', () => {
@@ -96,11 +98,13 @@ describe('createDashFactories', () => {
             type: 'dash',
             manifestProvider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         const options = dashFactoryDeps.options.value
         expect(deps.audio.value).toBe(options.audio)
         expect(deps.allowedContentTypes.value).toBe(options.allowedContentTypes)
         expect(deps.abr.value).toBe(options.abr)
+        container.dispose()
     })
 
     it('provides streaming options to createContentStreamFactories', () => {
@@ -117,8 +121,10 @@ describe('createDashFactories', () => {
             type: 'dash',
             manifestProvider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         expect(deps.contentStreamFactory('audio')).toEqual(any(Object))
+        container.dispose()
     })
 
     it('creates a sidecar text track controller and populates from manifest', async () => {
@@ -148,12 +154,14 @@ describe('createDashFactories', () => {
             type: 'dash',
             manifestProvider: provider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         const ttc = deps.textTrackController
         await deps.manifestTransformed.value
         await new Promise((r) => setTimeout(r, 0))
         expect(ttc).toBeDefined()
         expect(ttc.textTracks.length).toBeGreaterThan(0)
+        container.dispose()
     })
 
     it('text track controller swallows manifest fetch errors', async () => {
@@ -166,10 +174,12 @@ describe('createDashFactories', () => {
             type: 'dash',
             manifestProvider: provider,
         })
-        const deps = createContainer(factories).dependencies
+        const container = createContainer(factories)
+        const deps = container.dependencies
         const controller = deps.textTrackController
         await deps.manifestTransformed.value.catch(() => undefined)
         await new Promise((r) => setTimeout(r, 0))
         expect(controller.textTracks).toEqual([])
+        container.dispose()
     })
 })
