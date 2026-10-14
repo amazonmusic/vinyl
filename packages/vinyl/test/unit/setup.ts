@@ -3,14 +3,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { getGlobalRegistry, setGlobalRefDebug } from '@amazon/vinyl-util'
+import {
+    getGlobalRegistry,
+    getSearchParams,
+    setGlobalRefDebug,
+} from '@amazon/vinyl-util'
 import {
     addCustomMatchers,
     ConsoleReporter,
     flushPromises,
 } from '@amazon/vinyl-util/browserTestUtil'
 import { RestApiReporter } from '@amazon/vinyl-util/testUtil'
-import { initializeFrequencyAnalyzer } from '@amazon/vinyl/vinylTestUtil'
+import {
+    initializeFrequencyAnalyzer,
+    initializeMediaUnlock,
+} from '@amazon/vinyl/vinylTestUtil'
 
 addCustomMatchers()
 
@@ -18,9 +25,9 @@ addCustomMatchers()
 setGlobalRefDebug(true)
 
 // Configured here instead of the jasmine.config.json to work with both ts-node and the html
-// test runner.
+// test runner. `?stopOnSpecFailure=false` runs every spec, as test:integ does.
 jasmine.getEnv().configure({
-    stopOnSpecFailure: true,
+    stopOnSpecFailure: getSearchParams().get('stopOnSpecFailure') !== 'false',
     stopSpecOnExpectationFailure: true,
     failSpecWithNoExpectations: true,
 })
@@ -29,7 +36,8 @@ jasmine.getEnv().configure({
 jasmine.getEnv().addReporter(new ConsoleReporter())
 RestApiReporter.installFromSearchParam()
 
-// Prompts for user interaction and unlocks the AudioContext if checkAudio is present in the query params.
+// In a browser, prompts for a click to unlock media playback, then attaches the analyzer if checkAudio is set.
+initializeMediaUnlock()
 initializeFrequencyAnalyzer()
 
 afterEach(async () => {

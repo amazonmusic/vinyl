@@ -16,24 +16,34 @@ body {
     flex-direction: column;
 }
 
-.callout {
-    background-color: #bfcbdb;
-    box-sizing: border-box;
-    padding: 10px;
-    font-family: Helvetica, Arial, 'sans-serif';
+.startPrompt {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(220, 222, 229, 0.9);
     cursor: pointer;
-    transition: background-color 0.3s;
 }
 
-.callout:hover {
-    background-color: #7d9fcc;
+.startButton {
+    padding: 24px 48px;
+    border: 0;
+    border-radius: 8px;
+    background-color: #3f6fb5;
+    color: #fff;
+    font-family: Helvetica, Arial, sans-serif;
+    font-size: 32px;
+    cursor: pointer;
 }
 
-.instructions {
-    display: inline-block;
-    font-style: italic;
-    padding: 5px;
-    font-family: inherit;
+.startButton:hover,
+.startButton:focus {
+    background-color: #2d548f;
 }
 
 .jasmine_html-reporter {
