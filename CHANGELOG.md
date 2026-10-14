@@ -3,6 +3,121 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.0.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v4.0.0) (2026-10-14)
+
+### ⚠ BREAKING CHANGES
+
+- **drm:** Browsers that support both standard and WebKit-prefixed EME (Safari)
+  now use standard EME by default instead of WebKit-prefixed EME. Applications
+  that rely on WebKit-prefixed EME, including
+  &#x60;DrmKeySystem.FAIR_PLAY_1_0&#x60; (com.apple.fps.1_0), must set
+  &#x60;drm: { preferPrefixedMediaKeys: true }&#x60; in createVinylPlayer
+  options.
+
+### Features
+
+- **ads:** play an alternative MPD list pod as one ad per Period
+  ([6476dcd](https://github.com/amazonmusic/vinyl/commit/6476dcd9a8f0e76760a0f2a724fe1813e72a5fc2))
+- **ads:** stitched SCTE-35 and DASH alternative MPD ad breaks
+  ([6761182](https://github.com/amazonmusic/vinyl/commit/67611829c59e6adf02674ca1b77dba28b4fcea48))
+- **dash:** resolve list MPDs, Linked Periods, and XLink remote elements
+  ([94f7267](https://github.com/amazonmusic/vinyl/commit/94f7267d8385f8e18fe0e42609199e6782fb9ccb))
+- **drm:** play FairPlay HLS over MSE
+  ([0ae52d8](https://github.com/amazonmusic/vinyl/commit/0ae52d822ca8aa976b6c0adfcae0abc9ac997734))
+- **drm:** prefer standard EME, opt in to prefixed with preferPrefixedMediaKeys
+  ([33aca71](https://github.com/amazonmusic/vinyl/commit/33aca7166cacf73716e2c3ccaaab1b92ae1e25d2))
+- **mpd-parser:** export dashDrmRules for parser rule extension
+  ([ebb5be9](https://github.com/amazonmusic/vinyl/commit/ebb5be92bdab078530390b7fedcf3b78ffea87b0))
+- **mpd-parser:** parse SCTE-35 and alternative MPD event bodies
+  ([a56df2a](https://github.com/amazonmusic/vinyl/commit/a56df2a408a9dad29e769b2300eef2ab1d400d20))
+- **util:** add BitReader for bit-packed fields
+  ([0987783](https://github.com/amazonmusic/vinyl/commit/0987783298f5de9602cf1eae604e49eab0c8854f))
+- **util:** add rateLimit token-bucket rate limiter
+  ([f3660d8](https://github.com/amazonmusic/vinyl/commit/f3660d8ba3fa7e211770ce8600aebcb6af01fdda))
+- **website:** copy a link that reproduces the play queue
+  ([b40497d](https://github.com/amazonmusic/vinyl/commit/b40497dd6f93a6309b4c1bfb2e69e0744be3a979))
+- **website:** show stitched ad breaks and SSAI test streams
+  ([ee58dae](https://github.com/amazonmusic/vinyl/commit/ee58dae6b5b896bd6a8f6074eeaba8380efce2df))
+
+### Bug Fixes
+
+- **ad:** dispatch adEnded before the ad and its break complete
+  ([c5a7840](https://github.com/amazonmusic/vinyl/commit/c5a78403466021b4c8c90fa40d06bf79a077c082))
+- **ad:** emit each ad quartile once and don&#x27;t strand a pending break
+  ([cd105c8](https://github.com/amazonmusic/vinyl/commit/cd105c8cde83974289537543cd609c63797572d5))
+- **ad:** resolve non-conforming asset-list URIs against the asset list
+  ([e355691](https://github.com/amazonmusic/vinyl/commit/e355691c5494a2fd9b45956bcdfcb6bd193cf8a0))
+- **browserstack:** don&#x27;t hang or leak the tunnel when teardown fails
+  ([fb9e746](https://github.com/amazonmusic/vinyl/commit/fb9e7468b022388aa22dc6ae629f01d3462c0c0c))
+- **build-utils:** surface dev-server start failures
+  ([945537a](https://github.com/amazonmusic/vinyl/commit/945537aeff3b0812689b573a535fc939f9ce9a27))
+- **cache-manager:** don&#x27;t return a missing entry as the cached response
+  ([0b4f919](https://github.com/amazonmusic/vinyl/commit/0b4f9195f490cf6ee99ad8a93df41d99c23dd8d7))
+- **cache-manager:** keep Cache-Control directive values within their types
+  ([29004d2](https://github.com/amazonmusic/vinyl/commit/29004d2ea266b441d9351fa47f39592e8fe43402))
+- **di:** report a void factory return with its named error type
+  ([e0b90a7](https://github.com/amazonmusic/vinyl/commit/e0b90a7d1b0db5f101672ba0500fde43afac047c))
+- **drm:** honor buffer view bounds on key message and init data
+  ([de1979e](https://github.com/amazonmusic/vinyl/commit/de1979e4e0079e059d492ff6b8d09ea4ba817ee1))
+- **hls:** append each discontinuity&#x27;s EXT-X-MAP init segment
+  ([2612fc0](https://github.com/amazonmusic/vinyl/commit/2612fc05700d3684dcf78b0692d813f123bea109))
+- **hls:** continue offset-less byte ranges after the previous segment
+  ([05faca3](https://github.com/amazonmusic/vinyl/commit/05faca3a70f7d3af0a212c46e7f549f1a4d1feef)),
+  closes
+  [#EXT-X-BYTERANGE](https://github.com/amazonmusic/vinyl/issues/EXT-X-BYTERANGE)
+- **hls:** resolve media playlist URIs against the playlist&#x27;s redirected
+  URL
+  ([a31090f](https://github.com/amazonmusic/vinyl/commit/a31090fdd6176c7a09386054b116a46d1710ecf2))
+- **mpd-parser:** don&#x27;t emit a trailing time designator in a duration
+  ([71b4ea3](https://github.com/amazonmusic/vinyl/commit/71b4ea3582d3dde2526760d0e4baedb223cf1bc7))
+- **mpd-parser:** parse xlink attributes, list MPDs, and ImportedMPD
+  ([76b2370](https://github.com/amazonmusic/vinyl/commit/76b23703eb776aad1b3f80f8ddcb3dca6d00e360))
+- **observable:** don&#x27;t crash when a callback disposes the value
+  ([ce8a662](https://github.com/amazonmusic/vinyl/commit/ce8a662959115d7315e5051aef4a86c18703a35d))
+- **observable:** don&#x27;t republish an unchanged combineData record on
+  subscribe
+  ([9e9ab5e](https://github.com/amazonmusic/vinyl/commit/9e9ab5ec8f4c486e591c61e050391d97c293ae70))
+- **observable:** emit inputs that changed before combineData was subscribed
+  ([f743ac1](https://github.com/amazonmusic/vinyl/commit/f743ac1419e921ed09573ef11825502bce866d22))
+- **streaming:** don&#x27;t re-append a partly appended segment
+  ([2249e18](https://github.com/amazonmusic/vinyl/commit/2249e1865d7d5b3910f1b0af126d6bf06163fedd))
+- **streaming:** reset duration readiness on media source deactivation
+  ([7a66ba1](https://github.com/amazonmusic/vinyl/commit/7a66ba1fd753d038aa4110de818cd4950496cd5d))
+- **text:** discover DASH text declared only on the Representation
+  ([517415a](https://github.com/amazonmusic/vinyl/commit/517415a60145cf69db1ccf4f0709004d47a1e38b))
+- **text:** parse a WebVTT cue that follows the signature without a blank line
+  ([6bb2e68](https://github.com/amazonmusic/vinyl/commit/6bb2e68821240558d9c490d377e11d03879f2340))
+- **track:** clear prefetch on preloaded ad tracks
+  ([7e9f0fd](https://github.com/amazonmusic/vinyl/commit/7e9f0fd1df29fd7218f118a09f4eac31770681d9))
+- **transmux:** keep fragment track IDs consistent with the init segment
+  ([ad8f0a8](https://github.com/amazonmusic/vinyl/commit/ad8f0a8a0327658d6d4dc300f6871e6f6a3ce350))
+- **tsx:** don&#x27;t pass an empty class token to classList.add
+  ([ccef165](https://github.com/amazonmusic/vinyl/commit/ccef165e4cfc031a3ebc5edf3a251361795c1dad))
+- **util:** decode hex and astral XML character references
+  ([bf6164d](https://github.com/amazonmusic/vinyl/commit/bf6164d4365308bc61b2714991fcf3f98af91b9c)),
+  closes [#x26](https://github.com/amazonmusic/vinyl/issues/x26)
+  [#128512](https://github.com/amazonmusic/vinyl/issues/128512)
+- **util:** don&#x27;t cache a throw as an undefined memoized result
+  ([31c4169](https://github.com/amazonmusic/vinyl/commit/31c4169f31214d0250d1677758421c3e18672b5d))
+- **util:** keep the request timeout alive across retries
+  ([c37b3a6](https://github.com/amazonmusic/vinyl/commit/c37b3a6b244de174f5d0f77b1e6792419d77e1ae))
+- **util:** read NetworkInformation downlink as decimal megabits
+  ([27b667e](https://github.com/amazonmusic/vinyl/commit/27b667e6f95980d7f8e762e9f10c2131d1c761a1))
+- **validation:** describe a tuple by its element validators
+  ([903d433](https://github.com/amazonmusic/vinyl/commit/903d4334d00847021d8f5ea709daad18b68c3297))
+- **xml:** split a CDATA section its characters would close early
+  ([58c7ba9](https://github.com/amazonmusic/vinyl/commit/58c7ba97255f0a2f2690429e8a81878ed3e6b5e0))
+
+### Performance Improvements
+
+- **tsx:** call onConnect callbacks without a DOM event per node
+  ([00525e5](https://github.com/amazonmusic/vinyl/commit/00525e5e03829e411992a36d3046fde4dea7697b))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 ### Bug Fixes
