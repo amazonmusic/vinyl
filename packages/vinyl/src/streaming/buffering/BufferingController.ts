@@ -435,7 +435,9 @@ export class BufferingControllerImpl
             return
         }
         this.bufferingQuality = streamingSegment.quality
-        if (this.decoderId !== streamingSegment.quality.decoderId) {
+        const reinitialized =
+            this.decoderId !== streamingSegment.quality.decoderId
+        if (reinitialized) {
             // Append the initialization segment before the media segment if the decoder
             // needs (re)-initialization.
             this.decoderId = null
@@ -445,11 +447,16 @@ export class BufferingControllerImpl
             )
             this.decoderId = streamingSegment.quality.decoderId
         }
-        // Set the timestamp offset only if appending from an unbuffered position.
         if (!tail) {
+            // Appending from an unbuffered position.
             await sourceBufferController.setTimestampOffset(
                 streamingSegment.timestampOffset
             )
+        } else if (reinitialized) {
+            // Continue after the buffered segment, as sequence mode does. After a changeType, WebKit appends the next
+            // segment at its media time instead, leaving a gap at a period boundary (see docs/ERRATA.md):
+            // https://bugs.webkit.org/show_bug.cgi?id=327788
+            await sourceBufferController.setTimestampOffset(tail.endTime)
         }
 
         const maxAppendSize = this.getMaxAppendSize(
