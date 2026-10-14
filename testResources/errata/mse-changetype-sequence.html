@@ -1,0 +1,65 @@
+<!doctype html>
+<!--
+  Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>MSE changeType() in sequence mode</title>
+    </head>
+    <body>
+        <h1>MSE changeType() in sequence mode</h1>
+        <p>
+            Appends two 2 s segments in "sequence" mode, calls changeType() to
+            another codec, then appends a segment whose media time is 38 s. Per
+            the
+            <a
+                href="https://w3c.github.io/media-source/#sourcebuffer-reset-parser-state"
+                >reset parser state algorithm</a
+            >, the segment continues the buffered media: buffered is [0, 6].
+            WebKit leaves a gap:
+            <a href="https://bugs.webkit.org/show_bug.cgi?id=327788"
+                >WebKit bug 327788</a
+            >.
+        </p>
+        <p>
+            Serve this directory over HTTP (e.g.
+            <code>python3 -m http.server</code>); the segments are fetched from
+            assets.dev.vinyl.music.amazon.dev.
+        </p>
+        <p id="result">Running…</p>
+        <ol id="steps"></ol>
+        <pre id="details"></pre>
+        <script src="mse-changetype-sequence.js"></script>
+        <script>
+            var resultElement = document.getElementById('result')
+            if (location.protocol === 'file:') {
+                resultElement.textContent =
+                    'Running… Opened from file://, where Safari never opens the MediaSource (sourceopen times out); serve this directory over HTTP.'
+            }
+            window
+                .runChangeTypeSequenceRepro(function (name) {
+                    var item = document.createElement('li')
+                    item.textContent = name
+                    document.getElementById('steps').append(item)
+                })
+                .then(function (result) {
+                    resultElement.textContent = !result.supported
+                        ? 'UNSUPPORTED: changeType() or the codecs are not supported.'
+                        : result.contiguous
+                          ? 'PASS: the segment after changeType() continues the buffered media.'
+                          : 'FAIL: the segment after changeType() was appended at its media time, leaving a gap.'
+                    document.getElementById('details').textContent =
+                        navigator.userAgent +
+                        '\n' +
+                        JSON.stringify(result, null, 2)
+                })
+                .catch(function (error) {
+                    resultElement.textContent = 'ERROR: ' + error
+                    document.getElementById('details').textContent =
+                        navigator.userAgent
+                })
+        </script>
+    </body>
+</html>

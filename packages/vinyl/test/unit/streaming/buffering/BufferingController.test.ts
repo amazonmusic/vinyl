@@ -585,6 +585,23 @@ describe('BufferingControllerImpl', () => {
                 'opus'
             )
         })
+
+        it('continues after the buffered segment once the new initialization segment is appended', async () => {
+            await open()
+            sourceBufferController.setTimestampOffset.calls.reset()
+            segmentController.getSegment.and.callFake((time) => {
+                const mockSegment = createMockSegment(time)
+                if (mockSegment.startTime >= 10) {
+                    mockSegment.quality.decoderId = 'next period'
+                    mockSegment.timestampOffset = mockSegment.startTime - 4
+                }
+                return Promise.resolve(mockSegment)
+            })
+            await setTime(9)
+            expect(
+                sourceBufferController.setTimestampOffset
+            ).toHaveBeenCalledOnceWith(10)
+        })
     })
 
     describe('when segment controller returns null', () => {
