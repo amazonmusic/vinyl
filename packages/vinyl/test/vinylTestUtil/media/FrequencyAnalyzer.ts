@@ -11,9 +11,6 @@ import { logDebug } from '@amazon/vinyl-util'
 import { getSearchParams } from '@amazon/vinyl-util'
 import { createLogPrefix } from '@amazon/vinyl-util'
 import { mediaRef } from '../player/mediaRef'
-import { requireUserInteraction } from '../ui/requireUserInteraction'
-import { unlockMediaElement } from './unlockMediaElement'
-import { setNextTestTimeout } from '@amazon/vinyl-util/browserTestUtil'
 
 /**
  * The percent tolerance the time estimate based on the analyzed frequency can be off from the actual currentTime.
@@ -183,35 +180,22 @@ export function assertFrequency(): Promise<void> {
 }
 
 /**
- * Displays an interaction prompt if checkAudio is present in the query params.
+ * Attaches an analyzer to the shared media element if checkAudio is present in the query params.
  *
- * The checkAudio query param, if present, indicates that the actual sound output should be analyzed. This requires
- * a user gesture unless the UA doesn't require it. Most browsers require the gesture, but some platforms this
- * requirement may be skipped with a flag. Note that Google deprecated --autoplay-policy=no-user-gesture-required
- * March 2023, but older versions may still support it.
+ * The checkAudio query param, if present, indicates that the actual sound output should be analyzed. The analyzer is
+ * created after the media element is unlocked, so `initializeMediaUnlock` must be called first.
  */
 export function initializeFrequencyAnalyzer() {
-    if (shouldCheckAudio) {
-        // If a user interaction is required, give extra time to interact before a timeout.
-        setNextTestTimeout(300)
-        beforeAll(async () => {
-            // Creates the audio context and 'unlocks' the media element in response to a user gesture.
-            const media = mediaRef.value
-            media.crossOrigin = 'anonymous'
-            media.muted = false
-            media.volume = 0.01 // Save your ears. Analyzers do not work at volume 0 or muted; measured dB is affected.
-            await requireUserInteraction()
-            const audioContext = getAudioContext()
-            await unlockMediaElement()
-
-            if (audioContext) {
-                const source = audioContext.createMediaElementSource(
-                    mediaRef.value
-                )
-                frequencyAnalyzer = new FrequencyAnalyzer(audioContext, source)
-            } else {
-                console.warn('AudioContext not supported')
-            }
-        })
-    }
+    if (!shouldCheckAudio) return
+    beforeAll(() => {
+        const media = mediaRef.value
+        media.crossOrigin = 'anonymous'
+        const audioContext = getAudioContext()
+        if (audioContext) {
+            const source = audioContext.createMediaElementSource(media)
+            frequencyAnalyzer = new FrequencyAnalyzer(audioContext, source)
+        } else {
+            console.warn('AudioContext not supported')
+        }
+    })
 }

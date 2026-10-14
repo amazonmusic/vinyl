@@ -16,16 +16,11 @@ import { createEventSpy } from '@amazon/vinyl-util/testUtil'
 describe('PlaybackControllerImpl integ', () => {
     let media: HTMLMediaElement
     let controller: PlaybackControllerImpl
-    let originalMuted: boolean
     setTestTimeout(25)
 
     beforeEach(() => {
         media = mediaRef.value
-        originalMuted = media.muted
-        if (!media.muted) {
-            // Original muted state depends on the checkAudio query flag, set it.
-            media.muted = true
-        }
+        media.muted = true
         controller = new PlaybackControllerImpl({
             media,
             loudnessNormalizationController:
@@ -34,7 +29,7 @@ describe('PlaybackControllerImpl integ', () => {
     })
 
     afterEach(() => {
-        media.muted = originalMuted
+        media.muted = false
         controller.dispose()
     })
 
