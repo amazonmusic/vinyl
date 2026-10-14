@@ -9,7 +9,7 @@ import type {
     Fun,
     ReadonlyEventHost,
 } from '@amazon/vinyl-util'
-import { Deferred, substitute, withTimeout } from '@amazon/vinyl-util'
+import { Abort, Deferred, substitute, timeout } from '@amazon/vinyl-util'
 import createSpy = jasmine.createSpy
 import Spy = jasmine.Spy
 
@@ -34,6 +34,18 @@ export interface EventSpy<EventMap, K extends keyof EventMap>
 }
 
 /**
+ * The timeouts of pending `next` calls. A timeout outliving its spec, for example when the spec failed before
+ * awaiting it, would otherwise reject during and fail a later spec.
+ */
+const pendingTimeouts = new Set<Abort>()
+
+if (typeof afterEach === 'function')
+    afterEach(() => {
+        for (const abort of pendingTimeouts) abort.abort()
+        pendingTimeouts.clear()
+    })
+
+/**
  * Adds a listener to an event host, returning a spy for assertions.
  *
  * The returned spy provides a `next` function to promisify the next call and a `dispose` function
@@ -56,15 +68,34 @@ export function createEventSpy<EventMap, K extends keyof EventMap>(
 
     return Object.assign(spy, {
         next(
-            timeout = 5,
+            time = 5,
             timeoutMessage = `event '{type}' has not been dispatched after {timeout}s.`
         ) {
-            return withTimeout(nextCall, timeout, {
-                message: substitute(timeoutMessage, {
-                    type,
-                    timeout,
+            const call = nextCall
+            const abort = new Abort()
+            pendingTimeouts.add(abort)
+            const settle = () => {
+                abort.abort()
+                pendingTimeouts.delete(abort)
+            }
+            return Promise.race([
+                call,
+                timeout(time, {
+                    abort,
+                    message: substitute(timeoutMessage, {
+                        type,
+                        timeout: time,
+                    }),
                 }),
-            })
+            ])
+                .then(() => {
+                    settle()
+                    return call
+                })
+                .catch((error: unknown) => {
+                    settle()
+                    throw error
+                })
         },
         dispose: unsub,
     })
