@@ -1314,6 +1314,44 @@ describe('PlaybackController', () => {
                     })
                 })
 
+                describe('when a seek while playing completes', () => {
+                    let playingSpy: Spy
+                    beforeEach(() => {
+                        media.readyState = PlaybackReadyState.HAVE_ENOUGH_DATA
+                        media.dispatchEvent(mockEvent('playing'))
+                        playingSpy = createSpy('playing')
+                        controller.on('playing', playingSpy)
+                        media.dispatchEvent(mockEvent('seeking'))
+                        expect(controller.playing).toBeFalse()
+                    })
+
+                    it('emits playing if the media element does not', () => {
+                        media.dispatchEvent(mockEvent('seeked'))
+                        expect(playingSpy).toHaveBeenCalledTimes(1)
+                        expect(controller.playing).toBeTrue()
+                        media.dispatchEvent(mockEvent('playing'))
+                        expect(playingSpy).toHaveBeenCalledTimes(1)
+                    })
+
+                    it('emits playing once if the media element does', () => {
+                        media.dispatchEvent(mockEvent('playing'))
+                        media.dispatchEvent(mockEvent('seeked'))
+                        expect(playingSpy).toHaveBeenCalledTimes(1)
+                    })
+
+                    it('does not emit playing when paused', () => {
+                        media.paused = true
+                        media.dispatchEvent(mockEvent('seeked'))
+                        expect(playingSpy).not.toHaveBeenCalled()
+                    })
+
+                    it('does not emit playing without future data', () => {
+                        media.readyState = PlaybackReadyState.HAVE_CURRENT_DATA
+                        media.dispatchEvent(mockEvent('seeked'))
+                        expect(playingSpy).not.toHaveBeenCalled()
+                    })
+                })
+
                 describe('when a seek while playing targets a buffered position', () => {
                     it('does not emit waiting', async () => {
                         const waitingSpy = createSpy('waiting')

@@ -246,6 +246,7 @@ export class PlaybackControllerImpl
         this.initializeLoopedEvent()
         this.initializeReadyStateChangeEvent()
         this.initializeSeekWaitingEvent()
+        this.initializeSeekPlayingEvent()
     }
 
     /**
@@ -273,8 +274,10 @@ export class PlaybackControllerImpl
             'waitingForKey',
         ] as const) {
             this.domEvents.on(toLowerCase(key), () => {
-                // `waiting` may already have been dispatched; see initializeSeekWaitingEvent.
+                // Either may already have been dispatched; see initializeSeekWaitingEvent and
+                // initializeSeekPlayingEvent.
                 if (key === 'waiting' && this._waiting) return
+                if (key === 'playing' && this._playing) return
                 this.dispatch(key, {})
             })
         }
@@ -834,6 +837,18 @@ export class PlaybackControllerImpl
                 if (range && range[1] > media.currentTime) return
                 this.dispatch('waiting', {})
             }, 0)
+        })
+    }
+
+    /**
+     * Dispatches `playing` when a seek while playing completes and the media element did not. A seek ends `playing`,
+     * but WebKit only fires `playing` again if its readyState dropped, which it doesn't for a buffered position.
+     * @private
+     */
+    private initializeSeekPlayingEvent() {
+        this.domEvents.on('seeked', () => {
+            if (this._playing || this.media.paused || !this.canPlay) return
+            this.dispatch('playing', {})
         })
     }
 
