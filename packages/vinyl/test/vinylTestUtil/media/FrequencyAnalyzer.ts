@@ -163,6 +163,12 @@ export class FrequencyAnalyzer implements LogTarget {
 }
 
 /**
+ * The volume integ tests play at when checkAudio is set. Analyzers do not work at volume 0 or muted, and the
+ * measured dB is affected at very low volumes.
+ */
+export const ANALYZER_VOLUME = 0.01
+
+/**
  * A query param, if present, will indicate that audio should be analyzed. Does not work in CI environments.
  */
 export const shouldCheckAudio = parseBoolean(
@@ -190,6 +196,7 @@ export function initializeFrequencyAnalyzer() {
     beforeAll(() => {
         const media = mediaRef.value
         media.crossOrigin = 'anonymous'
+        media.volume = ANALYZER_VOLUME
         const audioContext = getAudioContext()
         if (audioContext) {
             const source = audioContext.createMediaElementSource(media)
