@@ -1267,6 +1267,65 @@ describe('PlaybackController', () => {
                         expect(waitedSpy).not.toHaveBeenCalled()
                     })
                 })
+
+                describe('when a seek while playing targets an unbuffered position', () => {
+                    let waitingSpy: Spy
+                    beforeEach(() => {
+                        waitingSpy = createSpy('waiting')
+                        controller.on('waiting', waitingSpy)
+                        media.buffered = new MockTimeRanges([[0, 20]])
+                        media.currentTime = 22
+                        media.seeking = true
+                    })
+
+                    it('emits waiting if the media element does not', async () => {
+                        media.dispatchEvent(mockEvent('seeking'))
+                        expect(waitingSpy).not.toHaveBeenCalled()
+                        await clock.tick()
+                        expect(waitingSpy).toHaveBeenCalledTimes(1)
+                        expect(controller.waiting).toBeTrue()
+                        media.dispatchEvent(mockEvent('waiting'))
+                        expect(waitingSpy).toHaveBeenCalledTimes(1)
+                        media.seeking = false
+                        media.dispatchEvent(mockEvent('playing'))
+                        expect(controller.waiting).toBeFalse()
+                    })
+
+                    it('emits waiting once if the media element does', async () => {
+                        media.dispatchEvent(mockEvent('seeking'))
+                        media.dispatchEvent(mockEvent('waiting'))
+                        await clock.tick()
+                        expect(waitingSpy).toHaveBeenCalledTimes(1)
+                    })
+
+                    it('does not emit waiting when paused', async () => {
+                        media.paused = true
+                        media.dispatchEvent(mockEvent('seeking'))
+                        await clock.tick()
+                        expect(waitingSpy).not.toHaveBeenCalled()
+                    })
+
+                    it('does not emit waiting when the seek completes first', async () => {
+                        media.dispatchEvent(mockEvent('seeking'))
+                        media.seeking = false
+                        media.dispatchEvent(mockEvent('seeked'))
+                        await clock.tick()
+                        expect(waitingSpy).not.toHaveBeenCalled()
+                    })
+                })
+
+                describe('when a seek while playing targets a buffered position', () => {
+                    it('does not emit waiting', async () => {
+                        const waitingSpy = createSpy('waiting')
+                        controller.on('waiting', waitingSpy)
+                        media.buffered = new MockTimeRanges([[0, 30]])
+                        media.currentTime = 22
+                        media.seeking = true
+                        media.dispatchEvent(mockEvent('seeking'))
+                        await clock.tick()
+                        expect(waitingSpy).not.toHaveBeenCalled()
+                    })
+                })
             })
 
             describe('pause', () => {

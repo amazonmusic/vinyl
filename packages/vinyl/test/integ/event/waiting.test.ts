@@ -75,15 +75,19 @@ describe('waiting integ', () => {
                 timeoutMessage:
                     'waiting after seek to unbuffered region timed out after {time}s',
             })
-            const seekPromise = player.seekTo(22) // unbuffered region
-            await nextWaiting
-            nextWaited = waitedSpy.next(
-                5,
-                'waited after data buffered 2 timed out after {timeout}s'
-            )
-            await mediaSource.appendNext() // 30s
-            await nextWaited
-            await seekPromise
+            // The seek settles only after the region is buffered.
+            await Promise.all([
+                player.seekTo(22), // unbuffered region
+                (async () => {
+                    await nextWaiting
+                    nextWaited = waitedSpy.next(
+                        5,
+                        'waited after data buffered 2 timed out after {timeout}s'
+                    )
+                    await mediaSource.appendNext() // 30s
+                    await nextWaited
+                })(),
+            ])
         })
     })
 })
