@@ -83,6 +83,7 @@
         "test": "tsx ../../node_modules/jasmine/bin/jasmine --config=test/unit/jasmine.config.json",
         "test:coverage": "c8 npm run test",
         "test:browserstack": "npm run build:release && tsx buildSrc/runBrowserStack.ts",
+        "test:integ": "npm run build:release && tsx buildSrc/runInteg.ts",
         "benchmark:abr": "tsx test/abrBenchmark/run.ts",
         "start": "tsx buildSrc/build.ts --serve",
         "start:release": "tsx buildSrc/build.ts --serve --release",

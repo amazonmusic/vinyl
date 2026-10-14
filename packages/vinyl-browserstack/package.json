@@ -1,7 +1,7 @@
 {
     "name": "@amazon/vinyl-browserstack",
     "version": "4.0.0",
-    "description": "Runs an in-browser Jasmine suite across BrowserStack real browsers over Selenium/WebDriver.",
+    "description": "Runs an in-browser Jasmine suite across BrowserStack real browsers over Selenium/WebDriver, or locally in Playwright browsers and Safari.",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/amazonmusic/vinyl.git"
@@ -44,6 +44,14 @@
         "@amazon/vinyl-build-utils": "^4.0.0",
         "express": "^5.1.0",
         "selenium-webdriver": "^4.28.1"
+    },
+    "peerDependencies": {
+        "playwright": "^1.50.0"
+    },
+    "peerDependenciesMeta": {
+        "playwright": {
+            "optional": true
+        }
     },
     "publishConfig": {
         "access": "public"
