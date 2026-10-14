@@ -125,9 +125,7 @@ async function openSafari(url: string): Promise<LocalBrowserPage> {
                     '"Show features for web developers", then Develop > "Allow Remote Automation" ' +
                     '(or run `safaridriver --enable`).'
             )
-        throw new LocalBrowserUnavailableError(
-            `Could not start a safaridriver session: ${message}`
-        )
+        throw new Error(`Could not start a safaridriver session: ${message}`)
     }
     try {
         await driver.get(url)

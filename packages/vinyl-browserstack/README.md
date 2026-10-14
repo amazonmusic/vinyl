@@ -50,9 +50,10 @@ Credentials come from `options.credentials` or the `BROWSERSTACK_USERNAME` /
 ## Local browsers
 
 `runLocalBrowsersAndExit` serves the same test page and runs it on this machine
-in Playwright's Chromium, Firefox, and WebKit, then Safari through safaridriver,
-clicking the start prompt with trusted input. It runs every spec and prints the
-spec counts, seed, and failures per browser, exiting non-zero on any failure.
+in Playwright's Chromium, Firefox, and WebKit and in Safari through
+safaridriver, all at once unless `--serial` is passed, clicking the start prompt
+with trusted input. It runs every spec and prints the spec counts, seed, and
+failures per browser, exiting non-zero on any failure.
 
 ```ts
 import { runLocalBrowsersAndExit } from '@amazon/vinyl-browserstack'

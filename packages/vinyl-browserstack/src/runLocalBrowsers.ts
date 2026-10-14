@@ -33,9 +33,14 @@ export interface LocalBrowsersOptions {
     readonly server: ServerOptions
 
     /**
-     * The browsers to run, one after another. Default: all of {@link localBrowserNames}.
+     * The browsers to run. Default: all of {@link localBrowserNames}.
      */
     readonly browsers?: readonly LocalBrowserName[]
+
+    /**
+     * Runs the browsers one after another instead of all at once. Default: false
+     */
+    readonly serial?: boolean
 
     /**
      * Query parameters to add to the test page url, e.g. `spec` or `seed`.
@@ -100,9 +105,9 @@ interface Session {
 }
 
 /**
- * Runs the in-browser Jasmine suite locally in real browsers: Playwright's Chromium, Firefox, and WebKit, and
- * Safari through safaridriver. Each page's start prompt is clicked with trusted input, and every spec runs
- * (`stopOnSpecFailure=false`), so the results list all failures.
+ * Runs the in-browser Jasmine suite locally in real browsers, all at once from one server: Playwright's Chromium,
+ * Firefox, and WebKit, and Safari through its own safaridriver. Each page's start prompt is clicked with trusted
+ * input, and every spec runs (`stopOnSpecFailure=false`), so the results list all failures.
  */
 export async function runLocalBrowsers(
     options: LocalBrowsersOptions
@@ -124,7 +129,12 @@ export async function runLocalBrowsers(
             session.log(request.logs.map((entry) => entry.join(' ')))
             if (process.stdout.isTTY)
                 logger.sticky(
-                    `${session.browser}: ${session.totalCompleted}/${session.totalSpecs} specs`
+                    [...sessions.values()]
+                        .map(
+                            (s) =>
+                                `${s.browser} ${s.totalCompleted}/${s.totalSpecs}`
+                        )
+                        .join('  ')
                 )
         },
         onDone(request) {
@@ -142,10 +152,26 @@ export async function runLocalBrowsers(
         options.logsDir === undefined ? './integLogs' : options.logsDir
     if (logsDir) fs.mkdirSync(logsDir, { recursive: true })
 
+    const browsers = options.browsers ?? localBrowserNames
     const results: LocalBrowserResult[] = []
     try {
-        for (const browser of options.browsers ?? localBrowserNames) {
-            results.push(await runBrowser(browser))
+        const run = (browser: LocalBrowserName) =>
+            runBrowser(browser).then((result) => {
+                const counts: Partial<Record<string, number>> | undefined =
+                    result.done?.statusCounts
+                logger.info(
+                    `[${browser}] ${result.status}` +
+                        (counts
+                            ? ` (${counts.passed ?? 0} passed, ${counts.failed ?? 0} failed)`
+                            : '') +
+                        ` in ${formatDuration(result.durationMs)}`
+                )
+                return result
+            })
+        if (options.serial) {
+            for (const browser of browsers) results.push(await run(browser))
+        } else {
+            results.push(...(await Promise.all(browsers.map(run))))
         }
     } finally {
         logger.clearSticky()
@@ -190,7 +216,7 @@ export async function runLocalBrowsers(
         }
         sessions.set(id, session)
 
-        logger.info(`Running ${browser}: ${url}`)
+        logger.info(`[${browser}] ${url}`)
         const start = Date.now()
         const result = (
             status: LocalBrowserResult['status'],
@@ -216,7 +242,7 @@ export async function runLocalBrowsers(
             sessions.delete(id)
             if (error instanceof LocalBrowserUnavailableError) {
                 logger.warn(
-                    `${ansi.yellow}Skipping ${browser}: ${error.message}${ansi.resetColor}`
+                    `${ansi.yellow}[${browser}] skipped: ${error.message}${ansi.resetColor}`
                 )
                 return result('skipped', error.message, null)
             }
@@ -226,7 +252,7 @@ export async function runLocalBrowsers(
         let timeoutId: ReturnType<typeof setTimeout> | undefined
         try {
             const clickFailed = page.clickStartPrompt().then((shown) => {
-                if (shown) logger.info(`${browser}: clicked the start prompt`)
+                if (shown) logger.info(`[${browser}] clicked the start prompt`)
                 return new Promise<never>(() => {})
             })
             const done = await Promise.race([
@@ -323,7 +349,7 @@ function printResults(results: readonly LocalBrowserResult[]) {
                     failure.messages.map((m) => `    ${m}`).join('\n')
             )
         }
-        if (r.status === 'failed' && r.logFile)
+        if (r.status === 'failed' && r.logFile && fs.existsSync(r.logFile))
             logger.info(`  Logs: ${r.logFile}`)
     }
 }
@@ -331,12 +357,17 @@ function printResults(results: readonly LocalBrowserResult[]) {
 /**
  * Calls {@link runLocalBrowsers}, exiting the process with a non-zero code if any browser failed.
  *
- * Command line arguments override the options: `--browsers=chromium,webkit` and `--headed`. Any other
+ * Command line arguments override the options: `--browsers=chromium,webkit`, `--serial`, and `--headed`. Any other
  * `--name=value` argument is added to the test page's query parameters, e.g. `--spec=progressive`.
  */
 export function runLocalBrowsersAndExit(options: LocalBrowsersOptions): void {
     const { properties } = extractArgs(process.argv.slice(2))
-    const { browsers, headed: _headed, ...queryParams } = properties
+    const {
+        browsers,
+        headed: _headed,
+        serial: _serial,
+        ...queryParams
+    } = properties
     const browserNames = browsers
         ? browsers.split(',').map((name) => {
               if (!localBrowserNames.includes(name as LocalBrowserName))
@@ -350,6 +381,7 @@ export function runLocalBrowsersAndExit(options: LocalBrowsersOptions): void {
         ...options,
         ...(browserNames && { browsers: browserNames }),
         headed: 'headed' in properties || (options.headed ?? false),
+        serial: 'serial' in properties || (options.serial ?? false),
         queryParams: {
             ...options.queryParams,
             ...queryParams,

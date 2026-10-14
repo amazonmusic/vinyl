@@ -79,12 +79,12 @@ audio/video.
 ### Local browsers
 
 `npm run test:integ` builds the integ page and runs it in real browsers on this
-machine, one after another: Playwright's Chromium, Firefox, and WebKit, then
-Safari through safaridriver. Each start prompt is clicked with trusted input,
-every spec runs, and the results (spec counts, the seed, and each failure) are
-printed when all browsers finish. The command exits non-zero if any browser
-failed. Each run's console logs are written to `integLogs/`, which is safe to
-delete.
+machine, all at once from one server: Playwright's Chromium, Firefox, and
+WebKit, and Safari through its own safaridriver session. Each start prompt is
+clicked with trusted input, every spec runs, and the results (spec counts, the
+seed, and each failure) are printed when all browsers finish. The command exits
+non-zero if any browser failed. Each run's console logs are written to
+`integLogs/`, which is safe to delete.
 
 Install the Playwright browsers once with
 `npx playwright install chromium firefox webkit`. Safari needs remote
@@ -97,6 +97,7 @@ Options are passed after `--` to a package's script, for example
 
 - `--browsers` - a comma separated list of `chromium`, `firefox`, `webkit`, and
   `safari`.
+- `--serial` - runs the browsers one after another.
 - `--headed` - shows the Playwright browser windows.
 - Any other `--name=value` is added to the page's query parameters, such as
   `--spec`, `--seed`, or `--vinylLogLevel`.
