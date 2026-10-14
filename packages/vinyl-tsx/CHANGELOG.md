@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.0.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v4.0.0) (2026-10-14)
+
+### Bug Fixes
+
+- **tsx:** don&#x27;t pass an empty class token to classList.add
+  ([ccef165](https://github.com/amazonmusic/vinyl/commit/ccef165e4cfc031a3ebc5edf3a251361795c1dad))
+
+### Performance Improvements
+
+- **tsx:** call onConnect callbacks without a DOM event per node
+  ([00525e5](https://github.com/amazonmusic/vinyl/commit/00525e5e03829e411992a36d3046fde4dea7697b))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-tsx

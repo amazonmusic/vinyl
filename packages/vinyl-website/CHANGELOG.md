@@ -3,6 +3,22 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.0.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v4.0.0) (2026-10-14)
+
+### Features
+
+- **ads:** play an alternative MPD list pod as one ad per Period
+  ([6476dcd](https://github.com/amazonmusic/vinyl/commit/6476dcd9a8f0e76760a0f2a724fe1813e72a5fc2))
+- **website:** copy a link that reproduces the play queue
+  ([b40497d](https://github.com/amazonmusic/vinyl/commit/b40497dd6f93a6309b4c1bfb2e69e0744be3a979))
+- **website:** show stitched ad breaks and SSAI test streams
+  ([ee58dae](https://github.com/amazonmusic/vinyl/commit/ee58dae6b5b896bd6a8f6074eeaba8380efce2df))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [3.2.2](https://github.com/amazonmusic/vinyl/compare/v3.2.1...v3.2.2) (2026-09-23)
 
 **Note:** Version bump only for package @amazon/vinyl-website
