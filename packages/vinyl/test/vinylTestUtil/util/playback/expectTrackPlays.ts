@@ -92,8 +92,7 @@ export async function expectPlaylistPlays<T extends TrackLoadOptions>(
         const nextTrack = isLastTrack
             ? queueEnded.next(trackTimeout)
             : trackChange.next(trackTimeout)
-        await expectTrackPlays(player)
-        await nextTrack
+        await Promise.all([expectTrackPlays(player), nextTrack])
         assertQueueChangeCount(isLastTrack ? 0 : 1)
     }
     dispose()
