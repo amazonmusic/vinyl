@@ -24,7 +24,8 @@ import {
     RetryStrategy,
 } from '@amazon/vinyl-util'
 import { setTestTimeout } from '@amazon/vinyl-util/browserTestUtil'
-import { mediaRef } from './mediaRef'
+import { MEDIA_VOLUME, mediaRef } from './mediaRef'
+import { ANALYZER_VOLUME, shouldCheckAudio } from '../media/FrequencyAnalyzer'
 
 export interface VinylSuiteOptions {
     /**
@@ -91,6 +92,10 @@ export class VinylSuite<T extends VinylPlayer<any, any> = VinylPlayer> {
                 this.visibilityChangeHandler
             )
             this._player = this.playerFactory()
+            // Through the player, so loudness normalization scales this volume rather than replacing it.
+            this._player.volume = shouldCheckAudio
+                ? ANALYZER_VOLUME
+                : MEDIA_VOLUME
             add(
                 this._player.on('error', (e) => {
                     logError(this, 'player emitted error event', toJson(e))
