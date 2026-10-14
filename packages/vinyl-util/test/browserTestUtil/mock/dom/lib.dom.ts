@@ -2087,7 +2087,7 @@ export class MockMediaSource implements MediaSource {
     onsourceended: ((this: MediaSource, ev: Event) => any) | null = null
     onsourceopen: ((this: MediaSource, ev: Event) => any) | null = null
     readyState: ReadyState = 'closed'
-    sourceBuffers: SourceBufferList = undefined as any
+    sourceBuffers: SourceBufferList = [] as unknown as SourceBufferList
 
     addSourceBuffer =
         createSpy2<MediaSource['addSourceBuffer']>('addSourceBuffer')

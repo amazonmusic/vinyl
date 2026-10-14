@@ -345,6 +345,12 @@ describe('MediaSourceControllerImpl', () => {
         })
 
         describe('SourceBufferRef disposal', () => {
+            beforeEach(() => {
+                mockMediaSource.sourceBuffers = [
+                    mockSourceBuffer,
+                ] as unknown as SourceBufferList
+            })
+
             it('removes source buffer from media source', () => {
                 mockMediaSource.readyState = 'open'
 
@@ -360,6 +366,18 @@ describe('MediaSourceControllerImpl', () => {
 
                 const ref = controller.createSourceBuffer('audio', 'audio/mp4')
                 mockMediaSource.readyState = 'closed'
+                ref.dispose()
+                expect(
+                    mockMediaSource.removeSourceBuffer
+                ).not.toHaveBeenCalled()
+            })
+
+            it('does not remove a source buffer the media source already removed', () => {
+                mockMediaSource.readyState = 'open'
+
+                const ref = controller.createSourceBuffer('audio', 'audio/mp4')
+                mockMediaSource.sourceBuffers =
+                    [] as unknown as SourceBufferList
                 ref.dispose()
                 expect(
                     mockMediaSource.removeSourceBuffer

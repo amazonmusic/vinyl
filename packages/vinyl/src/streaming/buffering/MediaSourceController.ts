@@ -14,6 +14,7 @@ import {
     ErrorOrigin,
     EventHostImpl,
     IllegalStateError,
+    indexOf,
     isSilentError,
     type Json,
     logDebug,
@@ -320,7 +321,11 @@ export class MediaSourceControllerImpl
                     'removing source buffer from media source',
                     mediaSource.readyState
                 )
-                if (mediaSource.readyState !== 'closed') {
+                // A media source that closed and reopened has already removed its source buffers.
+                if (
+                    mediaSource.readyState !== 'closed' &&
+                    indexOf(mediaSource.sourceBuffers, sourceBuffer) !== -1
+                ) {
                     mediaSource.removeSourceBuffer(sourceBuffer)
                 }
                 this.sourceBuffers.delete(sourceBuffer)
