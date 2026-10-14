@@ -15,6 +15,7 @@ import {
 } from '@amazon/vinyl-build-utils'
 import { Builder, type WebDriver } from 'selenium-webdriver'
 import { buildCapabilities } from './capabilities'
+import { clickStartPrompt } from './clickStartPrompt'
 import path from 'node:path'
 import fs from 'node:fs'
 import crypto from 'node:crypto'
@@ -166,7 +167,8 @@ export class WebDriverWorker {
                 finalUrl.searchParams.set(name, value)
             }
         }
-        this.url = finalUrl.toString()
+        // Jasmine decodes query params with decodeURIComponent, which leaves URLSearchParams' '+' spaces as is.
+        this.url = finalUrl.toString().replace(/\+/g, '%20')
 
         if (this.options.logsDir)
             fs.mkdirSync(this.options.logsDir, { recursive: true })
@@ -332,6 +334,13 @@ export class WebDriverWorker {
                     `Session created for '${this.name}': ${state.sessionId}`
                 )
                 await driver.get(this.url)
+                clickStartPrompt(driver, {
+                    name: this.name ?? state.sessionId,
+                    touch: workerOptions.os.toLowerCase() === 'ios',
+                }).catch((error: unknown) => {
+                    // A restart quits this driver; only the current session's failure counts.
+                    if (this.driver === driver) this.setError(error)
+                })
                 await this.refreshSession()
                 this.onUpdate()
             })

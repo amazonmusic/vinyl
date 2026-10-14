@@ -4,6 +4,7 @@
  */
 
 export * from './capabilities'
+export * from './clickStartPrompt'
+export * from './runSeleniumBrowserStack'
 export * from './WebDriverWorker'
 export * from './WebDriverWorkerController'
-export * from './runSeleniumBrowserStack'
