@@ -7,6 +7,7 @@ import CustomReporter = jasmine.CustomReporter
 import JasmineDoneInfo = jasmine.JasmineDoneInfo
 import JasmineStartedInfo = jasmine.JasmineStartedInfo
 import SpecResult = jasmine.SpecResult
+import SuiteResult = jasmine.SuiteResult
 import { LogLevel, type ReadonlyDate } from '@amazon/vinyl-util'
 
 /**
@@ -35,6 +36,26 @@ export interface LogReporterDoneEvent {
     readonly totalCompleted: number
     readonly totalSpecs: number
     readonly reason: string
+
+    /**
+     * The number of specs completed with each status.
+     */
+    readonly statusCounts: Readonly<Record<string, number>>
+
+    /**
+     * Every failed spec and suite, and failures outside any suite (named 'top level').
+     */
+    readonly failures: readonly LogReporterFailure[]
+
+    /**
+     * The seed of the randomized spec order, to reproduce the run with `?seed=`.
+     */
+    readonly seed: string
+}
+
+export interface LogReporterFailure {
+    readonly fullName: string
+    readonly messages: readonly string[]
 }
 
 export interface LogEntry {
@@ -51,6 +72,9 @@ export abstract class LogReporter implements CustomReporter {
      * failedExpectations, save this from `specDone`.
      */
     private failedResult: SpecResult | null = null
+
+    private readonly failures: LogReporterFailure[] = []
+    private readonly statusCounts: Record<string, number> = {}
 
     private totalSpecs = 0
     private totalCompleted = 0
@@ -96,13 +120,34 @@ export abstract class LogReporter implements CustomReporter {
     }
 
     specDone(result: SpecResult): void {
-        if (!this.failedResult && result.status === 'failed')
-            this.failedResult = result
+        if (result.status === 'failed') {
+            this.failedResult ??= result
+            this.addFailure(result.fullName, result.failedExpectations)
+        }
+        this.statusCounts[result.status] =
+            (this.statusCounts[result.status] ?? 0) + 1
         this.totalCompleted++
         this.maybeReportProgress()
     }
 
+    suiteDone(result: SuiteResult): void {
+        if (result.failedExpectations.length)
+            this.addFailure(result.fullName, result.failedExpectations)
+    }
+
+    private addFailure(
+        fullName: string,
+        failedExpectations: readonly { readonly message: string }[]
+    ) {
+        this.failures.push({
+            fullName,
+            messages: failedExpectations.map((e) => e.message),
+        })
+    }
+
     jasmineDone(runDetails: JasmineDoneInfo): void {
+        if (runDetails.failedExpectations.length)
+            this.addFailure('top level', runDetails.failedExpectations)
         this.maybeReportProgress(true)
         this.consoleInterceptor.dispose()
         const reason = this.failedResult
@@ -119,6 +164,9 @@ export abstract class LogReporter implements CustomReporter {
             totalCompleted: this.totalCompleted,
             totalSpecs: this.totalSpecs,
             reason,
+            statusCounts: this.statusCounts,
+            failures: this.failures,
+            seed: String(runDetails.order.seed),
         }
         this.onDone(body).catch((_) => {
             // One retry:

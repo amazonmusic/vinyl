@@ -64,6 +64,26 @@ export interface DoneRequest extends ProgressRequest {
      * Reason for session failure.
      */
     readonly reason?: string
+
+    /**
+     * The number of specs completed with each status, e.g. passed, failed, pending, excluded.
+     */
+    readonly statusCounts?: Readonly<Record<string, number>>
+
+    /**
+     * Every failed spec and suite.
+     */
+    readonly failures?: readonly ReportedFailure[]
+
+    /**
+     * The seed of the randomized spec order.
+     */
+    readonly seed?: string | null
+}
+
+export interface ReportedFailure {
+    readonly fullName: string
+    readonly messages: readonly string[]
 }
 
 /**
