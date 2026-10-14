@@ -96,7 +96,12 @@ async function openPlaywright(
             `[requestfailed] ${request.url()} ${request.failure()?.errorText ?? ''}`
         )
     )
-    await page.goto(url)
+    try {
+        await page.goto(url)
+    } catch (error) {
+        await browser.close()
+        throw error
+    }
     return {
         async clickStartPrompt() {
             const prompt = page.locator(START_PROMPT_SELECTOR)

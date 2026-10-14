@@ -21,6 +21,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import {
     type LocalBrowserName,
+    type LocalBrowserPage,
     localBrowserNames,
     LocalBrowserUnavailableError,
     openLocalBrowser,
@@ -154,6 +155,15 @@ export async function runLocalBrowsers(
 
     const browsers = options.browsers ?? localBrowserNames
     const results: LocalBrowserResult[] = []
+    const openPages = new Set<LocalBrowserPage>()
+    // Quit safaridriver sessions too, which would otherwise outlive the process.
+    const sigIntHandler = () => {
+        logger.info('SIGINT signal received.')
+        Promise.all([...openPages].map((page) => page.close()))
+            .catch(() => {})
+            .finally(() => process.exit(130))
+    }
+    process.once('SIGINT', sigIntHandler)
     try {
         const run = (browser: LocalBrowserName) =>
             runBrowser(browser).then((result) => {
@@ -174,6 +184,7 @@ export async function runLocalBrowsers(
             results.push(...(await Promise.all(browsers.map(run))))
         }
     } finally {
+        process.removeListener('SIGINT', sigIntHandler)
         logger.clearSticky()
         await serverHandle.close()
     }
@@ -231,7 +242,7 @@ export async function runLocalBrowsers(
             logFile,
         })
 
-        let page
+        let page: LocalBrowserPage
         try {
             page = await openLocalBrowser(browser, url, {
                 headed: options.headed ?? false,
@@ -248,6 +259,7 @@ export async function runLocalBrowsers(
             }
             return result('failed', String(error), null)
         }
+        openPages.add(page)
         const timeout = options.timeout ?? 30 * 60
         let timeoutId: ReturnType<typeof setTimeout> | undefined
         try {
@@ -285,6 +297,7 @@ export async function runLocalBrowsers(
         } finally {
             clearTimeout(timeoutId)
             sessions.delete(id)
+            openPages.delete(page)
             await page.close().catch(() => {})
         }
     }
