@@ -5,7 +5,9 @@
 
 import {
     type ChangeEvent,
+    clearCodecDenylist,
     createEmptyMediaQualityMetadata,
+    denylistCodecsFromMimeType,
     defaultSegmentControllerBaseOptions,
     type MediaTimeline,
     PREFETCH_POLL_THROTTLE,
@@ -480,6 +482,63 @@ describe('SegmentControllerImpl', () => {
             })
             // segmentController is for 'audio', but only 'video' qualities exist
             expect(await segmentController.getSegment(5)).toBeNull()
+        })
+
+        describe('when a codec has been denylisted', () => {
+            const OPUS = 'audio/mp4; codecs="opus"'
+            const AAC = 'audio/mp4; codecs="mp4a.40.2"'
+            let selectQuality: Spy
+
+            beforeEach(() => {
+                timelineData.value = Promise.resolve({
+                    periods: [
+                        {
+                            startTime: 0,
+                            endTime: 100,
+                            qualities: [OPUS, AAC].map((mimeType, i) => ({
+                                metadata: {
+                                    ...createEmptyMediaQualityMetadata(),
+                                    contentType: 'audio' as const,
+                                    mimeType,
+                                    decoderId: String(i),
+                                },
+                                getSegment: (time: number) =>
+                                    segmentProvider.getSegment(time),
+                            })),
+                        },
+                    ],
+                    minBufferTime: 10,
+                    getAdBreaks: () => Promise.resolve([]),
+                    getDuration: () => Promise.resolve(100),
+                })
+                selectQuality = spyOn(
+                    mockDeps.qualitySelector,
+                    'selectQuality'
+                ).and.returnValue(0)
+            })
+
+            afterEach(() => clearCodecDenylist())
+
+            function selectedFrom(): (string | null)[] {
+                return (
+                    selectQuality.calls.mostRecent().args[0] as {
+                        mimeType: string | null
+                    }[]
+                ).map((metadata) => metadata.mimeType)
+            }
+
+            it('selects only from qualities whose codecs are not denylisted', async () => {
+                denylistCodecsFromMimeType(OPUS)
+                await segmentController.getSegment(5)
+                expect(selectedFrom()).toEqual([AAC])
+            })
+
+            it('selects from every quality if all of their codecs are denylisted', async () => {
+                denylistCodecsFromMimeType(OPUS)
+                denylistCodecsFromMimeType(AAC)
+                await segmentController.getSegment(5)
+                expect(selectedFrom()).toEqual([OPUS, AAC])
+            })
         })
 
         it('returns null when quality getSegment returns null within period', async () => {
