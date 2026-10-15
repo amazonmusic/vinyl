@@ -90,7 +90,13 @@ async function openPlaywright(
     }
     let browser: Playwright.Browser
     try {
-        browser = await playwright[name].launch({ headless: !options.headed })
+        browser = await playwright[name].launch({
+            headless: !options.headed,
+            // Playwright's Firefox can't download the Widevine CDM, so each Widevine request would wait 60s for it.
+            ...(name === 'firefox' && {
+                firefoxUserPrefs: { 'media.gmp-widevinecdm.enabled': false },
+            }),
+        })
     } catch (error) {
         throw new LocalBrowserUnavailableError(
             `Could not launch Playwright ${name}; run 'npx playwright install ${name}'.\n${String(error)}`
