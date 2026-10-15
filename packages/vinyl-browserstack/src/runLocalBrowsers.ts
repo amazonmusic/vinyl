@@ -28,6 +28,12 @@ import {
     openLocalBrowser,
 } from './localBrowsers'
 
+/**
+ * How much longer than real time a spec must allow when Playwright's WebKit plays FairPlay over MSE, which it plays at
+ * about 0.4x (2.5x real time), plus headroom.
+ */
+const SLOW_FAIRPLAY_MSE_FACTOR = 3
+
 export interface LocalBrowsersOptions {
     /**
      * Local server configuration, serving the test page.
@@ -201,6 +207,9 @@ export async function runLocalBrowsers(
         const query = Object.entries({
             reportApi: `/report/${id}`,
             stopOnSpecFailure: 'false',
+            ...(browser === 'webkit' && {
+                slowFairPlayMse: String(SLOW_FAIRPLAY_MSE_FACTOR),
+            }),
             ...options.queryParams,
         })
             .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
