@@ -18,6 +18,7 @@ import {
 } from '@amazon/vinyl-build-utils'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import {
     type LocalBrowserName,
@@ -155,15 +156,17 @@ export async function runLocalBrowsers(
 
     const browsers = options.browsers ?? localBrowserNames
     const results: LocalBrowserResult[] = []
-    const openPages = new Set<LocalBrowserPage>()
-    // Quit safaridriver sessions too, which would otherwise outlive the process.
-    const sigIntHandler = () => {
-        logger.info('SIGINT signal received.')
-        Promise.all([...openPages].map((page) => page.close()))
-            .catch(() => {})
-            .finally(() => process.exit(130))
+    // Includes pages still opening, so a signal during launch closes them too.
+    const openPages = new Set<Promise<LocalBrowserPage>>()
+    // Safari allows one automation session at a time, and an orphaned safaridriver would keep it.
+    const exitSignals = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
+    const signalHandler = (signal: NodeJS.Signals) => {
+        logger.info(`${signal} signal received.`)
+        void Promise.allSettled(
+            [...openPages].map((page) => page.then((p) => p.close()))
+        ).finally(() => process.exit(128 + os.constants.signals[signal]))
     }
-    process.once('SIGINT', sigIntHandler)
+    for (const signal of exitSignals) process.once(signal, signalHandler)
     try {
         const run = (browser: LocalBrowserName) =>
             runBrowser(browser).then((result) => {
@@ -184,7 +187,8 @@ export async function runLocalBrowsers(
             results.push(...(await Promise.all(browsers.map(run))))
         }
     } finally {
-        process.removeListener('SIGINT', sigIntHandler)
+        for (const signal of exitSignals)
+            process.removeListener(signal, signalHandler)
         logger.clearSticky()
         await serverHandle.close()
     }
@@ -242,14 +246,16 @@ export async function runLocalBrowsers(
             logFile,
         })
 
+        const opening = openLocalBrowser(browser, url, {
+            headed: options.headed ?? false,
+            log: (message) => log([`${new Date().toISOString()} ${message}`]),
+        })
+        openPages.add(opening)
         let page: LocalBrowserPage
         try {
-            page = await openLocalBrowser(browser, url, {
-                headed: options.headed ?? false,
-                log: (message) =>
-                    log([`${new Date().toISOString()} ${message}`]),
-            })
+            page = await opening
         } catch (error) {
+            openPages.delete(opening)
             sessions.delete(id)
             if (error instanceof LocalBrowserUnavailableError) {
                 logger.warn(
@@ -259,7 +265,6 @@ export async function runLocalBrowsers(
             }
             return result('failed', String(error), null)
         }
-        openPages.add(page)
         const timeout = options.timeout ?? 30 * 60
         let timeoutId: ReturnType<typeof setTimeout> | undefined
         try {
@@ -267,9 +272,16 @@ export async function runLocalBrowsers(
                 if (shown) logger.info(`[${browser}] clicked the start prompt`)
                 return new Promise<never>(() => {})
             })
+            const hidden = page.hidden().then(() => {
+                throw new Error(
+                    `The ${browser} window was hidden, which throttles the page's timers. Keep it uncovered, ` +
+                        'unminimized, and on the current Space while the suite runs.'
+                )
+            })
             const done = await Promise.race([
                 donePromise,
                 clickFailed,
+                hidden,
                 new Promise<null>((resolve) => {
                     timeoutId = setTimeout(() => resolve(null), timeout * 1000)
                 }),
@@ -297,8 +309,8 @@ export async function runLocalBrowsers(
         } finally {
             clearTimeout(timeoutId)
             sessions.delete(id)
-            openPages.delete(page)
             await page.close().catch(() => {})
+            openPages.delete(opening)
         }
     }
 
