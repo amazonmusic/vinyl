@@ -92,6 +92,12 @@ automation: in Safari, enable Settings > Advanced > "Show features for web
 developers", then Develop > "Allow Remote Automation" (or run
 `safaridriver --enable`). Unavailable browsers are skipped with a message.
 
+Safari allows one automation session at a time, and the runner quits its session
+when the run ends, fails, or is interrupted. Keep Safari's window uncovered
+while it runs: WebKit treats a window hidden behind other windows, minimized, or
+on another Space as hidden and throttles its timers, so the runner fails Safari
+as soon as its page is hidden.
+
 Options are passed after `--` to a package's script, for example
 `npm run test:integ -w @amazon/vinyl -- --browsers=chromium,safari --spec=progressive`:
 
