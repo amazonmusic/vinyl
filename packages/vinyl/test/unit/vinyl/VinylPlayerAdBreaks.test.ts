@@ -27,11 +27,15 @@ describe('VinylPlayer ad break API', () => {
     beforeEach(() => {
         base = createMockVinylDependencies()
         // Use a real ad controller so setTrackAds drives state and events that the
-        // player getters and redispatch reflect.
-        adController = new AdControllerImpl({
-            playbackController: base.playbackController,
-        })
-        depFactories = externalDependencies({ ...base, adController })
+        // player getters and redispatch reflect. The player owns it, so disposing
+        // the player cancels the load timeout an entered ad arms.
+        depFactories = {
+            ...externalDependencies(base),
+            adController: () =>
+                (adController = new AdControllerImpl({
+                    playbackController: base.playbackController,
+                })),
+        }
         player = createVinylPlayer(
             { media: new MockHTMLAudioElement() },
             depFactories
