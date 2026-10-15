@@ -20,11 +20,13 @@ const affordanceAfter = 3
  * @param endTime
  * @param timeout A timeout beyond the expected amount of time to play.
  * This does not affect waiting for ready state.
+ * @param timeoutScale Multiplies the time allowed to play, for environments that play slower than real time.
  */
 export async function expectTrackPlaysUntil(
     player: ReadonlyPlaybackController,
     endTime: number,
-    timeout = 20
+    timeout = 20,
+    { timeoutScale = 1 }: { readonly timeoutScale?: number } = {}
 ) {
     await onPlaying(player)
     // Safari does not always have an updated currentTime after a seeked event. Await the next time update before
@@ -38,7 +40,7 @@ export async function expectTrackPlaysUntil(
     await assertFrequency()
 
     let elapsed = 0
-    const maxTime = endTime - player.currentTime + timeout
+    const maxTime = (endTime - player.currentTime + timeout) * timeoutScale
     while (!player.ended && player.currentTime < endTime && elapsed < maxTime) {
         await sleep(sleepInterval)
         elapsed += sleepInterval

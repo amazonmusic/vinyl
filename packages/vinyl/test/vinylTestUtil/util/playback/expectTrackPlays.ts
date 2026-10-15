@@ -17,8 +17,16 @@ import { expectTrackPlaysUntil } from './expectTrackPlaysUntil'
  */
 const PLAYBACK_DURATION = 6
 
+export interface ExpectTrackPlaysOptions {
+    /**
+     * Multiplies the time allowed to play, for environments that play slower than real time. Default: 1
+     */
+    readonly timeoutScale?: number
+}
+
 export async function expectTrackPlays(
-    player: VinylPlayer<any>
+    player: VinylPlayer<any>,
+    { timeoutScale = 1 }: ExpectTrackPlaysOptions = {}
 ): Promise<void> {
     const { dispose, add } = createDisposer()
     const ended = add(createEventSpy(player, 'ended'))
@@ -37,7 +45,9 @@ export async function expectTrackPlays(
         // All tracks will play for at most PLAYBACK_DURATION seconds.
         await expectTrackPlaysUntil(
             player,
-            player.currentTime + PLAYBACK_DURATION / 2
+            player.currentTime + PLAYBACK_DURATION / 2,
+            undefined,
+            { timeoutScale }
         )
         const time = player.duration - PLAYBACK_DURATION / 2
         await player.seekTo(time)
@@ -48,7 +58,7 @@ export async function expectTrackPlays(
     // the expectation will fail due to the next track starting.
     // Add a large buffer for the timeout; Seeking in a progressive track
     // can take a long time on some browsers.
-    await ended.next(PLAYBACK_DURATION + 10)
+    await ended.next((PLAYBACK_DURATION + 10) * timeoutScale)
     expect(player.currentTime).toBeCloseToWithin(duration, 3)
     expect(player.ended).withContext('ended').toBeTrue()
     // Expect at least one update per second. This varies among platforms.
@@ -65,14 +75,16 @@ export async function expectTrackPlays(
  *
  * @param player
  * @param playlist
+ * @param options
  */
 export async function expectPlaylistPlays<T extends TrackLoadOptions>(
     player: VinylPlayer<T>,
-    playlist: T[]
+    playlist: T[],
+    { timeoutScale = 1 }: ExpectTrackPlaysOptions = {}
 ): Promise<void> {
     const { dispose, add } = createDisposer()
     // Add a significant buffer to the timeout; progressive tracks can take a long time to load after a seek.
-    const trackTimeout = PLAYBACK_DURATION + 60 // Timeout to give each track
+    const trackTimeout = (PLAYBACK_DURATION + 60) * timeoutScale // Timeout to give each track
     const queueEnded = add(createEventSpy(player, 'queueEnded'))
     const queueChange = add(createEventSpy(player, 'queueChange'))
     const trackChange = add(createEventSpy(player, 'trackActivated'))
@@ -92,7 +104,10 @@ export async function expectPlaylistPlays<T extends TrackLoadOptions>(
         const nextTrack = isLastTrack
             ? queueEnded.next(trackTimeout)
             : trackChange.next(trackTimeout)
-        await Promise.all([expectTrackPlays(player), nextTrack])
+        await Promise.all([
+            expectTrackPlays(player, { timeoutScale }),
+            nextTrack,
+        ])
         assertQueueChangeCount(isLastTrack ? 0 : 1)
     }
     dispose()
