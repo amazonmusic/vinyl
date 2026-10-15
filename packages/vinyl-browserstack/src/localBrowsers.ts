@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { logger } from '@amazon/vinyl-build-utils'
+import { logger, sleep } from '@amazon/vinyl-build-utils'
 import type * as Playwright from 'playwright'
 import { Browser, Builder, type WebDriver } from 'selenium-webdriver'
 import { clickStartPrompt, START_PROMPT_SELECTOR } from './clickStartPrompt'
@@ -44,6 +44,12 @@ export interface LocalBrowserPage {
      */
     clickStartPrompt(): Promise<boolean>
 
+    /**
+     * Resolves once the page is hidden, e.g. when another window covers Safari's. WebKit throttles a hidden page's
+     * timers, which stalls the suite.
+     */
+    hidden(): Promise<void>
+
     close(): Promise<void>
 }
 
@@ -56,6 +62,8 @@ export class LocalBrowserUnavailableError extends Error {}
  * The number of seconds to wait for the start prompt to appear.
  */
 const PROMPT_TIMEOUT = 120
+
+const VISIBILITY_POLL_SECONDS = 2
 
 export function openLocalBrowser(
     name: LocalBrowserName,
@@ -114,6 +122,8 @@ async function openPlaywright(
             await prompt.waitFor({ state: 'hidden', timeout: 10_000 })
             return true
         },
+        // Playwright's browsers don't hide occluded windows.
+        hidden: () => new Promise<never>(() => {}),
         close: () => browser.close(),
     }
 }
@@ -138,18 +148,24 @@ async function openSafari(url: string): Promise<LocalBrowserPage> {
         await driver.quit().catch(() => {})
         throw error
     }
+    let quit: Promise<void> | undefined
     return {
         clickStartPrompt: () =>
             clickStartPrompt(driver, {
                 name: 'safari',
                 timeout: PROMPT_TIMEOUT,
             }),
-        async close() {
-            try {
-                await driver.quit()
-            } catch (error) {
-                logger.warn('Could not quit the Safari session:', error)
-            }
+        async hidden() {
+            while (
+                (await driver.executeScript<string>(
+                    'return document.visibilityState'
+                )) !== 'hidden'
+            )
+                await sleep(VISIBILITY_POLL_SECONDS)
         },
+        close: () =>
+            (quit ??= driver.quit().catch((error: unknown) => {
+                logger.warn('Could not quit the Safari session:', error)
+            })),
     }
 }
