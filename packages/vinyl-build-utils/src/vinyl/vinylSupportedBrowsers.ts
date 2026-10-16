@@ -50,6 +50,19 @@ export const vinylSupportedBrowsers: readonly WorkerInitOptions[] = [
         },
     },
 
+    {
+        browser: 'edge',
+        browser_version: 'latest',
+        os: 'Windows',
+        os_version: '11',
+        fallbackBrowser: {
+            browser: 'edge',
+            browser_version: 'latest',
+            os: 'Windows',
+            os_version: '10',
+        },
+    },
+
     // Mobile
 
     {
