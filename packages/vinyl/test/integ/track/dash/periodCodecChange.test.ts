@@ -46,12 +46,23 @@ ${period('first', 0, 'libx264_640x360_30fps_600k', 'avc1.64001e', 1, 0)}
 ${period('second', 8, 'libx264_1280x720_30fps_1500k', 'avc1.64001f', 31, 60)}
 </MPD>`
 
+declare global {
+    var ManagedSourceBuffer: typeof SourceBuffer | undefined
+}
+
+/**
+ * iPhone Safari exposes only ManagedSourceBuffer, with no SourceBuffer global.
+ */
+function sourceBufferPrototype(): SourceBuffer {
+    return (globalThis.ManagedSourceBuffer ?? SourceBuffer).prototype
+}
+
 describe('dash Period codec change integ', () => {
     const suite = createVinylSuite({}, { timeout: 60 })
 
     beforeEach(() => {
         if (!supportsMse()) pending('MSE not supported')
-        if (!('changeType' in SourceBuffer.prototype))
+        if (!('changeType' in sourceBufferPrototype()))
             pending('SourceBuffer.changeType not supported')
     })
 
@@ -69,7 +80,7 @@ describe('dash Period codec change integ', () => {
     // docs/ERRATA.md): https://bugs.webkit.org/show_bug.cgi?id=327788
     it('plays across a Period boundary that changes codec', async () => {
         const changeType = spyOn(
-            SourceBuffer.prototype,
+            sourceBufferPrototype(),
             'changeType'
         ).and.callThrough()
         const player = suite.player
