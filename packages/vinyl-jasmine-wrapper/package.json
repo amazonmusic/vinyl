@@ -13,6 +13,9 @@
     "files": [
         "dist/*"
     ],
+    "dependencies": {
+        "core-js": "^3.37.1"
+    },
     "scripts": {
         "clean": "rimraf --glob dist \"**/*.tsbuildinfo\"",
         "build": "tsc",
