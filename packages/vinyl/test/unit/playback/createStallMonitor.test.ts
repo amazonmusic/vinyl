@@ -15,15 +15,20 @@ import { EventHostImpl } from '@amazon/vinyl-util'
 import { useMockTime } from '@amazon/vinyl-util/browserTestUtil'
 import Spy = jasmine.Spy
 
+/** A controller stand-in: events plus a play head position the test moves by hand. */
+class MockController extends EventHostImpl<PlaybackControllerEventMap> {
+    currentTime = 0
+}
+
 describe('createStallMonitor', () => {
     const clock = useMockTime()
-    let host: EventHostImpl<PlaybackControllerEventMap>
+    let host: MockController
     let onStallEntered: Spy<() => void>
     let onStallEnded: Spy<(info: StallEndedInfo) => void>
     let stop: (() => void) | undefined
 
     beforeEach(() => {
-        host = new EventHostImpl<PlaybackControllerEventMap>()
+        host = new MockController()
         onStallEntered = jasmine.createSpy('onStallEntered')
         onStallEnded = jasmine.createSpy('onStallEnded')
     })
@@ -184,6 +189,49 @@ describe('createStallMonitor', () => {
 
         // The freeze clock reset on resume, so a sub-threshold gap is not a new stall.
         await poll(3) // 0.75s < 1s threshold
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+    })
+
+    it('does not report a stall when the play head advances but timeUpdates are delayed', async () => {
+        // A long task (or delayed event delivery) holds back `timeUpdate` while the media keeps
+        // playing. When the main thread frees up, the poll can run before the queued timeUpdate;
+        // the advanced currentTime shows it's progress, not a freeze.
+        monitor()
+        host.dispatch('playing', {})
+        // 3s of playback with the play head advancing but no timeUpdate delivered.
+        for (let i = 0; i < 12; i++) {
+            host.currentTime += 0.25
+            await poll(1)
+        }
+        expect(onStallEntered).not.toHaveBeenCalled()
+        expect(onStallEnded).not.toHaveBeenCalled()
+    })
+
+    it('still reports a stall when the play head is frozen and no timeUpdate arrives', async () => {
+        monitor()
+        host.currentTime = 3
+        host.dispatch('playing', {})
+        await poll(4) // currentTime unchanged for 1s
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+    })
+
+    it('ends a stall when the play head advances before a timeUpdate is delivered', async () => {
+        monitor()
+        host.dispatch('playing', {})
+        await poll(4) // frozen 1s -> stallEntered
+        expect(onStallEntered).toHaveBeenCalledTimes(1)
+        await poll(4) // frozen another 1s (total 2s)
+
+        host.currentTime = 0.25 // resumed; the next poll sees it before any timeUpdate
+        await poll(1)
+        expect(onStallEnded).toHaveBeenCalledTimes(1)
+        const info = onStallEnded.calls.mostRecent().args[0]
+        expect(info.reason).toBe(StallEndedReason.PLAYING)
+        expect(info.duration).toBeCloseTo(2.25, 1)
+
+        // The late timeUpdate for the same advance doesn't end or start another stall.
+        host.dispatch('timeUpdate', { previous: 0, current: 0.25 })
+        expect(onStallEnded).toHaveBeenCalledTimes(1)
         expect(onStallEntered).toHaveBeenCalledTimes(1)
     })
 
