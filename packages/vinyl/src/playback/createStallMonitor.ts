@@ -9,8 +9,8 @@ import { StallEndedReason } from './ReadonlyPlaybackController'
 
 export interface StallMonitorOptions {
     /**
-     * Seconds the play head must be frozen (no `timeUpdate`) while playing before a stall is
-     * reported. Default: 1
+     * Seconds the play head must be frozen (`currentTime` not advancing) while playing before a
+     * stall is reported. Default: 1
      */
     readonly stallThreshold?: number
 
@@ -21,7 +21,7 @@ export interface StallMonitorOptions {
 }
 
 export interface StallEndedInfo {
-    /** Time of the last `timeUpdate` observed before the play head froze. */
+    /** Time of the last progress observed before the play head froze. */
     readonly started: Timestamp
     /** Time the stall ended. */
     readonly ended: Timestamp
@@ -47,14 +47,19 @@ const PROGRESS_EPSILON = 1e-6
 
 /**
  * Watches a {@link ReadonlyPlaybackController} for stalls while playing: the play head freezing
- * (no `timeUpdate`) for longer than {@link StallMonitorOptions.stallThreshold} seconds.
+ * (`currentTime` not advancing) for longer than {@link StallMonitorOptions.stallThreshold} seconds.
+ *
+ * Progress is observed both from `timeUpdate` events and by reading `currentTime` on each poll. A
+ * late `timeUpdate` alone is not a stall: when the main thread is busy (a long task, a GC pause) or
+ * event delivery is delayed, the play head keeps advancing while no `timeUpdate` reaches script,
+ * and the poll sees that advance rather than reporting a freeze.
  *
  * Detection only runs once playback has actually been observed (a `playing` event) and is
  * suspended on `pause`/`seeking`/`emptied` until playback is observed again — so a stall is never
  * reported during initial loading or while awaiting a seek. A detected stall ends when the play
  * head advances again (`playing`) or playback stops for another reason (`pause`/`seeking`/
- * `emptied`); {@link StallEndedInfo.duration} is measured from the last `timeUpdate` before the
- * freeze, so it reflects the full frozen time rather than only the time past the threshold.
+ * `emptied`); {@link StallEndedInfo.duration} is measured from the last observed progress before
+ * the freeze, so it reflects the full frozen time rather than only the time past the threshold.
  *
  * Returns a function that stops the monitor.
  */
@@ -66,10 +71,10 @@ export function createStallMonitor(
     const stallThresholdMs = (options.stallThreshold ?? 1) * 1000
     const pollIntervalMs = (options.pollInterval ?? 0.25) * 1000
 
-    // Only detect once playback has been observed; gates out initial load and post-seek buffering.
-    let observedPlaying = false
-    // Wall-clock time of the last `timeUpdate` — the reference start of any freeze.
+    // Wall-clock time of the last observed progress — the reference start of any freeze.
     let lastProgressAt = Date.now()
+    // Play head position at the last observed progress.
+    let lastProgressPosition = controller.currentTime
     let inStall = false
     let pollId: ReturnType<typeof setInterval> | null = null
 
@@ -94,10 +99,27 @@ export function createStallMonitor(
     }
     add(stopPoll)
 
+    const markProgress = (): void => {
+        lastProgressAt = Date.now()
+        lastProgressPosition = controller.currentTime
+    }
+
     const startPoll = (): void => {
         if (pollId != null) return
+        // Polls only while playback is observed — started on `playing`, stopped by `suspend` —
+        // which gates out initial load and post-seek buffering.
         pollId = setInterval(() => {
-            if (inStall || !observedPlaying) return
+            // The play head advanced without a `timeUpdate` reaching us yet (e.g. a long task
+            // delayed it past this poll): that's progress, not a freeze.
+            if (
+                controller.currentTime - lastProgressPosition >
+                PROGRESS_EPSILON
+            ) {
+                if (inStall) endStall(StallEndedReason.PLAYING)
+                markProgress()
+                return
+            }
+            if (inStall) return
             if (Date.now() - lastProgressAt >= stallThresholdMs) {
                 inStall = true
                 callbacks.onStallEntered()
@@ -109,7 +131,6 @@ export function createStallMonitor(
     // playback is observed again.
     const suspend = (reason: StallEndedReason): void => {
         endStall(reason)
-        observedPlaying = false
         stopPoll()
     }
 
@@ -120,8 +141,7 @@ export function createStallMonitor(
             // Whether resuming or freshly starting, the play head is advancing again, so restart the
             // freeze clock. Without this the poll could immediately re-detect a stall from the stale
             // pre-freeze timestamp before the first post-resume `timeUpdate` resets it.
-            lastProgressAt = Date.now()
-            observedPlaying = true
+            markProgress()
             startPoll()
         })
     )
@@ -133,7 +153,7 @@ export function createStallMonitor(
                 return
             // The play head advanced: close any open stall, then reset the freeze clock.
             if (inStall) endStall(StallEndedReason.PLAYING)
-            lastProgressAt = Date.now()
+            markProgress()
         })
     )
     add(controller.on('pause', () => suspend(StallEndedReason.PAUSE)))
