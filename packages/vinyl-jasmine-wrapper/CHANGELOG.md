@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
+
+### Bug Fixes
+
+- **jasmine-wrapper:** polyfill the built-ins jasmine needs on legacy browsers
+  ([8d50da4](https://github.com/amazonmusic/vinyl/commit/8d50da420f9d5cd3ab1c330d077a4b4f81764198))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.0.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v4.0.0) (2026-10-14)
 
 **Note:** Version bump only for package @amazon/vinyl-jasmine-wrapper
