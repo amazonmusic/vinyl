@@ -5,11 +5,11 @@
 
 import type { WorkerInitOptions } from '../browserstack/browserStackConfig'
 
-// Each entry names a fallbackBrowser on a slightly different OS so a worker
-// that can never establish a BrowserStack session (e.g. the local tunnel
-// intermittently fails to connect for Safari on macOS) retries on a nearby
-// platform rather than failing outright. Fallbacks stay within the same
-// browser/device family and OS family.
+// Each entry names a fallbackBrowser on a slightly different OS (or browser
+// release) so a worker that can never establish a BrowserStack session (e.g.
+// the local tunnel intermittently fails to connect for Safari on macOS) retries
+// on a nearby platform rather than failing outright. Fallbacks stay within the
+// same browser/device family and OS family.
 export const vinylSupportedBrowsers: readonly WorkerInitOptions[] = [
     {
         browser: 'chrome',
@@ -53,11 +53,13 @@ export const vinylSupportedBrowsers: readonly WorkerInitOptions[] = [
     {
         browser: 'edge',
         browser_version: 'latest',
+        // Windows 11 Edge hits BrowserStack's browser-unresponsive timeout, so
+        // fall back to the previous Edge release on Windows 10 instead.
         os: 'Windows',
-        os_version: '11',
+        os_version: '10',
         fallbackBrowser: {
             browser: 'edge',
-            browser_version: 'latest',
+            browser_version: 'latest-1',
             os: 'Windows',
             os_version: '10',
         },
