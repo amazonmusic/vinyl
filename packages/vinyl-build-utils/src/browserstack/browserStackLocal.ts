@@ -22,7 +22,17 @@ export function startBrowserStackLocal(
                 return
             }
             logger.info('Started BrowserStackLocal')
-            resolve(() => closeBsLocal(bsLocal))
+            // The binary runs as a detached daemon (`--daemon start`) that
+            // outlives this process, and `stop()` signals it asynchronously. If
+            // the process exits first (e.g. a second Ctrl+C, or process.exit()
+            // during teardown), terminate the daemon synchronously on exit.
+            const killOnExit = () => killBsLocalSync(bsLocal)
+            process.once('exit', killOnExit)
+            resolve(() =>
+                closeBsLocal(bsLocal).finally(() =>
+                    process.removeListener('exit', killOnExit)
+                )
+            )
         })
     })
 }
@@ -38,4 +48,19 @@ function closeBsLocal(bsLocal: BsLocal): Promise<void> {
             resolve()
         })
     })
+}
+
+/**
+ * Sends SIGTERM to the BrowserStackLocal daemon, if it was started. Synchronous,
+ * so it can run from an `exit` handler.
+ */
+function killBsLocalSync(bsLocal: BsLocal): void {
+    // `pid` is set by browserstack-local once the daemon connects, but isn't typed.
+    const { pid } = bsLocal as BsLocal & { readonly pid?: number }
+    if (!pid) return
+    try {
+        process.kill(pid, 'SIGTERM')
+    } catch {
+        // Already gone.
+    }
 }
