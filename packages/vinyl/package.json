@@ -1,6 +1,6 @@
 {
     "name": "@amazon/vinyl",
-    "version": "4.0.0",
+    "version": "4.1.0",
     "description": "An HTML5 streaming media player",
     "repository": {
         "type": "git",
@@ -93,18 +93,18 @@
         "oxlint:write": "oxlint --type-aware --fix"
     },
     "devDependencies": {
-        "@amazon/vinyl-browserstack": "^4.0.0",
-        "@amazon/vinyl-build-utils": "^4.0.0",
+        "@amazon/vinyl-browserstack": "^4.1.0",
+        "@amazon/vinyl-build-utils": "^4.1.0",
         "commander": "^15.0.0"
     },
     "dependencies": {
-        "@amazon/vinyl-di": "^4.0.0",
-        "@amazon/vinyl-hls-parser": "^4.0.0",
-        "@amazon/vinyl-mpd-parser": "^4.0.0",
-        "@amazon/vinyl-observable": "^4.0.0",
-        "@amazon/vinyl-transmux": "^4.0.0",
-        "@amazon/vinyl-util": "^4.0.0",
-        "@amazon/vinyl-validation": "^4.0.0"
+        "@amazon/vinyl-di": "^4.1.0",
+        "@amazon/vinyl-hls-parser": "^4.1.0",
+        "@amazon/vinyl-mpd-parser": "^4.1.0",
+        "@amazon/vinyl-observable": "^4.1.0",
+        "@amazon/vinyl-transmux": "^4.1.0",
+        "@amazon/vinyl-util": "^4.1.0",
+        "@amazon/vinyl-validation": "^4.1.0"
     },
     "publishConfig": {
         "access": "public"

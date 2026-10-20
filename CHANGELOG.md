@@ -3,6 +3,46 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
+
+### Features
+
+- **browserstack:** click the test page&#x27;s start prompt with trusted input
+  ([9e8acc8](https://github.com/amazonmusic/vinyl/commit/9e8acc840162c2952fb7a35a7328a47ef065bb4f))
+- **browserstack:** run integ suites locally with test:integ
+  ([6f6a479](https://github.com/amazonmusic/vinyl/commit/6f6a479829bb8e2de19525ff0d3f3215785cd8ec))
+- **browserstack:** run the local browsers in parallel by default
+  ([fbdc5ec](https://github.com/amazonmusic/vinyl/commit/fbdc5ecc9946407ee57e678914451d303e3775eb))
+
+### Bug Fixes
+
+- **browserstack:** close local browsers on a load error or SIGINT
+  ([9040de5](https://github.com/amazonmusic/vinyl/commit/9040de53269e7bab497cc50b89836abfbcc6ba9b))
+- **browserstack:** fail fast when Safari&#x27;s window is hidden and quit
+  sessions on any exit signal
+  ([1f88686](https://github.com/amazonmusic/vinyl/commit/1f8868676f45c833998c635ccb7d7cf86dabcb5d))
+- **browserstack:** report Widevine as unsupported at once in Playwright&#x27;s
+  Firefox
+  ([97bc03b](https://github.com/amazonmusic/vinyl/commit/97bc03b799c17893788fec008e6818ea874163fb))
+- **buffering:** set the timestamp offset after a new initialization segment
+  ([8bbf399](https://github.com/amazonmusic/vinyl/commit/8bbf3991a6b9b1a3a93cba1409ce6de75f31b865))
+- **jasmine-wrapper:** polyfill the built-ins jasmine needs on legacy browsers
+  ([8d50da4](https://github.com/amazonmusic/vinyl/commit/8d50da420f9d5cd3ab1c330d077a4b4f81764198))
+- **mse:** don&#x27;t remove source buffers a reopened media source already
+  dropped
+  ([5b5a663](https://github.com/amazonmusic/vinyl/commit/5b5a663726ef082b01ad7fdb9b698ad760d787b1))
+- **playback:** don&#x27;t report a late timeUpdate as a stall
+  ([41f93c2](https://github.com/amazonmusic/vinyl/commit/41f93c21374067d09acf72c018cd7c598dc57e7b))
+- **playback:** emit playing when a seek completes while playing on WebKit
+  ([6847c64](https://github.com/amazonmusic/vinyl/commit/6847c64ad302f7d64f7ea9aa6401d398b9a82111))
+- **playback:** emit waiting for a seek to an unbuffered position on Safari 27
+  ([3d1e4e9](https://github.com/amazonmusic/vinyl/commit/3d1e4e977f0735cf7fff149a4cd2623ce3e441aa))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.0.0](https://github.com/amazonmusic/vinyl/compare/v3.2.2...v4.0.0) (2026-10-14)
 
 ### ⚠ BREAKING CHANGES
