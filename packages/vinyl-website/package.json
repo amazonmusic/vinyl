@@ -42,7 +42,7 @@
         "stylelint": "^17.12.0",
         "stylelint-no-unsupported-browser-features": "^8.1.1",
         "typedoc": "^0.28.4",
-        "vite": "^8.0.16"
+        "vite": "^8.2.4"
     },
     "dependencies": {
         "@amazon/vinyl": "^4.1.0",
