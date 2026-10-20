@@ -156,28 +156,46 @@ export async function runSeleniumBrowserStack(
             shutdown().catch(logShutdownError)
     }
 
-    const sigIntHandler = () => {
-        logger.info('SIGINT signal received.')
+    let disposed = false
+
+    // Ctrl+C sends SIGINT; `kill` and closing the terminal send SIGTERM/SIGHUP.
+    // The first signal shuts down gracefully; a second one exits immediately
+    // (the tunnel's exit handler still terminates BrowserStackLocal).
+    const exitSignals = ['SIGINT', 'SIGTERM', 'SIGHUP'] as const
+    const signalHandler = (signal: NodeJS.Signals) => {
+        if (disposed) {
+            logger.info(`${signal} received again, exiting.`)
+            process.exit(1)
+        }
+        logger.info(`${signal} signal received.`)
         shutdown()
             .catch(logShutdownError)
             .finally(() => process.exit(1))
     }
-    process.once('SIGINT', sigIntHandler)
+    for (const signal of exitSignals) process.on(signal, signalHandler)
 
-    let disposed = false
     async function shutdown() {
         if (disposed) return
         disposed = true
         logger.clearSticky()
         logger.info(createProgressMessage())
         logger.debug('Shutting down')
-        process.removeListener('SIGINT', sigIntHandler)
 
         try {
-            await workerController.terminate()
-            await serverHandle.close()
-            await shutdownLocalTunnel()
+            // Stop the tunnel even if ending the sessions or the server fails,
+            // otherwise the BrowserStackLocal daemon is left running.
+            try {
+                await workerController.terminate()
+            } finally {
+                try {
+                    await serverHandle.close()
+                } finally {
+                    await shutdownLocalTunnel()
+                }
+            }
         } finally {
+            for (const signal of exitSignals)
+                process.removeListener(signal, signalHandler)
             // Report results even if teardown failed, otherwise the run hangs.
             const passed = workerController.allPassed
             if (passed) logger.info('✅ All tests passed')
