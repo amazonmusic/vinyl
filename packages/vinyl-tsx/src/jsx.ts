@@ -85,13 +85,34 @@ export type JsxElementProps<K extends keyof HTMLElementTagNameMap> =
     BindableElementProps<K> & HookExtensions
 
 export type DomIntrinsicElements = {
-    [K in keyof HTMLElementTagNameMap]: JsxElementProps<K>
+    [K in keyof HTMLElementTagNameMap]: JsxElementProps<K> & {
+        children?: JsxChild
+    }
 }
 
 /**
+ * The children a factory component accepts in markup, derived from its
+ * second parameter, optional or not. A component without a children parameter
+ * accepts none.
+ */
+export type ComponentChildren<C> = C extends (
+    props: any,
+    children: infer Ch
+) => any
+    ? 0 extends 1 & Ch
+        ? { children?: any }
+        : unknown extends Ch
+          ? { children?: never }
+          : NonNullable<Ch> extends readonly (infer E)[]
+            ? { children?: E | NonNullable<Ch> }
+            : unknown
+    : unknown
+
+/**
  * A child of a JSX element. Arrays, including nested arrays, are flattened, so
- * a list of elements or text can be passed without spreading it. Null and
- * undefined children are omitted.
+ * a list of elements or text can be passed without spreading it. Null,
+ * undefined, and false children are omitted, so conditional children such as
+ * `{v && v.text}` can be written inline. `true` is not allowed.
  */
 export type JsxChild =
     | Node
@@ -99,6 +120,7 @@ export type JsxChild =
     | ObservableValue<Node | string>
     | null
     | undefined
+    | false
     | readonly JsxChild[]
 
 export function jsx<K extends keyof HTMLElementTagNameMap>(
@@ -139,12 +161,12 @@ export function jsx(type: any, props: any, ...children: any) {
 
 /**
  * Converts JSX children to the nodes or text to append, flattening arrays and
- * omitting null and undefined children.
+ * omitting null, undefined, and false children.
  */
 function toNodes(children: readonly JsxChild[]): (Node | string)[] {
     const out: (Node | string)[] = []
     const add = (child: JsxChild) => {
-        if (child == null) return
+        if (child == null || child === false) return
         if (Array.isArray(child)) {
             for (const c of child as readonly JsxChild[]) add(c)
         } else if (isObservableValue(child)) {
@@ -175,5 +197,7 @@ declare global {
         type IntrinsicElements = DomIntrinsicElements
         type Element = HTMLElement
         type Fragment = HTMLElement
+        type ElementChildrenAttribute = { children: unknown }
+        type LibraryManagedAttributes<C, P> = P & ComponentChildren<C>
     }
 }

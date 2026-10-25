@@ -66,6 +66,54 @@ const container = (
 )
 ```
 
+### Children
+
+A child can be a `Node`, a string, an observable of either, or an array of
+children. Arrays, including nested arrays, are flattened, so lists don't need to
+be spread:
+
+```tsx
+const items = ['One', 'Two', 'Three']
+
+const list = (
+    <ul>
+        {items.map((item) => (
+            <li>{item}</li>
+        ))}
+    </ul>
+)
+```
+
+`null`, `undefined`, and `false` children are omitted and create no node, so
+optional content can be written inline:
+
+```tsx
+function Greeting(props: { readonly user?: { readonly name: string } }) {
+    return (
+        <p>
+            Hello{props.user && `, ${props.user.name}`}
+            {props.user === undefined && <a href="/login">Sign in</a>}
+        </p>
+    )
+}
+```
+
+Children are type-checked. `true`, numbers, and other values are compile errors;
+convert them explicitly:
+
+```tsx
+const count = 3
+const enabled = false as boolean
+
+<p>{count}</p> // Error: number is not a valid child
+<p>{String(count)}</p> // OK
+<p>{enabled}</p> // Error: boolean may be true
+<p>{enabled && 'Enabled'}</p> // OK
+```
+
+TypeScript widens a literal `false` written directly as a child to `boolean`, so
+`<p>{false}</p>` is also an error.
+
 ### Reactive Properties
 
 Use `@amazon/vinyl-observable` to create reactive properties that automatically
@@ -224,6 +272,31 @@ function Button({ text, onClick, variant = 'primary' }: ButtonProps) {
 }
 
 const myButton = <Button text="Click me" onClick={() => alert('Clicked!')} />
+```
+
+Components receive their children as the second argument, as written, without
+flattening. The type of that parameter determines which children the component
+accepts in markup; a component without one accepts none:
+
+```tsx
+import { type JsxChild } from '@amazon/vinyl-tsx'
+
+function Card(props: { readonly title: string }, children: JsxChild[]) {
+    return (
+        <section className="card">
+            <h2>{props.title}</h2>
+            {children}
+        </section>
+    )
+}
+
+const card = (
+    <Card title="Details">
+        <p>Body</p>
+    </Card>
+)
+
+<Button text="Hi" onClick={() => {}}>Child</Button> // Error: Button takes no children
 ```
 
 ## Conditional Rendering
