@@ -238,10 +238,10 @@ export function TransportBar(props: JsxElementProps<'div'>) {
                 />
                 <div className="transportTrackInfo">
                     <div className="trackTitle">
-                        {track$.map((t) => t?.title)}
+                        {track$.map((t) => t?.title ?? '')}
                     </div>
                     <div className="trackType">
-                        {track$.map((t) => t?.type)}
+                        {track$.map((t) => t?.type ?? '')}
                     </div>
                 </div>
                 <div className="transportActions">

@@ -40,8 +40,8 @@ describe('jsx', () => {
             expect(el.childNodes[0]).toBe(child)
         })
 
-        it('filters null children', () => {
-            const el = jsx('div', {}, null, undefined, 'hello')
+        it('filters null, undefined, and false children', () => {
+            const el = jsx('div', {}, null, undefined, false, 'hello')
             expect(el.childNodes.length).toBe(1)
         })
 
