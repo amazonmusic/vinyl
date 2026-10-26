@@ -82,19 +82,17 @@ body {
         letter-spacing: -0.02em;
         white-space: nowrap;
 
-        img {
-            width: 32px;
-            height: 32px;
+        align-items: flex-end;
+
+        .logoMark svg {
+            display: block;
+            height: 44px;
+            width: auto;
         }
 
-        .logoText {
-            display: flex;
-            flex-direction: column;
-            line-height: 1.1;
-
-            .versionTag {
-                margin-left: 0;
-            }
+        .versionTag {
+            margin-left: 0;
+            font-size: 11px;
         }
     }
 
@@ -192,16 +190,15 @@ body {
     margin-bottom: var(--space-xl);
 
     .heroLogo {
-        width: 256px;
-        height: 256px;
+        margin: 0;
         flex-shrink: 0;
-    }
+        color: var(--color-text-primary);
 
-    .heroTitle {
-        font-size: 28px;
-        font-weight: 700;
-        letter-spacing: -0.03em;
-        margin-bottom: var(--space-xs);
+        svg {
+            display: block;
+            height: 128px;
+            width: auto;
+        }
     }
 
     .heroSubtitle {
@@ -426,15 +423,19 @@ body {
     }
 
     .mobileTitle {
+        display: flex;
+        align-items: flex-end;
+        gap: var(--space-xs);
         font-size: 16px;
-        font-weight: 600;
         color: var(--color-text-primary);
+        text-decoration: none;
         flex: 1;
-    }
 
-    img {
-        width: 28px;
-        height: 28px;
+        .logoMark svg {
+            display: block;
+            height: 28px;
+            width: auto;
+        }
     }
 
     .mobileGithub {
@@ -502,9 +503,8 @@ body {
         align-items: center;
         text-align: center;
 
-        .heroLogo {
-            width: 160px;
-            height: 160px;
+        .heroLogo svg {
+            height: 96px;
         }
     }
 

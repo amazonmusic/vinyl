@@ -5,6 +5,7 @@
 
 import hljs from 'highlight.js'
 import type { PageMeta } from '../pageTemplate.ts'
+import { LOGO_SVG } from '../logo.ts'
 import { absoluteUrl, GITHUB_URL, SITE_NAME, withBase } from '../siteConfig.ts'
 
 const CHECK =
@@ -115,9 +116,8 @@ export function overviewContent(): string {
 
     return `<div class="page">
     <section class="heroSection">
-        <img src="${withBase('/img/logo-256.png')}" alt="Amazon Vinyl logo" class="heroLogo" width="128" height="128" />
+        <h1 class="heroLogo">${LOGO_SVG}</h1>
         <div class="heroText">
-            <h1 class="heroTitle">Amazon Vinyl</h1>
             <p class="heroSubtitle">A high-performance HTML5 streaming engine for DASH and HLS — with DRM, adaptive bitrate, and zero runtime dependencies.</p>
         </div>
     </section>
