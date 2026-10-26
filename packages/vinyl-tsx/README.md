@@ -215,6 +215,17 @@ const element = (
 )
 ```
 
+The callback receives the element typed by its tag, so element-specific APIs are
+available without a cast:
+
+```tsx
+const player = <video onConnect={(el) => void el.play()} /> // el: HTMLVideoElement
+```
+
+A JSX expression itself is always typed `JSX.Element` (`HTMLElement`);
+TypeScript can't type it per tag. Use `onConnect`, or call `jsx('video', {})`
+directly, when you need the specific element type.
+
 ### Event Handlers
 
 Touch and scroll events use passive listeners automatically:

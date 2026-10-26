@@ -149,5 +149,30 @@ describe('jsxMarkup', () => {
             const _d10 = <div tabIndex={data(1)} />
             const _d11 = <div tabIndex={1} />
         })
+
+        // Type checks only; never called.
+        function _onConnectTypes() {
+            const _o1 = (
+                <input
+                    onConnect={(el) => {
+                        el.value = 'a'
+                    }}
+                />
+            )
+            const _o2 = <video onConnect={(el) => void el.play()} />
+            const _o3 = <div onConnect={(el: HTMLElement) => void el} />
+            const _o4 = (
+                <div
+                    // @ts-expect-error Expected div to lack input properties
+                    onConnect={(el) => void el.value}
+                />
+            )
+            const _o5 = (
+                <div
+                    // @ts-expect-error Expected a div not to be an input
+                    onConnect={(el: HTMLInputElement) => void el}
+                />
+            )
+        }
     })
 })

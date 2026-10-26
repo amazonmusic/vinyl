@@ -21,7 +21,17 @@ const target: LogTarget = {
     logPrefix: 'TransportBar',
 }
 
-export function TransportBar(props: JsxElementProps<'div'>) {
+/**
+ * Props for the transport bar's root element. `className` and `onConnect` are
+ * set by the transport bar itself, so they're omitted to keep the spread props
+ * from overwriting them.
+ */
+export type TransportBarProps = Omit<
+    JsxElementProps<'footer'>,
+    'className' | 'onConnect'
+>
+
+export function TransportBar(props: TransportBarProps) {
     const {
         player,
         media,
