@@ -16,7 +16,7 @@ import { applyVisibility } from './extensions/applyVisibility'
 import { applyClassList } from './extensions/applyClassList'
 import type { HookExtension } from './extensions/HookExtension'
 import { passiveEventHandlers } from './extensions/applyPassiveHandler'
-import type { AnyRecord } from '@amazon/vinyl-util'
+import type { AnyRecord, Maybe, Unsubscribe } from '@amazon/vinyl-util'
 
 /**
  * Names like `aria-label` / `role` / `data-*` / any hyphenated prop are DOM
@@ -79,10 +79,22 @@ export type BindableElementProps<K extends keyof HTMLElementTagNameMap> =
     AllowBindable<ElementProps<K>>
 
 /**
+ * The hook extension properties for an element of type `E`. Hooks given the
+ * element receive it as `E`, so `<input onConnect={(el) => el.value} />` is
+ * typed as an `HTMLInputElement`.
+ */
+export type ElementHookExtensions<E extends HTMLElement> = Omit<
+    HookExtensions,
+    'onConnect'
+> & {
+    onConnect?: (node: E) => Maybe<Unsubscribe> | void
+}
+
+/**
  * Allowed properties for intrinsic elements when writing jsx declarative markup.
  */
 export type JsxElementProps<K extends keyof HTMLElementTagNameMap> =
-    BindableElementProps<K> & HookExtensions
+    BindableElementProps<K> & ElementHookExtensions<HTMLElementTagNameMap[K]>
 
 export type DomIntrinsicElements = {
     [K in keyof HTMLElementTagNameMap]: JsxElementProps<K> & {
