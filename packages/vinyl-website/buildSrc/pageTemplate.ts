@@ -4,6 +4,7 @@
  */
 
 import { escapeHtml } from './html.ts'
+import { LOGO_SVG } from './logo.ts'
 import {
     absoluteUrl,
     GITHUB_URL,
@@ -137,15 +138,14 @@ export function renderBody(options: {
     return `<div id="app">
 <header class="mobileHeader">
     <button class="menuBtn" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar"><span class="iconContainer" aria-hidden="true">${ICONS.menu}</span></button>
-    <img src="${withBase('/img/logo-64.png')}" alt="Amazon Vinyl logo" width="32" height="32" />
-    <span class="mobileTitle">Amazon Vinyl <span class="versionTag">v${escapeHtml(version)}</span></span>
+    <a class="mobileTitle" href="${withBase('/')}"><span class="logoMark">${LOGO_SVG}</span><span class="versionTag">v${escapeHtml(version)}</span></a>
     <a class="mobileGithub" href="${GITHUB_URL}" target="_blank" rel="noopener" aria-label="Amazon Vinyl on GitHub"><span class="iconContainer" aria-hidden="true">${ICONS.github}</span></a>
 </header>
 <div class="sidebarOverlay"></div>
 <aside class="sidebar" id="sidebar">
     <a class="logo" href="${withBase('/')}">
-        <img src="${withBase('/img/logo-64.png')}" alt="Amazon Vinyl logo" width="40" height="40" />
-        <span class="logoText"><span>Amazon Vinyl</span><span class="versionTag">v${escapeHtml(version)}</span></span>
+        <span class="logoMark">${LOGO_SVG}</span>
+        <span class="versionTag">v${escapeHtml(version)}</span>
     </a>
     <nav aria-label="Main navigation">
             ${navMarkup(activeNav)}
