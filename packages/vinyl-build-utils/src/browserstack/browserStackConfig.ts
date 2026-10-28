@@ -117,6 +117,14 @@ export interface BrowserStackOptions extends BrowserStackWorkerControllerOptions
     readonly stopOnFirstFailure?: boolean
 
     /**
+     * Runs every browser once per variant, adding the variant's query
+     * parameters to the test page url and its values to the session name.
+     * E.g. `[{ appendMode: 'segments' }, { appendMode: 'sequence' }]`.
+     * Default: a single run with no extra parameters.
+     */
+    readonly queryParamVariants?: readonly Readonly<Record<string, string>>[]
+
+    /**
      * Sets the log verbosity. Default: LogLevel.INFO
      */
     readonly logLevel?: LogLevel

@@ -56,6 +56,15 @@ export interface LocalBrowsersOptions {
     readonly queryParams?: Readonly<Record<string, string>>
 
     /**
+     * Used by {@link runLocalBrowsersAndExit}: runs the browsers once per
+     * variant, adding the variant's query parameters, e.g.
+     * `[{ appendMode: 'segments' }, { appendMode: 'sequence' }]`. A command line
+     * argument for a variant's parameter selects the matching variants only.
+     * Default: a single run.
+     */
+    readonly queryParamVariants?: readonly Readonly<Record<string, string>>[]
+
+    /**
      * Shows the Playwright browser windows. Default: false
      */
     readonly headed?: boolean
@@ -411,21 +420,69 @@ export function runLocalBrowsersAndExit(options: LocalBrowsersOptions): void {
               return name as LocalBrowserName
           })
         : options.browsers
-    runLocalBrowsers({
+    const runOptions: LocalBrowsersOptions = {
         ...options,
         ...(browserNames && { browsers: browserNames }),
         headed: 'headed' in properties || (options.headed ?? false),
         serial: 'serial' in properties || (options.serial ?? false),
-        queryParams: {
+    }
+    runVariants(
+        runOptions,
+        selectVariants(options.queryParamVariants, queryParams),
+        {
             ...options.queryParams,
             ...queryParams,
-        },
-    })
-        .then((result) => process.exit(result.passed ? 0 : 1))
+        }
+    )
+        .then((passed) => process.exit(passed ? 0 : 1))
         .catch((error: unknown) => {
             const message =
                 error instanceof Error ? error.message : String(error)
             console.error(ansi.red + message + ansi.resetColor)
             process.exit(1)
         })
+}
+
+/**
+ * Returns the variants whose parameters don't conflict with the given ones; at
+ * least one (empty) variant.
+ *
+ * @param variants The configured variants.
+ * @param queryParams Query parameters from the command line.
+ */
+export function selectVariants(
+    variants: readonly Readonly<Record<string, string>>[] | undefined,
+    queryParams: Readonly<Record<string, string>>
+): readonly Readonly<Record<string, string>>[] {
+    const selected = (variants ?? []).filter((variant) =>
+        Object.entries(variant).every(
+            ([name, value]) =>
+                !(name in queryParams) || queryParams[name] === value
+        )
+    )
+    return selected.length ? selected : [{}]
+}
+
+/**
+ * Runs the browsers once per variant, in turn. Resolves true if all passed.
+ */
+async function runVariants(
+    options: LocalBrowsersOptions,
+    variants: readonly Readonly<Record<string, string>>[],
+    queryParams: Readonly<Record<string, string>>
+): Promise<boolean> {
+    let passed = true
+    for (const variant of variants) {
+        const values = Object.entries(variant)
+        if (values.length)
+            logger.info(
+                `Running variant: ${values.map(([k, v]) => `${k}=${v}`).join(', ')}`
+            )
+        const result = await runLocalBrowsers({
+            ...options,
+            queryParams: { ...queryParams, ...variant },
+        })
+        passed &&= result.passed
+    }
+    return passed
 }
