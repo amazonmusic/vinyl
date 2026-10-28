@@ -70,6 +70,12 @@ export const vinylTestAssets = {
         vinyl_ad_breaks_av__list_mpd: `https://assets.dev.vinyl.music.amazon.dev/dash/list_mpd/stream.mpd`,
         vinyl_ad_breaks_av__altmpd_list: `https://assets.dev.vinyl.music.amazon.dev/dash/altmpd_list/stream.mpd`,
         vinyl_ad_breaks_av__xlink_remote_period: `https://assets.dev.vinyl.music.amazon.dev/dash/xlink_remote_period/stream.mpd`,
+        // A SegmentList@duration (the 3.75 s average) over variable-length video
+        // segments (8 × 4.5 s, 16 × 3 s, 8 × 4.5 s): MPD segment times are 6 s
+        // early at segment 8 and 6 s late at segment 24. `_sidx` is the same
+        // media with an exact SegmentBase. See DMTestAssetBuilder README.
+        approx_segment_list: `https://assets.dev.vinyl.music.amazon.dev/dash/approx_segment_list/stream.mpd`,
+        approx_segment_list_sidx: `https://assets.dev.vinyl.music.amazon.dev/dash/approx_segment_list/stream_sidx.mpd`,
     },
     hls: {
         live_static_video_audio_60s_2s: `https://assets.dev.vinyl.music.amazon.dev/hls/live_static_video_audio_60s_2s/main.m3u8`,

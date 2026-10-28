@@ -577,6 +577,12 @@ function createTimeline(
             timescale
         )
     })
+    const mediaTimeOffset = sampleToMpdTime(
+        0,
+        periodStart,
+        presentationTimeOffset,
+        timescale
+    )
     const n = mpdTimes.length - 1
     const out = new Array<DataSegmentRef>(n)
     for (let i = 0; i < n; i++) {
@@ -585,6 +591,7 @@ function createTimeline(
         out[i] = {
             data: dataProviderFactory(i, sampleTimes[i]),
             timestampOffset: startTime,
+            mediaTimeOffset,
             startTime: Math.max(periodStart, startTime),
             endTime: periodEnd == null ? endTime : Math.min(periodEnd, endTime),
         }

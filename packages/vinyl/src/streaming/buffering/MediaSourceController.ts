@@ -33,6 +33,7 @@ import type { ContentType } from '../MediaQualityMetadata'
 import type { MediaTimeline } from '../MediaTimeline'
 import { LIVE_DURATION } from '../../playback/PlaybackController'
 import { nextSourceBufferIdle } from '../../util/media/sourceBuffer'
+import type { AppendMode } from './AppendMode'
 
 /**
  * Chrome 52 has decoding errors when duration is set to the mediaPresentationDuration.
@@ -118,6 +119,14 @@ export interface MediaSourceController extends ReadonlyMediaSourceController {
     deactivate(): void
 }
 
+export interface MediaSourceControllerImplOptions {
+    /**
+     * The mode source buffers are created in.
+     * Default: 'segments'
+     */
+    readonly appendMode?: AppendMode | undefined
+}
+
 export interface MediaSourceControllerImplDeps {
     /**
      * Creates a new media source.
@@ -157,8 +166,14 @@ export class MediaSourceControllerImpl
      */
     private durationToken = 0
 
-    constructor(private readonly deps: MediaSourceControllerImplDeps) {
+    private readonly appendMode: AppendMode
+
+    constructor(
+        private readonly deps: MediaSourceControllerImplDeps,
+        options?: MediaSourceControllerImplOptions
+    ) {
         super()
+        this.appendMode = options?.appendMode ?? 'segments'
     }
 
     get active(): boolean {
@@ -309,7 +324,7 @@ export class MediaSourceControllerImpl
         } catch (error: any) {
             throw new MediaSourceError('error creating source buffer', error)
         }
-        sourceBuffer.mode = 'sequence'
+        sourceBuffer.mode = this.appendMode
         this.sourceBuffers.add(sourceBuffer)
         this.checkReady()
 

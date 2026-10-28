@@ -16,6 +16,16 @@ export interface MediaSegmentMetadata {
     readonly timestampOffset: number
 
     /**
+     * The time, in seconds, to add to the segment's media timestamps to place
+     * them on the presentation timeline, when the manifest defines it (DASH:
+     * `Period@start − presentationTimeOffset / timescale`). Used as the
+     * timestamp offset in `'segments'` append mode. When undefined, the
+     * offset is anchored from the media timestamps of the first segment
+     * appended in a continuous run.
+     */
+    readonly mediaTimeOffset?: number
+
+    /**
      * The start time of the segment, in seconds.
      * Relative to the MPD timeline.
      * Should be used as the append window start.

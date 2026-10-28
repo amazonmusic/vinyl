@@ -25,6 +25,7 @@ import {
 } from '@amazon/vinyl-util'
 import { setTestTimeout } from '@amazon/vinyl-util/browserTestUtil'
 import { MEDIA_VOLUME, mediaRef } from './mediaRef'
+import { withIntegAppendMode } from './integAppendMode'
 import { ANALYZER_VOLUME, shouldCheckAudio } from '../media/FrequencyAnalyzer'
 
 export interface VinylSuiteOptions {
@@ -135,7 +136,7 @@ export function createVinylSuite(
 ): VinylSuite {
     const suite = new VinylSuite(() => {
         return createVinylPlayer({
-            ...playerDependencyOptions,
+            ...withIntegAppendMode(playerDependencyOptions),
             media: mediaRef.value,
         })
     }, options)

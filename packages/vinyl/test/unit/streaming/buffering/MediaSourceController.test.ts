@@ -269,7 +269,17 @@ describe('MediaSourceControllerImpl', () => {
             expect(ref.value).toBe(mockSourceBuffer)
         })
 
-        it('sets source buffer mode to sequence', () => {
+        it('sets source buffer mode to segments by default', () => {
+            controller.createSourceBuffer('audio', 'audio/mp4')
+            expect(mockSourceBuffer.mode).toBe('segments')
+        })
+
+        it('sets source buffer mode to the configured append mode', () => {
+            controller.dispose()
+            controller = new MediaSourceControllerImpl(deps, {
+                appendMode: 'sequence',
+            })
+            controller.activate()
             controller.createSourceBuffer('audio', 'audio/mp4')
             expect(mockSourceBuffer.mode).toBe('sequence')
         })
