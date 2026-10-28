@@ -46,6 +46,31 @@ function generateNameForBrowser(browser: BrowserDetails): string {
         .join(' ')
 }
 
+/**
+ * Appends a variant's values to a session name, e.g. `Windows 11 chrome [sequence]`.
+ */
+export function variantName(
+    name: string,
+    variant: Readonly<Record<string, string>>
+): string {
+    const values = Object.values(variant)
+    return values.length ? `${name} [${values.join(', ')}]` : name
+}
+
+/**
+ * Adds query parameters to a url.
+ */
+export function withQueryParams(
+    url: string,
+    params: Readonly<Record<string, string>>
+): string {
+    const entries = Object.entries(params)
+    if (!entries.length) return url
+    const parsed = new URL(url)
+    for (const [name, value] of entries) parsed.searchParams.set(name, value)
+    return parsed.toString()
+}
+
 function logShutdownError(error: unknown): void {
     logger.error('Failed to shut down cleanly:', error)
 }
@@ -108,20 +133,30 @@ export async function runSeleniumBrowserStack(
     const client = new BrowserStackAutomateClient(bsCredentials)
 
     const build = `build-${crypto.randomUUID()}`
-    const workerOptions: WorkerOptions[] = options.browsers.map((browser) => {
-        const name = browser.name ?? generateNameForBrowser(browser)
-        let url =
-            browser.url ??
-            options.workerCommon?.url ??
-            serverHandle.https?.url ??
-            serverHandle.http!.url
-        // Safari and iOS do not route `localhost` through the BrowserStack Local
-        // tunnel; they must reach the test server via `bs-local.com`.
-        if (browser.browser === 'safari' || browser.os === 'ios') {
-            url = url.replace('//localhost', '//bs-local.com')
-        }
-        return { build, name, ...options.workerCommon, ...browser, url }
-    })
+    const variants = options.queryParamVariants ?? [{}]
+    const workerOptions: WorkerOptions[] = options.browsers.flatMap((browser) =>
+        variants.map((variant) => {
+            const baseName = browser.name ?? generateNameForBrowser(browser)
+            const name = variantName(baseName, variant)
+            let url =
+                browser.url ??
+                options.workerCommon?.url ??
+                serverHandle.https?.url ??
+                serverHandle.http!.url
+            // Safari and iOS do not route `localhost` through the BrowserStack Local
+            // tunnel; they must reach the test server via `bs-local.com`.
+            if (browser.browser === 'safari' || browser.os === 'ios') {
+                url = url.replace('//localhost', '//bs-local.com')
+            }
+            return {
+                build,
+                name,
+                ...options.workerCommon,
+                ...browser,
+                url: withQueryParams(url, variant),
+            }
+        })
+    )
 
     const workerController = new WebDriverWorkerController(
         { client, credentials: bsCredentials },
