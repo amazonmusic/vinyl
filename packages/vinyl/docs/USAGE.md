@@ -373,6 +373,31 @@ player.on('fetchedRangesChange', () => {
 setPrefetched(0)
 ```
 
+### Append Mode
+
+Media is appended in the MSE `'segments'` mode by default: each segment is
+placed by its own media timestamps. For DASH, the offset comes from the Period
+(`Period@start − presentationTimeOffset`); for HLS, it's anchored at the
+playlist time of the first segment in a continuous run. This keeps audio and
+video in sync when the manifest's segment times are only approximate, for
+example a `SegmentList@duration` over variable-length segments.
+
+`'sequence'` mode positions each run of appends at the manifest's segment start
+time instead, ignoring the media timestamps. It's kept for compatibility:
+
+```typescript
+const player = createVinylPlayer({
+    streaming: {
+        buffering: {
+            appendMode: 'sequence', // default: 'segments'
+        },
+    },
+})
+```
+
+With approximate manifest times, `'sequence'` mode shifts each track by its own
+error, so audio and video can go out of sync after a seek or quality switch.
+
 ## Quality Information
 
 Amazon Vinyl provides access to media quality information for different content

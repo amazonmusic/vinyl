@@ -119,7 +119,9 @@ export function createDashFactories(options: Maybe<DashInitOptions>) {
                     deps: DashMediaQualityMetadataResolverDeps
                 ) => createDefaultDashMediaQualityMetadataResolver(deps),
                 mediaSourceController: (deps: MediaSourceControllerImplDeps) =>
-                    new MediaSourceControllerImpl(deps),
+                    new MediaSourceControllerImpl(deps, {
+                        appendMode: options?.streaming?.buffering?.appendMode,
+                    }),
 
                 createContentStreamFactories: createDashContentStreamFactories(
                     options?.streaming

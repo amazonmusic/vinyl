@@ -221,6 +221,9 @@ describe('BufferingControllerImpl', () => {
             'video',
             {
                 minBuffer: MIN_BUFFER_TIME,
+                // The simulated source buffer below models sequence mode;
+                // segments mode is covered by BufferingControllerSegments.test.
+                appendMode: 'sequence',
                 ...options,
             }
         )

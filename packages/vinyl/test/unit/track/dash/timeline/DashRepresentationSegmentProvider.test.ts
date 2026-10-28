@@ -655,6 +655,19 @@ describe('createDashRepresentationSegmentProvider', () => {
                     })
                 })
 
+                it('maps media time with the presentation time offset', async () => {
+                    const timeline = createTimeline()
+                    const offsets: (number | undefined)[] = []
+                    let time = 0
+                    for (let i = 0; i < 6; i++) {
+                        const segment = (await timeline.getSegment(time))!
+                        offsets.push(segment.mediaTimeOffset)
+                        time = segment.endTime
+                    }
+                    // Period start (0) minus presentationTimeOffset (3000 / 1000).
+                    expect(offsets).toEqual(new Array(6).fill(-3))
+                })
+
                 describe('and timescale is not defined', () => {
                     beforeEach(() => {
                         delete representation.SegmentList!.timescale

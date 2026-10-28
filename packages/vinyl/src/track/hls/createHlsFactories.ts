@@ -109,7 +109,9 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 mediaSourceFactory: () => createMediaSource,
 
                 mediaSourceController: (deps: MediaSourceControllerImplDeps) =>
-                    new MediaSourceControllerImpl(deps),
+                    new MediaSourceControllerImpl(deps, {
+                        appendMode: options?.streaming?.buffering?.appendMode,
+                    }),
 
                 segmentRequestInit: () => loadOptions.segmentRequestInit,
 

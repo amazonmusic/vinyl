@@ -33,7 +33,10 @@ mode discontinuity check doesn't catch the jump either. Chromium
 (`FrameProcessor::Reset`) and Firefox (`TrackBuffersManager::ResetParserState`)
 implement the step.
 
-**Handling:** after appending a new initialization segment to a buffer that
+**Handling:** only affects `appendMode: 'sequence'`. In the default `'segments'`
+mode, media is placed by its timestamps (offset by the Period's
+`presentationTimeOffset` mapping), so appending at its media time is correct. In
+`'sequence'` mode, after appending a new initialization segment to a buffer that
 already holds media, `BufferingControllerImpl` sets `timestampOffset` to the end
 of the buffered segment, as sequence mode would. Covered by the
 `dash Period codec change integ` spec, which stalls at the boundary on WebKit

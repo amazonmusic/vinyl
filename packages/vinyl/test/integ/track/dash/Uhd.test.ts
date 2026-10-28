@@ -9,7 +9,12 @@ import {
     createVinylPlayer,
     type VinylTrackLoadOptions,
 } from '@amazon/vinyl'
-import { mediaRef, onEnded, VinylSuite } from '@amazon/vinyl/vinylTestUtil'
+import {
+    mediaRef,
+    onEnded,
+    VinylSuite,
+    withIntegAppendMode,
+} from '@amazon/vinyl/vinylTestUtil'
 
 import { sleep } from '@amazon/vinyl-util'
 import { hasBrowser } from '@amazon/vinyl-util'
@@ -31,6 +36,7 @@ describe('uhd integ', () => {
     const suite = new VinylSuite(() => {
         return createVinylPlayer(
             {
+                ...withIntegAppendMode({}),
                 media: mediaRef.value,
             },
             {

@@ -13,13 +13,17 @@ import {
     type Disposable,
     type Disposer,
     EventHostImpl,
+    getFragmentTimeRange,
     getLogLevel,
+    getMp4InitTiming,
     isSilentError,
     LinkedList,
     logDebug,
     LogLevel,
     logVerbose,
     logWarn,
+    type MediaTimeRange,
+    type Mp4InitTiming,
     type ReadonlyEventHost,
     throttle,
 } from '@amazon/vinyl-util'
@@ -35,6 +39,7 @@ import { type MediaSourceController } from './MediaSourceController'
 import { SEGMENT_START_AFFORDANCE } from '../SegmentController'
 import { SourceBufferError } from './error/SourceBufferError'
 import { denylistCodecsFromMimeType } from './codecDenylist'
+import type { AppendMode } from './AppendMode'
 
 /**
  * The interval to throttle polling the buffer.
@@ -58,6 +63,71 @@ export const MIN_APPEND_SIZE = 524288 // 512 * 1024
  * If the content type does not match a config setting.
  */
 export const DEFAULT_MAX_APPEND_SIZE = 10485760 // 10 * 1024 * 1024
+
+/**
+ * When buffering starts in 'segments' mode, a segment starting more than this
+ * after the playhead, in seconds, is replaced by the previous segment.
+ */
+export const ALIGN_TOLERANCE = 0.001
+
+/**
+ * The maximum number of segments stepped over to find the one at the playhead
+ * when buffering starts in 'segments' mode.
+ */
+export const MAX_ALIGN_STEPS = 8
+
+/**
+ * In 'segments' mode without a manifest-defined media time offset (HLS), the
+ * anchored offset is kept while appended media continues the buffered range
+ * within this tolerance, in seconds; otherwise it is re-anchored (e.g. at a
+ * discontinuity).
+ */
+export const ANCHOR_TOLERANCE = 0.1
+
+/**
+ * A segment in the source buffer, with the presentation time range it was
+ * appended at.
+ */
+interface BufferedSegment {
+    readonly segment: SegmentReference<ArrayBuffer>
+
+    /**
+     * The presentation start time. In 'segments' mode this comes from the media
+     * timestamps when they can be read; otherwise it's the manifest time.
+     */
+    readonly startTime: number
+
+    /**
+     * The presentation end time.
+     */
+    readonly endTime: number
+}
+
+/**
+ * Where a segment is appended in 'segments' mode.
+ */
+interface SegmentPlacement {
+    /**
+     * The source buffer timestamp offset.
+     */
+    readonly offset: number
+    readonly startTime: number
+    readonly endTime: number
+}
+
+/**
+ * Parsed init segment timing, by init data.
+ */
+const initTimings = new WeakMap<ArrayBuffer, Mp4InitTiming | null>()
+
+function getInitTiming(initData: ArrayBuffer): Mp4InitTiming | null {
+    let timing = initTimings.get(initData)
+    if (timing === undefined) {
+        timing = getMp4InitTiming(initData)
+        initTimings.set(initData, timing)
+    }
+    return timing
+}
 
 export interface BufferingControllerEventMap {
     /**
@@ -184,6 +254,12 @@ export interface BufferingControllerImplOptions {
      * Default: { audio: 10MiB, video: 150MiB }
      */
     readonly maxAppendSize: Partial<Record<ContentType, number>>
+
+    /**
+     * How appended media is positioned on the presentation timeline.
+     * Default: 'segments'
+     */
+    readonly appendMode: AppendMode
 }
 
 const defaultBufferingControllerOptions = {
@@ -192,6 +268,7 @@ const defaultBufferingControllerOptions = {
         audio: 10485760, // 10 * 1024 * 1024
         video: 157286400, // 150 * 1024 * 1024
     },
+    appendMode: 'segments',
 } as const satisfies BufferingControllerImplOptions
 
 /**
@@ -221,8 +298,13 @@ export class BufferingControllerImpl
     /**
      * The currently buffered segments.
      */
-    private buffered = new LinkedList<SegmentReference<ArrayBuffer>>()
+    private buffered = new LinkedList<BufferedSegment>()
     private appendOffset = 0
+
+    /**
+     * The timestamp offset last set on the source buffer in 'segments' mode.
+     */
+    private timestampOffset: number | null = null
 
     /**
      * The currently buffering quality.
@@ -396,15 +478,19 @@ export class BufferingControllerImpl
     /**
      * The buffered segment at the playhead.
      */
-    private get head(): SegmentReference<ArrayBuffer> | undefined {
+    private get head(): BufferedSegment | undefined {
         return this.buffered.head?.value
     }
 
     /**
      * The most recently buffered segment.
      */
-    private get tail(): SegmentReference<ArrayBuffer> | undefined {
+    private get tail(): BufferedSegment | undefined {
         return this.buffered.tail?.value
+    }
+
+    private get segmentsMode(): boolean {
+        return this.options.appendMode === 'segments'
     }
 
     protected async appendNext(): Promise<void> {
@@ -416,15 +502,28 @@ export class BufferingControllerImpl
         let streamingSegment: SegmentReference<ArrayBuffer> | null
         // If appendOffset is less than the last buffered segment size, this indicates a partial append, continue
         // buffering the last segment.
-        if (tail && this.appendOffset < tail.data.byteLength) {
-            streamingSegment = tail
+        if (tail && this.appendOffset < tail.segment.data.byteLength) {
+            streamingSegment = tail.segment
         } else {
             streamingSegment = await this.segmentController.getSegment(
                 // If buffering is a continuation from the previous segment, use its end time.
                 // Otherwise, start streaming from slightly behind the playhead.
-                tail?.endTime ?? time - SEGMENT_START_AFFORDANCE,
+                tail?.segment.endTime ?? time - SEGMENT_START_AFFORDANCE,
                 this.segmentAbort.value
             )
+            // Align by media time where the manifest maps media time to
+            // presentation time (DASH); otherwise (HLS) the playlist time is the
+            // reference.
+            if (
+                streamingSegment?.mediaTimeOffset != null &&
+                !tail &&
+                this.segmentsMode
+            ) {
+                streamingSegment = await this.alignToTime(
+                    streamingSegment,
+                    time
+                )
+            }
             logVerbose(this, 'streamingSegment', streamingSegment)
             if (streamingSegment) this.appendOffset = 0
         }
@@ -447,7 +546,28 @@ export class BufferingControllerImpl
             )
             this.decoderId = streamingSegment.quality.decoderId
         }
-        if (!tail) {
+        const firstAppend = this.appendOffset === 0
+        let bufferedSegment: BufferedSegment = {
+            segment: streamingSegment,
+            startTime: streamingSegment.startTime,
+            endTime: streamingSegment.endTime,
+        }
+        if (this.segmentsMode) {
+            if (firstAppend) {
+                const placement = this.placeSegment(streamingSegment, tail)
+                if (placement.offset !== this.timestampOffset) {
+                    await sourceBufferController.setTimestampOffset(
+                        placement.offset
+                    )
+                    this.timestampOffset = placement.offset
+                }
+                bufferedSegment = {
+                    segment: streamingSegment,
+                    startTime: placement.startTime,
+                    endTime: placement.endTime,
+                }
+            }
+        } else if (!tail) {
             // Appending from an unbuffered position.
             await sourceBufferController.setTimestampOffset(
                 streamingSegment.timestampOffset
@@ -478,7 +598,6 @@ export class BufferingControllerImpl
         // segment: the playhead draining the buffer widens the budget, which
         // would otherwise re-append what is already buffered.
         const remaining = byteLength - this.appendOffset
-        const firstAppend = this.appendOffset === 0
         if (remaining > appendSize) {
             const newOffset = this.appendOffset + appendSize
             const chunk = streamingSegment.data.slice(
@@ -487,7 +606,7 @@ export class BufferingControllerImpl
             )
             await sourceBufferController.append(chunk)
             if (firstAppend) {
-                this.buffered.push(streamingSegment)
+                this.buffered.push(bufferedSegment)
             }
             this.appendOffset = newOffset
             logVerbose(
@@ -502,10 +621,114 @@ export class BufferingControllerImpl
             )
             this.appendOffset = byteLength
             if (firstAppend) {
-                this.buffered.push(streamingSegment)
+                this.buffered.push(bufferedSegment)
             }
         }
         if (!tail) this.refreshHead() // Update quality immediately if buffer was empty
+    }
+
+    /**
+     * Returns the segment's media time range from its timestamps, or null if
+     * they can't be read (e.g. WebM).
+     */
+    private getMediaTimeRange(
+        segment: SegmentReference<ArrayBuffer>
+    ): MediaTimeRange | null {
+        const timing = getInitTiming(segment.initData)
+        return timing && getFragmentTimeRange(segment.data, timing)
+    }
+
+    /**
+     * Returns where a segment is appended in 'segments' mode: the media
+     * timestamps offset by the manifest's media time offset (DASH), or, without
+     * one (HLS), by an offset anchored so the segment starts at its manifest
+     * time, kept while appends continue the buffered range.
+     *
+     * @param segment The segment to place.
+     * @param tail The last buffered segment, if the append continues it.
+     */
+    private placeSegment(
+        segment: SegmentReference<ArrayBuffer>,
+        tail: BufferedSegment | undefined
+    ): SegmentPlacement {
+        const range = this.getMediaTimeRange(segment)
+        let offset: number
+        if (segment.mediaTimeOffset != null) {
+            offset = segment.mediaTimeOffset
+        } else if (range) {
+            const expectedStart = tail?.endTime ?? segment.startTime
+            const current = this.timestampOffset
+            offset =
+                tail &&
+                current != null &&
+                Math.abs(current + range.start - expectedStart) <=
+                    ANCHOR_TOLERANCE
+                    ? current
+                    : expectedStart - range.start
+        } else {
+            offset = segment.timestampOffset
+        }
+        return range
+            ? {
+                  offset,
+                  startTime: offset + range.start,
+                  endTime: offset + range.end,
+              }
+            : { offset, startTime: segment.startTime, endTime: segment.endTime }
+    }
+
+    /**
+     * When buffering starts in 'segments' mode, returns the segment whose media
+     * covers `time`. The manifest's segment times may be approximate (e.g.
+     * `SegmentList@duration`), so the segment it picks can start after or end
+     * before the playhead; steps to the previous or next segment until one
+     * covers it.
+     */
+    private async alignToTime(
+        segment: SegmentReference<ArrayBuffer>,
+        time: number
+    ): Promise<SegmentReference<ArrayBuffer>> {
+        let current = segment
+        let prior = segment
+        let direction = 0
+        for (let i = 0; i < MAX_ALIGN_STEPS; i++) {
+            const { startTime, endTime } = this.placeSegment(current, undefined)
+            const step =
+                startTime > time + ALIGN_TOLERANCE && current.startTime > 0
+                    ? -1
+                    : endTime <= time
+                      ? 1
+                      : 0
+            if (step === 0) break
+            if (step === -direction) {
+                // The media has a gap at the playhead; use the later segment.
+                if (step > 0) current = prior
+                break
+            }
+            direction = step
+            const next = await this.segmentController.getSegment(
+                step < 0
+                    ? current.startTime -
+                          SEGMENT_START_AFFORDANCE -
+                          ALIGN_TOLERANCE
+                    : current.endTime,
+                this.segmentAbort.value
+            )
+            if (
+                !next ||
+                (step < 0
+                    ? next.startTime >= current.startTime
+                    : next.startTime <= current.startTime)
+            )
+                break
+            logDebug(
+                this,
+                `aligned to the ${step < 0 ? 'previous' : 'next'} segment for time: ${time.toFixed(4)}`
+            )
+            prior = current
+            current = next
+        }
+        return current
     }
 
     private abortCurrentSegment() {
@@ -524,7 +747,7 @@ export class BufferingControllerImpl
             // The playhead has passed the end of the head segment.
             this.buffered.shift()
         }
-        this.playbackQuality = this.head?.quality ?? null
+        this.playbackQuality = this.head?.segment.quality ?? null
     }
 
     private getMaxAppendSize(contentType: ContentType): number {
@@ -727,6 +950,7 @@ export class BufferingControllerImpl
 
     private resetBufferedState() {
         this.decoderId = null
+        this.timestampOffset = null
         this.appendOffset = 0
         this.buffered.clear()
         this._bufferingEnded = false
