@@ -22,14 +22,18 @@ const locale = {
 
 const REDACTED = '[redacted]'
 
-const CREDENTIAL_HEADER =
-    /^(authorization|proxy-authorization|x-amz-access-token|cookie|set-cookie|x-api-key|.*csrf.*)$/i
+/**
+ * Matches header and field names that carry a credential, such as `Authorization`,
+ * `x-amz-access-token`, `Set-Cookie`, `x-api-key`, `X-CSRF-Token` or `client_secret`.
+ */
+const SECRET_KEY =
+    /token|secret|passw(?:or)?d|authori[sz]ation|auth(?!or)|cookie|api[-_]?key|[cx]srf|credential|verifier/i
 
-const SECRET_FIELD =
-    /^(refresh_token|access_token|id_token|code_verifier|client_secret)$/i
-
+/**
+ * Matches a `name=value` or `"name": "value"` assignment whose name matches {@link SECRET_KEY}.
+ */
 const SECRET_ASSIGNMENT =
-    /((?:refresh_token|access_token|id_token|code_verifier|client_secret)["']?\s*[:=]\s*["']?)[^&#\s"',}]+/gi
+    /([\w-]*(?:token|secret|passw(?:or)?d|authori[sz]ation|auth(?!or)|cookie|api[-_]?key|[cx]srf|credential|verifier)[\w-]*["']?\s*[:=]\s*["']?)[^&#\s"',}]+/gi
 const QUERY_CODE = /([?&#]code=)[^&#\s"']*/gi
 const BEARER = /\b(Bearer\s+)[^\s"',]+/gi
 
@@ -57,7 +61,7 @@ function redactValue(value: unknown, redactText: RedactText): unknown {
     for (const [key, entry] of Object.entries(
         value as Record<string, unknown>
     )) {
-        out[key] = SECRET_FIELD.test(key)
+        out[key] = SECRET_KEY.test(key)
             ? REDACTED
             : redactValue(entry, redactText)
     }
@@ -73,7 +77,7 @@ function redactHeaders(
         value: string
     ): [string, string] => [
         name,
-        CREDENTIAL_HEADER.test(name) ? REDACTED : redactText(value),
+        SECRET_KEY.test(name) ? REDACTED : redactText(value),
     ]
     if (Array.isArray(headers)) {
         return headers.map(([name, value]) => redactHeaderEntry(name, value))

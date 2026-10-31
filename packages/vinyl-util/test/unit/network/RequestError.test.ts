@@ -208,6 +208,44 @@ describe('RequestError', () => {
             })
         })
 
+        it('masks any header, field or query value with a credential name', () => {
+            const e = new RequestError(null, {
+                ...emptyNetworkError,
+                requestInfo: {
+                    ...emptyNetworkError.requestInfo,
+                    input: 'https://a.test/p?X-Amz-Security-Token=sekrit&apiKey=sekrit&keep=1',
+                    init: {
+                        headers: {
+                            'X-Auth-Token': 'sekrit',
+                            'x-goog-api-key': 'sekrit',
+                            'X-XSRF-TOKEN': 'sekrit',
+                            'Content-Type': 'text/plain',
+                            'X-Request-Id': 'id-1',
+                        },
+                    },
+                },
+                reason: {
+                    password: 'sekrit',
+                    sessionToken: 'sekrit',
+                    clientCredentials: 'sekrit',
+                    author: 'kept',
+                },
+            })
+            const json = e.toJSON() as any
+            expect(JSON.stringify(json)).not.toContain('sekrit')
+            const { info } = json
+            expect(info.requestInfo.input).toBe(
+                'https://a.test/p?X-Amz-Security-Token=[redacted]&apiKey=[redacted]&keep=1'
+            )
+            expect(Object.fromEntries(info.requestInfo.init.headers)).toEqual(
+                jasmine.objectContaining({
+                    'Content-Type': 'text/plain',
+                    'X-Request-Id': 'id-1',
+                })
+            )
+            expect(info.reason.author).toBe('kept')
+        })
+
         it('masks credential headers given as Headers or pairs', () => {
             for (const headers of [
                 new Headers({ Authorization: 'Bearer sekrit' }),
