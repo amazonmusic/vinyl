@@ -22,14 +22,23 @@ const locale = {
 
 const REDACTED = '[redacted]'
 
-const CREDENTIAL_HEADER =
-    /^(authorization|proxy-authorization|x-amz-access-token|cookie|set-cookie|x-api-key|.*csrf.*)$/i
+/**
+ * Matches header and field names that carry a credential, such as `Authorization`,
+ * `x-amz-access-token`, `Set-Cookie`, `x-api-key`, `X-CSRF-Token` or `client_secret`.
+ */
+const SECRET_KEY =
+    /token|secret|passw(?:or)?d|authori[sz]ation|auth(?!or)|cookie|api[-_]?key|[cx]srf|credential|verifier/i
 
-const SECRET_FIELD =
-    /^(refresh_token|access_token|id_token|code_verifier|client_secret)$/i
+/**
+ * Matches the `name=` or `"name": "` of an assignment. The name must start the text or follow a
+ * non-name character, so a long name is scanned once rather than from every offset.
+ */
+const ASSIGNMENT_NAME = /(?:^|[^\w-])([\w-]+)["']?\s*[:=]\s*["']?/g
 
-const SECRET_ASSIGNMENT =
-    /((?:refresh_token|access_token|id_token|code_verifier|client_secret)["']?\s*[:=]\s*["']?)[^&#\s"',}]+/gi
+/**
+ * Matches an assignment value, from the end of {@link ASSIGNMENT_NAME}.
+ */
+const ASSIGNMENT_VALUE = /[^&#\s"',}]+/y
 const QUERY_CODE = /([?&#]code=)[^&#\s"']*/gi
 const BEARER = /\b(Bearer\s+)[^\s"',]+/gi
 
@@ -42,10 +51,32 @@ export type RedactText = (text: string) => string
  * Masks token and secret values in free text, such as a URL, a form body or a JSON string.
  */
 export function defaultRedactText(text: string): string {
-    return text
-        .replace(SECRET_ASSIGNMENT, `$1${REDACTED}`)
+    return redactAssignments(text)
         .replace(QUERY_CODE, `$1${REDACTED}`)
         .replace(BEARER, `$1${REDACTED}`)
+}
+
+/**
+ * Masks the values of assignments with a secret name.
+ * Only a secret name consumes its value, so a URL such as `https://a.test/p?token=x` is still
+ * scanned past the `https:`.
+ */
+function redactAssignments(text: string): string {
+    let out = ''
+    let end = 0
+    ASSIGNMENT_NAME.lastIndex = 0
+    for (
+        let match = ASSIGNMENT_NAME.exec(text);
+        match;
+        match = ASSIGNMENT_NAME.exec(text)
+    ) {
+        if (!SECRET_KEY.test(match[1])) continue
+        ASSIGNMENT_VALUE.lastIndex = ASSIGNMENT_NAME.lastIndex
+        if (!ASSIGNMENT_VALUE.test(text)) continue
+        out += text.slice(end, ASSIGNMENT_NAME.lastIndex) + REDACTED
+        end = ASSIGNMENT_NAME.lastIndex = ASSIGNMENT_VALUE.lastIndex
+    }
+    return out + text.slice(end)
 }
 
 function redactValue(value: unknown, redactText: RedactText): unknown {
@@ -57,7 +88,7 @@ function redactValue(value: unknown, redactText: RedactText): unknown {
     for (const [key, entry] of Object.entries(
         value as Record<string, unknown>
     )) {
-        out[key] = SECRET_FIELD.test(key)
+        out[key] = SECRET_KEY.test(key)
             ? REDACTED
             : redactValue(entry, redactText)
     }
@@ -73,7 +104,7 @@ function redactHeaders(
         value: string
     ): [string, string] => [
         name,
-        CREDENTIAL_HEADER.test(name) ? REDACTED : redactText(value),
+        SECRET_KEY.test(name) ? REDACTED : redactText(value),
     ]
     if (Array.isArray(headers)) {
         return headers.map(([name, value]) => redactHeaderEntry(name, value))
