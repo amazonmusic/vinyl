@@ -12,6 +12,7 @@ import type {
     RequestCompletedEvent,
     RequesterImplEventMap,
 } from '../RequesterImplEventMap'
+import { redactText } from '../redactText'
 import { truncate } from '../../util/string/string'
 import { createLogPrefix, type LogTarget } from '../../logging/LogTarget'
 
@@ -96,17 +97,11 @@ export function networkLoggingHandler(
 }
 
 /**
- * Returns the URL string of the request.
+ * Returns the URL string of the request with secret query values masked.
  * @param input
  */
 function getInputUrl(input: RequestInfo | URL): string {
-    let url: string | null
-    if (input instanceof URL) {
-        url = input.toString()
-    } else if (typeof input === 'string') {
-        url = input
-    } else {
-        url = input.url
-    }
-    return url
+    if (input instanceof URL) return redactText(input.toString())
+    if (typeof input === 'string') return redactText(input)
+    return redactText(input.url)
 }

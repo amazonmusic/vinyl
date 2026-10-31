@@ -137,4 +137,40 @@ describe('networkLoggingHandler', () => {
             }
         )
     })
+
+    it('masks secret query values in the logged url', () => {
+        const event = clone(emptyRequestSuccessEvent)
+        event.requestInfo.input =
+            'https://example.com/auth?code=abc123&refresh_token=r-secret&access_token=a-secret&id_token=i-secret&code_verifier=v-secret&client_secret=c-secret&keep=yes'
+        networkLoggingHandler(requester)
+        requester.dispatch('requestAttemptStart', event)
+        requester.dispatch('requestAttemptComplete', event)
+        const urls = loggerRef.value.debug.calls
+            .allArgs()
+            .map(
+                (args) =>
+                    (args[3] as { requestInfo: { url: string } }).requestInfo
+                        .url
+            )
+        expect(urls.length).toBe(2)
+        for (const url of urls) {
+            expect(url).toBe(
+                'https://example.com/auth?code=[redacted]&refresh_token=[redacted]&access_token=[redacted]&id_token=[redacted]&code_verifier=[redacted]&client_secret=[redacted]&keep=yes'
+            )
+        }
+    })
+
+    it('masks secrets when the input is a URL or a Request', () => {
+        const event = clone(emptyRequestSuccessEvent)
+        networkLoggingHandler(requester)
+        event.requestInfo.input = new URL('https://example.com/a?code=abc123')
+        requester.dispatch('requestAttemptStart', event)
+        event.requestInfo.input = new Request(
+            'https://example.com/b?refresh_token=r-secret'
+        )
+        requester.dispatch('requestAttemptStart', event)
+        const logged = JSON.stringify(loggerRef.value.debug.calls.allArgs())
+        expect(logged).not.toContain('abc123')
+        expect(logged).not.toContain('r-secret')
+    })
 })
