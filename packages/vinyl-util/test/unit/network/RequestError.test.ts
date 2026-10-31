@@ -141,6 +141,156 @@ describe('RequestError', () => {
         })
     })
 
+    describe('toJSON credential redaction', () => {
+        const tokenRefreshError = new RequestError(null, {
+            ...emptyResponseError,
+            requestInfo: {
+                ...emptyResponseError.requestInfo,
+                requestId: 'req-1',
+                timestamp: 1234,
+                input: 'https://api.example.com/auth/token?code=abc123&keep=1',
+                init: {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        Authorization: 'Bearer sekrit-bearer',
+                        'x-amz-access-token': 'sekrit-atz',
+                        Cookie: 'session=sekrit-cookie',
+                        'Set-Cookie': 'session=sekrit-cookie',
+                        'x-api-key': 'sekrit-key',
+                        'X-CSRF-Token': 'sekrit-csrf',
+                    },
+                    body: 'grant_type=refresh_token&refresh_token=sekrit-refresh&client_secret=sekrit-client',
+                },
+            },
+            responseInfo: {
+                ...emptyResponseError.responseInfo,
+                status: 400,
+                url: 'https://api.example.com/auth/token?access_token=sekrit-access',
+            },
+            reason: '{"error":"invalid_grant","refresh_token":"sekrit-refresh"}',
+        })
+
+        it('serializes a failed token refresh without any secret', () => {
+            const json = JSON.stringify(tokenRefreshError.toJSON())
+            expect(json).not.toMatch(/sekrit/)
+        })
+
+        it('keeps the method, url, status, request id and timing', () => {
+            const { info } = tokenRefreshError.toJSON() as any
+            expect(info.requestInfo.init.method).toBe('POST')
+            expect(info.requestInfo.input).toBe(
+                'https://api.example.com/auth/token?code=[redacted]&keep=1'
+            )
+            expect(info.requestInfo.requestId).toBe('req-1')
+            expect(info.requestInfo.timestamp).toBe(1234)
+            expect(info.responseInfo.status).toBe(400)
+            expect(info.responseInfo.url).toBe(
+                'https://api.example.com/auth/token?access_token=[redacted]'
+            )
+        })
+
+        it('drops the request body', () => {
+            const { info } = tokenRefreshError.toJSON() as any
+            expect('body' in info.requestInfo.init).toBeFalse()
+        })
+
+        it('masks credential headers and keeps the others', () => {
+            const { info } = tokenRefreshError.toJSON() as any
+            expect(Object.fromEntries(info.requestInfo.init.headers)).toEqual({
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Authorization: '[redacted]',
+                'x-amz-access-token': '[redacted]',
+                Cookie: '[redacted]',
+                'Set-Cookie': '[redacted]',
+                'x-api-key': '[redacted]',
+                'X-CSRF-Token': '[redacted]',
+            })
+        })
+
+        it('masks credential headers given as Headers or pairs', () => {
+            for (const headers of [
+                new Headers({ Authorization: 'Bearer sekrit' }),
+                [['Authorization', 'Bearer sekrit']] as [string, string][],
+            ]) {
+                const e = new RequestError(null, {
+                    ...emptyNetworkError,
+                    requestInfo: {
+                        ...emptyNetworkError.requestInfo,
+                        init: { headers },
+                    },
+                })
+                expect(JSON.stringify(e.toJSON())).not.toContain('sekrit')
+            }
+        })
+
+        it('masks every token query value of a URL or Request input', () => {
+            for (const input of [
+                new URL(
+                    'https://a.test/p?refresh_token=sekrit&id_token=sekrit&code_verifier=sekrit&client_secret=sekrit#x'
+                ),
+                new Request('https://a.test/p?access_token=sekrit'),
+            ]) {
+                const e = new RequestError(null, {
+                    ...emptyNetworkError,
+                    requestInfo: { ...emptyNetworkError.requestInfo, input },
+                })
+                const json = JSON.stringify(e.toJSON())
+                expect(json).not.toContain('sekrit')
+                expect(json).toContain('https://a.test/p')
+            }
+        })
+
+        it('masks secrets in an error reason', () => {
+            const e = new RequestError(null, {
+                ...emptyInternalError,
+                reason: new Error('failed: Bearer sekrit-token'),
+            })
+            expect(JSON.stringify(e.toJSON())).not.toContain('sekrit')
+        })
+
+        it('masks secrets inside an array reason', () => {
+            const e = new RequestError(null, {
+                ...emptyInternalError,
+                reason: ['access_token=sekrit', 7],
+            })
+            const { info } = e.toJSON() as any
+            expect(info.reason).toEqual(['access_token=[redacted]', 7])
+        })
+
+        it('masks text values with an injected redactText', () => {
+            const e = new RequestError(
+                null,
+                {
+                    ...emptyInternalError,
+                    requestInfo: {
+                        ...emptyInternalError.requestInfo,
+                        input: 'https://a.test/p?custom=sekrit',
+                    },
+                    reason: 'custom=sekrit',
+                },
+                (text) => text.replace('sekrit', 'masked')
+            )
+            const { info } = e.toJSON() as any
+            expect(info.requestInfo.input).toBe(
+                'https://a.test/p?custom=masked'
+            )
+            expect(info.reason).toBe('custom=masked')
+        })
+
+        it('masks secret fields of an object reason', () => {
+            const e = new RequestError(null, {
+                ...emptyInternalError,
+                reason: { refresh_token: 'sekrit', error: 'invalid_grant' },
+            })
+            const { info } = e.toJSON() as any
+            expect(info.reason).toEqual({
+                refresh_token: '[redacted]',
+                error: 'invalid_grant',
+            })
+        })
+    })
+
     describe('ErrorOrigin', () => {
         it('returns SERVICE_EXTERNAL for a 500 RequestError', () => {
             expect(

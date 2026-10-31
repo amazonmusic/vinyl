@@ -78,3 +78,13 @@ export function getResponseInfo(response: Response): ResponseInfo {
         contentLength,
     }
 }
+
+/**
+ * Returns the URL string of the request.
+ * @param input
+ */
+export function getInputUrl(input: RequestInfo | URL): string {
+    if (input instanceof URL) return input.href
+    if (typeof input === 'string') return input
+    return input.url
+}

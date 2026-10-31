@@ -26,7 +26,7 @@ import type {
     RequestSuccessEvent,
 } from './RequesterImplEventMap'
 import { RequestFailureType } from './RequesterImplEventMap'
-import { RequestError } from './RequestError'
+import { type RedactText, RequestError } from './RequestError'
 import {
     getResponseInfo,
     parseRetryAfter,
@@ -147,6 +147,12 @@ export function getBackoffTime(
 export interface RequesterImplDeps {
     readonly fetch: Fetch
     readonly networkMetricsController: NetworkMetricsController
+
+    /**
+     * Masks secrets in the serialized form of a {@link RequestError}.
+     * Default: `defaultRedactText`
+     */
+    readonly redactText?: RedactText
 }
 
 export const RetryStrategy = {
@@ -331,7 +337,12 @@ export class RequesterImpl
         }
         this.dispatch('requestComplete', lastResult.info)
         if (lastResult.info.ok) return lastResult.response!
-        else throw new RequestError(lastResult.response, lastResult.info)
+        else
+            throw new RequestError(
+                lastResult.response,
+                lastResult.info,
+                this.deps.redactText
+            )
     }
 
     /**
