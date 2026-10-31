@@ -12,6 +12,7 @@ import type {
     RequestCompletedEvent,
     RequesterImplEventMap,
 } from '../RequesterImplEventMap'
+import { getInputUrl } from '../requesterUtil'
 import { truncate } from '../../util/string/string'
 import { createLogPrefix, type LogTarget } from '../../logging/LogTarget'
 
@@ -93,20 +94,4 @@ export function networkLoggingHandler(
         target,
         dispose,
     }
-}
-
-/**
- * Returns the URL string of the request.
- * @param input
- */
-function getInputUrl(input: RequestInfo | URL): string {
-    let url: string | null
-    if (input instanceof URL) {
-        url = input.toString()
-    } else if (typeof input === 'string') {
-        url = input
-    } else {
-        url = input.url
-    }
-    return url
 }

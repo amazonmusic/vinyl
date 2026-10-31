@@ -904,6 +904,38 @@ describe('RequesterImpl module', () => {
             })
         })
 
+        describe('when the input is a Request with a body', () => {
+            it('gives every attempt a fresh, unused request', async () => {
+                const bodies: string[] = []
+                const fetch = createSpy('fetch').and.callFake(
+                    async (input: Request) => {
+                        if (input.bodyUsed)
+                            throw new TypeError('Request body already used')
+                        bodies.push(await input.text())
+                        return bodies.length === 1
+                            ? mock503Response
+                            : mockOkResponse
+                    }
+                )
+                const requester = new RequesterImpl({
+                    networkMetricsController,
+                    fetch,
+                })
+                requester.configure({ retryOptions: { retries: 1 } })
+                const input = new Request('https://example.com', {
+                    method: 'POST',
+                    body: 'payload',
+                })
+
+                const pending = requester.request(input)
+                await clock.tick(0)
+
+                expect(await pending).toBe(mockOkResponse)
+                expect(bodies).toEqual(['payload', 'payload'])
+                expect(input.bodyUsed).toBeFalse()
+            })
+        })
+
         describe('options', () => {
             it('returns the current options', () => {
                 const fetch: Fetch = () => Promise.resolve(mockOkResponse)

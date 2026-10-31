@@ -26,7 +26,7 @@ import type {
     RequestSuccessEvent,
 } from './RequesterImplEventMap'
 import { RequestFailureType } from './RequesterImplEventMap'
-import { RequestError } from './RequestError'
+import { type RedactText, RequestError } from './RequestError'
 import {
     getResponseInfo,
     parseRetryAfter,
@@ -147,6 +147,12 @@ export function getBackoffTime(
 export interface RequesterImplDeps {
     readonly fetch: Fetch
     readonly networkMetricsController: NetworkMetricsController
+
+    /**
+     * Masks secrets in the serialized form of a {@link RequestError}.
+     * Default: `defaultRedactText`
+     */
+    readonly redactText?: RedactText
 }
 
 export const RetryStrategy = {
@@ -331,7 +337,12 @@ export class RequesterImpl
         }
         this.dispatch('requestComplete', lastResult.info)
         if (lastResult.info.ok) return lastResult.response!
-        else throw new RequestError(lastResult.response, lastResult.info)
+        else
+            throw new RequestError(
+                lastResult.response,
+                lastResult.info,
+                this.deps.redactText
+            )
     }
 
     /**
@@ -379,10 +390,12 @@ export class RequesterImpl
         // waiting for the fetch when the signal is aborted.
         let failureReason: any = null
         const response: Response | null = await withAbort(
-            deps.fetch(requestInfo.input, requestInfo.init).catch((reason) => {
-                failureReason = reason
-                return null
-            }),
+            deps
+                .fetch(freshInput(requestInfo.input), requestInfo.init)
+                .catch((reason) => {
+                    failureReason = reason
+                    return null
+                }),
             requestOptions.abort
         )
         if (response?.ok)
@@ -475,6 +488,18 @@ export class RequesterImpl
                 : null,
         })
     }
+}
+
+/**
+ * A Request body can be read once, so each attempt fetches a clone and the
+ * original stays unused for the next.
+ */
+function freshInput(
+    input: RequestInfo | Readonly<URL>
+): RequestInfo | Readonly<URL> {
+    return typeof Request !== 'undefined' && input instanceof Request
+        ? input.clone()
+        : input
 }
 
 export const nativeFetchRef = globalRef<Fetch>(() => {
