@@ -307,6 +307,15 @@ export class BufferingControllerImpl
     private timestampOffset: number | null = null
 
     /**
+     * When buffering last started from an empty buffer: the playhead time,
+     * and the start time the first segment was placed at.
+     */
+    private bufferedFrom: {
+        readonly time: number
+        readonly startTime: number
+    } | null = null
+
+    /**
      * The currently buffering quality.
      */
     private _bufferingQuality: MediaQualityMetadata | null = null
@@ -624,7 +633,15 @@ export class BufferingControllerImpl
                 this.buffered.push(bufferedSegment)
             }
         }
-        if (!tail) this.refreshHead() // Update quality immediately if buffer was empty
+        if (!tail) {
+            if (firstAppend) {
+                this.bufferedFrom = {
+                    time,
+                    startTime: bufferedSegment.startTime,
+                }
+            }
+            this.refreshHead() // Update quality immediately if buffer was empty
+        }
     }
 
     /**
@@ -921,7 +938,19 @@ export class BufferingControllerImpl
         // The source buffer allows multiple ranges, but buffering produces a
         // single contiguous range in practice.
         const range = buffered.ranges[0]
-        return time < range[0] - 0.01 || time > range[1] + 0.5
+        if (time > range[1] + 0.5) return true
+        if (time >= range[0] - 0.01) return false
+        // The playhead is before the buffer. If buffering started for a time at
+        // or before the playhead and the buffer still begins where its first
+        // segment was placed, the gap is in the media itself (e.g. a first
+        // frame presented after its segment's start). Re-appending would place
+        // the media the same way, so clearing would loop.
+        const from = this.bufferedFrom
+        return (
+            from == null ||
+            time < from.time - 0.01 ||
+            range[0] > from.startTime + 0.01
+        )
     }
 
     /**
@@ -951,6 +980,7 @@ export class BufferingControllerImpl
     private resetBufferedState() {
         this.decoderId = null
         this.timestampOffset = null
+        this.bufferedFrom = null
         this.appendOffset = 0
         this.buffered.clear()
         this._bufferingEnded = false
