@@ -9,6 +9,7 @@ import {
     ErrorOrigin,
     ReportableError,
     RequestError,
+    RequestFailureType,
 } from '@amazon/vinyl-util'
 import { expectPrototype } from '@amazon/vinyl-util/browserTestUtil'
 import {
@@ -138,6 +139,23 @@ describe('RequestError', () => {
                     },
                 }
             )
+        })
+
+        it('serializes an event without a request input, init or response url', () => {
+            const e = new RequestError(new Response(null, { status: 500 }), {
+                type: RequestFailureType.RESPONSE,
+                willRetry: false,
+                requestInfo: { maxRetries: 0 },
+                attemptInfo: { currentTry: 1 },
+                responseInfo: { status: 500 },
+            } as any)
+            expect(JSON.parse(JSON.stringify(e)).info).toEqual({
+                type: RequestFailureType.RESPONSE,
+                willRetry: false,
+                requestInfo: { maxRetries: 0, init: {} },
+                attemptInfo: { currentTry: 1 },
+                responseInfo: { status: 500 },
+            })
         })
     })
 
