@@ -6,8 +6,10 @@
 import { ErrorOrigin } from '../error/ErrorOrigin'
 import { ErrorLevel, ReportableError } from '../error/ReportableError'
 import {
+    type FetchRequestInfo,
     type RequestErrorEvent,
     RequestFailureType,
+    type ResponseInfo,
 } from './RequesterImplEventMap'
 import { getInputUrl } from './requesterUtil'
 import { isPlainObject } from '../util/object/object'
@@ -121,6 +123,37 @@ function redactHeaders(
     )
 }
 
+// An event built outside the requester may omit fields the constructor never reads, and toJSON
+// runs inside the logger, so the request and response redaction must not throw on one.
+function redactRequestInfo(
+    requestInfo: Partial<FetchRequestInfo>,
+    redactText: RedactText
+): Json {
+    const { input, init = {}, ...rest } = requestInfo
+    const { body: _body, headers, ...initRest } = init
+    return {
+        ...toJson(rest),
+        ...(input === undefined
+            ? {}
+            : { input: redactText(getInputUrl(input)) }),
+        init: {
+            ...toJson(initRest),
+            ...(headers ? { headers: redactHeaders(headers, redactText) } : {}),
+        },
+    }
+}
+
+function redactResponseInfo(
+    responseInfo: Partial<ResponseInfo>,
+    redactText: RedactText
+): Json {
+    const { url, ...rest } = responseInfo
+    return {
+        ...toJson(rest),
+        ...(url === undefined ? {} : { url: redactText(url) }),
+    }
+}
+
 /**
  * The serializable form of a request failure that carries no credentials: the request body is
  * dropped, credential headers and secret query values are masked.
@@ -130,28 +163,14 @@ function redactErrorInfo(
     redactText: RedactText
 ): Json {
     const { requestInfo, ...rest } = info
-    const { input, init, ...requestRest } = requestInfo
-    const { body: _body, headers, ...initRest } = init
     const json: Record<string, unknown> = toJson(rest)
     json.reason = redactValue(json.reason, redactText)
     if (info.type === RequestFailureType.RESPONSE) {
-        json.responseInfo = {
-            ...info.responseInfo,
-            url: redactText(info.responseInfo.url),
-        }
+        json.responseInfo = redactResponseInfo(info.responseInfo, redactText)
     }
     return {
         ...json,
-        requestInfo: {
-            ...toJson(requestRest),
-            input: redactText(getInputUrl(input)),
-            init: {
-                ...toJson(initRest),
-                ...(headers
-                    ? { headers: redactHeaders(headers, redactText) }
-                    : {}),
-            },
-        },
+        requestInfo: redactRequestInfo(requestInfo, redactText),
     }
 }
 
