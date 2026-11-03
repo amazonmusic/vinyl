@@ -240,6 +240,86 @@ describe('fragmentTime', () => {
             ).toEqual({ start: 1, end: 1.2 })
         })
 
+        it('returns the presentation range of reordered samples', () => {
+            // B-frames without an edit list (e.g. Apple's HLS interstitial
+            // sample): decode order I P B B, each 1 unit, with composition
+            // offsets delaying the first presented sample by 1 unit.
+            const trun = fullBox(
+                'trun',
+                0,
+                0x900,
+                uint32(4, 1, 1, 1, 3, 1, 0, 1, 0)
+            )
+            const traf = box(
+                'traf',
+                fullBox('tfhd', 0, 0, uint32(1)),
+                fullBox('tfdt', 0, 0, uint32(30)),
+                trun
+            )
+            const range = getFragmentTimeRange(box('moof', traf).buffer, timing)
+            expect(range!.start).toBeCloseTo(31 / 30, 10)
+            expect(range!.end).toBeCloseTo(35 / 30, 10)
+        })
+
+        it('reads signed version 1 composition offsets', () => {
+            // Offsets normalized so the first presented sample is at its
+            // decode time; the last sample is presented 1 unit early.
+            const trun = fullBox(
+                'trun',
+                1,
+                0x900,
+                uint32(3, 1, 0, 1, 1, 1, -1 >>> 0)
+            )
+            const traf = box(
+                'traf',
+                fullBox('tfhd', 0, 0, uint32(1)),
+                fullBox('tfdt', 0, 0, uint32(30)),
+                trun
+            )
+            const range = getFragmentTimeRange(box('moof', traf).buffer, timing)
+            expect(range!.start).toBe(1)
+            expect(range!.end).toBeCloseTo(1.1, 10)
+        })
+
+        it('applies composition offsets with default durations', () => {
+            // Composition offsets only; durations from the tfhd.
+            const trun = fullBox('trun', 0, 0x800, uint32(2, 6, 0))
+            const traf = box(
+                'traf',
+                fullBox('tfhd', 0, 0x08, uint32(1, 3)),
+                fullBox('tfdt', 0, 0, uint32(0)),
+                trun
+            )
+            const range = getFragmentTimeRange(box('moof', traf).buffer, timing)
+            expect(range!.start).toBeCloseTo(0.1, 10)
+            expect(range!.end).toBeCloseTo(0.3, 10)
+        })
+
+        it('returns an empty range at the decode time without samples', () => {
+            const traf = box(
+                'traf',
+                fullBox('tfhd', 0, 0, uint32(1)),
+                fullBox('tfdt', 0, 0, uint32(30)),
+                fullBox('trun', 0, 0x100, uint32(0))
+            )
+            expect(
+                getFragmentTimeRange(box('moof', traf).buffer, timing)
+            ).toEqual({ start: 1, end: 1 })
+        })
+
+        it('continues decode times across truns', () => {
+            const traf = box(
+                'traf',
+                fullBox('tfhd', 0, 0, uint32(1)),
+                fullBox('tfdt', 0, 0, uint32(30)),
+                fullBox('trun', 0, 0x100, uint32(1, 15)),
+                fullBox('trun', 0, 0x100, uint32(1, 15))
+            )
+            expect(
+                getFragmentTimeRange(box('moof', traf).buffer, timing)
+            ).toEqual({ start: 1, end: 2 })
+        })
+
         it('reads 64-bit and to-end box sizes', () => {
             const inner = new Uint8Array(
                 moof({ decodeTime: 30, durations: [30] })
