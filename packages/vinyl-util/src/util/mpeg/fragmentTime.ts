@@ -9,16 +9,20 @@
  */
 
 /**
- * A time range in a track's media timeline, in seconds.
+ * A presentation time range in a track's media timeline, in seconds.
+ *
+ * Sample presentation times are their decode times plus their composition
+ * time offsets, as MSE reports buffered ranges. Edit lists are not applied.
  */
 export interface MediaTimeRange {
     /**
-     * The decode time of the first sample.
+     * The earliest presentation time of the samples.
      */
     readonly start: number
 
     /**
-     * The decode time after the last sample.
+     * The latest presentation end time (presentation time plus duration) of
+     * the samples.
      */
     readonly end: number
 }
@@ -134,8 +138,8 @@ export function getMp4InitTiming(init: ArrayBuffer): Mp4InitTiming | null {
 }
 
 /**
- * Returns the media decode time range covered by the fragments (`moof`) in a
- * media segment, in seconds. Returns null if the data has no fragments or
+ * Returns the media presentation time range covered by the fragments (`moof`)
+ * in a media segment, in seconds. Returns null if the data has no fragments or
  * can't be read (e.g. WebM).
  *
  * Uses the first track fragment of each `moof`; segments for MSE carry one
@@ -169,7 +173,8 @@ export function getFragmentTimeRange(
 }
 
 /**
- * Returns a track fragment's `[start, end]` decode time in timescale units.
+ * Returns a track fragment's `[start, end]` presentation time in timescale
+ * units.
  */
 function readTrackFragment(
     view: DataView,
@@ -178,7 +183,7 @@ function readTrackFragment(
 ): [number, number] | null {
     let baseDecodeTime: number | null = null
     let defaultDuration = timing.defaultSampleDuration
-    let duration = 0
+    const truns: Box[] = []
     for (const box of children(view, traf.start, traf.end)) {
         const versionAndFlags = view.getUint32(box.start)
         const version = versionAndFlags >>> 24
@@ -194,25 +199,55 @@ function readTrackFragment(
             if (flags & 0x02) p += 4 // sample_description_index
             if (flags & 0x08) defaultDuration = view.getUint32(p)
         } else if (box.type === 'trun') {
-            const sampleCount = view.getUint32(box.start + 4)
-            let p = box.start + 8
-            if (flags & 0x01) p += 4 // data_offset
-            if (flags & 0x04) p += 4 // first_sample_flags
-            if (flags & 0x100) {
-                const stride =
-                    4 +
-                    (flags & 0x200 ? 4 : 0) +
-                    (flags & 0x400 ? 4 : 0) +
-                    (flags & 0x800 ? 4 : 0)
-                for (let i = 0; i < sampleCount; i++) {
-                    duration += view.getUint32(p)
-                    p += stride
-                }
-            } else {
-                duration += sampleCount * defaultDuration
-            }
+            truns.push(box)
         }
     }
     if (baseDecodeTime === null) return null
-    return [baseDecodeTime, baseDecodeTime + duration]
+    let decodeTime = baseDecodeTime
+    let start = Number.POSITIVE_INFINITY
+    let end = Number.NEGATIVE_INFINITY
+    for (const trun of truns) {
+        const versionAndFlags = view.getUint32(trun.start)
+        const version = versionAndFlags >>> 24
+        const flags = versionAndFlags & 0xffffff
+        const sampleCount = view.getUint32(trun.start + 4)
+        let p = trun.start + 8
+        if (flags & 0x01) p += 4 // data_offset
+        if (flags & 0x04) p += 4 // first_sample_flags
+        const hasDuration = (flags & 0x100) !== 0
+        const hasOffset = (flags & 0x800) !== 0
+        if (!hasDuration && !hasOffset) {
+            // Every sample starts at its decode time.
+            if (sampleCount) {
+                start = Math.min(start, decodeTime)
+                decodeTime += sampleCount * defaultDuration
+                end = Math.max(end, decodeTime)
+            }
+            continue
+        }
+        for (let i = 0; i < sampleCount; i++) {
+            let duration = defaultDuration
+            if (hasDuration) {
+                duration = view.getUint32(p)
+                p += 4
+            }
+            if (flags & 0x200) p += 4 // sample_size
+            if (flags & 0x400) p += 4 // sample_flags
+            let offset = 0
+            if (hasOffset) {
+                // Signed in version 1, unsigned in version 0.
+                offset = version === 1 ? view.getInt32(p) : view.getUint32(p)
+                p += 4
+            }
+            const presentationTime = decodeTime + offset
+            start = Math.min(start, presentationTime)
+            end = Math.max(end, presentationTime + duration)
+            decodeTime += duration
+        }
+    }
+    if (start === Number.POSITIVE_INFINITY) {
+        // No samples: an empty range at the decode time.
+        return [baseDecodeTime, baseDecodeTime]
+    }
+    return [start, end]
 }
