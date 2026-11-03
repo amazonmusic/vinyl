@@ -78,14 +78,23 @@ function createInit(): ArrayBuffer {
  * A media segment with one fragment covering `[start, end)` seconds of media
  * time, padded to `size` bytes.
  */
-function createFragment(start: number, end: number, size = 0): ArrayBuffer {
+function createFragment(
+    start: number,
+    end: number,
+    size = 0,
+    compositionOffset = 0
+): ArrayBuffer {
     const tfdt = fullBox('tfdt', 0, uint32(Math.round(start * TIMESCALE)))
-    // One sample, with its duration present (flag 0x100).
-    const trun = fullBox(
-        'trun',
-        0x100,
-        uint32(1, Math.round((end - start) * TIMESCALE))
-    )
+    const duration = Math.round((end - start) * TIMESCALE)
+    // One sample, with its duration (flag 0x100) and, if any, its composition
+    // time offset (flag 0x800) present.
+    const trun = compositionOffset
+        ? fullBox(
+              'trun',
+              0x900,
+              uint32(1, duration, Math.round(compositionOffset * TIMESCALE))
+          )
+        : fullBox('trun', 0x100, uint32(1, duration))
     const moof = box(
         'moof',
         box('traf', fullBox('tfhd', 0, uint32(1)), tfdt, trun)
@@ -99,8 +108,10 @@ interface SegmentSpec {
     /** Manifest start and end times. */
     readonly start: number
     readonly end: number
-    /** Media timestamps of the segment's samples; null for non-mp4 data. */
+    /** Media decode times of the segment's samples; null for non-mp4 data. */
     readonly media: readonly [number, number] | null
+    /** The samples' composition time offset, in seconds. */
+    readonly compositionOffset?: number
     readonly mediaTimeOffset?: number
     readonly decoderId?: string
     readonly size?: number
@@ -142,7 +153,12 @@ describe('BufferingControllerImpl in segments mode', () => {
             const segment: MockSegment = {
                 initData,
                 data: spec.media
-                    ? createFragment(spec.media[0], spec.media[1], spec.size)
+                    ? createFragment(
+                          spec.media[0],
+                          spec.media[1],
+                          spec.size,
+                          spec.compositionOffset
+                      )
                     : new ArrayBuffer(spec.size ?? 1),
                 timestampOffset: spec.start,
                 ...(spec.mediaTimeOffset != null
@@ -386,6 +402,40 @@ describe('BufferingControllerImpl in segments mode', () => {
             expect(sourceBufferController.buffered.ranges).toEqual([[0, 20]])
         })
 
+        it('anchors the first presented frame at the manifest time', async () => {
+            // B-frames without an edit list: the first frame is presented one
+            // frame after its decode time (e.g. Apple's HLS interstitials
+            // sample after a preroll).
+            setSegments([
+                {
+                    start: 0,
+                    end: 10,
+                    media: [100, 110],
+                    compositionOffset: 0.04,
+                },
+                {
+                    start: 10,
+                    end: 20,
+                    media: [110, 120],
+                    compositionOffset: 0.04,
+                },
+            ])
+            await open()
+            await setTime(0)
+            await setTime(9)
+            const [[start, end]] = sourceBufferController.buffered.ranges
+            expect(start).toBeCloseTo(0, 6)
+            expect(end).toBeCloseTo(20, 6)
+            expect(sourceBufferController.clear).not.toHaveBeenCalled()
+            // Anchored by presentation time (MSE's buffered ranges), not the
+            // decode time.
+            const offsets = sourceBufferController.setTimestampOffset.calls
+                .allArgs()
+                .map(([offset]) => offset)
+            expect(offsets.length).toBe(1)
+            expect(offsets[0]).toBeCloseTo(-100.04, 6)
+        })
+
         it('keeps the anchor within the tolerance', async () => {
             setSegments([
                 { start: 0, end: 10, media: [100, 110] },
@@ -534,6 +584,63 @@ describe('BufferingControllerImpl in segments mode', () => {
             expect(segmentController.getSegment).toHaveBeenCalledTimes(
                 MAX_ALIGN_STEPS + 1
             )
+        })
+    })
+
+    describe('a gap before the buffer', () => {
+        it('is not cleared at the start of the media', async () => {
+            setSegments([
+                { start: 0, end: 10, media: [0.05, 10], mediaTimeOffset: 0 },
+            ])
+            await open()
+            for (let i = 0; i < 5; i++) await setTime(0)
+            expect(sourceBufferController.clear).not.toHaveBeenCalled()
+            // Buffering started from the playhead once.
+            const starts = segmentController.getSegment.calls
+                .allArgs()
+                .filter(([time]) => time < 0)
+            expect(starts.length).toBe(1)
+            expect(sourceBufferController.buffered.ranges).toEqual([[0.05, 10]])
+        })
+
+        it('is not cleared when the media has a gap at the playhead', async () => {
+            setSegments([
+                { start: 0, end: 10, media: [0, 9], mediaTimeOffset: 0 },
+                { start: 10, end: 20, media: [11, 20], mediaTimeOffset: 0 },
+            ])
+            playbackController.currentTime = 10
+            await open()
+            for (let i = 0; i < 5; i++) await setTime(10.5)
+            expect(sourceBufferController.clear).not.toHaveBeenCalled()
+            expect(sourceBufferController.buffered.ranges).toEqual([[11, 20]])
+        })
+
+        it('is cleared after a seek before where buffering started', async () => {
+            setSegments([
+                { start: 0, end: 10, media: [0, 9], mediaTimeOffset: 0 },
+                { start: 10, end: 20, media: [11, 20], mediaTimeOffset: 0 },
+            ])
+            playbackController.currentTime = 10
+            await open()
+            await setTime(2)
+            await clock.tick(0)
+            await clock.tick(0)
+            expect(sourceBufferController.clear).toHaveBeenCalledTimes(1)
+            expect(sourceBufferController.buffered.ranges[0]).toEqual([0, 9])
+        })
+
+        it('is cleared when the buffer no longer starts where it was placed', async () => {
+            setSegments([
+                { start: 0, end: 10, media: [0, 10], mediaTimeOffset: 0 },
+                { start: 10, end: 20, media: [10, 20], mediaTimeOffset: 0 },
+            ])
+            await open()
+            await setTime(9)
+            // The browser evicted the start of the buffer.
+            sourceBufferController.buffered.clear()
+            sourceBufferController.buffered.add(5, 20)
+            await setTime(1)
+            expect(sourceBufferController.clear).toHaveBeenCalledTimes(1)
         })
     })
 
