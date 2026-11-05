@@ -32,20 +32,38 @@ export function createUrlHlsManifestProvider(
         // Use the response URL (after redirects) as the base for resolving
         // relative URIs and for resolving #EXT-X-DEFINE:QUERYPARAM tokens.
         const baseUrl = mainResponse.url || url
-        const mainPlaylist = parseMainPlaylist(
-            mainText,
-            parseQueryParams(baseUrl)
+        const queryParams = parseQueryParams(baseUrl)
+
+        // The URL may be a media playlist rather than a multivariant playlist
+        // (e.g. a podcast host serving one rendition). Play it as the only
+        // variant, reusing the playlist already fetched.
+        const mediaPlaylist: HlsMediaPlaylistData | null = isMediaPlaylist(
+            mainText
         )
+            ? {
+                  ...parseMediaPlaylist(mainText, undefined, queryParams),
+                  baseUrl,
+              }
+            : null
+        const mainPlaylist: HlsMainPlaylist = mediaPlaylist
+            ? {
+                  variants: [{ bandwidth: 0, uri: baseUrl }],
+                  alternativeRenditions: [],
+                  sessionData: [],
+              }
+            : parseMainPlaylist(mainText, queryParams)
 
         const getMediaPlaylist = memoize(
             (uri: string) =>
-                fetchMediaPlaylist({
-                    uri,
-                    baseUrl,
-                    defines: mainPlaylist.defines,
-                    requestInit,
-                    abort,
-                }),
+                mediaPlaylist && uri === baseUrl
+                    ? Promise.resolve(mediaPlaylist)
+                    : fetchMediaPlaylist({
+                          uri,
+                          baseUrl,
+                          defines: mainPlaylist.defines,
+                          requestInit,
+                          abort,
+                      }),
             (uri) => uri
         )
 
@@ -90,6 +108,17 @@ export async function fetchMediaPlaylist(
         ...parseMediaPlaylist(text, defines, queryParams),
         baseUrl: playlistUrl,
     }
+}
+
+/**
+ * Returns true if the playlist is a media playlist: it lists media segments
+ * (RFC 8216 §4.3.3) rather than variant streams.
+ */
+export function isMediaPlaylist(text: string): boolean {
+    return (
+        /^#EXT(INF|-X-TARGETDURATION)\b/m.test(text) &&
+        !/^#EXT-X-STREAM-INF\b/m.test(text)
+    )
 }
 
 /**

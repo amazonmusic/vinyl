@@ -3,7 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createUrlHlsManifestProvider, fetchMediaPlaylist } from '@amazon/vinyl'
+import {
+    createUrlHlsManifestProvider,
+    fetchMediaPlaylist,
+    isMediaPlaylist,
+} from '@amazon/vinyl'
 import { Abort, requesterWithRetryRef } from '@amazon/vinyl-util'
 import { MockRequester } from '@amazon/vinyl-util/testUtil'
 
@@ -97,6 +101,44 @@ describe('createUrlHlsManifestProvider', () => {
         expect(String(secondCall[0])).toBe(
             'https://example.com/path/audio.m3u8'
         )
+    })
+
+    describe('given a media playlist', () => {
+        beforeEach(() => {
+            mockRequester.request.and.callFake(() =>
+                Promise.resolve(new Response(mediaM3u8))
+            )
+        })
+
+        it('plays it as the only variant', async () => {
+            const provider = createUrlHlsManifestProvider(
+                'https://example.com/rendition/playlist.m3u8'
+            )
+            const data = await provider()
+            expect(data.mainPlaylist.variants).toEqual([
+                {
+                    bandwidth: 0,
+                    uri: 'https://example.com/rendition/playlist.m3u8',
+                },
+            ])
+            expect(data.mainPlaylist.alternativeRenditions).toEqual([])
+        })
+
+        it('serves the variant from the playlist already fetched', async () => {
+            const provider = createUrlHlsManifestProvider(
+                'https://example.com/rendition/playlist.m3u8'
+            )
+            const data = await provider()
+            const media = await data.getMediaPlaylist(
+                data.mainPlaylist.variants[0].uri
+            )
+            expect(media.segments.length).toBe(1)
+            expect(media.segments[0].uri).toBe('segment0.aac')
+            expect(media.baseUrl).toBe(
+                'https://example.com/rendition/playlist.m3u8'
+            )
+            expect(mockRequester.request).toHaveBeenCalledTimes(1)
+        })
     })
 
     it('passes requestInit to requests', async () => {
@@ -203,5 +245,19 @@ describe('fetchMediaPlaylist', () => {
         // The QUERYPARAM token from the playlist URL is substituted into the
         // segment URI (relative resolution happens later, in the timeline).
         expect(playlist.segments[0].uri).toBe('segment0.aac?t=xyz')
+    })
+})
+
+describe('isMediaPlaylist', () => {
+    it('is true for a playlist of media segments', () => {
+        expect(isMediaPlaylist('#EXTM3U\n#EXTINF:6,\na.ts')).toBeTrue()
+        expect(isMediaPlaylist('#EXTM3U\n#EXT-X-TARGETDURATION:6')).toBeTrue()
+    })
+
+    it('is false for a multivariant playlist', () => {
+        expect(
+            isMediaPlaylist('#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1\nv.m3u8')
+        ).toBeFalse()
+        expect(isMediaPlaylist('#EXTM3U')).toBeFalse()
     })
 })
