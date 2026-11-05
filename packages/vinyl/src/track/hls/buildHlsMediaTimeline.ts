@@ -199,7 +199,14 @@ function createHlsQualityData(
     playlistUri: string,
     metadata: MediaQualityMetadata
 ): MediaQualityData {
-    const transmuxer = createTransmuxer()
+    // Muxed MPEG-TS carries audio and video; each quality appends to its own
+    // content type's SourceBuffer, which rejects an init segment declaring the
+    // other track.
+    // HLS qualities are audio or video; a codec-less variant is modeled as
+    // audio.
+    const transmuxer = createTransmuxer({
+        track: metadata.contentType === 'video' ? 'video' : 'audio',
+    })
     return {
         metadata,
         async getSegment(
