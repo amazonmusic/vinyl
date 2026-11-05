@@ -186,13 +186,13 @@ describe('createHlsContentTypesValue', () => {
         expect(result).toEqual(new Set(['video', 'audio']))
     })
 
-    it('handles variants without codecs', async () => {
+    it('treats a variant without codecs as audio, as the media timeline does', async () => {
         setMainPlaylist({
             variants: [{ bandwidth: 1000, uri: 'v.m3u8' }],
             alternativeRenditions: [],
             sessionData: [],
         })
         const result = await createHlsContentTypesValue(deps).value
-        expect(result).toEqual(new Set())
+        expect(result).toEqual(new Set(['audio']))
     })
 })

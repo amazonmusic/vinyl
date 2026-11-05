@@ -46,6 +46,8 @@ import {
     type ManifestControllerImplDeps,
 } from '../../streaming/ManifestControllerImpl'
 import { createHlsManifestProvider } from './createHlsManifestProvider'
+import { withProbedHlsCodecs } from './probeHlsVariantCodecs'
+import type { CreateSegmentDataProviderDeps } from '../createSegmentDataProvider'
 
 export interface HlsFactoryDeps {
     readonly options: ObservableValue<
@@ -96,7 +98,11 @@ export function createHlsFactories(options: Maybe<HlsInitOptions>) {
                 baseContentTypesValue: createHlsContentTypesValue,
                 contentTypesValue: createAllowedContentTypesValue,
 
-                manifestProvider: () => createHlsManifestProvider(loadOptions),
+                manifestProvider: (deps: CreateSegmentDataProviderDeps) =>
+                    withProbedHlsCodecs(
+                        deps,
+                        createHlsManifestProvider(loadOptions)
+                    ),
                 manifestController: (
                     deps: ManifestControllerImplDeps<HlsManifestData>
                 ) => new ManifestControllerImpl(deps),
