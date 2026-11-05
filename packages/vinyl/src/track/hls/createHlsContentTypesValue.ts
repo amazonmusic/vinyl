@@ -42,6 +42,10 @@ function getContentTypes(mainPlaylist: HlsMainPlaylist): Set<ContentType> {
                     contentTypes.add(type)
                 }
             }
+        } else {
+            // Without CODECS the media timeline models the variant as audio
+            // (see buildHlsMediaTimeline); stream it rather than nothing.
+            contentTypes.add('audio')
         }
     }
 
