@@ -249,6 +249,68 @@ describe('createTransmuxer', () => {
         })
     })
 
+    describe('single-track transmuxing of muxed TS', () => {
+        /** Counts the boxes of a type anywhere in the data. */
+        function countBoxes(data: ArrayBuffer, type: string): number {
+            const bytes = new Uint8Array(data)
+            let count = 0
+            for (let i = 4; i + 4 <= bytes.length; i++) {
+                if (readBoxType(bytes, i - 4) === type) count++
+            }
+            return count
+        }
+
+        async function bipbop(): Promise<ArrayBuffer> {
+            const { decodeBipbopTsSegment } =
+                await import('../testUtil/bipbopTsFixture')
+            return toArrayBuffer(decodeBipbopTsSegment())
+        }
+
+        it('reports the codecs of every track by default', async () => {
+            const result = createTransmuxer().transmux(await bipbop())
+            expect(result.codecs.length).toBe(2)
+            expect(result.codecs[0]).toMatch(/^avc1\.[0-9a-f]{6}$/)
+            expect(result.codecs[1]).toBe('mp4a.40.2')
+            expect(countBoxes(result.initSegment, 'trak')).toBe(2)
+            expect(countBoxes(result.mediaSegment, 'moof')).toBe(2)
+        })
+
+        it('transmuxes only the video track', async () => {
+            const result = createTransmuxer({ track: 'video' }).transmux(
+                await bipbop()
+            )
+            expect(result.codecs.length).toBe(1)
+            expect(result.codecs[0]).toMatch(/^avc1\./)
+            expect(countBoxes(result.initSegment, 'trak')).toBe(1)
+            expect(countBoxes(result.initSegment, 'avc1')).toBe(1)
+            expect(countBoxes(result.initSegment, 'mp4a')).toBe(0)
+            expect(countBoxes(result.mediaSegment, 'moof')).toBe(1)
+        })
+
+        it('transmuxes only the audio track', async () => {
+            const result = createTransmuxer({ track: 'audio' }).transmux(
+                await bipbop()
+            )
+            expect(result.codecs).toEqual(['mp4a.40.2'])
+            expect(countBoxes(result.initSegment, 'trak')).toBe(1)
+            expect(countBoxes(result.initSegment, 'avc1')).toBe(0)
+            expect(countBoxes(result.initSegment, 'mp4a')).toBe(1)
+            expect(countBoxes(result.mediaSegment, 'moof')).toBe(1)
+        })
+
+        it('reports ADTS codecs, and rejects a video track from ADTS', () => {
+            const segment = toArrayBuffer(
+                concatFrames(adtsFrame(100), adtsFrame(100))
+            )
+            expect(createTransmuxer().transmux(segment).codecs).toEqual([
+                'mp4a.40.2',
+            ])
+            expect(() =>
+                createTransmuxer({ track: 'video' }).transmux(segment)
+            ).toThrowError(/no video track/)
+        })
+    })
+
     describe('H.264 High profile transmuxing', () => {
         it('parses High profile SPS and produces init segment', async () => {
             const { buildHighProfileTsSegment } =

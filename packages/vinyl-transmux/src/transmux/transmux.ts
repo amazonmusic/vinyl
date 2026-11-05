@@ -52,9 +52,30 @@ export interface TransmuxResult {
     readonly mediaSegment: ArrayBuffer
     /** Duration of this segment in seconds. */
     readonly duration: number
+    /**
+     * The RFC 6381 codec strings of the tracks the init segment declares,
+     * video first (e.g. `['avc1.4d401f', 'mp4a.40.2']`).
+     */
+    readonly codecs: readonly string[]
+}
+
+/**
+ * A single track to transmux.
+ */
+export type TransmuxTrack = 'audio' | 'video'
+
+export interface TransmuxerOptions {
+    /**
+     * Transmux only this track, dropping the other from muxed MPEG-TS, so the
+     * output can be appended to a SourceBuffer of that content type. An MSE
+     * SourceBuffer rejects an init segment declaring tracks its MIME type
+     * doesn't. Default: every track in the stream.
+     */
+    readonly track?: TransmuxTrack | undefined
 }
 
 interface TrackState {
+    readonly track: TransmuxTrack | undefined
     initSegment: Uint8Array | null
     sequenceNumber: number
     audioConfig: AudioTrackConfig | null
@@ -80,8 +101,9 @@ interface TrackState {
  * appears in a later segment is dropped, because the init segment declaring the
  * tracks has already been handed to the caller.
  */
-export function createTransmuxer() {
+export function createTransmuxer(options?: TransmuxerOptions) {
     const state: TrackState = {
+        track: options?.track,
         initSegment: null,
         sequenceNumber: 1,
         audioConfig: null,
@@ -104,6 +126,23 @@ function buildInitSegment(state: TrackState, moovBox: Uint8Array): void {
     init.set(ftypBox, 0)
     init.set(moovBox, ftypBox.byteLength)
     state.initSegment = init
+}
+
+/**
+ * Returns the RFC 6381 codec strings of the tracks the init segment declares.
+ */
+function getCodecs(state: TrackState): string[] {
+    const codecs: string[] = []
+    const video = state.videoTrackId != null ? state.videoConfig : null
+    if (video) {
+        const hex = (n: number) => n.toString(16).padStart(2, '0')
+        codecs.push(
+            `avc1.${hex(video.profileIdc)}${hex(video.profileCompatibility)}${hex(video.levelIdc)}`
+        )
+    }
+    const audio = state.audioTrackId != null ? state.audioConfig : null
+    if (audio) codecs.push(`mp4a.40.${audio.audioObjectType}`)
+    return codecs
 }
 
 /** Returns the cached init segment as an ArrayBuffer. */
@@ -158,6 +197,9 @@ function skipId3Tags(data: Uint8Array): Uint8Array {
 }
 
 function transmuxAdts(state: TrackState, data: Uint8Array): TransmuxResult {
+    if (state.track === 'video') {
+        throw new Error('ADTS segments carry no video track')
+    }
     const frames = parseAdtsFrames(data)
     if (frames.length === 0) {
         throw new Error('No ADTS frames found in segment')
@@ -226,6 +268,7 @@ function transmuxAdts(state: TrackState, data: Uint8Array): TransmuxResult {
 
     return {
         initSegment: getInitSegment(state),
+        codecs: getCodecs(state),
         mediaSegment: mediaSegment.buffer.slice(
             mediaSegment.byteOffset,
             mediaSegment.byteOffset + mediaSegment.byteLength
@@ -237,8 +280,15 @@ function transmuxAdts(state: TrackState, data: Uint8Array): TransmuxResult {
 function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
     const streams = demuxTsSegment(data)
 
-    const audioStream = streams.find((s) => s.streamType === STREAM_TYPE_AAC)
-    const videoStream = streams.find((s) => s.streamType === STREAM_TYPE_H264)
+    const { track } = state
+    const audioStream =
+        track === 'video'
+            ? undefined
+            : streams.find((s) => s.streamType === STREAM_TYPE_AAC)
+    const videoStream =
+        track === 'audio'
+            ? undefined
+            : streams.find((s) => s.streamType === STREAM_TYPE_H264)
 
     // Process audio
     let audioFrames: AdtsFrame[] = []
@@ -508,6 +558,7 @@ function transmuxMpegTs(state: TrackState, data: Uint8Array): TransmuxResult {
 
     return {
         initSegment: getInitSegment(state),
+        codecs: getCodecs(state),
         mediaSegment: mediaSegment.buffer.slice(
             mediaSegment.byteOffset,
             mediaSegment.byteOffset + mediaSegment.byteLength
