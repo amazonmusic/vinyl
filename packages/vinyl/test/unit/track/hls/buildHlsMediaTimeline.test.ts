@@ -605,6 +605,45 @@ describe('buildHlsMediaTimeline', () => {
         fetchSpy.and.callThrough()
     })
 
+    it('transmuxes only the quality content type of a muxed variant', async () => {
+        const variant = {
+            ...createVariant('v1.m3u8', 128000),
+            codecs: 'avc1.4d401f,mp4a.40.2',
+        }
+        const playlist = {
+            targetDuration: 10,
+            segments: [{ duration: 10, uri: 'seg0.ts' }],
+        } as unknown as HlsMediaPlaylist
+        const manifestData = createManifestData([variant], playlist)
+        const frameLength = 7 + 100
+        const adts = new Uint8Array(frameLength)
+        adts.set([
+            0xff,
+            0xf1,
+            (1 << 6) | (4 << 2),
+            (2 << 6) | ((frameLength >> 11) & 0x03),
+            (frameLength >> 3) & 0xff,
+            ((frameLength & 0x07) << 5) | 0x1f,
+            0xfc,
+        ])
+        const fetchSpy = spyOn(globalThis, 'fetch').and.callFake(() =>
+            Promise.resolve(new Response(adts.buffer.slice(0)))
+        )
+
+        const timeline = buildHlsMediaTimeline(deps, manifestData)
+        const qualityOf = (contentType: string) =>
+            timeline.periods[0].qualities.find(
+                (q) => q.metadata.contentType === contentType
+            )!
+        const audio = await qualityOf('audio').getSegment(5)
+        await expectAsync(audio!.data()).toBeResolved()
+        // The video quality's transmuxer drops the audio track, so the audio
+        // data has no track for it.
+        const video = await qualityOf('video').getSegment(5)
+        await expectAsync(video!.data()).toBeRejectedWithError(/no video track/)
+        fetchSpy.and.callThrough()
+    })
+
     it('handles variant without codecs in narrowing', async () => {
         const variant = {
             bandwidth: 128000,
