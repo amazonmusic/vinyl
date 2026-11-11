@@ -1,9 +1,10 @@
 name: Integ DRM
 
-# Runs the integ suite in the installed Chrome (and Edge on Windows) on
-# GitHub-hosted runners. Unlike Playwright's builds and BrowserStack's Firefox,
-# these browsers have their real Widevine CDM, so --strictDrm fails Widevine
-# specs instead of marking them pending. Runs on merge to main, or on demand.
+# Runs the integ suite in the installed Chrome and Edge on GitHub's Windows
+# runner on merge to main or on demand, and in Chrome on its macOS runner on
+# demand. Unlike Playwright's builds and BrowserStack's Firefox, these browsers
+# have their real Widevine CDM, so --strictDrm fails Widevine specs instead of
+# marking them pending.
 on:
     push:
         branches: [main]
@@ -17,16 +18,8 @@ concurrency:
     cancel-in-progress: true
 
 jobs:
-    integ:
-        strategy:
-            fail-fast: false
-            matrix:
-                include:
-                    - os: windows-latest
-                      browsers: chrome,msedge
-                    - os: macos-latest
-                      browsers: chrome
-        runs-on: ${{ matrix.os }}
+    windows:
+        runs-on: windows-latest
         timeout-minutes: 60
         steps:
             - uses: actions/checkout@v6
@@ -40,13 +33,45 @@ jobs:
 
             - name: Run integ tests
               run:
-                  npm run test:integ -w @amazon/vinyl -- --browsers=${{
-                  matrix.browsers }} --strictDrm=true
+                  npm run test:integ -w @amazon/vinyl --
+                  --browsers=chrome,msedge --strictDrm=true
+
+            # GitHub's artifact service sometimes answers with an HTML error
+            # page; a failed upload shouldn't fail the tests.
+            - name: Upload integ logs
+              if: always()
+              continue-on-error: true
+              uses: actions/upload-artifact@v4
+              with:
+                  name: integ-logs-windows
+                  path: packages/vinyl/integLogs/
+                  if-no-files-found: ignore
+
+    # macOS runners can queue for a long time, so this runs on demand only.
+    macos:
+        if: github.event_name == 'workflow_dispatch'
+        runs-on: macos-latest
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: .tool-versions
+                  cache: npm
+
+            - run: npm ci
+
+            - name: Run integ tests
+              run:
+                  npm run test:integ -w @amazon/vinyl -- --browsers=chrome
+                  --strictDrm=true
 
             - name: Upload integ logs
               if: always()
+              continue-on-error: true
               uses: actions/upload-artifact@v4
               with:
-                  name: integ-logs-${{ matrix.os }}
+                  name: integ-logs-macos
                   path: packages/vinyl/integLogs/
                   if-no-files-found: ignore
