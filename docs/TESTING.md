@@ -101,12 +101,23 @@ as soon as its page is hidden.
 Options are passed after `--` to a package's script, for example
 `npm run test:integ -w @amazon/vinyl -- --browsers=chromium,safari --spec=progressive`:
 
-- `--browsers` - a comma separated list of `chromium`, `firefox`, `webkit`, and
-  `safari`.
+- `--browsers` - a comma separated list of `chromium`, `firefox`, `webkit`,
+  `safari`, `chrome`, and `msedge`. Default: `chromium,firefox,webkit,safari`.
+  `chrome` and `msedge` are the installed Google Chrome and Microsoft Edge,
+  which have their real CDMs, unlike Playwright's builds.
+- `--strictDrm=true` - fails Widevine specs instead of marking them pending
+  where the browser is expected to support Widevine (modern Chrome, Edge, and
+  Firefox). Use it with `chrome` and `msedge`; Playwright's Chromium and Firefox
+  have no Widevine CDM.
 - `--serial` - runs the browsers one after another.
 - `--headed` - shows the Playwright browser windows.
 - Any other `--name=value` is added to the page's query parameters, such as
   `--spec`, `--seed`, or `--vinylLogLevel`.
+
+On every merge to `main` (or on demand), the `Integ DRM` workflow runs the suite
+with `--strictDrm=true` in the installed Chrome and Edge on GitHub's Windows
+runner and in Chrome on its macOS runner. BrowserStack runs don't set it, so
+Widevine specs go pending where BrowserStack's browsers lack the CDM (Firefox).
 
 ### BrowserStack
 

@@ -9,12 +9,26 @@ import { Browser, Builder, type WebDriver } from 'selenium-webdriver'
 import { clickStartPrompt, START_PROMPT_SELECTOR } from './clickStartPrompt'
 
 /**
- * The browsers {@link runLocalBrowsers} can run: Playwright's Chromium, Firefox, and WebKit builds, and the
- * installed Safari through safaridriver.
+ * The browsers {@link runLocalBrowsers} can run: Playwright's Chromium, Firefox, and WebKit builds, the installed
+ * Google Chrome and Microsoft Edge through Playwright, and the installed Safari through safaridriver. Unlike
+ * Playwright's builds, the installed Chrome and Edge have their real CDMs (Widevine, and PlayReady on Windows Edge).
  */
-export type LocalBrowserName = 'chromium' | 'firefox' | 'webkit' | 'safari'
+export type LocalBrowserName =
+    'chromium' | 'firefox' | 'webkit' | 'chrome' | 'msedge' | 'safari'
 
 export const localBrowserNames: readonly LocalBrowserName[] = [
+    'chromium',
+    'firefox',
+    'webkit',
+    'chrome',
+    'msedge',
+    'safari',
+]
+
+/**
+ * The browsers {@link runLocalBrowsers} runs when none are given: Playwright's builds and Safari.
+ */
+export const defaultLocalBrowserNames: readonly LocalBrowserName[] = [
     'chromium',
     'firefox',
     'webkit',
@@ -88,10 +102,17 @@ async function openPlaywright(
             `Playwright is not installed; add 'playwright' as a devDependency. (${String(error)})`
         )
     }
+    // The installed Chrome and Edge launch through Playwright's Chromium with a channel.
+    const isChannel = name === 'chrome' || name === 'msedge'
     let browser: Playwright.Browser
     try {
-        browser = await playwright[name].launch({
+        browser = await playwright[isChannel ? 'chromium' : name].launch({
             headless: !options.headed,
+            // Playwright disables component updates, which stops Chrome and Edge loading their Widevine CDM.
+            ...(isChannel && {
+                channel: name,
+                ignoreDefaultArgs: ['--disable-component-update'],
+            }),
             // Playwright's Firefox can't download the Widevine CDM, so each Widevine request would wait 60s for it.
             ...(name === 'firefox' && {
                 firefoxUserPrefs: { 'media.gmp-widevinecdm.enabled': false },
@@ -99,7 +120,9 @@ async function openPlaywright(
         })
     } catch (error) {
         throw new LocalBrowserUnavailableError(
-            `Could not launch Playwright ${name}; run 'npx playwright install ${name}'.\n${String(error)}`
+            isChannel
+                ? `Could not launch the installed ${name}; install it, or run 'npx playwright install ${name}'.\n${String(error)}`
+                : `Could not launch Playwright ${name}; run 'npx playwright install ${name}'.\n${String(error)}`
         )
     }
     const page = await browser.newPage()

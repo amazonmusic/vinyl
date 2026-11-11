@@ -5,27 +5,38 @@
 
 import type { VinylPlayer } from '@amazon/vinyl'
 import { DrmKeySystem } from '@amazon/vinyl'
+import { expectsWidevine } from '@amazon/vinyl/vinylTestUtil'
 import { memoize } from '@amazon/vinyl-util'
 
 /**
- * Marks the test suite as pending if Widevine is not supported.
- * Returns true if not supported.
+ * Probes Widevine support once; support is a property of the browser, not the
+ * player.
+ */
+const supportsWidevine = memoize(
+    async (player: VinylPlayer): Promise<boolean> =>
+        (
+            await player.client.capabilities.supportsKeySystem(
+                DrmKeySystem.WIDEVINE
+            )
+        ).supported,
+    () => {}
+)
+
+/**
+ * Marks the spec as pending if Widevine is not supported, returning true. Throws
+ * instead, failing the spec, if the browser is one {@link expectsWidevine}, so a
+ * broken probe can't silently skip every Widevine spec.
  *
  * @param player
  */
-export const pendingIfWidevineNotSupported = memoize(
-    async (player: VinylPlayer): Promise<boolean> => {
-        if (
-            !(
-                await player.client.capabilities.supportsKeySystem(
-                    DrmKeySystem.WIDEVINE
-                )
-            ).supported
-        ) {
-            pending('requires Widevine')
-            return true
-        }
-        return false
-    },
-    () => {}
-)
+export async function pendingIfWidevineNotSupported(
+    player: VinylPlayer
+): Promise<boolean> {
+    if (await supportsWidevine(player)) return false
+    if (expectsWidevine())
+        throw new Error(
+            `Widevine is expected to be supported on ${navigator.userAgent}, but the key system probe reports it unsupported.`
+        )
+    pending('requires Widevine')
+    return true
+}
