@@ -12,6 +12,45 @@ volume (Safari 27 ends progressive playback that starts silently without a
 gesture). Jasmine can isolate to a specific test either by temporarily using
 `fit` or `fdescribe` (read f for focus) in the test, or by providing a filter.
 
+## How the tests run
+
+Every test is a [Jasmine](https://jasmine.github.io/) spec written in
+TypeScript. There are no Playwright or WebDriver tests: those tools only open
+the test page and click its start prompt, and the specs run inside the page.
+
+- **Unit tests** (`packages/*/test/unit`) run in Node through `tsx`, mocking
+  browser APIs where they need them.
+- **Integration tests** (`packages/*/test/integ`) play real media with a real
+  player in a real browser. Suites use helpers such as `createVinylSuite` and
+  `expectTrackPlays` from `@amazon/vinyl/vinylTestUtil`. The browser page
+  bundles the unit tests too, so they also run on every browser and device.
+
+A browser run works like this:
+
+1. The package's build script bundles the specs with esbuild (type-checked by
+   `tsc`) into `dist/test`, alongside Jasmine's HTML boot page.
+2. An Express server (`configureExpress` in `@amazon/vinyl-browserstack`) serves
+   that page and a small REST API for reporting results.
+3. A driver opens the page with query parameters (below), such as `spec`,
+   `seed`, `appendMode`, and `reportApi`, and clicks the start prompt:
+    - `npm run start` - you, in your own browser.
+    - `npm run test:integ` - Playwright launches Chromium, Firefox, WebKit, or
+      the installed Chrome or Edge (through Playwright's browser channels), and
+      `selenium-webdriver` drives Safari through `safaridriver`.
+    - `npm run test:browserstack` - Selenium WebDriver sessions on BrowserStack,
+      reaching the local server through the BrowserStack Local tunnel.
+4. Jasmine runs every spec in the page. `RestApiReporter` posts progress, log
+   lines, and the final result to `reportApi`, and the runner prints a summary
+   and writes the logs to `integLogs/` (`bStackLogs/` on BrowserStack).
+
+The runners run the suite once per source buffer append mode
+(`appendMode=segments` and `appendMode=sequence`).
+
+Integration tests stream test media from `assets.dev.vinyl.music.amazon.dev`.
+Widevine specs get licenses from Shaka Player's public license proxy
+(`cwip-shaka-proxy.appspot.com`), and are marked pending where the browser has
+no Widevine CDM unless `strictDrm` is set (see below).
+
 ## Running tests from your IDE
 
 Tests run through `tsx` and rely on the `development` Node export condition so
@@ -114,12 +153,6 @@ Options are passed after `--` to a package's script, for example
 - Any other `--name=value` is added to the page's query parameters, such as
   `--spec`, `--seed`, or `--vinylLogLevel`.
 
-On every merge to `main` (or on demand), the `Integ DRM` workflow runs the suite
-with `--strictDrm=true` in the installed Chrome and Edge on GitHub's Windows
-runner. Run it on demand to also run Chrome on its macOS runner, whose queue can
-be long. BrowserStack runs don't set it, so Widevine specs go pending where
-BrowserStack's browsers lack the CDM (Firefox).
-
 ### BrowserStack
 
 To test on BrowserStack, add your BrowserStack credentials to a .env file in the
@@ -148,3 +181,15 @@ gesture.
 
 BrowserStack test logs can be found in the `bStackLogs` directory. This
 directory is safe to delete.
+
+### CI
+
+- `CI` (pull requests and pushes to `main` and `hotfix/**`) runs
+  `npm run release`: lint, unit tests with coverage, and the release build.
+- `Integ DRM` (every merge to `main`, or on demand) runs the integration suite
+  with `--strictDrm=true` in the installed Chrome and Edge on GitHub's Windows
+  runner. Run it on demand to also run Chrome on its macOS runner, whose queue
+  can be long.
+- `BrowserStack` (on demand) runs the integration suite on the BrowserStack
+  browsers and devices. It doesn't set `strictDrm`, so Widevine specs go pending
+  where BrowserStack's browsers lack the CDM (Firefox).
