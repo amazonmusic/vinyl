@@ -116,8 +116,9 @@ Options are passed after `--` to a package's script, for example
 
 On every merge to `main` (or on demand), the `Integ DRM` workflow runs the suite
 with `--strictDrm=true` in the installed Chrome and Edge on GitHub's Windows
-runner and in Chrome on its macOS runner. BrowserStack runs don't set it, so
-Widevine specs go pending where BrowserStack's browsers lack the CDM (Firefox).
+runner. Run it on demand to also run Chrome on its macOS runner, whose queue can
+be long. BrowserStack runs don't set it, so Widevine specs go pending where
+BrowserStack's browsers lack the CDM (Firefox).
 
 ### BrowserStack
 
