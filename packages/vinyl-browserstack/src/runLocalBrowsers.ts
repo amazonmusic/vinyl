@@ -23,6 +23,7 @@ import path from 'node:path'
 import {
     type LocalBrowserName,
     type LocalBrowserPage,
+    defaultLocalBrowserNames,
     localBrowserNames,
     LocalBrowserUnavailableError,
     openLocalBrowser,
@@ -41,7 +42,7 @@ export interface LocalBrowsersOptions {
     readonly server: ServerOptions
 
     /**
-     * The browsers to run. Default: all of {@link localBrowserNames}.
+     * The browsers to run. Default: {@link defaultLocalBrowserNames}.
      */
     readonly browsers?: readonly LocalBrowserName[]
 
@@ -169,7 +170,7 @@ export async function runLocalBrowsers(
         options.logsDir === undefined ? './integLogs' : options.logsDir
     if (logsDir) fs.mkdirSync(logsDir, { recursive: true })
 
-    const browsers = options.browsers ?? localBrowserNames
+    const browsers = options.browsers ?? defaultLocalBrowserNames
     const results: LocalBrowserResult[] = []
     // Includes pages still opening, so a signal during launch closes them too.
     const openPages = new Set<Promise<LocalBrowserPage>>()

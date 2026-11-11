@@ -1,0 +1,52 @@
+name: Integ DRM
+
+# Runs the integ suite in the installed Chrome (and Edge on Windows) on
+# GitHub-hosted runners. Unlike Playwright's builds and BrowserStack's Firefox,
+# these browsers have their real Widevine CDM, so --strictDrm fails Widevine
+# specs instead of marking them pending. Runs on merge to main, or on demand.
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: integ-drm-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    integ:
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: windows-latest
+                      browsers: chrome,msedge
+                    - os: macos-latest
+                      browsers: chrome
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@v6
+
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: .tool-versions
+                  cache: npm
+
+            - run: npm ci
+
+            - name: Run integ tests
+              run:
+                  npm run test:integ -w @amazon/vinyl -- --browsers=${{
+                  matrix.browsers }} --strictDrm=true
+
+            - name: Upload integ logs
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: integ-logs-${{ matrix.os }}
+                  path: packages/vinyl/integLogs/
+                  if-no-files-found: ignore
