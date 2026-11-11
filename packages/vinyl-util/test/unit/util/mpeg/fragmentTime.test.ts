@@ -45,9 +45,14 @@ function fullBox(
     return box(type, uint32(((version << 24) | flags) >>> 0), ...payload)
 }
 
-function init(timescale: number, trexDuration?: number): ArrayBuffer {
+function init(
+    timescale: number,
+    trexDuration?: number,
+    elst?: Uint8Array
+): ArrayBuffer {
     const mdhd = fullBox('mdhd', 0, 0, uint32(0, 0, timescale, 0, 0))
-    const trak = box('trak', box('mdia', mdhd))
+    const edts = elst ? box('edts', elst) : new Uint8Array(0)
+    const trak = box('trak', edts, box('mdia', mdhd))
     const mvex =
         trexDuration == null
             ? new Uint8Array(0)
@@ -111,6 +116,7 @@ describe('fragmentTime', () => {
             expect(getMp4InitTiming(init(15360, 512))).toEqual({
                 timescale: 15360,
                 defaultSampleDuration: 512,
+                editMediaTime: 0,
             })
         })
 
@@ -118,7 +124,64 @@ describe('fragmentTime', () => {
             expect(getMp4InitTiming(init(48000))).toEqual({
                 timescale: 48000,
                 defaultSampleDuration: 0,
+                editMediaTime: 0,
             })
+        })
+
+        it('reads the media time of a version 0 edit list', () => {
+            // segment_duration, media_time, media_rate 1.0, as shaka-packager
+            // writes to shift out a 2-frame B-frame delay at 30 fps.
+            const elst = fullBox('elst', 0, 0, uint32(1, 0, 1024, 0x10000))
+            expect(getMp4InitTiming(init(15360, 512, elst))).toEqual({
+                timescale: 15360,
+                defaultSampleDuration: 512,
+                editMediaTime: 1024,
+            })
+        })
+
+        it('reads the media time of a version 1 edit list', () => {
+            const elst = fullBox(
+                'elst',
+                1,
+                0,
+                uint32(1, 0, 0, 0, 2048, 0x10000)
+            )
+            expect(
+                getMp4InitTiming(init(15360, 512, elst))?.editMediaTime
+            ).toBe(2048)
+        })
+
+        it('skips empty edits', () => {
+            // An empty edit (media_time -1), then the edit that plays media.
+            const elst = fullBox(
+                'elst',
+                0,
+                0,
+                uint32(2, 100, 0xffffffff, 0x10000, 0, 512, 0x10000)
+            )
+            expect(
+                getMp4InitTiming(init(15360, 512, elst))?.editMediaTime
+            ).toBe(512)
+        })
+
+        it('returns 0 for an edit list of only empty edits', () => {
+            const elst = fullBox(
+                'elst',
+                0,
+                0,
+                uint32(1, 100, 0xffffffff, 0x10000)
+            )
+            expect(
+                getMp4InitTiming(init(15360, 512, elst))?.editMediaTime
+            ).toBe(0)
+        })
+
+        it('returns 0 for a truncated edit list', () => {
+            // Declares an entry it doesn't contain.
+            const elst = fullBox('elst', 0, 0, uint32(1))
+            expect(
+                getMp4InitTiming(init(15360, 512, elst))?.editMediaTime
+            ).toBe(0)
         })
 
         it('returns null for data that is not an mp4 init segment', () => {
@@ -128,7 +191,11 @@ describe('fragmentTime', () => {
     })
 
     describe('getFragmentTimeRange', () => {
-        const timing = { timescale: 30, defaultSampleDuration: 0 }
+        const timing = {
+            timescale: 30,
+            defaultSampleDuration: 0,
+            editMediaTime: 0,
+        }
 
         it('sums per-sample durations from the tfdt', () => {
             const data = segment(
@@ -167,6 +234,7 @@ describe('fragmentTime', () => {
                 getFragmentTimeRange(data, {
                     timescale: 30,
                     defaultSampleDuration: 2,
+                    editMediaTime: 0,
                 })
             ).toEqual({ start: 0, end: 4 })
         })
@@ -259,6 +327,29 @@ describe('fragmentTime', () => {
             const range = getFragmentTimeRange(box('moof', traf).buffer, timing)
             expect(range!.start).toBeCloseTo(31 / 30, 10)
             expect(range!.end).toBeCloseTo(35 / 30, 10)
+        })
+
+        it('subtracts the edit list media time', () => {
+            // The B-frame delay shifted out by an edit list (e.g. libx264 via
+            // shaka-packager): the first sample presents at 0.
+            const trun = fullBox(
+                'trun',
+                0,
+                0x900,
+                uint32(4, 1, 2, 1, 4, 1, 1, 1, 1)
+            )
+            const traf = box(
+                'traf',
+                fullBox('tfhd', 0, 0, uint32(1)),
+                fullBox('tfdt', 0, 0, uint32(0)),
+                trun
+            )
+            const range = getFragmentTimeRange(box('moof', traf).buffer, {
+                ...timing,
+                editMediaTime: 2,
+            })
+            expect(range!.start).toBeCloseTo(0, 10)
+            expect(range!.end).toBeCloseTo(4 / 30, 10)
         })
 
         it('reads signed version 1 composition offsets', () => {
@@ -369,6 +460,7 @@ describe('fragmentTime', () => {
         expect(getMp4InitTiming(moov.buffer)).toEqual({
             timescale: 90000,
             defaultSampleDuration: 0,
+            editMediaTime: 0,
         })
     })
 

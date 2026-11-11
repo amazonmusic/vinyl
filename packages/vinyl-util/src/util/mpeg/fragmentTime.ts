@@ -12,7 +12,8 @@
  * A presentation time range in a track's media timeline, in seconds.
  *
  * Sample presentation times are their decode times plus their composition
- * time offsets, as MSE reports buffered ranges. Edit lists are not applied.
+ * time offsets, less the edit list's media time, as MSE reports buffered
+ * ranges.
  */
 export interface MediaTimeRange {
     /**
@@ -40,9 +41,26 @@ export interface Mp4InitTiming {
      * The default sample duration (`trex`), used when a fragment declares none.
      */
     readonly defaultSampleDuration: number
+
+    /**
+     * The media time the presentation starts at, in timescale units: the
+     * `media_time` of the first non-empty edit list (`elst`) entry, or 0
+     * without one. Encoders use it to shift out the composition delay of
+     * B-frames, so the first frame presents at 0. Empty edits (presentation
+     * delays) aren't applied.
+     */
+    readonly editMediaTime: number
 }
 
-const CONTAINERS = new Set(['moov', 'trak', 'mdia', 'mvex', 'moof', 'traf'])
+const CONTAINERS = new Set([
+    'moov',
+    'trak',
+    'edts',
+    'mdia',
+    'mvex',
+    'moof',
+    'traf',
+])
 
 interface Box {
     readonly type: string
@@ -114,8 +132,36 @@ function find(
 }
 
 /**
- * Reads the timescale and default sample duration of the first track in an
- * initialization segment. Returns null if it isn't an ISO-BMFF init segment.
+ * Reads a 64-bit signed integer as a number, without BigInt. Exact within
+ * ±2^53.
+ */
+function readInt64(view: DataView, offset: number): number {
+    return view.getInt32(offset) * 0x100000000 + view.getUint32(offset + 4)
+}
+
+/**
+ * Returns the `media_time` of the first non-empty entry of an edit list
+ * (`elst`), or 0 if it has none.
+ */
+function readEditMediaTime(view: DataView, elst: Box): number {
+    const version = view.getUint8(elst.start)
+    const entryCount = view.getUint32(elst.start + 4)
+    const entrySize = version === 1 ? 20 : 12
+    let p = elst.start + 8
+    for (let i = 0; i < entryCount && p + entrySize <= elst.end; i++) {
+        // segment_duration, then media_time; -1 marks an empty edit.
+        const mediaTime =
+            version === 1 ? readInt64(view, p + 8) : view.getInt32(p + 4)
+        if (mediaTime >= 0) return mediaTime
+        p += entrySize
+    }
+    return 0
+}
+
+/**
+ * Reads the timescale, default sample duration, and edit list media time of
+ * the first track in an initialization segment. Returns null if it isn't an
+ * ISO-BMFF init segment.
  */
 export function getMp4InitTiming(init: ArrayBuffer): Mp4InitTiming | null {
     try {
@@ -131,7 +177,9 @@ export function getMp4InitTiming(init: ArrayBuffer): Mp4InitTiming | null {
         const trex = find(view, ['moov', 'mvex', 'trex'])
         // version/flags, track_ID, default_sample_description_index
         const defaultSampleDuration = trex ? view.getUint32(trex.start + 12) : 0
-        return { timescale, defaultSampleDuration }
+        const elst = find(view, ['moov', 'trak', 'edts', 'elst'])
+        const editMediaTime = elst ? readEditMediaTime(view, elst) : 0
+        return { timescale, defaultSampleDuration, editMediaTime }
     } catch {
         return null
     }
@@ -163,9 +211,10 @@ export function getFragmentTimeRange(
             end = Math.max(end, range[1])
         }
         if (start === Number.POSITIVE_INFINITY) return null
+        const { editMediaTime, timescale } = timing
         return {
-            start: start / timing.timescale,
-            end: end / timing.timescale,
+            start: (start - editMediaTime) / timescale,
+            end: (end - editMediaTime) / timescale,
         }
     } catch {
         return null
