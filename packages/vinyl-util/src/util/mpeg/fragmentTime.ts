@@ -89,6 +89,14 @@ function readUint64(view: DataView, offset: number): number {
 }
 
 /**
+ * Reads a 64-bit signed integer as a number, without BigInt. Exact within
+ * ±2^53.
+ */
+function readInt64(view: DataView, offset: number): number {
+    return view.getInt32(offset) * 0x100000000 + view.getUint32(offset + 4)
+}
+
+/**
  * Lists the child boxes in `[start, end)`.
  */
 function children(view: DataView, start: number, end: number): Box[] {
@@ -133,19 +141,12 @@ function find(
 }
 
 /**
- * Reads a 64-bit signed integer as a number, without BigInt. Exact within
- * ±2^53.
- */
-function readInt64(view: DataView, offset: number): number {
-    return view.getInt32(offset) * 0x100000000 + view.getUint32(offset + 4)
-}
-
-/**
  * Returns the `media_time` of the first non-empty entry of an edit list
  * (`elst`), or 0 if it has none.
  */
 function readEditMediaTime(view: DataView, elst: Box): number {
     const version = view.getUint8(elst.start)
+    if (version > 1) return 0 // Unknown layout.
     const entryCount = view.getUint32(elst.start + 4)
     const entrySize = version === 1 ? 20 : 12
     let p = elst.start + 8

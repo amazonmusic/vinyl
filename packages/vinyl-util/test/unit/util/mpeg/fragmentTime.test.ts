@@ -4,6 +4,7 @@
  */
 
 import { getFragmentTimeRange, getMp4InitTiming } from '@amazon/vinyl-util'
+import { shakaPackagerSegments as shaka } from './shakaPackagerSegments'
 
 function concat(...parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
     const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
@@ -237,6 +238,13 @@ describe('fragmentTime', () => {
                 0,
                 uint32(1, 100, 0xffffffff, 0x10000)
             )
+            expect(
+                getMp4InitTiming(init(15360, 512, elst))?.editMediaTime
+            ).toBe(0)
+        })
+
+        it('returns 0 for an edit list of an unknown version', () => {
+            const elst = fullBox('elst', 2, 0, uint32(1, 0, 1024, 0x10000))
             expect(
                 getMp4InitTiming(init(15360, 512, elst))?.editMediaTime
             ).toBe(0)
@@ -542,5 +550,37 @@ describe('fragmentTime', () => {
 
     it('getMp4InitTiming returns null for a zero timescale', () => {
         expect(getMp4InitTiming(init(0))).toBeNull()
+    })
+    describe('shaka-packager segments', () => {
+        function decode(base64: string): ArrayBuffer {
+            return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer
+        }
+
+        // Ranges as reported by ffprobe for the init and media segments.
+        it('matches the presentation times of libx264 video', () => {
+            const timing = getMp4InitTiming(decode(shaka.videoInit))!
+            const first = getFragmentTimeRange(decode(shaka.videoMoof1), timing)
+            const second = getFragmentTimeRange(
+                decode(shaka.videoMoof2),
+                timing
+            )
+            expect(first!.start).toBeCloseTo(0, 5)
+            expect(first!.end).toBeCloseTo(2, 5)
+            expect(second!.start).toBeCloseTo(2, 5)
+            expect(second!.end).toBeCloseTo(4, 5)
+        })
+
+        it('matches the presentation times of AAC with priming', () => {
+            const timing = getMp4InitTiming(decode(shaka.audioInit))!
+            const first = getFragmentTimeRange(decode(shaka.audioMoof1), timing)
+            const second = getFragmentTimeRange(
+                decode(shaka.audioMoof2),
+                timing
+            )
+            expect(first!.start).toBeCloseTo(-0.02322, 5)
+            expect(first!.end).toBeCloseTo(2.020136, 5)
+            expect(second!.start).toBeCloseTo(2.020136, 5)
+            expect(second!.end).toBeCloseTo(4.017052, 5)
+        })
     })
 })
