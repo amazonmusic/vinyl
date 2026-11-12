@@ -164,6 +164,72 @@ describe('fragmentTime', () => {
             ).toBe(512)
         })
 
+        it('skips version 1 empty edits', () => {
+            // segment_duration and a 64-bit media_time of -1, then the edit
+            // that plays media.
+            const elst = fullBox(
+                'elst',
+                1,
+                0,
+                uint32(2, 0, 100, 0xffffffff, 0xffffffff, 0x10000),
+                uint32(0, 0, 0, 512, 0x10000)
+            )
+            expect(
+                getMp4InitTiming(init(15360, 512, elst))?.editMediaTime
+            ).toBe(512)
+        })
+
+        it('reads every value from the first track', () => {
+            // The first track has no edit list; the second's isn't used.
+            const elst = fullBox('elst', 0, 0, uint32(1, 0, 1024, 0x10000))
+            const trak1 = box(
+                'trak',
+                fullBox('tkhd', 0, 0, uint32(0, 0, 2)),
+                box('mdia', fullBox('mdhd', 0, 0, uint32(0, 0, 48000, 0, 0)))
+            )
+            const trak2 = box(
+                'trak',
+                fullBox('tkhd', 0, 0, uint32(0, 0, 1)),
+                box('edts', elst),
+                box('mdia', fullBox('mdhd', 0, 0, uint32(0, 0, 15360, 0, 0)))
+            )
+            const mvex = box(
+                'mvex',
+                fullBox('trex', 0, 0, uint32(1, 1, 512, 0, 0)),
+                fullBox('trex', 0, 0, uint32(2, 1, 1024, 0, 0))
+            )
+            const data = concat(
+                box('ftyp', uint32(0)),
+                box('moov', trak1, trak2, mvex)
+            ).buffer
+            expect(getMp4InitTiming(data)).toEqual({
+                timescale: 48000,
+                defaultSampleDuration: 1024,
+                editMediaTime: 0,
+            })
+        })
+
+        it('uses the first trex if none matches the track', () => {
+            // A version 1 tkhd for track 3, then mvex with mehd and the
+            // trex of other tracks.
+            const trak = box(
+                'trak',
+                fullBox('tkhd', 1, 0, uint32(0, 0, 0, 0, 3)),
+                box('mdia', fullBox('mdhd', 0, 0, uint32(0, 0, 15360, 0, 0)))
+            )
+            const mvex = box(
+                'mvex',
+                fullBox('mehd', 0, 0, uint32(0)),
+                fullBox('trex', 0, 0, uint32(1, 1, 512, 0, 0)),
+                fullBox('trex', 0, 0, uint32(2, 1, 1024, 0, 0))
+            )
+            const data = concat(
+                box('ftyp', uint32(0)),
+                box('moov', trak, mvex)
+            ).buffer
+            expect(getMp4InitTiming(data)?.defaultSampleDuration).toBe(512)
+        })
+
         it('returns 0 for an edit list of only empty edits', () => {
             const elst = fullBox(
                 'elst',
@@ -350,6 +416,16 @@ describe('fragmentTime', () => {
             })
             expect(range!.start).toBeCloseTo(0, 10)
             expect(range!.end).toBeCloseTo(4 / 30, 10)
+        })
+
+        it('applies the edit list of a parsed init segment', () => {
+            const elst = fullBox('elst', 0, 0, uint32(1, 0, 60, 0x10000))
+            const timing = getMp4InitTiming(init(30, 30, elst))!
+            const range = getFragmentTimeRange(
+                segment(moof({ decodeTime: 120, sampleCount: 2 })),
+                timing
+            )
+            expect(range).toEqual({ start: 2, end: 4 })
         })
 
         it('reads signed version 1 composition offsets', () => {
