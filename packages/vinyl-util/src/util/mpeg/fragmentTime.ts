@@ -46,8 +46,9 @@ export interface Mp4InitTiming {
      * The media time the presentation starts at, in timescale units: the
      * `media_time` of the first non-empty edit list (`elst`) entry, or 0
      * without one. Encoders use it to shift out the composition delay of
-     * B-frames, so the first frame presents at 0. Empty edits (presentation
-     * delays) aren't applied.
+     * B-frames, so the first frame presents at 0. Matches how Chromium and
+     * WebKit apply a single-entry edit list; empty edits (presentation delays)
+     * and media rates aren't applied.
      */
     readonly editMediaTime: number
 }
@@ -159,6 +160,36 @@ function readEditMediaTime(view: DataView, elst: Box): number {
 }
 
 /**
+ * Returns the track_ID of a track (`tkhd`), or null without one.
+ */
+function readTrackId(view: DataView, trak: Box): number | null {
+    const tkhd = find(view, ['tkhd'], trak.start, trak.end)
+    if (!tkhd) return null
+    // version/flags, then creation and modification times.
+    const version = view.getUint8(tkhd.start)
+    return view.getUint32(tkhd.start + 4 + (version === 1 ? 16 : 8))
+}
+
+/**
+ * Returns the track extends box (`trex`) for a track, or the first one if
+ * none matches or the track ID is unknown.
+ */
+function findTrex(view: DataView, trackId: number | null): Box | null {
+    const mvex = find(view, ['moov', 'mvex'])
+    if (!mvex) return null
+    let first: Box | null = null
+    for (const box of children(view, mvex.start, mvex.end)) {
+        if (box.type !== 'trex') continue
+        // version/flags, then track_ID.
+        if (trackId === null || view.getUint32(box.start + 4) === trackId) {
+            return box
+        }
+        if (!first) first = box
+    }
+    return first
+}
+
+/**
  * Reads the timescale, default sample duration, and edit list media time of
  * the first track in an initialization segment. Returns null if it isn't an
  * ISO-BMFF init segment.
@@ -166,7 +197,10 @@ function readEditMediaTime(view: DataView, elst: Box): number {
 export function getMp4InitTiming(init: ArrayBuffer): Mp4InitTiming | null {
     try {
         const view = new DataView(init)
-        const mdhd = find(view, ['moov', 'trak', 'mdia', 'mdhd'])
+        // Read every box from the same (first) track.
+        const trak = find(view, ['moov', 'trak'])
+        if (!trak) return null
+        const mdhd = find(view, ['mdia', 'mdhd'], trak.start, trak.end)
         if (!mdhd) return null
         const version = view.getUint8(mdhd.start)
         // version/flags, then creation and modification times.
@@ -174,10 +208,10 @@ export function getMp4InitTiming(init: ArrayBuffer): Mp4InitTiming | null {
             mdhd.start + 4 + (version === 1 ? 16 : 8)
         )
         if (!timescale) return null
-        const trex = find(view, ['moov', 'mvex', 'trex'])
+        const trex = findTrex(view, readTrackId(view, trak))
         // version/flags, track_ID, default_sample_description_index
         const defaultSampleDuration = trex ? view.getUint32(trex.start + 12) : 0
-        const elst = find(view, ['moov', 'trak', 'edts', 'elst'])
+        const elst = find(view, ['edts', 'elst'], trak.start, trak.end)
         const editMediaTime = elst ? readEditMediaTime(view, elst) : 0
         return { timescale, defaultSampleDuration, editMediaTime }
     } catch {
