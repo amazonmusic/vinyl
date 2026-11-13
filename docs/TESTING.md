@@ -188,8 +188,7 @@ directory is safe to delete.
   `npm run release`: lint, unit tests with coverage, and the release build.
 - `Integ DRM` (every merge to `main`, or on demand) runs the integration suite
   with `--strictDrm=true` in the installed Chrome and Edge on GitHub's Windows
-  runner. Run it on demand to also run Chrome on its macOS runner, whose queue
-  can be long.
+  runner and in Chrome on its macOS runner.
 - `BrowserStack` (on demand) runs the integration suite on the BrowserStack
   browsers and devices. It doesn't set `strictDrm`, so Widevine specs go pending
   where BrowserStack's browsers lack the CDM (Firefox).

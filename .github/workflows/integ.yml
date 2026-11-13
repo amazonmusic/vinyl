@@ -1,10 +1,10 @@
 name: Integ DRM
 
-# Runs the integ suite in the installed Chrome and Edge on GitHub's Windows
-# runner on merge to main or on demand, and in Chrome on its macOS runner on
-# demand. Unlike Playwright's builds and BrowserStack's Firefox, these browsers
-# have their real Widevine CDM, so --strictDrm fails Widevine specs instead of
-# marking them pending.
+# Runs the integ suite on merge to main or on demand, in the installed Chrome
+# and Edge on GitHub's Windows runner and in Chrome on its macOS runner. Unlike
+# Playwright's builds and BrowserStack's Firefox, these browsers have their
+# real Widevine CDM, so --strictDrm fails Widevine specs instead of marking
+# them pending.
 on:
     push:
         branches: [main]
@@ -47,9 +47,7 @@ jobs:
                   path: packages/vinyl/integLogs/
                   if-no-files-found: ignore
 
-    # macOS runners can queue for a long time, so this runs on demand only.
     macos:
-        if: github.event_name == 'workflow_dispatch'
         runs-on: macos-latest
         timeout-minutes: 60
         steps:
