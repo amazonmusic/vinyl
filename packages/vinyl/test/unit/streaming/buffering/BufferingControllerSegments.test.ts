@@ -16,6 +16,8 @@ import {
     type ChangeEvent,
     createEmptyMediaQualityMetadata,
     MAX_ALIGN_STEPS,
+    MAX_ANCHOR_SHIFT,
+    MIN_ANCHOR_SHIFT,
     type MediaQualityMetadata,
     POLL_BUFFER_THROTTLE,
     SEGMENT_START_AFFORDANCE,
@@ -126,6 +128,11 @@ describe('BufferingControllerImpl in segments mode', () => {
     let sourceBufferController: MockSourceBufferController
     let bufferingController: BufferingControllerImpl
     let segments: MockSegment[]
+    /**
+     * How much earlier the simulated browser presents media than its computed
+     * time range, in seconds (e.g. timing the parser doesn't model).
+     */
+    let presentationError: number
     const inits = new Map<string, ArrayBuffer>()
 
     const clock = useMockTime()
@@ -172,6 +179,24 @@ describe('BufferingControllerImpl in segments mode', () => {
         })
     }
 
+    /**
+     * Two 10 s HLS segments whose media timestamps start at 100, each `size`
+     * bytes.
+     */
+    function setHlsSegments(size?: number) {
+        setSegments([
+            { start: 0, end: 10, media: [100, 110], ...(size && { size }) },
+            { start: 10, end: 20, media: [110, 120], ...(size && { size }) },
+        ])
+    }
+
+    /** The timestamp offsets set on the source buffer, in order. */
+    function timestampOffsets(): number[] {
+        return sourceBufferController.setTimestampOffset.calls
+            .allArgs()
+            .map(([offset]) => offset)
+    }
+
     /** Segments every `manifest` seconds whose media is `media` seconds long. */
     function setApproximateSegments(
         count: number,
@@ -191,7 +216,9 @@ describe('BufferingControllerImpl in segments mode', () => {
 
     /**
      * Simulates a segments-mode source buffer: each append is buffered at the
-     * timestamp offset plus its media timestamps.
+     * timestamp offset plus its media timestamps, less `presentationError`. A
+     * fragment (one keyframe) starting before the append window start (0) is
+     * dropped.
      */
     function createSourceBufferController(): MockSourceBufferController {
         const controller = new MockSourceBufferController()
@@ -214,10 +241,11 @@ describe('BufferingControllerImpl in segments mode', () => {
         })
         controller.append.and.callFake((data: ArrayBuffer) => {
             const range = timing && getFragmentTimeRange(data, timing)
-            if (range)
+            const start = range && offset + range.start - presentationError
+            if (range && start! >= 0)
                 controller.buffered.add(
-                    offset + range.start,
-                    offset + range.end
+                    start!,
+                    offset + range.end - presentationError
                 )
             return Promise.resolve()
         })
@@ -244,6 +272,7 @@ describe('BufferingControllerImpl in segments mode', () => {
 
     beforeEach(() => {
         inits.clear()
+        presentationError = 0
         mediaSourceController = new MockMediaSourceController()
         playbackController = new MockPlaybackController()
         segmentController = new MockSegmentController()
@@ -390,10 +419,7 @@ describe('BufferingControllerImpl in segments mode', () => {
     describe('without a manifest media time offset (HLS)', () => {
         it('anchors the media timestamps at the manifest time', async () => {
             // Media timestamps start at 100 s (e.g. MPEG-TS PTS).
-            setSegments([
-                { start: 0, end: 10, media: [100, 110] },
-                { start: 10, end: 20, media: [110, 120] },
-            ])
+            setHlsSegments()
             await open()
             await setTime(9)
             expect(
@@ -429,9 +455,7 @@ describe('BufferingControllerImpl in segments mode', () => {
             expect(sourceBufferController.clear).not.toHaveBeenCalled()
             // Anchored by presentation time (MSE's buffered ranges), not the
             // decode time.
-            const offsets = sourceBufferController.setTimestampOffset.calls
-                .allArgs()
-                .map(([offset]) => offset)
+            const offsets = timestampOffsets()
             expect(offsets.length).toBe(1)
             expect(offsets[0]).toBeCloseTo(-100.04, 6)
         })
@@ -463,10 +487,7 @@ describe('BufferingControllerImpl in segments mode', () => {
         })
 
         it('re-anchors after clearing', async () => {
-            setSegments([
-                { start: 0, end: 10, media: [100, 110] },
-                { start: 10, end: 20, media: [110, 120] },
-            ])
+            setHlsSegments()
             await open()
             bufferingController.clear()
             await clock.tick(0)
@@ -475,6 +496,83 @@ describe('BufferingControllerImpl in segments mode', () => {
             expect(
                 sourceBufferController.setTimestampOffset.calls.allArgs()
             ).toEqual([[-100], [-100]])
+        })
+
+        it('re-places a first segment the browser drops later', async () => {
+            // The browser presents the first frame 0.04 s before the computed
+            // range, before the append window.
+            presentationError = 0.04
+            setHlsSegments()
+            await open()
+            for (let i = 0; i < 5; i++) await setTime(0)
+            expect(sourceBufferController.clear).toHaveBeenCalledTimes(1)
+            expect(timestampOffsets()).toEqual([-100, -100 + MIN_ANCHOR_SHIFT])
+            const [[start]] = sourceBufferController.buffered.ranges
+            expect(start).toBeCloseTo(MIN_ANCHOR_SHIFT - 0.04, 6)
+        })
+
+        it('doubles the shift until the browser keeps the segment', async () => {
+            presentationError = 0.15
+            setHlsSegments()
+            await open()
+            for (let i = 0; i < 5; i++) await setTime(0)
+            expect(timestampOffsets()).toEqual([-100, -99.95, -99.9, -99.8])
+            expect(sourceBufferController.clear).toHaveBeenCalledTimes(3)
+            const [[start]] = sourceBufferController.buffered.ranges
+            expect(start).toBeCloseTo(0.05, 6)
+        })
+
+        it(`stops re-placing after shifting ${MAX_ANCHOR_SHIFT} s`, async () => {
+            presentationError = 1
+            setHlsSegments()
+            await open()
+            for (let i = 0; i < 10; i++) await setTime(0)
+            // Re-placed at each shift, then back at the manifest time so the
+            // track isn't left shifted.
+            expect(timestampOffsets()).toEqual([
+                -100, -99.95, -99.9, -99.8, -100,
+            ])
+            expect(sourceBufferController.clear).toHaveBeenCalledTimes(4)
+            // Buffering continued with the next segment instead of refetching
+            // the dropped one.
+            const firstSegmentFetches = segmentController.getSegment.calls
+                .allArgs()
+                .filter(([time]) => time < 10)
+            expect(firstSegmentFetches.length).toBe(5)
+            const [[start, end]] = sourceBufferController.buffered.ranges
+            expect(start).toBeCloseTo(9, 6)
+            expect(end).toBeCloseTo(19, 6)
+        })
+
+        it('does not clear when the browser presents the media later than placed', async () => {
+            // E.g. a leading empty edit the browser applies and the parser
+            // doesn't.
+            presentationError = -0.05
+            setHlsSegments()
+            await open()
+            for (let i = 0; i < 5; i++) await setTime(0)
+            expect(sourceBufferController.clear).not.toHaveBeenCalled()
+            expect(
+                sourceBufferController.setTimestampOffset
+            ).toHaveBeenCalledOnceWith(-100)
+            const [[start]] = sourceBufferController.buffered.ranges
+            expect(start).toBeCloseTo(0.05, 6)
+        })
+
+        it('does not re-place a dropped segment away from the timeline start', async () => {
+            presentationError = 11
+            setSegments([
+                { start: 0, end: 10, media: [100, 110] },
+                { start: 10, end: 20, media: [110, 120] },
+                { start: 20, end: 30, media: [120, 130] },
+            ])
+            playbackController.currentTime = 10
+            await open()
+            for (let i = 0; i < 5; i++) await setTime(10)
+            expect(sourceBufferController.clear).not.toHaveBeenCalled()
+            expect(
+                sourceBufferController.setTimestampOffset
+            ).toHaveBeenCalledOnceWith(-100)
         })
 
         it('does not align by media time', async () => {
@@ -651,6 +749,28 @@ describe('BufferingControllerImpl in segments mode', () => {
                 maxAppendSize: { video: 600 },
             })
             bufferingController.activate()
+        })
+
+        it('does not clear between chunks when the browser presents the media later than placed', async () => {
+            presentationError = -0.05
+            setHlsSegments(1000)
+            await open()
+            expect(sourceBufferController.append).toHaveBeenCalledTimes(1)
+            for (let i = 0; i < 5; i++) await setTime(0)
+            expect(sourceBufferController.clear).not.toHaveBeenCalled()
+        })
+
+        it('re-places a dropped first segment once all its chunks are appended', async () => {
+            presentationError = 0.04
+            setHlsSegments(1000)
+            await open()
+            expect(sourceBufferController.append).toHaveBeenCalledTimes(1)
+            expect(sourceBufferController.clear).not.toHaveBeenCalled()
+            for (let i = 0; i < 5; i++) await setTime(0)
+            expect(sourceBufferController.clear).toHaveBeenCalledTimes(1)
+            expect(timestampOffsets()).toEqual([-100, -100 + MIN_ANCHOR_SHIFT])
+            const [[start]] = sourceBufferController.buffered.ranges
+            expect(start).toBeCloseTo(MIN_ANCHOR_SHIFT - 0.04, 6)
         })
 
         it('sets the offset on the first chunk only', async () => {

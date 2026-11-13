@@ -85,6 +85,23 @@ export const MAX_ALIGN_STEPS = 8
 export const ANCHOR_TOLERANCE = 0.1
 
 /**
+ * In 'segments' mode without a manifest-defined media time offset (HLS), when
+ * the browser buffers nothing of the first segment appended to an empty
+ * buffer, it is re-placed this much later, in seconds, doubling on each retry
+ * up to `MAX_ANCHOR_SHIFT`. A segment anchored at the start of the timeline
+ * whose frames the browser presents slightly earlier than its computed time
+ * range starts before the append window, and the browser drops its keyframe
+ * and with it the whole GOP.
+ */
+export const MIN_ANCHOR_SHIFT = 0.05
+
+/**
+ * The largest shift applied to re-place a dropped segment, in seconds. See
+ * `MIN_ANCHOR_SHIFT`.
+ */
+export const MAX_ANCHOR_SHIFT = 0.2
+
+/**
  * A segment in the source buffer, with the presentation time range it was
  * appended at.
  */
@@ -113,6 +130,13 @@ interface SegmentPlacement {
     readonly offset: number
     readonly startTime: number
     readonly endTime: number
+
+    /**
+     * True if the segment is anchored at its manifest time (HLS) at the start
+     * of the timeline from an empty buffer, and so can be re-placed later if
+     * the browser drops it (see `MIN_ANCHOR_SHIFT`).
+     */
+    readonly retryable: boolean
 }
 
 /**
@@ -316,6 +340,21 @@ export class BufferingControllerImpl
     } | null = null
 
     /**
+     * Set when buffering starts from an empty buffer in 'segments' mode, until
+     * an append leaves media in the source buffer: 'retry' while the first
+     * segment may be re-placed later, otherwise 'check'.
+     */
+    private placementPending: 'retry' | 'check' | null = null
+
+    /**
+     * Added to the start of a retryable segment after the browser buffered
+     * nothing of it (see `MIN_ANCHOR_SHIFT`), or null once the largest shift
+     * failed and the segment was re-placed at its manifest time, until it is
+     * appended.
+     */
+    private anchorShift: number | null = 0
+
+    /**
      * The currently buffering quality.
      */
     private _bufferingQuality: MediaQualityMetadata | null = null
@@ -400,6 +439,7 @@ export class BufferingControllerImpl
         logDebug(this, 'deactivate')
         this.abortCurrentSegment()
         this.resetBufferedState()
+        this.anchorShift = 0
         this.activateDisposer!.dispose()
         this.activateDisposer = null
         this.sourceBufferController = null
@@ -575,6 +615,11 @@ export class BufferingControllerImpl
                     startTime: placement.startTime,
                     endTime: placement.endTime,
                 }
+                if (!tail) {
+                    this.placementPending = placement.retryable
+                        ? 'retry'
+                        : 'check'
+                }
             }
         } else if (!tail) {
             // Appending from an unbuffered position.
@@ -642,6 +687,58 @@ export class BufferingControllerImpl
             }
             this.refreshHead() // Update quality immediately if buffer was empty
         }
+        if (this.placementPending) {
+            this.checkPlacement(this.appendOffset === byteLength)
+        }
+    }
+
+    /**
+     * After an append while buffering from an empty buffer in 'segments' mode,
+     * checks that the browser buffered the media. The browser's timing may
+     * differ from the computed media time range (e.g. edit lists, rounding),
+     * so the buffer may start other than where the segment was placed; the
+     * buffer clear check uses where it actually starts, so re-appending
+     * doesn't loop. If nothing was buffered once the segment is fully
+     * appended, the browser dropped the media: an anchored first segment is
+     * re-placed later, and otherwise buffering continues with the next
+     * segment.
+     *
+     * @param complete True if the segment has been fully appended.
+     */
+    private checkPlacement(complete: boolean): void {
+        const buffered = this.sourceBufferController!.buffered
+        if (!buffered.empty) {
+            this.placementPending = null
+            this.anchorShift = 0
+            this.bufferedFrom = {
+                ...this.bufferedFrom!,
+                startTime: buffered.ranges[0][0],
+            }
+            return
+        }
+        if (!complete) return
+        const shift = this.anchorShift
+        if (this.placementPending === 'retry' && shift !== null) {
+            // Past the largest shift, don't leave the track shifted from the
+            // others for nothing.
+            this.anchorShift =
+                shift >= MAX_ANCHOR_SHIFT
+                    ? null
+                    : shift > 0
+                      ? shift * 2
+                      : MIN_ANCHOR_SHIFT
+            logWarn(
+                this,
+                `the segment placed at ${this.tail!.startTime.toFixed(4)} buffered nothing; re-placing it ` +
+                    (this.anchorShift === null
+                        ? 'at its manifest time and continuing with the next segment'
+                        : `${this.anchorShift}s later`)
+            )
+            this.clear()
+            return
+        }
+        this.anchorShift ??= 0
+        this.placementPending = 'check'
     }
 
     /**
@@ -670,10 +767,16 @@ export class BufferingControllerImpl
     ): SegmentPlacement {
         const range = this.getMediaTimeRange(segment)
         let offset: number
+        let retryable = false
         if (segment.mediaTimeOffset != null) {
             offset = segment.mediaTimeOffset
         } else if (range) {
-            const expectedStart = tail?.endTime ?? segment.startTime
+            // Only near the start of the timeline can frames presented slightly
+            // early fall before the append window and be dropped.
+            retryable = !tail && segment.startTime < MAX_ANCHOR_SHIFT
+            const expectedStart =
+                tail?.endTime ??
+                segment.startTime + (retryable ? (this.anchorShift ?? 0) : 0)
             const current = this.timestampOffset
             offset =
                 tail &&
@@ -685,13 +788,12 @@ export class BufferingControllerImpl
         } else {
             offset = segment.timestampOffset
         }
-        return range
-            ? {
-                  offset,
-                  startTime: offset + range.start,
-                  endTime: offset + range.end,
-              }
-            : { offset, startTime: segment.startTime, endTime: segment.endTime }
+        return {
+            offset,
+            startTime: range ? offset + range.start : segment.startTime,
+            endTime: range ? offset + range.end : segment.endTime,
+            retryable,
+        }
     }
 
     /**
@@ -981,6 +1083,7 @@ export class BufferingControllerImpl
         this.decoderId = null
         this.timestampOffset = null
         this.bufferedFrom = null
+        this.placementPending = null
         this.appendOffset = 0
         this.buffered.clear()
         this._bufferingEnded = false
