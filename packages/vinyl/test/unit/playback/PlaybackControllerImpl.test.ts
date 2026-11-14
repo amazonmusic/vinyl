@@ -1414,6 +1414,46 @@ describe('PlaybackController', () => {
                         await expectAsync(playPromise).toBeResolved()
                     })
 
+                    describe('and metadata never arrives', () => {
+                        it('rejects after playTimeout and never plays the element', async () => {
+                            const playRejectedSpy = createSpy('playRejected')
+                            controller.on('playRejected', playRejectedSpy)
+                            const playExpectation = expectAsync(
+                                controller.play()
+                            ).toBeRejectedWithError(
+                                'play() timed out after 30s'
+                            )
+                            await clock.tick(controller.options.playTimeout)
+                            await playExpectation
+                            expect(controller.playIsPending).toBeFalse()
+                            expect(playRejectedSpy).toHaveBeenCalledTimes(1)
+
+                            media.readyState = PlaybackReadyState.HAVE_METADATA
+                            media.dispatchEvent(mockEvent('loadedmetadata'))
+                            await flushPromises()
+                            expect(media.play).not.toHaveBeenCalled()
+                        })
+                    })
+
+                    describe('and metadata and the element share playTimeout', () => {
+                        it('rejects when their waits together exceed it', async () => {
+                            media.play.and.returnValue(new Promise(() => {}))
+                            const playExpectation = expectAsync(
+                                controller.play()
+                            ).toBeRejectedWithError(
+                                'play() timed out after 30s'
+                            )
+                            const half = controller.options.playTimeout / 2
+                            await clock.tick(half)
+                            media.readyState = PlaybackReadyState.HAVE_METADATA
+                            media.dispatchEvent(mockEvent('loadedmetadata'))
+                            await flushPromises()
+                            expect(media.play).toHaveBeenCalledTimes(1)
+                            await clock.tick(half)
+                            await playExpectation
+                        })
+                    })
+
                     describe('and play is called again', () => {
                         it('returns the same pending play promise', () => {
                             const playPromise = controller.play()

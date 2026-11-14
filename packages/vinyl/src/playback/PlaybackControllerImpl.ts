@@ -67,8 +67,8 @@ export interface PlaybackControllerImplOptions {
     readonly minSeekableBuffer: number
 
     /**
-     * The number of seconds before the promise returned by play() is rejected regardless whether
-     * the media element response has settled.
+     * The number of seconds before the promise returned by play() is rejected, counted from the
+     * call: the wait for metadata and the media element's response share it.
      * Default: 30
      */
     readonly playTimeout: number
@@ -637,22 +637,24 @@ export class PlaybackControllerImpl
             const playAbort = new Abort()
             this.playAbort = playAbort
             this.pendingPlay = withAbort(
-                (async () => {
-                    await nextHasMetadata(this)
-                    playAbort.throwIfAborted()
-                    await withTimeout(
-                        this.media.play(),
-                        this.options.playTimeout,
-                        {
-                            message: 'play() timed out after {time}s',
-                            origin: ErrorOrigin.INTERNAL,
-                            level: ErrorLevel.SILENT,
-                        }
-                    )
-                })(),
+                withTimeout(
+                    (async () => {
+                        await nextHasMetadata(this, { abort: playAbort })
+                        playAbort.throwIfAborted()
+                        await this.media.play()
+                    })(),
+                    this.options.playTimeout,
+                    {
+                        message: 'play() timed out after {time}s',
+                        origin: ErrorOrigin.INTERNAL,
+                        level: ErrorLevel.SILENT,
+                    }
+                ),
                 playAbort
             )
                 .catch((reason) => {
+                    // A timed-out play must not reach the element once metadata arrives.
+                    playAbort.abort()
                     this.dispatch('playRejected', { reason })
                     throw reason
                 })
