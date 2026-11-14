@@ -12,3 +12,5 @@ tsconfig.base.json
 **/index.ts
 **/treeShaking/**
 **/tsdocs/**
+**/bStackLogs/**
+**/integLogs/**
