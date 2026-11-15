@@ -60,10 +60,12 @@ jobs:
 
             - run: npm ci
 
+            # The macOS runner's audio device can make playback run far slower
+            # than real time, so Chrome plays audio to a fake output.
             - name: Run integ tests
               run:
                   npm run test:integ -w @amazon/vinyl -- --browsers=chrome
-                  --strictDrm=true
+                  --strictDrm=true --fakeAudio
 
             - name: Upload integ logs
               if: always()

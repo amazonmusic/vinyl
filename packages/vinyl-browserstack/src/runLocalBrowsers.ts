@@ -71,6 +71,13 @@ export interface LocalBrowsersOptions {
     readonly headed?: boolean
 
     /**
+     * Plays audio to a fake output in Chromium, Chrome, and Edge, so the media clock doesn't depend on the audio
+     * device. Use it on virtual machines, whose audio devices can make playback run slower than real time. Default:
+     * false
+     */
+    readonly fakeAudio?: boolean
+
+    /**
      * The number of seconds a browser may take to run the suite. Default: 30 minutes
      */
     readonly timeout?: number
@@ -267,6 +274,7 @@ export async function runLocalBrowsers(
 
         const opening = openLocalBrowser(browser, url, {
             headed: options.headed ?? false,
+            fakeAudio: options.fakeAudio ?? false,
             log: (message) => log([`${new Date().toISOString()} ${message}`]),
         })
         openPages.add(opening)
@@ -401,7 +409,8 @@ function printResults(results: readonly LocalBrowserResult[]) {
 /**
  * Calls {@link runLocalBrowsers}, exiting the process with a non-zero code if any browser failed.
  *
- * Command line arguments override the options: `--browsers=chromium,webkit`, `--serial`, and `--headed`. Any other
+ * Command line arguments override the options: `--browsers=chromium,webkit`, `--serial`, `--headed`, and
+ * `--fakeAudio`. Any other
  * `--name=value` argument is added to the test page's query parameters, e.g. `--spec=progressive`.
  */
 export function runLocalBrowsersAndExit(options: LocalBrowsersOptions): void {
@@ -410,6 +419,7 @@ export function runLocalBrowsersAndExit(options: LocalBrowsersOptions): void {
         browsers,
         headed: _headed,
         serial: _serial,
+        fakeAudio: _fakeAudio,
         ...queryParams
     } = properties
     const browserNames = browsers
@@ -426,6 +436,7 @@ export function runLocalBrowsersAndExit(options: LocalBrowsersOptions): void {
         ...(browserNames && { browsers: browserNames }),
         headed: 'headed' in properties || (options.headed ?? false),
         serial: 'serial' in properties || (options.serial ?? false),
+        fakeAudio: 'fakeAudio' in properties || (options.fakeAudio ?? false),
     }
     runVariants(
         runOptions,
