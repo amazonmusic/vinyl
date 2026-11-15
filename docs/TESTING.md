@@ -150,6 +150,10 @@ Options are passed after `--` to a package's script, for example
   have no Widevine CDM.
 - `--serial` - runs the browsers one after another.
 - `--headed` - shows the Playwright browser windows.
+- `--fakeAudio` - plays audio to a fake output in `chromium`, `chrome`, and
+  `msedge`, so the media clock runs off a timer instead of the audio device. Use
+  it on virtual machines, whose audio devices can make playback run far slower
+  than real time and time out specs.
 - Any other `--name=value` is added to the page's query parameters, such as
   `--spec`, `--seed`, or `--vinylLogLevel`.
 
@@ -188,7 +192,7 @@ directory is safe to delete.
   `npm run release`: lint, unit tests with coverage, and the release build.
 - `Integ DRM` (every merge to `main`, or on demand) runs the integration suite
   with `--strictDrm=true` in the installed Chrome and Edge on GitHub's Windows
-  runner and in Chrome on its macOS runner.
+  runner and in Chrome on its macOS runner. The macOS job sets `--fakeAudio`.
 - `BrowserStack` (on demand) runs the integration suite on the BrowserStack
   browsers and devices. It doesn't set `strictDrm`, so Widevine specs go pending
   where BrowserStack's browsers lack the CDM (Firefox).

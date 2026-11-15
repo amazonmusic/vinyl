@@ -42,6 +42,12 @@ export interface LocalBrowserLaunchOptions {
     readonly headed: boolean
 
     /**
+     * Plays audio to a fake output in Chromium, Chrome, and Edge, so the media clock runs off a timer instead of the
+     * audio device. Has no effect in Firefox, WebKit, or Safari.
+     */
+    readonly fakeAudio: boolean
+
+    /**
      * Invoked with diagnostics jasmine's reporting can't see: uncaught page errors, crashes, and failed requests.
      */
     readonly log: (message: string) => void
@@ -104,10 +110,15 @@ async function openPlaywright(
     }
     // The installed Chrome and Edge launch through Playwright's Chromium with a channel.
     const isChannel = name === 'chrome' || name === 'msedge'
+    const isChromium = isChannel || name === 'chromium'
     let browser: Playwright.Browser
     try {
         browser = await playwright[isChannel ? 'chromium' : name].launch({
             headless: !options.headed,
+            // A virtual machine's audio device can starve the audio renderer, and with it the media clock, which then
+            // runs far slower than real time.
+            ...(isChromium &&
+                options.fakeAudio && { args: ['--disable-audio-output'] }),
             // Playwright disables component updates, which stops Chrome and Edge loading their Widevine CDM.
             ...(isChannel && {
                 channel: name,
