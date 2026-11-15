@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { TypeDeclarationOptions } from '../typescript/buildTypeDeclarations'
+import type { TypeDeclarationOptions } from '../typescript/buildTypeDeclarations.js'
 
 export const vinylDefaultTscOptions: TypeDeclarationOptions = {
     downlevel: {

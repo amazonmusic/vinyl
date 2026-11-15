@@ -5,4 +5,4 @@
 
 import { writeIndexFile } from '../src/util/writeIndexFile'
 
-writeIndexFile('src')
+writeIndexFile('src', 'src', { importExtension: '.js' })

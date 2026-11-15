@@ -9,7 +9,7 @@ import fs from 'node:fs'
 import {
     buildTypeDeclarations,
     type TypeDeclarationOptions,
-} from '../typescript/buildTypeDeclarations'
+} from '../typescript/buildTypeDeclarations.js'
 
 /**
  * A plugin to emit type declarations after each build.

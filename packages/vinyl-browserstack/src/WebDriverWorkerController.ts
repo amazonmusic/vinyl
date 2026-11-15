@@ -17,7 +17,7 @@ import {
 import {
     type ReadonlyWebDriverWorkerState,
     WebDriverWorker,
-} from './WebDriverWorker'
+} from './WebDriverWorker.js'
 
 export interface WebDriverWorkerControllerDeps {
     /**

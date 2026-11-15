@@ -21,7 +21,7 @@ import {
     type WorkerOptions,
 } from '@amazon/vinyl-build-utils'
 import type { Options as BsLocalOptions } from 'browserstack-local'
-import { WebDriverWorkerController } from './WebDriverWorkerController'
+import { WebDriverWorkerController } from './WebDriverWorkerController.js'
 import crypto from 'node:crypto'
 
 /**

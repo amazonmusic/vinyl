@@ -3,17 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {
-    type BrowserStackOptions,
-    getEnvBrowserStackCredentials,
-} from '../browserstack/browserStackConfig'
-import { vinylSupportedBrowsers } from './vinylSupportedBrowsers'
+import type { BrowserStackOptions } from '../browserstack/browserStackConfig.js'
+import { vinylSupportedBrowsers } from './vinylSupportedBrowsers.js'
 
 /**
- * Defaults for browserstack configuration in Vinyl related projects.
+ * Defaults for browserstack configuration in Vinyl related projects. Without
+ * credentials, the run reads them from the environment when it starts.
  */
 export const vinylDefaultBrowserStackOptions = {
-    credentials: getEnvBrowserStackCredentials(),
     browsers: vinylSupportedBrowsers,
     server: {
         http: { port: 9000 },

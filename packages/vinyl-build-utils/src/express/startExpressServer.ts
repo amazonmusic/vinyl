@@ -7,7 +7,7 @@ import type { Express } from 'express'
 import nodeHttps from 'node:https'
 import nodeHttp from 'node:http'
 import type { SecureContextOptions } from 'node:tls'
-import { logger } from '../util/Logger'
+import { logger } from '../util/Logger.js'
 
 export interface ServerHostOptions {
     /**

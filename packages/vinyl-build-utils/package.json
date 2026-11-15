@@ -26,7 +26,8 @@
     ],
     "scripts": {
         "build": "tsc -p ./src/tsconfig.json",
-        "build:release": "tsc -p ./src/tsconfig.json",
+        "build:release": "tsc -p ./src/tsconfig.json && npm run checkDist",
+        "checkDist": "node ./buildScripts/checkDist.mjs",
         "build:watch": "tsc -p ./src/tsconfig.json -w",
         "clean": "rimraf --glob dist \"**/*.tsbuildinfo\"",
         "indexFiles:check": "tsx ./buildScripts/writeIndexFiles.ts --check",

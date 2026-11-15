@@ -10,8 +10,8 @@
  * @module
  */
 
-import { sleep } from '../util/sleep'
-import { logger } from '../util/Logger'
+import { sleep } from '../util/sleep.js'
+import { logger } from '../util/Logger.js'
 
 /**
  * Browserstack Automate credentials.

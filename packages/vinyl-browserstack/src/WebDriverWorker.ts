@@ -14,8 +14,8 @@ import {
     type WorkerOptions,
 } from '@amazon/vinyl-build-utils'
 import { Builder, type WebDriver } from 'selenium-webdriver'
-import { buildCapabilities } from './capabilities'
-import { clickStartPrompt } from './clickStartPrompt'
+import { buildCapabilities } from './capabilities.js'
+import { clickStartPrompt } from './clickStartPrompt.js'
 import path from 'node:path'
 import fs from 'node:fs'
 import crypto from 'node:crypto'

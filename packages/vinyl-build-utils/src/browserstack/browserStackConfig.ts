@@ -13,14 +13,14 @@ import { config as dotEnvConfig } from 'dotenv'
 import path from 'node:path'
 import process from 'node:process'
 import type { Options as BsLocalOptions } from 'browserstack-local'
-import type { ServerOptions } from '../express/serve'
-import type { LogLevel } from '../util/Logger'
-import { getRootProjectDir } from '../util/getRootProjectDir'
+import type { ServerOptions } from '../express/serve.js'
+import type { LogLevel } from '../util/Logger.js'
+import { getRootProjectDir } from '../util/getRootProjectDir.js'
 import type {
     BrowserDetails,
     BrowserStackCredentials,
     WorkerOptions,
-} from './browserStackRestApi'
+} from './browserStackRestApi.js'
 
 /**
  * Per-worker (per-session) runtime configuration.

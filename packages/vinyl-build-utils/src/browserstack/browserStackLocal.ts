@@ -4,7 +4,7 @@
  */
 
 import { Local as BsLocal, type Options } from 'browserstack-local'
-import { logger } from '../util/Logger'
+import { logger } from '../util/Logger.js'
 import fs from 'node:fs'
 import path from 'path'
 

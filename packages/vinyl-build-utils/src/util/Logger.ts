@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ansi, calculateLogLines } from './console'
+import { ansi, calculateLogLines } from './console.js'
 import process from 'node:process'
 
 export enum LogLevel {

@@ -3,6 +3,9 @@
     "files": [],
     "include": ["**.*"],
     "compilerOptions": {
+        // Published for Node.js, which requires file extensions on relative imports.
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
         "outDir": "../dist"
     }
 }
