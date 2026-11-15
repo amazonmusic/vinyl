@@ -27,7 +27,7 @@ import {
     localBrowserNames,
     LocalBrowserUnavailableError,
     openLocalBrowser,
-} from './localBrowsers'
+} from './localBrowsers.js'
 
 /**
  * How much longer than real time a spec must allow when Playwright's WebKit plays FairPlay over MSE, which it plays at

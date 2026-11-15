@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { resolveProjectReferences } from './resolveProjectReferences'
+import { resolveProjectReferences } from './resolveProjectReferences.js'
 import { replaceTscAliasPaths } from 'tsc-alias'
-import { parseTsConfig } from './parseTsConfig'
+import { parseTsConfig } from './parseTsConfig.js'
 
 interface ReplaceAliasesOptions {
     readonly configFile: string

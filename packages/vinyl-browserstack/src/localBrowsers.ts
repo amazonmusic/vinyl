@@ -6,7 +6,7 @@
 import { logger, sleep } from '@amazon/vinyl-build-utils'
 import type * as Playwright from 'playwright'
 import { Browser, Builder, type WebDriver } from 'selenium-webdriver'
-import { clickStartPrompt, START_PROMPT_SELECTOR } from './clickStartPrompt'
+import { clickStartPrompt, START_PROMPT_SELECTOR } from './clickStartPrompt.js'
 
 /**
  * The browsers {@link runLocalBrowsers} can run: Playwright's Chromium, Firefox, and WebKit builds, the installed

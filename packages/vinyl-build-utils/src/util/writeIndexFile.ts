@@ -6,7 +6,7 @@
 import fs from 'node:fs'
 import { glob } from 'glob'
 import path from 'node:path'
-import { ansi } from './console'
+import { ansi } from './console.js'
 
 /**
  * If --check argument is provided, do not write an index.ts file, check that the existing one
@@ -17,6 +17,13 @@ const verifyMode = process.argv.includes('--check')
 export interface IndexFileOptions {
     readonly header?: string
     readonly footer?: string
+
+    /**
+     * Appended to each import path, e.g. '.js' for a package compiled by tsc
+     * for Node.js, which requires file extensions on relative imports.
+     * Default: '' (for bundled packages)
+     */
+    readonly importExtension?: string
 }
 
 /**
@@ -34,6 +41,7 @@ export function writeIndexFile(
     const header =
         options?.header ?? `/** Auto-generated from build scripts */\n`
     let footer = options?.footer ?? ''
+    const importExtension = options?.importExtension ?? ''
     if (footer && !footer.endsWith('\n')) footer += '\n'
 
     const allSrcFiles = glob.sync(`${dir}/**/*.ts`, {
@@ -47,7 +55,7 @@ export function writeIndexFile(
                 importOrExport: hasExports(srcFile)
                     ? 'export * from'
                     : 'import',
-                path: `./${importPath.substring(0, importPath.length - 3)}`,
+                path: `./${importPath.substring(0, importPath.length - 3)}${importExtension}`,
             }
         })
         .sort((a, b) => a.path.localeCompare(b.path))
@@ -90,7 +98,7 @@ export function writeIndexFile(
                 const { path, importOrExport } = relativePaths[i]
                 if (
                     !lines[i].startsWith(importOrExport) ||
-                    !lines[i].includes(path)
+                    !lines[i].includes(`'${path}'`)
                 )
                     fail()
             }

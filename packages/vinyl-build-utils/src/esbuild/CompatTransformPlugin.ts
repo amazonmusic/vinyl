@@ -4,9 +4,9 @@
  */
 
 import type { Plugin, PluginBuild } from 'esbuild'
-import { compatTransform } from '../babel/compatTransform'
+import { compatTransform } from '../babel/compatTransform.js'
 import path from 'path'
-import { logger } from '../util/Logger'
+import { logger } from '../util/Logger.js'
 
 export interface CompatTransformPluginOptions {
     readonly enabled?: boolean

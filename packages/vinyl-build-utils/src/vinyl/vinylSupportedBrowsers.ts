@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import type { WorkerInitOptions } from '../browserstack/browserStackConfig'
+import type { WorkerInitOptions } from '../browserstack/browserStackConfig.js'
 
 // Each entry names a fallbackBrowser on a slightly different OS (or browser
 // release) so a worker that can never establish a BrowserStack session (e.g.

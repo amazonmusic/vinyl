@@ -7,9 +7,9 @@ import type { Express } from 'express'
 import express, { static as expressStatic } from 'express'
 import type { Options as ProxyOptions } from 'http-proxy-middleware'
 import { createProxyMiddleware } from 'http-proxy-middleware'
-import type { ServerHandle, ServerHostOptions } from './startExpressServer'
-import { startExpressServer } from './startExpressServer'
-import { logger } from '../util/Logger'
+import type { ServerHandle, ServerHostOptions } from './startExpressServer.js'
+import { startExpressServer } from './startExpressServer.js'
+import { logger } from '../util/Logger.js'
 
 export interface ServerOptions extends ServerHostOptions {
     /**

@@ -5,7 +5,7 @@
 
 import { logger, sleep } from '@amazon/vinyl-build-utils'
 import { By, type WebDriver, type WebElement } from 'selenium-webdriver'
-import { Command, Name } from 'selenium-webdriver/lib/command'
+import { Command, Name } from 'selenium-webdriver/lib/command.js'
 
 /**
  * The full-page prompt the test page shows before the suite runs. Clicking it with trusted input unlocks media

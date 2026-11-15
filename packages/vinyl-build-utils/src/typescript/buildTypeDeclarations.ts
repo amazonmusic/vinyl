@@ -5,11 +5,11 @@
 
 import { ExitStatus } from 'typescript'
 import path from 'node:path'
-import { tsc, type TscBuildOptions } from './tsc'
-import { replacePathAliases } from './replacePathAliases'
+import { tsc, type TscBuildOptions } from './tsc.js'
+import { replacePathAliases } from './replacePathAliases.js'
 import { downlevelDts } from '@nbilyk/downlevel-dts'
-import { logger } from '../util/Logger'
-import { parseTsConfig } from './parseTsConfig'
+import { logger } from '../util/Logger.js'
+import { parseTsConfig } from './parseTsConfig.js'
 
 export interface TypeDeclarationOptions {
     /**
