@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/amazonmusic/vinyl/compare/v4.1.0...v5.0.0) (2026-11-16)
+
+### Features
+
+- **browserstack:** run the suite once per query parameter variant
+  ([9815d58](https://github.com/amazonmusic/vinyl/commit/9815d5809b36170a2cd6477ea3843106f0f177e9))
+
+### Bug Fixes
+
+- **browserstack:** stop BrowserStackLocal when the run is interrupted
+  ([7989ad7](https://github.com/amazonmusic/vinyl/commit/7989ad7dda3c3815d499270c14fb758d12427038))
+- **node:** load vinyl-browserstack, vinyl-build-utils, and vinyl-mock-generator
+  in Node.js
+  ([6b00b38](https://github.com/amazonmusic/vinyl/commit/6b00b389591db7de56ebd0b407a9d14558596c11)),
+  closes [#176](https://github.com/amazonmusic/vinyl/issues/176)
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
 
 **Note:** Version bump only for package @amazon/vinyl-build-utils

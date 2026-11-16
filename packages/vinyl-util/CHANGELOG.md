@@ -3,6 +3,36 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/amazonmusic/vinyl/compare/v4.1.0...v5.0.0) (2026-11-16)
+
+### Features
+
+- **util:** read media timestamps from fragmented MP4 segments
+  ([39db3ae](https://github.com/amazonmusic/vinyl/commit/39db3aed100f02def2eff18327d8982ec921dec6))
+
+### Bug Fixes
+
+- **util:** apply the edit list to the presentation time range of fragmented MP4
+  segments
+  ([4c3fc1d](https://github.com/amazonmusic/vinyl/commit/4c3fc1d63750784895ae905b8373a3ed54c6f058))
+- **util:** clone a Request input on each requester attempt so retries can
+  resend its body
+  ([a374639](https://github.com/amazonmusic/vinyl/commit/a374639f89899f4f30671cb60bfd3b9f8c57faf9))
+- **util:** read the init timing of fragmented MP4 from a single track
+  ([14e0e61](https://github.com/amazonmusic/vinyl/commit/14e0e61703574f0ae453637157987897a3792263))
+- **util:** redact RequestError headers and fields by credential name pattern
+  ([0a8f8ef](https://github.com/amazonmusic/vinyl/commit/0a8f8ef4090c77eefac6806a50b10661936d583d))
+- **util:** return the presentation time range of fragmented MP4 segments
+  ([111fdd5](https://github.com/amazonmusic/vinyl/commit/111fdd5caf0715a02829f6fe5393ca3e09cb23b7))
+- **util:** serialize a RequestError whose event lacks the request input, init
+  or response url
+  ([e5b2035](https://github.com/amazonmusic/vinyl/commit/e5b20359df88ae46371ee37284631d4a62640590))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
 
 ### Bug Fixes

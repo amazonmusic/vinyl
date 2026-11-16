@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/amazonmusic/vinyl/compare/v4.1.0...v5.0.0) (2026-11-16)
+
+### ⚠ BREAKING CHANGES
+
+- **tsx:** onConnect callbacks on intrinsic elements are typed with the
+  tag&#x27;s element. A callback typed for a different element, or
+  JsxElementProps for one tag spread onto another, is now a compile error.
+- **tsx:** TSX children are now type-checked. &#x60;true&#x60;, numbers, and
+  observables of anything other than Node or string (including nullable ones)
+  are compile errors as children, and passing children to a component without a
+  children parameter is a compile error.
+
+### Features
+
+- **tsx:** accept array children
+  ([9e9d3ec](https://github.com/amazonmusic/vinyl/commit/9e9d3ec13a9197010e8cc562b9c5986aa7e58887))
+- **tsx:** type onConnect&#x27;s element by tag
+  ([f4e1e4a](https://github.com/amazonmusic/vinyl/commit/f4e1e4aa33686f2df8c1fe58b4931c9c2b6ab4a3))
+- **tsx:** type-check tsx children
+  ([407230f](https://github.com/amazonmusic/vinyl/commit/407230f2bf6d5f82946ccb2d335b7fb179f53552))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
 
 **Note:** Version bump only for package @amazon/vinyl-website
