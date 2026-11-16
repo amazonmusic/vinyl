@@ -3,6 +3,46 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/amazonmusic/vinyl/compare/v4.1.0...v5.0.0) (2026-11-16)
+
+### ⚠ BREAKING CHANGES
+
+- **vinyl:** source buffers are created in MSE &#x60;segments&#x60; mode, and
+  media is positioned by its own timestamps rather than by the manifest&#x27;s
+  segment start times. Set &#x60;streaming.buffering.appendMode:
+  &#x27;sequence&#x27;&#x60; for the previous behaviour.
+
+### Features
+
+- **util:** read media timestamps from fragmented MP4 segments
+  ([39db3ae](https://github.com/amazonmusic/vinyl/commit/39db3aed100f02def2eff18327d8982ec921dec6))
+- **vinyl:** append media in MSE segments mode
+  ([2acc619](https://github.com/amazonmusic/vinyl/commit/2acc619b97a46eb402880df05de4284a0fba21a0))
+
+### Bug Fixes
+
+- **buffering:** re-place an HLS first segment the browser drops at the start of
+  the timeline
+  ([5836fe5](https://github.com/amazonmusic/vinyl/commit/5836fe53a91e4c44eae09960f378f2c8b8031b23))
+- **buffering:** stop the segments mode clear loop at a gap before the buffer
+  ([16bf44b](https://github.com/amazonmusic/vinyl/commit/16bf44bc6dafe64e66ed95d1560cf2558ab50947))
+- **hls:** play a media playlist loaded as the track URL
+  ([eb65443](https://github.com/amazonmusic/vinyl/commit/eb65443db9c63cf9c057e662b38e50dc64f1d050)),
+  closes [#EXTINF](https://github.com/amazonmusic/vinyl/issues/EXTINF)
+  [#EXT-X-TARGETDURATION](https://github.com/amazonmusic/vinyl/issues/EXT-X-TARGETDURATION)
+  [#EXT-X-STREAM-INF](https://github.com/amazonmusic/vinyl/issues/EXT-X-STREAM-INF)
+- **hls:** read the codecs of a variant without CODECS from its first segment
+  ([d94a1b0](https://github.com/amazonmusic/vinyl/commit/d94a1b012b28124276112367811ac678e1b6279a))
+- **hls:** transmux only each quality&#x27;s own track from muxed MPEG-TS
+  ([466a1ae](https://github.com/amazonmusic/vinyl/commit/466a1ae61ddec74a4f31efbfeb11066ad39ab43c))
+- **playback:** playTimeout covers play()&#x27;s wait for metadata
+  ([2cddea2](https://github.com/amazonmusic/vinyl/commit/2cddea275d492ca056c39cd3b83af416fff77960))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
 
 ### Features

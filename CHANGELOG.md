@@ -3,6 +3,84 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/amazonmusic/vinyl/compare/v4.1.0...v5.0.0) (2026-11-16)
+
+### ⚠ BREAKING CHANGES
+
+- **vinyl:** source buffers are created in MSE &#x60;segments&#x60; mode, and
+  media is positioned by its own timestamps rather than by the manifest&#x27;s
+  segment start times. Set &#x60;streaming.buffering.appendMode:
+  &#x27;sequence&#x27;&#x60; for the previous behaviour.
+- **tsx:** onConnect callbacks on intrinsic elements are typed with the
+  tag&#x27;s element. A callback typed for a different element, or
+  JsxElementProps for one tag spread onto another, is now a compile error.
+- **tsx:** TSX children are now type-checked. &#x60;true&#x60;, numbers, and
+  observables of anything other than Node or string (including nullable ones)
+  are compile errors as children, and passing children to a component without a
+  children parameter is a compile error.
+
+### Features
+
+- **browserstack:** run the suite once per query parameter variant
+  ([9815d58](https://github.com/amazonmusic/vinyl/commit/9815d5809b36170a2cd6477ea3843106f0f177e9))
+- **transmux:** transmux a single track and report codecs
+  ([99dd818](https://github.com/amazonmusic/vinyl/commit/99dd8181c67c742200ac1fba58c585ceaa0a96c2))
+- **tsx:** accept array children
+  ([9e9d3ec](https://github.com/amazonmusic/vinyl/commit/9e9d3ec13a9197010e8cc562b9c5986aa7e58887))
+- **tsx:** type onConnect&#x27;s element by tag
+  ([f4e1e4a](https://github.com/amazonmusic/vinyl/commit/f4e1e4aa33686f2df8c1fe58b4931c9c2b6ab4a3))
+- **tsx:** type-check tsx children
+  ([407230f](https://github.com/amazonmusic/vinyl/commit/407230f2bf6d5f82946ccb2d335b7fb179f53552))
+- **util:** read media timestamps from fragmented MP4 segments
+  ([39db3ae](https://github.com/amazonmusic/vinyl/commit/39db3aed100f02def2eff18327d8982ec921dec6))
+- **vinyl:** append media in MSE segments mode
+  ([2acc619](https://github.com/amazonmusic/vinyl/commit/2acc619b97a46eb402880df05de4284a0fba21a0))
+
+### Bug Fixes
+
+- **browserstack:** stop BrowserStackLocal when the run is interrupted
+  ([7989ad7](https://github.com/amazonmusic/vinyl/commit/7989ad7dda3c3815d499270c14fb758d12427038))
+- **buffering:** re-place an HLS first segment the browser drops at the start of
+  the timeline
+  ([5836fe5](https://github.com/amazonmusic/vinyl/commit/5836fe53a91e4c44eae09960f378f2c8b8031b23))
+- **buffering:** stop the segments mode clear loop at a gap before the buffer
+  ([16bf44b](https://github.com/amazonmusic/vinyl/commit/16bf44bc6dafe64e66ed95d1560cf2558ab50947))
+- **hls:** play a media playlist loaded as the track URL
+  ([eb65443](https://github.com/amazonmusic/vinyl/commit/eb65443db9c63cf9c057e662b38e50dc64f1d050)),
+  closes [#EXTINF](https://github.com/amazonmusic/vinyl/issues/EXTINF)
+  [#EXT-X-TARGETDURATION](https://github.com/amazonmusic/vinyl/issues/EXT-X-TARGETDURATION)
+  [#EXT-X-STREAM-INF](https://github.com/amazonmusic/vinyl/issues/EXT-X-STREAM-INF)
+- **hls:** read the codecs of a variant without CODECS from its first segment
+  ([d94a1b0](https://github.com/amazonmusic/vinyl/commit/d94a1b012b28124276112367811ac678e1b6279a))
+- **hls:** transmux only each quality&#x27;s own track from muxed MPEG-TS
+  ([466a1ae](https://github.com/amazonmusic/vinyl/commit/466a1ae61ddec74a4f31efbfeb11066ad39ab43c))
+- **node:** load vinyl-browserstack, vinyl-build-utils, and vinyl-mock-generator
+  in Node.js
+  ([6b00b38](https://github.com/amazonmusic/vinyl/commit/6b00b389591db7de56ebd0b407a9d14558596c11)),
+  closes [#176](https://github.com/amazonmusic/vinyl/issues/176)
+- **playback:** playTimeout covers play()&#x27;s wait for metadata
+  ([2cddea2](https://github.com/amazonmusic/vinyl/commit/2cddea275d492ca056c39cd3b83af416fff77960))
+- **util:** apply the edit list to the presentation time range of fragmented MP4
+  segments
+  ([4c3fc1d](https://github.com/amazonmusic/vinyl/commit/4c3fc1d63750784895ae905b8373a3ed54c6f058))
+- **util:** clone a Request input on each requester attempt so retries can
+  resend its body
+  ([a374639](https://github.com/amazonmusic/vinyl/commit/a374639f89899f4f30671cb60bfd3b9f8c57faf9))
+- **util:** read the init timing of fragmented MP4 from a single track
+  ([14e0e61](https://github.com/amazonmusic/vinyl/commit/14e0e61703574f0ae453637157987897a3792263))
+- **util:** redact RequestError headers and fields by credential name pattern
+  ([0a8f8ef](https://github.com/amazonmusic/vinyl/commit/0a8f8ef4090c77eefac6806a50b10661936d583d))
+- **util:** return the presentation time range of fragmented MP4 segments
+  ([111fdd5](https://github.com/amazonmusic/vinyl/commit/111fdd5caf0715a02829f6fe5393ca3e09cb23b7))
+- **util:** serialize a RequestError whose event lacks the request input, init
+  or response url
+  ([e5b2035](https://github.com/amazonmusic/vinyl/commit/e5b20359df88ae46371ee37284631d4a62640590))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
 
 ### Features

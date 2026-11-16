@@ -3,6 +3,18 @@
 All notable changes to this project will be documented in this file. See
 [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## [5.0.0](https://github.com/amazonmusic/vinyl/compare/v4.1.0...v5.0.0) (2026-11-16)
+
+### Features
+
+- **transmux:** transmux a single track and report codecs
+  ([99dd818](https://github.com/amazonmusic/vinyl/commit/99dd8181c67c742200ac1fba58c585ceaa0a96c2))
+
+# Change Log
+
+All notable changes to this project will be documented in this file. See
+[Conventional Commits](https://conventionalcommits.org) for commit guidelines.
+
 ## [4.1.0](https://github.com/amazonmusic/vinyl/compare/v4.0.0...v4.1.0) (2026-10-20)
 
 **Note:** Version bump only for package @amazon/vinyl-transmux
