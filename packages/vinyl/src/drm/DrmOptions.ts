@@ -38,6 +38,16 @@ export enum DrmRobustness {
 }
 
 /**
+ * DrmRequirement is whether a key system must, may, or must not use a feature.
+ * It's EME's `MediaKeysRequirement`.
+ */
+export enum DrmRequirement {
+    REQUIRED = 'required',
+    OPTIONAL = 'optional',
+    NOT_ALLOWED = 'not-allowed',
+}
+
+/**
  * DrmConfig configures DrmController and LicenseProvider.
  */
 export interface DrmOptions {
@@ -103,6 +113,18 @@ export interface DrmKeySystemOptions {
     readonly video?: DrmMediaKeySystemOptions
 
     /**
+     * Whether the key system may use a distinctive identifier: a value unique
+     * to the device or user. Some platforms need one to attest the device, for
+     * example Widevine's verified media path on ChromeOS. Browsers withhold it
+     * when privacy settings or policy don't allow it, so with
+     * {@link DrmRequirement.REQUIRED} this key system isn't supported there.
+     *
+     * Default: none requested, which EME treats as
+     * {@link DrmRequirement.OPTIONAL}.
+     */
+    readonly distinctiveIdentifier?: DrmRequirement
+
+    /**
      * Key systems with a higher priority take precedence.
      * If two key systems have equal priority, the order will be as it appears
      * in DrmInfo (provided by the manifest).
@@ -148,6 +170,9 @@ export interface DrmMediaKeySystemOptions {
 export const drmRobustnessValidator: ValueSchema<DrmRobustness> =
     enumOf(DrmRobustness)
 
+export const drmRequirementValidator: ValueSchema<DrmRequirement> =
+    enumOf(DrmRequirement)
+
 export const drmMediaKeySystemOptionsValidator: ObjectSchema<DrmMediaKeySystemOptions> =
     object({
         robustness: drmRobustnessValidator.optional(),
@@ -158,6 +183,7 @@ export const drmKeySystemOptionsValidator: ObjectSchema<DrmKeySystemOptions> =
         licenseServer: func().or(licenseServerOptionsValidator).optional(),
         audio: drmMediaKeySystemOptionsValidator.optional(),
         video: drmMediaKeySystemOptionsValidator.optional(),
+        distinctiveIdentifier: drmRequirementValidator.optional(),
         priority: number().optional(),
         initDataTransformer: func().optional(),
     })

@@ -34,6 +34,7 @@ import {
 } from '@amazon/vinyl-util'
 import { instanceOf, object, type ObjectSchema } from '@amazon/vinyl-validation'
 import {
+    type DrmKeySystemOptions,
     type DrmMediaKeySystemOptions,
     type DrmOptions,
     DrmRobustness,
@@ -574,8 +575,11 @@ export class DrmControllerImpl
             if (drmInfo.mimeType) {
                 capability.contentType = drmInfo.mimeType
             }
+            const distinctiveIdentifier =
+                this.getKeySystemOptions(keySystem)?.distinctiveIdentifier
             const config: MediaKeySystemConfiguration = {
                 initDataTypes: [drmInfo.initDataType ?? 'cenc'],
+                ...(distinctiveIdentifier != null && { distinctiveIdentifier }),
             }
             const contentType = drmInfo.contentType
             if (contentType === 'video') {
@@ -604,6 +608,7 @@ export class DrmControllerImpl
                     capability.robustness,
                     drmInfo.encryptionScheme,
                     drmInfo.initDataType,
+                    distinctiveIdentifier,
                 ]
                     .map(String)
                     .join('|'),
@@ -611,12 +616,18 @@ export class DrmControllerImpl
         })
     }
 
+    private getKeySystemOptions(
+        keySystem: DrmKeySystem
+    ): DrmKeySystemOptions | undefined {
+        const keySystems = this.options.keySystems
+        return keySystems[keySystem] ?? keySystems['*']
+    }
+
     private getMediaKeySystemOptions(
         keySystem: DrmKeySystem,
         contentType: Maybe<ContentType>
     ): DrmMediaKeySystemOptions | undefined {
-        const keySystems = this.options.keySystems
-        const keySystemOptions = keySystems[keySystem] ?? keySystems['*']
+        const keySystemOptions = this.getKeySystemOptions(keySystem)
         if (!keySystemOptions) return undefined
         switch (contentType) {
             case 'video':

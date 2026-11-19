@@ -104,6 +104,30 @@ DRM has 3 possible tiers of security:
    operations are handled in the application and operating system software
    layers.
 
+## Distinctive Identifier
+
+`distinctiveIdentifier` sets EME's requirement for a distinctive identifier, a
+value unique to the device or user, for a key system. Some platforms need one to
+attest the device: on ChromeOS, Widevine's verified media path depends on it.
+Browsers withhold it when privacy settings or policy don't allow it, so with
+`REQUIRED` the key system is unsupported there and the next key system is tried.
+By default none is requested, which EME treats as `OPTIONAL`.
+
+```typescript
+import { createVinylPlayer, DrmKeySystem, DrmRequirement } from '@amazon/vinyl'
+
+createVinylPlayer({
+    media: new Audio(),
+    drm: {
+        keySystems: {
+            [DrmKeySystem.WIDEVINE]: {
+                distinctiveIdentifier: DrmRequirement.REQUIRED,
+            },
+        },
+    },
+})
+```
+
 ## Track-Level DRM Override
 
 Tracks can override DRM settings on a per-track basis using the `drm` property

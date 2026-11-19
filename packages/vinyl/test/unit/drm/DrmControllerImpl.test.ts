@@ -11,6 +11,7 @@ import {
     DrmError,
     type DrmInitDataType,
     DrmKeySystem,
+    DrmRequirement,
     DrmRobustness,
     type EncryptedInitData,
     EXCESSIVE_SESSION_COUNT,
@@ -784,6 +785,86 @@ describe('DrmControllerImpl', () => {
                         ],
                     },
                 ])
+            })
+
+            describe('when distinctiveIdentifier is configured', () => {
+                it('requests it for the key system', async () => {
+                    drmController.configure({
+                        keySystems: {
+                            [DrmKeySystem.WIDEVINE]: {
+                                distinctiveIdentifier: DrmRequirement.REQUIRED,
+                            },
+                        },
+                    })
+                    drmController.setBufferingDrmInfo({
+                        ...drmInfo,
+                        contentProtections: [
+                            { keySystem: DrmKeySystem.WIDEVINE },
+                        ],
+                    })
+                    await emitEncrypted()
+                    expect(
+                        commonEme.requestMediaKeySystemAccess
+                    ).toHaveBeenCalledOnceWith(DrmKeySystem.WIDEVINE, [
+                        {
+                            initDataTypes: ['cenc'],
+                            distinctiveIdentifier: 'required',
+                            audioCapabilities: [
+                                {
+                                    contentType: 'audio/mp4',
+                                    encryptionScheme: 'cenc',
+                                    robustness: DrmRobustness.SW_SECURE_CRYPTO,
+                                },
+                            ],
+                        },
+                    ])
+                })
+
+                it("requests the wildcard key system's for an unconfigured key system", async () => {
+                    drmController.configure({
+                        keySystems: {
+                            '*': {
+                                distinctiveIdentifier:
+                                    DrmRequirement.NOT_ALLOWED,
+                            },
+                        },
+                    })
+                    drmController.setBufferingDrmInfo({
+                        ...drmInfo,
+                        contentProtections: [
+                            { keySystem: DrmKeySystem.PLAY_READY },
+                        ],
+                    })
+                    await emitEncrypted()
+                    expect(
+                        commonEme.requestMediaKeySystemAccess
+                    ).toHaveBeenCalledOnceWith(DrmKeySystem.PLAY_READY, [
+                        objectContaining({
+                            distinctiveIdentifier: 'not-allowed',
+                        }),
+                    ])
+                })
+
+                it('requests it only for the configured key system', async () => {
+                    drmController.configure({
+                        keySystems: {
+                            [DrmKeySystem.PLAY_READY]: {
+                                distinctiveIdentifier: DrmRequirement.REQUIRED,
+                            },
+                        },
+                    })
+                    drmController.setBufferingDrmInfo({
+                        ...drmInfo,
+                        contentProtections: [
+                            { keySystem: DrmKeySystem.WIDEVINE },
+                        ],
+                    })
+                    await emitEncrypted()
+                    const [, configs] =
+                        commonEme.requestMediaKeySystemAccess.calls.mostRecent()
+                            .args
+                    expect(configs[0].distinctiveIdentifier).toBeUndefined()
+                })
             })
 
             describe('when media key initialization fails', () => {
@@ -1879,6 +1960,29 @@ describe('DrmControllerImpl', () => {
                 DrmKeySystem.WIDEVINE,
                 DrmKeySystem.PLAY_READY,
             ])
+        })
+
+        it('checks support again when distinctiveIdentifier changes', async () => {
+            await drmController.isSupported(drmInfo)
+            drmController.configure({
+                keySystems: {
+                    [DrmKeySystem.WIDEVINE]: {
+                        distinctiveIdentifier: DrmRequirement.REQUIRED,
+                    },
+                },
+            })
+            commonEme.requestMediaKeySystemAccess.and.rejectWith(
+                new Error('not supported')
+            )
+            await expectAsync(
+                drmController.isSupported({
+                    ...drmInfo,
+                    contentProtections: [{ keySystem: DrmKeySystem.WIDEVINE }],
+                })
+            ).toBeResolvedTo({
+                supported: false,
+                persistentState: false,
+            })
         })
 
         it('does not log a support result after disposal', async () => {
