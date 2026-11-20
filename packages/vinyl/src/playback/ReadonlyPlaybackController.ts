@@ -126,6 +126,12 @@ export interface PlaybackControllerEventMap {
     readonly ended: AnyRecord
 
     /**
+     * Fired when the video has entered picture-in-picture (the video element's
+     * `enterpictureinpicture`). Not fired for audio elements.
+     */
+    readonly enterPictureInPicture: AnyRecord
+
+    /**
      * Dispatched when the media element dispatches an error.
      */
     readonly error: BasicErrorEvent
@@ -142,6 +148,12 @@ export interface PlaybackControllerEventMap {
      * readyState will be at least {@link PlaybackReadyState.HAVE_CURRENT_DATA}
      */
     readonly loadedData: AnyRecord
+
+    /**
+     * Fired when the video has left picture-in-picture (the video element's
+     * `leavepictureinpicture`). Not fired for audio elements.
+     */
+    readonly leavePictureInPicture: AnyRecord
 
     /**
      * Fired when the metadata has been loaded.
@@ -329,10 +341,12 @@ export const ALL_PLAYBACK_STATE_EVENTS = [
     'durationChange',
     'emptied',
     'ended',
+    'enterPictureInPicture',
     'error',
     'playIsPendingChange',
     'loadedData',
     'loadedMetadata',
+    'leavePictureInPicture',
     'loadStart',
     'looped',
     'mutedChange',

@@ -135,7 +135,9 @@ export class PlaybackControllerImpl
 
     private _error: Error | null = null
     private readonly media: HTMLMediaElement
-    private readonly domEvents: DomEventHost<HTMLMediaElementEventMap>
+    // The video element's map: a superset of the media element's, adding the
+    // picture-in-picture events (which an audio element never fires).
+    private readonly domEvents: DomEventHost<HTMLVideoElementEventMap>
     private readonly disposer = createDisposer()
     private _playing = false
     private _seeking = false
@@ -175,7 +177,7 @@ export class PlaybackControllerImpl
         })
 
         this.domEvents = add(
-            new DomEventHost<HTMLMediaElementEventMap>(deps.media)
+            new DomEventHost<HTMLVideoElementEventMap>(deps.media)
         )
 
         // Log media events.
@@ -262,6 +264,8 @@ export class PlaybackControllerImpl
             'canPlayThrough',
             'emptied',
             'ended',
+            'enterPictureInPicture',
+            'leavePictureInPicture',
             'loadStart',
             'loadedData',
             'loadedMetadata',

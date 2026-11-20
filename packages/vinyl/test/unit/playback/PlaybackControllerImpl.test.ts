@@ -756,6 +756,16 @@ describe('PlaybackController', () => {
                     controller.on('resize', resizeSpy)
                     media.dispatchEvent(mockEvent('resize'))
                     expect(resizeSpy).toHaveBeenCalledWith({})
+
+                    const enterPipSpy = createSpy('enterPictureInPicture')
+                    controller.on('enterPictureInPicture', enterPipSpy)
+                    media.dispatchEvent(mockEvent('enterpictureinpicture'))
+                    expect(enterPipSpy).toHaveBeenCalledWith({})
+
+                    const leavePipSpy = createSpy('leavePictureInPicture')
+                    controller.on('leavePictureInPicture', leavePipSpy)
+                    media.dispatchEvent(mockEvent('leavepictureinpicture'))
+                    expect(leavePipSpy).toHaveBeenCalledWith({})
                 })
 
                 describe('durationChange', () => {
