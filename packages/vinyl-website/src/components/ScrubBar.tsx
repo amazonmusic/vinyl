@@ -1,8 +1,12 @@
 import { jsx } from '@amazon/vinyl-tsx'
 import type { ObservableValue } from '@amazon/vinyl-observable'
 import { combineData, data } from '@amazon/vinyl-observable'
-import { clamp, createDisposer, type Unsubscribe } from '@amazon/vinyl-util'
-import { windowEvents } from '../util/interaction'
+import {
+    clamp,
+    createDisposer,
+    DomEventHost,
+    type Unsubscribe,
+} from '@amazon/vinyl-util'
 import type { AdBreakInfo, SeekRange } from '@amazon/vinyl'
 
 export interface ScrubBarProps {
@@ -148,6 +152,10 @@ export function ScrubBar(props: ScrubBarProps) {
 
         const { add, dispose } = createDisposer()
         windowSubs = dispose
+        // The bar's own window: it may be in a Document Picture-in-Picture one.
+        const windowEvents = new DomEventHost<WindowEventMap>(
+            bar.ownerDocument.defaultView ?? window
+        )
 
         add(windowEvents.on('mousemove', (e) => updateScrub(e.clientX)))
         add(

@@ -14,6 +14,7 @@ import {
     setPreferredAudioLanguage,
 } from '../player'
 import { Icon, type IconName } from './icons'
+import { pipMode$, pipSupported, togglePip } from '../pip'
 import {
     isAudioDescription,
     type MediaQualityMetadata,
@@ -32,7 +33,6 @@ const PLAYBACK_RATES = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const
  */
 export function SettingsControl() {
     const {
-        media,
         textTracks$,
         playbackRate$,
         qualitiesUnfiltered$,
@@ -46,19 +46,11 @@ export function SettingsControl() {
     const menuOpen$ = data(false)
     const view$ = data<View>('main')
 
-    // Picture-in-picture state, tracked from the media element so the toggle
+    // Picture-in-picture state (element or Document PiP), so the toggle
     // reflects reality even when PiP is dismissed from the browser UI.
-    const inPip$ = data(document.pictureInPictureElement === media)
+    const inPip$ = pipMode$.map((mode) => mode !== 'none')
 
     const closeMenu = () => (menuOpen$.value = false)
-
-    const togglePip = () => {
-        if (document.pictureInPictureElement) {
-            document.exitPictureInPicture().catch(() => {})
-        } else {
-            media.requestPictureInPicture().catch(() => {})
-        }
-    }
 
     const gearButton = (
         <button
@@ -157,10 +149,7 @@ export function SettingsControl() {
                                 )
                             )
                         }
-                        if (
-                            hasVideo$.value &&
-                            document.pictureInPictureEnabled
-                        ) {
+                        if (hasVideo$.value && pipSupported()) {
                             rows.push(
                                 toggleRow(
                                     'picture_in_picture_alt',
@@ -456,12 +445,6 @@ export function SettingsControl() {
                         if (menuOpen$.value) focusFirstItem()
                     })
 
-                    // Keep the PiP toggle in sync with the media element.
-                    const onEnterPip = () => (inPip$.value = true)
-                    const onLeavePip = () => (inPip$.value = false)
-                    media.addEventListener('enterpictureinpicture', onEnterPip)
-                    media.addEventListener('leavepictureinpicture', onLeavePip)
-
                     // Close (and reset to the main panel) on an outside click.
                     // The listener is attached only while the menu is open, its
                     // attach deferred one tick so the opening click does not
@@ -509,14 +492,6 @@ export function SettingsControl() {
                         unViewFocus()
                         el.removeEventListener('keydown', onMenuKeydown)
                         for (const un of subs) un()
-                        media.removeEventListener(
-                            'enterpictureinpicture',
-                            onEnterPip
-                        )
-                        media.removeEventListener(
-                            'leavepictureinpicture',
-                            onLeavePip
-                        )
                     }
                 }}
             />

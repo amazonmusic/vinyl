@@ -44,6 +44,13 @@ export interface ConnectedObserverOptions {
      * event dispatch per node, which otherwise dominates the observer's cost.
      */
     readonly events?: boolean
+
+    /**
+     * The node whose subtree to observe (default `document`). Pass another
+     * document, such as a Document Picture-in-Picture window's, to keep
+     * {@link onConnect} callbacks firing for nodes moved into it.
+     */
+    readonly root?: Node
 }
 
 /**
@@ -92,7 +99,10 @@ export function initializeConnectedObserver(
         }
     })
 
-    observer.observe(document, { childList: true, subtree: true })
+    observer.observe(options.root ?? document, {
+        childList: true,
+        subtree: true,
+    })
 
     return () => {
         observer.disconnect()
