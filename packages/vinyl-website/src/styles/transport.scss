@@ -635,3 +635,79 @@
         margin-left: auto;
     }
 }
+
+// Element picture-in-picture: the browser shows the video in its own window, so
+// take the stage out of the page but keep it laid out at a real size (see
+// TransportBar) rather than display: none.
+.transportVideo.pipOffscreen {
+    position: fixed;
+    top: 0;
+    left: -200vw;
+    width: 640px;
+    height: 360px;
+    pointer-events: none;
+
+    video {
+        max-height: none;
+        height: 100%;
+    }
+}
+
+// Page-only stage children stay in the page; the PiP-only controls show only in
+// a Document Picture-in-Picture window.
+.pipControls {
+    display: none;
+}
+
+// Document picture-in-picture: the stage fills the PiP window, with play/pause
+// and the scrub bar overlaid at the bottom (light-on-dark). Like the fullscreen
+// stage, the controls and cursor hide after a period without interaction (the
+// `controlsHidden` class, see pip.ts).
+.pipWindowStage {
+    position: fixed;
+    inset: 0;
+    --color-text-primary: #fff;
+    --color-text-secondary: rgba(255, 255, 255, 0.75);
+    --color-text-tertiary: rgba(255, 255, 255, 0.55);
+    --color-bg-tertiary: rgba(255, 255, 255, 0.18);
+
+    video {
+        max-height: none;
+        height: 100%;
+    }
+
+    .pipControls {
+        display: flex;
+        align-items: center;
+        gap: var(--space-sm);
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: var(--space-sm) var(--space-md);
+        background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+        transition:
+            opacity var(--transition-fast),
+            transform var(--transition-fast);
+    }
+
+    // Lift captions above the controls while they show.
+    .vinyl-text-container {
+        bottom: 3.5rem;
+    }
+
+    &.controlsHidden,
+    &.controlsHidden video {
+        cursor: none;
+    }
+
+    &.controlsHidden .pipControls {
+        opacity: 0;
+        transform: translateY(100%);
+        pointer-events: none;
+    }
+
+    &.controlsHidden .vinyl-text-container {
+        bottom: 0;
+    }
+}

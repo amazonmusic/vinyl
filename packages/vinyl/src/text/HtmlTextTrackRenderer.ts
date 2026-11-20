@@ -185,10 +185,36 @@ function scopeCueRules(css: string): string {
 }
 
 /**
+ * Options for {@link HtmlTextTrackRenderer}.
+ */
+export interface HtmlTextTrackRendererOptions {
+    /**
+     * The video the captions belong to. When given, the renderer hands painting
+     * back to the browser while the video is in picture-in-picture: the PiP
+     * window shows only the video and its natively `'showing'` text tracks, so
+     * an HTML overlay can't reach it. The track is set `'showing'` on
+     * `enterpictureinpicture` and back to `'hidden'` on `leavepictureinpicture`.
+     */
+    readonly media?: HTMLMediaElement | null
+
+    /**
+     * The width, as a percentage of the video's, of the browser-painted cues in
+     * picture-in-picture (`VTTCue.size`), so captions clear the PiP window's
+     * rounded corners. Applies only to cues without an authored size. Default
+     * 90; 100 leaves them full width.
+     */
+    readonly pictureInPictureCueSize?: number
+}
+
+/** The default {@link HtmlTextTrackRendererOptions.pictureInPictureCueSize}. */
+const DEFAULT_PIP_CUE_SIZE = 90
+
+/**
  * A {@link TextTrackRenderer} that paints cues as HTML into {@link element}.
  * Mount `element` over the video; it stacks cues at the bottom, centered, and
  * positions any cue that carries explicit WebVTT settings. The DOM track is
- * expected to be `'hidden'` so only this renderer paints.
+ * expected to be `'hidden'` so only this renderer paints (except in
+ * picture-in-picture, see {@link HtmlTextTrackRendererOptions.media}).
  */
 export class HtmlTextTrackRenderer implements TextTrackRenderer, Disposable {
     /** The overlay container to mount over the video. */
@@ -198,9 +224,34 @@ export class HtmlTextTrackRenderer implements TextTrackRenderer, Disposable {
     // Holds the authored STYLE-block CSS (::cue rules rewritten to target our
     // cue elements). A <style> renders nothing itself, so it lives in-container.
     private readonly styleElement: HTMLStyleElement
-    private readonly onCueChange = () => this.renderActiveCues()
+    private readonly onCueChange = () => {
+        if (this.inPip) this.narrowCues()
+        this.renderActiveCues()
+    }
+    private readonly pipCueSize: number
+    // Cues narrowed to pipCueSize in picture-in-picture, restored on leaving it.
+    private readonly narrowed = new Set<VTTCue>()
+    private readonly media: HTMLMediaElement | null
+    // Whether `media` is in picture-in-picture, where the browser paints.
+    private inPip = false
+    private readonly onEnterPip = () => this.setInPip(true)
+    private readonly onLeavePip = () => this.setInPip(false)
 
-    constructor() {
+    constructor(options: HtmlTextTrackRendererOptions = {}) {
+        this.media = options.media ?? null
+        this.pipCueSize =
+            options.pictureInPictureCueSize ?? DEFAULT_PIP_CUE_SIZE
+        if (this.media) {
+            this.inPip = document.pictureInPictureElement === this.media
+            this.media.addEventListener(
+                'enterpictureinpicture',
+                this.onEnterPip
+            )
+            this.media.addEventListener(
+                'leavepictureinpicture',
+                this.onLeavePip
+            )
+        }
         this.element = document.createElement('div')
         this.element.className = 'vinyl-text-container'
         Object.assign(this.element.style, {
@@ -216,6 +267,7 @@ export class HtmlTextTrackRenderer implements TextTrackRenderer, Disposable {
 
     setTextTrack(track: TextTrack | null): void {
         if (track === this.track) return
+        this.restoreCues()
         this.track?.removeEventListener('cuechange', this.onCueChange)
         this.track = track
         // Drop the previous track's authored styles; the new one supplies its
@@ -224,6 +276,10 @@ export class HtmlTextTrackRenderer implements TextTrackRenderer, Disposable {
         if (!track) {
             this.element.replaceChildren(this.styleElement)
             return
+        }
+        if (this.inPip) {
+            track.mode = 'showing'
+            this.narrowCues()
         }
         track.addEventListener('cuechange', this.onCueChange)
         this.renderActiveCues()
@@ -235,11 +291,54 @@ export class HtmlTextTrackRenderer implements TextTrackRenderer, Disposable {
 
     dispose(): void {
         this.setTextTrack(null)
+        this.media?.removeEventListener(
+            'enterpictureinpicture',
+            this.onEnterPip
+        )
+        this.media?.removeEventListener(
+            'leavepictureinpicture',
+            this.onLeavePip
+        )
+    }
+
+    private setInPip(inPip: boolean): void {
+        if (inPip === this.inPip) return
+        this.inPip = inPip
+        const track = this.track
+        if (!track) return
+        // Mode changes keep the cues; only 'disabled' empties `cues`.
+        track.mode = inPip ? 'showing' : 'hidden'
+        if (inPip) this.narrowCues()
+        else this.restoreCues()
+        this.renderActiveCues()
+    }
+
+    /**
+     * Narrows the attached track's full-width cues to pipCueSize. Runs on each
+     * cuechange too, since cues keep loading while in picture-in-picture.
+     */
+    private narrowCues(): void {
+        const cues = this.track?.cues
+        if (!cues) return
+        for (let i = 0; i < cues.length; i++) {
+            const cue = cues[i] as Partial<VTTCue>
+            if (cue.size === 100 && this.pipCueSize !== 100) {
+                cue.size = this.pipCueSize
+                this.narrowed.add(cue as VTTCue)
+            }
+        }
+    }
+
+    /** Restores the cues {@link narrowCues} narrowed. */
+    private restoreCues(): void {
+        for (const cue of this.narrowed) cue.size = 100
+        this.narrowed.clear()
     }
 
     private renderActiveCues(): void {
         // Only invoked while a track is attached (from setTextTrack / cuechange).
-        const active = this.track!.activeCues ?? []
+        // In picture-in-picture the browser paints; draw nothing over the page.
+        const active = this.inPip ? [] : (this.track!.activeCues ?? [])
         // Keep the <style> element; replace only the cue boxes.
         const children: (HTMLElement | HTMLStyleElement)[] = [this.styleElement]
         for (let i = 0; i < active.length; i++) {

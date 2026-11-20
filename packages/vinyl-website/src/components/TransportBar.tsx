@@ -10,12 +10,13 @@ import {
 } from '../player'
 import type { LogTarget } from '@amazon/vinyl-util'
 import { logDebug } from '@amazon/vinyl-util'
-import { combineData, externalData } from '@amazon/vinyl-observable'
+import { combineData } from '@amazon/vinyl-observable'
 import { Icon } from './icons'
 import { LIVE_DURATION } from '@amazon/vinyl'
 import { ScrubBar } from './ScrubBar'
 import { VolumeControl } from './VolumeControl'
 import { SettingsControl } from './SettingsControl'
+import { HIDE_CONTROLS_MS, pipMode$, registerPipStage } from '../pip'
 
 const target: LogTarget = {
     logPrefix: 'TransportBar',
@@ -80,28 +81,15 @@ export function TransportBar(props: TransportBarProps) {
 
     media.addEventListener('click', togglePlayPause)
 
-    const inPip$ = externalData(false, (set) => {
-        const onEnter = () => set(true)
-        const onLeave = () => set(false)
-        media.addEventListener('enterpictureinpicture', onEnter)
-        media.addEventListener('leavepictureinpicture', onLeave)
-        return () => {
-            media.removeEventListener('enterpictureinpicture', onEnter)
-            media.removeEventListener('leavepictureinpicture', onLeave)
-        }
-    })
-
-    const showVideo$ = combineData({ hasVideo: hasVideo$, inPip: inPip$ }).map(
-        ({ hasVideo, inPip }) => {
-            logDebug(
-                target,
-                'show video',
-                'hasVideo:',
-                hasVideo,
-                'inPip',
-                inPip
-            )
-            return hasVideo && !inPip
+    // In Document PiP the stage's children live in the PiP window, so the
+    // emptied stage hides. In element PiP the video stays rendered but moves
+    // off screen ('pipOffscreen'): WebKit only paints captions into its PiP
+    // window, and only attaches a new source's video (after an ad switches
+    // tracks) to it, while the element has a layout box.
+    const showVideo$ = combineData({ hasVideo: hasVideo$, pip: pipMode$ }).map(
+        ({ hasVideo, pip }) => {
+            logDebug(target, 'show video', 'hasVideo:', hasVideo, 'pip', pip)
+            return hasVideo && pip !== 'document'
         }
     )
 
@@ -118,7 +106,6 @@ export function TransportBar(props: TransportBarProps) {
     // The transport root, so fullscreen covers the video AND the custom controls
     // (fullscreening the bare video would hide them and show native controls).
     let root: HTMLElement | null = null
-    const HIDE_CONTROLS_MS = 3000
 
     function toggleFullscreen() {
         if (document.fullscreenElement) {
@@ -184,7 +171,23 @@ export function TransportBar(props: TransportBarProps) {
             }}
             {...props}
         >
-            <div className="transportVideo" visible={showVideo$}>
+            <div
+                className="transportVideo"
+                visible={showVideo$}
+                onConnect={(element) => {
+                    registerPipStage(element)
+                    const unPip = pipMode$.onData((mode) =>
+                        element.classList.toggle(
+                            'pipOffscreen',
+                            mode === 'element'
+                        )
+                    )
+                    return () => {
+                        unPip()
+                        registerPipStage(null)
+                    }
+                }}
+            >
                 {media}
                 {captionRenderer.element}
                 <div className="adOverlay" visible={adBreakActive$}>
@@ -203,6 +206,37 @@ export function TransportBar(props: TransportBarProps) {
                     >
                         Skip Ad
                     </button>
+                </div>
+                {/* Shown only in a Document Picture-in-Picture window, which
+                    takes the stage's children (see pip.ts). */}
+                <div className="pipControls">
+                    <button
+                        className="transportBtn playBtn"
+                        onclick={togglePlayPause}
+                    >
+                        <span visible={paused$}>
+                            <Icon name="play_arrow" />
+                        </span>
+                        <span visible={paused$.map((p) => !p)}>
+                            <Icon name="pause" />
+                        </span>
+                    </button>
+                    <div
+                        className="transportProgress"
+                        visible={interstitialActive$.map((v) => !v)}
+                    >
+                        <span className="progressTime">{elapsed$}</span>
+                        <div className="progressBar">
+                            <ScrubBar
+                                currentTimePercent$={currentTimePercent$}
+                                fetchedTimePercent$={fetchedTimePercent$}
+                                adBreaks$={adBreaks$}
+                                seekRange$={seekRange$}
+                                onSeek={seekToPercent}
+                            />
+                        </div>
+                        <span className="progressTime">{remaining$}</span>
+                    </div>
                 </div>
             </div>
             <div className="transportControlsRow">

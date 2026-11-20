@@ -22,6 +22,7 @@ import { toast, toastError } from './components/toast'
 import { onAny } from '@amazon/vinyl-util'
 import { initializeLogging } from './initializeLogging'
 import { handleError } from './errorHandler'
+import { initializePip } from './pip'
 
 initializeLogging()
 
@@ -37,11 +38,14 @@ const noAds: AdEventIndex = {
 
 const media = document.createElement('video')
 media.playsInline = true
+initializePip(media)
 
 // HTML caption renderer, mounted over the video by the transport (see
 // TransportBar). Painting captions ourselves lets us place them in the free
-// space above the controls rather than relying on native ::cue rendering.
-export const captionRenderer = new HtmlTextTrackRenderer()
+// space above the controls rather than relying on native ::cue rendering. In
+// element picture-in-picture (see pip.ts) it hands the captions back to the
+// browser, the only way they reach that PiP window.
+export const captionRenderer = new HtmlTextTrackRenderer({ media })
 
 const player = createVinylPlayer({ media, textTrackRenderer: captionRenderer })
 player.configure({

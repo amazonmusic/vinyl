@@ -116,6 +116,17 @@ describe('connectedObserver', () => {
             unsub()
         })
 
+        it('observes the given root instead of the document', () => {
+            const root = dom.createElement('div')
+            const observe = spyOn(
+                dom.FakeMutationObserver.prototype,
+                'observe'
+            ).and.callThrough()
+            const unsub = initializeConnectedObserver({ root })
+            expect(observe.calls.mostRecent().args[0]).toBe(root)
+            unsub()
+        })
+
         it('returns an unsubscribe function that disconnects the observer', () => {
             const unsub = initializeConnectedObserver()
             const observer = dom.FakeMutationObserver.instances[0]

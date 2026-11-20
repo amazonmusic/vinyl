@@ -181,7 +181,9 @@ describe('HtmlTextTrackRenderer', () => {
     }
 
     class FakeTextTrack {
+        mode: TextTrackMode = 'hidden'
         activeCues: readonly unknown[] | null = []
+        cues: readonly unknown[] | null = []
         readonly listeners = new Map<string, () => void>()
         addEventListener = jasmine
             .createSpy('addEventListener')
@@ -313,5 +315,161 @@ describe('HtmlTextTrackRenderer', () => {
         view.setTextTrack(track as unknown as TextTrack)
         view.dispose()
         expect(track.removeEventListener).toHaveBeenCalled()
+    })
+
+    describe('in picture-in-picture', () => {
+        class FakeMedia {
+            readonly listeners = new Map<string, () => void>()
+            addEventListener(type: string, fn: () => void): void {
+                this.listeners.set(type, fn)
+            }
+            removeEventListener(type: string): void {
+                this.listeners.delete(type)
+            }
+            fire(type: string): void {
+                this.listeners.get(type)?.()
+            }
+        }
+
+        let media: FakeMedia
+        let pipView: HtmlTextTrackRenderer
+
+        beforeEach(() => {
+            media = new FakeMedia()
+            pipView = new HtmlTextTrackRenderer({
+                media: media as unknown as HTMLMediaElement,
+            })
+        })
+
+        afterEach(() => pipView.dispose())
+
+        function pipCueBoxes(): FakeElement[] {
+            return Array.from(
+                (pipView.element as unknown as { children: ArrayLike<unknown> })
+                    .children
+            ).filter(
+                (c) => (c as FakeElement).className === 'vinyl-text-cue'
+            ) as FakeElement[]
+        }
+
+        it('hands painting to the browser while the media is in PiP', () => {
+            const track = new FakeTextTrack()
+            track.activeCues = [cue('hello')]
+            pipView.setTextTrack(track as unknown as TextTrack)
+            expect(pipCueBoxes().length).toBe(1)
+
+            media.fire('enterpictureinpicture')
+            expect(track.mode).toBe('showing')
+            expect(pipCueBoxes().length).toBe(0)
+            track.fireCueChange()
+            expect(pipCueBoxes().length).toBe(0)
+
+            media.fire('leavepictureinpicture')
+            expect(track.mode).toBe('hidden')
+            expect(pipCueBoxes().length).toBe(1)
+        })
+
+        it('shows a track set while already in PiP natively', () => {
+            media.fire('enterpictureinpicture')
+            const track = new FakeTextTrack()
+            track.activeCues = [cue('hello')]
+            pipView.setTextTrack(track as unknown as TextTrack)
+            expect(track.mode).toBe('showing')
+            expect(pipCueBoxes().length).toBe(0)
+        })
+
+        it('ignores a repeated PiP event', () => {
+            const track = new FakeTextTrack()
+            pipView.setTextTrack(track as unknown as TextTrack)
+            media.fire('leavepictureinpicture')
+            expect(track.mode).toBe('hidden')
+            media.fire('enterpictureinpicture')
+            track.mode = 'disabled'
+            media.fire('enterpictureinpicture')
+            expect(track.mode).toBe('disabled')
+        })
+
+        it('leaves a detached track alone', () => {
+            const track = new FakeTextTrack()
+            pipView.setTextTrack(track as unknown as TextTrack)
+            pipView.setTextTrack(null)
+            media.fire('enterpictureinpicture')
+            expect(track.mode).toBe('hidden')
+        })
+
+        describe('cue size', () => {
+            interface SizedCue {
+                size: number
+            }
+
+            function trackWithCues(...sizes: number[]): {
+                track: FakeTextTrack
+                cues: SizedCue[]
+            } {
+                const track = new FakeTextTrack()
+                const cues = sizes.map((size) => ({ size }))
+                track.cues = cues
+                return { track, cues }
+            }
+
+            it('narrows full-width cues in PiP and restores them after', () => {
+                const { track, cues } = trackWithCues(100, 50)
+                pipView.setTextTrack(track as unknown as TextTrack)
+                media.fire('enterpictureinpicture')
+                expect(cues.map((c) => c.size)).toEqual([90, 50])
+                media.fire('leavepictureinpicture')
+                expect(cues.map((c) => c.size)).toEqual([100, 50])
+            })
+
+            it('narrows cues that load while in PiP', () => {
+                const { track, cues } = trackWithCues(100)
+                pipView.setTextTrack(track as unknown as TextTrack)
+                media.fire('enterpictureinpicture')
+                const late = { size: 100 }
+                track.cues = [...cues, late]
+                track.fireCueChange()
+                expect(late.size).toBe(90)
+            })
+
+            it('narrows a track attached in PiP and restores it when detached', () => {
+                media.fire('enterpictureinpicture')
+                const { track, cues } = trackWithCues(100)
+                pipView.setTextTrack(track as unknown as TextTrack)
+                expect(cues[0].size).toBe(90)
+                pipView.setTextTrack(null)
+                expect(cues[0].size).toBe(100)
+            })
+
+            it('leaves cues alone outside PiP and for a track without cues', () => {
+                const { track, cues } = trackWithCues(100)
+                pipView.setTextTrack(track as unknown as TextTrack)
+                track.fireCueChange()
+                expect(cues[0].size).toBe(100)
+                const empty = new FakeTextTrack()
+                empty.cues = null
+                pipView.setTextTrack(empty as unknown as TextTrack)
+                expect(() => media.fire('enterpictureinpicture')).not.toThrow()
+            })
+
+            it('takes the size from the options; 100 keeps full width', () => {
+                for (const size of [80, 100]) {
+                    const view = new HtmlTextTrackRenderer({
+                        media: media as unknown as HTMLMediaElement,
+                        pictureInPictureCueSize: size,
+                    })
+                    const { track, cues } = trackWithCues(100)
+                    view.setTextTrack(track as unknown as TextTrack)
+                    media.fire('enterpictureinpicture')
+                    expect(cues[0].size).toBe(size)
+                    media.fire('leavepictureinpicture')
+                    view.dispose()
+                }
+            })
+        })
+
+        it('dispose stops listening to the media', () => {
+            pipView.dispose()
+            expect(media.listeners.size).toBe(0)
+        })
     })
 })
