@@ -105,9 +105,8 @@ export interface QualitySelectorImplOptions {
      * Soft cap: if no video quality fits within the resolution limit, the
      * quality with the smallest bandwidth is selected so video still plays.
      *
-     * Has no effect when {@link strategy} is {@link AbrStrategy.LOWEST} or
-     * {@link AbrStrategy.HIGHEST}, since those strategies pin the selection
-     * regardless of resolution.
+     * Applies to every strategy: {@link AbrStrategy.HIGHEST} selects the
+     * highest quality within the cap and {@link AbrStrategy.LOWEST} the lowest.
      *
      * Default: null (no limit).
      */
@@ -241,10 +240,20 @@ export class QualitySelectorImpl
                           quality.qualityId === previousQuality.qualityId
                   )
 
-        if (strategy === AbrStrategy.LOWEST) {
+        // The soft cap's fallback: the smallest quality within the resolution
+        // cap, else the overall smallest so video still plays.
+        const smallestWithinResolution = (): number => {
+            for (let i = qualities.length - 1; i >= 0; i--) {
+                if (withinResolution(qualities[i])) return i
+            }
             return qualities.length - 1
+        }
+
+        if (strategy === AbrStrategy.LOWEST) {
+            return smallestWithinResolution()
         } else if (strategy === AbrStrategy.HIGHEST) {
-            return 0
+            const highest = qualities.findIndex(withinResolution)
+            return highest === -1 ? smallestWithinResolution() : highest
         } else if (strategy === AbrStrategy.FIXED) {
             if (previousIndex >= 0) return previousIndex
         }
@@ -345,13 +354,8 @@ export class QualitySelectorImpl
         if (index !== -1) return index
         // No quality fit the bandwidth budget (and resolution cap). Prefer the
         // smallest quality that still satisfies the resolution cap so a video
-        // above the cap is never selected while a compliant option exists; if
-        // none satisfy the cap, fall back to the overall smallest so video
-        // still plays.
-        for (let i = qualities.length - 1; i >= 0; i--) {
-            if (withinResolution(qualities[i])) return i
-        }
-        return qualities.length - 1
+        // above the cap is never selected while a compliant option exists.
+        return smallestWithinResolution()
     }
 
     get disposed(): boolean {

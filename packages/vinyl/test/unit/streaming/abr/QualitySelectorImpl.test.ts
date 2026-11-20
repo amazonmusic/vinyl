@@ -933,16 +933,61 @@ describe('QualitySelectorImpl', () => {
             )
         })
 
-        it('has no effect when strategy is HIGHEST', () => {
+        it('selects the highest quality within the cap when strategy is HIGHEST', () => {
+            // Too little bandwidth for anything but 360p: HIGHEST ignores it.
+            metrics.estimatedDownlinkBandwidth.ewmaLow = 50
+            options.value = {
+                ...options.value,
+                strategy: AbrStrategy.HIGHEST,
+                maxHeight: 720,
+            }
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(1)
+            options.value = { ...options.value, maxHeight: null, maxWidth: 700 }
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(2)
+        })
+
+        it('keeps the smallest quality when none fit within the cap and strategy is HIGHEST', () => {
             options.value = {
                 ...options.value,
                 strategy: AbrStrategy.HIGHEST,
                 maxHeight: 100,
             }
-            // HIGHEST always returns 0, regardless of the cap.
+            expect(
+                selector.selectQuality(videoQualities, prefetchState)
+            ).toEqual(2)
+        })
+
+        it('selects the highest quality when strategy is HIGHEST and there is no cap', () => {
+            options.value = { ...options.value, strategy: AbrStrategy.HIGHEST }
             expect(
                 selector.selectQuality(videoQualities, prefetchState)
             ).toEqual(0)
+        })
+
+        it('selects the lowest quality within the cap when strategy is LOWEST', () => {
+            // A rendition list whose smallest-bandwidth entry is above the cap.
+            const oddLadder: readonly MediaQualityMetadata[] = [
+                videoQualities[1],
+                { ...videoQualities[2], height: null, width: null },
+                { ...videoQualities[0], bandwidth: 50, bandwidthTotal: 50 },
+            ]
+            options.value = {
+                ...options.value,
+                strategy: AbrStrategy.LOWEST,
+                maxHeight: 720,
+            }
+            expect(selector.selectQuality(oddLadder, prefetchState)).toEqual(1)
+            options.value = { ...options.value, maxHeight: 100 }
+            expect(
+                selector.selectQuality(
+                    oddLadder.filter((q) => q.height != null),
+                    prefetchState
+                )
+            ).toEqual(1)
         })
 
         it('does not pin the previous quality when it exceeds a lowered cap', () => {
