@@ -47,6 +47,15 @@ export interface LicenseServerOptions {
      * If a `string` is provided, the value will be considered to be Base 64.
      */
     readonly serverCertificate?: Maybe<ServerCertificate>
+
+    /**
+     * Identifies the license service, so the Widevine service certificate it
+     * returns (when a CDM asks for one) answers later sessions' requests, in
+     * this and the page's other players, without a round trip. Defaults to
+     * {@link url}; set it for a custom license provider without a URL.
+     * Without either, each session's request goes to the service.
+     */
+    readonly serviceCertificateKey?: Maybe<string>
 }
 
 /**
@@ -61,4 +70,5 @@ export const licenseServerOptionsValidator: ObjectSchema<LicenseServerOptions> =
         url: string().or(instanceOf(URL)).maybe().optional(),
         init: object({}).cast<RequestInit>().maybe().optional(),
         serverCertificate: any().optional(),
+        serviceCertificateKey: string().maybe().optional(),
     })

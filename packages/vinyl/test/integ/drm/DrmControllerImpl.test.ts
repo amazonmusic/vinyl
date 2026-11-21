@@ -3,7 +3,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { DrmKeySystem, type DrmKeyStatusesChangeEvent } from '@amazon/vinyl'
+import {
+    clearServiceCertificateCache,
+    createVinylPlayer,
+    defaultLicenseProvider,
+    DrmKeySystem,
+    type DrmKeyStatusesChangeEvent,
+    isWidevineServiceCertificateRequest,
+    type LicenseProvider,
+    type VinylPlayer,
+    type VinylTrackLoadOptions,
+} from '@amazon/vinyl'
 import {
     createVinylSuite,
     expectTrackPlays,
@@ -92,5 +102,96 @@ describe('DrmControllerImpl integ when preferPrefixedMediaKeys is true', () => {
         })
         await prefixedSuite.player.play()
         await expectTrackPlays(prefixedSuite.player)
+    })
+})
+
+describe('DrmControllerImpl integ Widevine service certificate', () => {
+    const licenseUrl = 'https://cwip-shaka-proxy.appspot.com/no_auth'
+    let certificateRequests = 0
+    let licenseRequests = 0
+
+    // Counts the CDM's service certificate requests and its license requests.
+    const licenseProvider: LicenseProvider = (
+        keySystem,
+        serverOptions,
+        challenge,
+        abort
+    ) => {
+        if (isWidevineServiceCertificateRequest(keySystem, challenge)) {
+            certificateRequests++
+        } else {
+            licenseRequests++
+        }
+        return defaultLicenseProvider(
+            keySystem,
+            serverOptions,
+            challenge,
+            abort
+        )
+    }
+
+    const drm = {
+        keySystems: {
+            [DrmKeySystem.WIDEVINE]: { licenseServer: { url: licenseUrl } },
+        },
+        licenseProvider,
+    }
+    const vinylSuite = createVinylSuite({ drm })
+
+    const audioTrack: VinylTrackLoadOptions = {
+        type: 'dash',
+        uri: vinylTestAssets.dash
+            .live_static_aac_opus_flac_60s_segmentBase_widevine,
+    }
+    const videoTrack: VinylTrackLoadOptions = {
+        type: 'dash',
+        uri: vinylTestAssets.dash
+            .live_static_video_audio_60s_2s_segmentTemplate_widevine_cl10,
+    }
+
+    async function playTrack(
+        player: VinylPlayer,
+        track: VinylTrackLoadOptions
+    ) {
+        player.load(track)
+        await player.play()
+        await expectTrackPlays(player)
+    }
+
+    beforeEach(async () => {
+        clearServiceCertificateCache()
+        certificateRequests = 0
+        licenseRequests = 0
+        await pendingIfWidevineNotSupported(vinylSuite.player)
+    })
+
+    afterEach(() => clearServiceCertificateCache())
+
+    it("requests the service certificate once for a player's tracks", async () => {
+        await playTrack(vinylSuite.player, audioTrack)
+        const firstTrackLicenses = licenseRequests
+        await playTrack(vinylSuite.player, videoTrack)
+
+        // The second track's sessions requested licenses of their own...
+        expect(licenseRequests).toBeGreaterThan(firstTrackLicenses)
+        // ...but only the first session asked for the certificate.
+        expect(certificateRequests).toBe(1)
+    })
+
+    it('shares the service certificate with another player', async () => {
+        await playTrack(vinylSuite.player, audioTrack)
+        expect(certificateRequests).toBe(1)
+        vinylSuite.player.pause()
+
+        const media = document.createElement('video')
+        media.muted = true
+        const player = createVinylPlayer({ media, drm })
+        try {
+            await playTrack(player, videoTrack)
+        } finally {
+            player.dispose()
+        }
+
+        expect(certificateRequests).toBe(1)
     })
 })

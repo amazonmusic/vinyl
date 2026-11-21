@@ -17,6 +17,7 @@ import {
     LICENSE_TIMEOUT,
     type LicenseProvider,
     type LicenseServerOptions,
+    clearServiceCertificateCache,
     type MediaFormatMetadata,
     ReportableMediaError,
 } from '@amazon/vinyl'
@@ -1847,6 +1848,237 @@ describe('DrmControllerImpl', () => {
                     new Uint8Array([1, 2, 3])
                 )
             })
+        })
+    })
+
+    describe('Widevine service certificate', () => {
+        const certificateRequest = new Uint8Array([0x08, 0x04]).buffer
+        const certificateA = new Uint8Array([7, 7, 7]).buffer
+        const certificateB = new Uint8Array([6, 6, 6]).buffer
+        const license = new Uint8Array([9]).buffer
+        const urlA = 'https://license.example/a'
+        const urlB = 'https://license.example/b'
+        let licenseServer: LicenseServerOptions
+
+        /** A controller (a player) whose license server is `licenseServer`. */
+        function createController(): DrmControllerImpl {
+            const controller = new DrmControllerImpl(deps, {
+                keySystems: {
+                    [DrmKeySystem.WIDEVINE]: {
+                        licenseServer: () => licenseServer,
+                    },
+                },
+                licenseProvider,
+            })
+            errorSpy = createEventSpy(controller, 'error')
+            controller.setBufferingDrmInfo(drmInfo)
+            return controller
+        }
+
+        /** License servers answer certificate requests with their certificate. */
+        function answerCertificateRequests(): void {
+            licenseProvider.and.callFake((_keySystem, options, challenge) =>
+                Promise.resolve(
+                    new Uint8Array(challenge).length === 2
+                        ? options.url === urlB
+                            ? certificateB
+                            : certificateA
+                        : license
+                )
+            )
+        }
+
+        function certificateRequests(): number {
+            return licenseProvider.calls
+                .all()
+                .filter(({ args }) => new Uint8Array(args[2]).length === 2)
+                .length
+        }
+
+        /** Starts a session and has its CDM ask for the certificate. */
+        async function startSession(index: number): Promise<void> {
+            await emitEncrypted(new Uint8Array([index + 1]))
+            await emitMessage(index, certificateRequest)
+        }
+
+        beforeEach(() => {
+            clearServiceCertificateCache()
+            licenseServer = { url: urlA }
+            answerCertificateRequests()
+            drmController.dispose()
+            drmController = createController()
+        })
+
+        afterEach(() => clearServiceCertificateCache())
+
+        it("answers the CDM's request with the service's certificate", async () => {
+            await startSession(0)
+
+            expect(licenseProvider).toHaveBeenCalledOnceWith(
+                DrmKeySystem.WIDEVINE,
+                { url: urlA },
+                certificateRequest
+            )
+            expect(getSession(0).update).toHaveBeenCalledOnceWith(certificateA)
+            expect(mediaKeys.setServerCertificate).not.toHaveBeenCalled()
+        })
+
+        it("answers the service's later sessions without a request", async () => {
+            await startSession(0)
+            await startSession(1)
+
+            expect(getSession(1).update).toHaveBeenCalledOnceWith(certificateA)
+            expect(certificateRequests()).toBe(1)
+        })
+
+        it('makes one request for concurrent sessions', async () => {
+            for (const byte of [1, 2, 3]) {
+                await emitEncrypted(new Uint8Array([byte]))
+            }
+            for (const index of [0, 1, 2]) {
+                getSession(index).dispatch('message', {
+                    message: certificateRequest,
+                })
+            }
+            await flushPromises()
+
+            for (const index of [0, 1, 2]) {
+                expect(getSession(index).update).toHaveBeenCalledOnceWith(
+                    certificateA
+                )
+            }
+            expect(certificateRequests()).toBe(1)
+        })
+
+        it("answers another player's sessions for the service", async () => {
+            await startSession(0)
+            drmController.dispose()
+
+            drmController = createController()
+            await startSession(1)
+
+            expect(getSession(1).update).toHaveBeenCalledOnceWith(certificateA)
+            expect(certificateRequests()).toBe(1)
+        })
+
+        it('keys a custom provider by serviceCertificateKey', async () => {
+            licenseServer = { serviceCertificateKey: 'dmls' }
+            await startSession(0)
+            await startSession(1)
+
+            expect(getSession(1).update).toHaveBeenCalledOnceWith(certificateA)
+            expect(certificateRequests()).toBe(1)
+        })
+
+        it("answers each service's sessions with its own certificate", async () => {
+            await startSession(0)
+            licenseServer = { url: urlB }
+            await startSession(1)
+            licenseServer = { url: urlA }
+            await startSession(2)
+
+            expect(getSession(1).update).toHaveBeenCalledOnceWith(certificateB)
+            expect(getSession(2).update).toHaveBeenCalledOnceWith(certificateA)
+            expect(certificateRequests()).toBe(2)
+        })
+
+        it("sends an unidentified service's requests to it", async () => {
+            licenseServer = {}
+            await startSession(0)
+            await startSession(1)
+
+            expect(getSession(1).update).toHaveBeenCalledOnceWith(certificateA)
+            expect(certificateRequests()).toBe(2)
+        })
+
+        it('treats it as key setup, not a license exchange', async () => {
+            const spans = createEventSpy(drmController, 'loadSpanMeasured')
+            await startSession(0)
+            expect(spans).not.toHaveBeenCalled()
+
+            await emitMessage(0, new Uint8Array([1, 2, 3]).buffer)
+            expect(spans.calls.allArgs().map(([e]) => e.kind)).toEqual([
+                'keySetup',
+                'license',
+            ])
+        })
+
+        it('drops the certificate when a license request using it fails', async () => {
+            await startSession(0)
+            licenseProvider.and.rejectWith(new Error('license denied'))
+            await emitMessage(0, new Uint8Array([1, 2, 3]).buffer)
+            expectError('license denied')
+
+            answerCertificateRequests()
+            await startSession(1)
+            expect(certificateRequests()).toBe(2)
+        })
+
+        it("keeps the cache when an unshared session's license fails", async () => {
+            await startSession(0)
+            licenseServer = {}
+            await startSession(1)
+            licenseProvider.and.rejectWith(new Error('license denied'))
+            await emitMessage(1, new Uint8Array([1, 2, 3]).buffer)
+            expectError('license denied')
+
+            answerCertificateRequests()
+            licenseServer = { url: urlA }
+            await startSession(2)
+            expect(certificateRequests()).toBe(2)
+        })
+
+        it('reports a failed certificate request and asks again next time', async () => {
+            licenseProvider.and.rejectWith(new Error('no certificate'))
+            await startSession(0)
+            expectError('no certificate')
+            expect(getSession(0).update).not.toHaveBeenCalled()
+
+            answerCertificateRequests()
+            await startSession(1)
+            expect(getSession(1).update).toHaveBeenCalledOnceWith(certificateA)
+        })
+
+        it('does not answer a disposed session', async () => {
+            await emitEncrypted(new Uint8Array([1]))
+            getSession(0).disposed = true
+            await emitMessage(0, certificateRequest)
+            expect(getSession(0).update).not.toHaveBeenCalled()
+        })
+
+        it('does not answer after the controller is disposed', async () => {
+            let resolveCertificate!: (value: ArrayBuffer) => void
+            licenseProvider.and.returnValue(
+                new Promise((resolve) => (resolveCertificate = resolve))
+            )
+            await emitEncrypted(new Uint8Array([1]))
+            getSession(0).dispatch('message', { message: certificateRequest })
+            await flushPromises()
+            drmController.dispose()
+            resolveCertificate(certificateA)
+            await flushPromises()
+
+            expect(getSession(0).update).not.toHaveBeenCalled()
+        })
+
+        it('sends a license request, and other key systems, to the server', async () => {
+            await emitEncrypted(new Uint8Array([1]))
+            await emitMessage(0, new Uint8Array([0x08, 0x01, 0x12]).buffer)
+            expect(getSession(0).update).toHaveBeenCalledOnceWith(license)
+
+            mediaKeys.keySystem = DrmKeySystem.PLAY_READY
+            drmController.dispose()
+            drmController = new DrmControllerImpl(deps, {
+                keySystems: {
+                    [DrmKeySystem.PLAY_READY]: { licenseServer: { url: urlA } },
+                },
+                licenseProvider,
+            })
+            errorSpy = createEventSpy(drmController, 'error')
+            drmController.setBufferingDrmInfo(drmInfo)
+            await startSession(1)
+            await startSession(2)
+            expect(certificateRequests()).toBe(2)
         })
     })
 
