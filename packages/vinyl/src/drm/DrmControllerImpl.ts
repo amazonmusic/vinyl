@@ -70,6 +70,13 @@ import type {
 import { defaultLicenseProvider } from './licenseProvider/defaultLicenseProvider'
 import { extractContentId } from './util/extractContentId'
 import { createFairPlaySessionInitData } from './util/createFairPlaySessionInitData'
+import {
+    getCachedServiceCertificate,
+    isWidevineServiceCertificateRequest,
+    serviceCertificateCacheRef,
+    serviceCertificateKey,
+    WIDEVINE_SERVICE_CERTIFICATE_REQUEST,
+} from './serviceCertificate'
 import type { TrackUri } from '../track/Track'
 import type { LoadSpanKind } from '../streaming/LoadMetric'
 
@@ -154,6 +161,11 @@ export class DrmControllerImpl
 
     private mediaKeys: CommonMediaKeys | null = null
     private mediaKeysPromise: Promise<CommonMediaKeys> | null = null
+    /** The shared service certificate each session's license request uses. */
+    private readonly sessionCertificates = new WeakMap<
+        CommonMediaKeySession,
+        string
+    >()
     private readonly sessions: CommonMediaKeySession[] = []
 
     private _error: Error | null = null
@@ -723,6 +735,23 @@ export class DrmControllerImpl
             return
         }
 
+        // A Widevine CDM asks for its license service's certificate before
+        // each session's license request; like FairPlay's, it's key setup.
+        if (isWidevineServiceCertificateRequest(keySystem, event.message)) {
+            const key = serviceCertificateKey(keySystem, licenseServerOptions)
+            const certificate = await this.fetchServiceCertificate(
+                keySystem,
+                key,
+                licenseServerOptions
+            )
+            this.pendingMessageProps = null
+            if (this.disposed || session.disposed) return
+            if (key != null) this.sessionCertificates.set(session, key)
+            logDebug(this, 'update service certificate')
+            await session.update(certificate)
+            return
+        }
+
         // The CDM's first license message ends the setup span; it is
         // contiguous with the license round-trip measured below.
         if (this.keySetupSpanStart != null) {
@@ -753,11 +782,17 @@ export class DrmControllerImpl
             }
         }
         const licenseSpanStart = Date.now()
-        const key = await this.licenseProvider(
-            keySystem,
-            licenseServerOptions,
-            challenge
-        )
+        let key: ArrayBuffer
+        try {
+            key = await this.licenseProvider(
+                keySystem,
+                licenseServerOptions,
+                challenge
+            )
+        } catch (error) {
+            this.dropServiceCertificate(session)
+            throw error
+        }
         if (this.disposed) return
         this.dispatchLoadSpan(
             'license',
@@ -769,6 +804,59 @@ export class DrmControllerImpl
         if (session.disposed) return
         logDebug(this, 'update')
         await session.update(key)
+    }
+
+    /**
+     * The Widevine service certificate of the license service identified by
+     * `key` (see {@link serviceCertificateKey}): the cached answer to a
+     * certificate request, else the service's answer, requested once at a time
+     * per service (a track's sessions ask concurrently) and cached for the
+     * page's players. Unidentified services' answers aren't shared.
+     */
+    private async fetchServiceCertificate(
+        keySystem: DrmKeySystem,
+        key: string | null,
+        licenseServerOptions: LicenseServerOptions
+    ): Promise<ArrayBuffer> {
+        const request = () =>
+            this.licenseProvider(
+                keySystem,
+                licenseServerOptions,
+                WIDEVINE_SERVICE_CERTIFICATE_REQUEST.slice(0)
+            )
+        if (key == null) return request()
+        const cached = getCachedServiceCertificate(key)
+        if (cached) return cached
+        let pending = pendingServiceCertificates.get(key)
+        if (!pending) {
+            logDebug(this, 'requesting the service certificate')
+            pending = (async () => {
+                try {
+                    const certificate = await request()
+                    serviceCertificateCacheRef.value.set(key, certificate)
+                    return certificate
+                } finally {
+                    pendingServiceCertificates.delete(key)
+                }
+            })()
+            pendingServiceCertificates.set(key, pending)
+        }
+        return pending
+    }
+
+    /**
+     * Drops the shared service certificate a session's failed license request
+     * used: the service may have rotated it. The next session's request for it
+     * goes to the service again.
+     */
+    private dropServiceCertificate(session: CommonMediaKeySession): void {
+        const key = this.sessionCertificates.get(session)
+        if (key == null) return
+        logWarn(
+            this,
+            'license request failed; dropping the service certificate'
+        )
+        serviceCertificateCacheRef.value.delete(key)
     }
 
     //--------------------------------------------
@@ -976,6 +1064,12 @@ function defaultInitDataTransformer(
         return initData
     }
 }
+
+/**
+ * In-flight service certificate requests, by {@link serviceCertificateKey},
+ * shared by the page's players so concurrent sessions make one request.
+ */
+const pendingServiceCertificates = new Map<string, Promise<ArrayBuffer>>()
 
 /**
  * Whether a key message is FairPlay 2.0's request for the server certificate,

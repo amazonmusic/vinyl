@@ -191,6 +191,38 @@ const options: DrmKeySystemOptions = {
 }
 ```
 
+## Widevine Service Certificates
+
+Unless a `serverCertificate` is configured, a Widevine CDM asks for its license
+service's certificate (a two-byte `CAQ=` request) before each session's license
+request. Amazon Vinyl answers that request with the service's certificate,
+requested from the license service once and then shared by later sessions and
+the page's other players, so each track doesn't pay a certificate round trip.
+Concurrent sessions (a track's audio and video) share one request.
+
+The certificate is shared per license service, identified by the license server
+`url`. A custom `licenseProvider` without a URL can identify its service with
+`serviceCertificateKey`; without either, each session's certificate request goes
+to the service:
+
+```ts
+const player = createVinylPlayer({
+    drm: {
+        licenseProvider: myLicenseProvider,
+        keySystems: {
+            [DrmKeySystem.WIDEVINE]: {
+                licenseServer: { serviceCertificateKey: 'my-license-service' },
+            },
+        },
+    },
+})
+```
+
+Certificates are kept in memory for the page's lifetime, not persisted, since a
+service may rotate its certificate. A license request that fails after using a
+shared certificate drops it, so the next session asks the service again.
+`clearServiceCertificateCache()` drops them all.
+
 ## Content Protection Selection
 
 When a manifest is parsed, representations are filtered out if they do not
